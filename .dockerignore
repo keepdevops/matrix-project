@@ -1,0 +1,33 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+.npm/
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+
+# Logs and debug info
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Swarm Binaries & Models
+# (We run these natively on Mac, no need to send to Linux container)
+coordinator
+agent
+llama-server
+models/
+*.gguf
+
+# Version control
+.git/
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db

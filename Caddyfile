@@ -1,0 +1,9 @@
+:80 {
+    # Route all API calls to the coordinator on port 8000
+    handle /api/* {
+        reverse_proxy host.docker.internal:8000
+    }
+
+    # Route everything else to the UI
+    reverse_proxy * matrix-ui:3000
+}

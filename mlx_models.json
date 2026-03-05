@@ -1,0 +1,17 @@
+{
+  "description": "Matrix Swarm GGUF Registry",
+  "models": {
+    "llama-3.1-8b": {
+      "path": "/Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    },
+    "llama-3.2-3b": {
+      "path": "/Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+    },
+    "granite-3.1-8b": {
+      "path": "/Users/Shared/models/granite-3.1-8b-instruct-Q4_K_M.gguf"
+    },
+    "gemma-2-2b": {
+      "path": "/Users/Shared/models/gemma-2-2b-it-Q4_K_M.gguf"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "project_meta": {
+    "status": "initializing",
+    "coordinator": "8B_Logic_Core"
+  },
+  "tasks": [],
+  "shared_memory": {
+    "variables": {},
+    "endpoints": {},
+    "files": []
+  }
+}

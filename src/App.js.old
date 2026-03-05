@@ -1,0 +1,123 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import CodeMirror from '@uiw/react-codemirror';
+import { EditorView } from '@codemirror/view';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
+
+// Language Parsers
+import { cpp } from '@codemirror/lang-cpp';
+import { python } from '@codemirror/lang-python';
+import { javascript } from '@codemirror/lang-javascript';
+import { rust } from '@codemirror/lang-rust';
+import { go } from '@codemirror/lang-go';
+
+// --- 1. CUSTOM MATRIX THEME DEFINITION ---
+const matrixTheme = syntaxHighlighting(HighlightStyle.define([
+  { tag: tags.keyword, color: '#648FFF' },
+  { tag: tags.controlKeyword, color: '#648FFF' },
+  { tag: tags.operatorKeyword, color: '#648FFF' },
+  { tag: tags.definitionKeyword, color: '#648FFF' },
+  { tag: tags.moduleKeyword, color: '#648FFF' },
+  { tag: tags.operator, color: '#e0e0e0' },
+  { tag: tags.punctuation, color: '#b0b0b0' },
+  { tag: tags.string, color: '#00ff41' },
+  { tag: tags.regexp, color: '#00ff41' },
+  { tag: tags.number, color: '#FFDD00' },
+  { tag: tags.bool, color: '#FFDD00' },
+  { tag: tags.null, color: '#FFDD00' },
+  { tag: tags.comment, color: '#6a737d', fontStyle: 'italic' },
+  { tag: tags.function(tags.variableName), color: '#56b6c2' },
+  { tag: tags.definition(tags.variableName), color: '#85e0ff' },
+  { tag: tags.variableName, color: '#e0e0e0' },
+  { tag: tags.propertyName, color: '#56b6c2' },
+  { tag: tags.typeName, color: '#85e0ff' },
+  { tag: tags.className, color: '#85e0ff' },
+  { tag: tags.meta, color: '#6a737d' },
+]));
+
+// --- 2. THE MAIN COMPONENT ---
+function App() {
+  const [status, setStatus] = useState('SYSTEM ONLINE');
+  const [code, setCode] = useState('// Initializing Swarm Protocol...');
+  const [language, setLanguage] = useState('cpp');
+
+  // --- 3. SWARM DATA POLLING ---
+  useEffect(() => {
+    const pollSwarm = async () => {
+      try {
+        // This hits Caddy on port 80, which proxies to Coordinator:8000
+        const response = await fetch('/api/history'); 
+        const history = await response.json();
+        
+        if (history && history.length > 0) {
+          const latestEntry = history[history.length - 1];
+          
+          // Logic to strip Markdown backticks if LLM provides them
+          const cleanCode = latestEntry.code?.replace(/```[\s\S]*?\n|```/g, '') || latestEntry.content;
+          
+          setCode(cleanCode);
+          if (latestEntry.language) setLanguage(latestEntry.language.toLowerCase());
+        }
+      } catch (err) {
+        setStatus('OFFLINE - CHECK COORDINATOR');
+      }
+    };
+
+    const timer = setInterval(pollSwarm, 1500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // --- 4. OPTIMIZED EXTENSIONS ARRAY ---
+  const extensions = useMemo(() => {
+    const langSelector = {
+      'javascript': javascript(),
+      'js': javascript(),
+      'python': python(),
+      'py': python(),
+      'cpp': cpp(),
+      'c++': cpp(),
+      'rust': rust(),
+      'rs': rust(),
+      'go': go()
+    };
+
+    return [
+      langSelector[language] || cpp(), // Fallback to C++
+      matrixTheme,
+      EditorView.theme({
+        "&": { backgroundColor: "#0d1117", fontSize: "14px" },
+        ".cm-gutters": { backgroundColor: "#0d1117", border: "none", color: "#444" },
+        ".cm-content": { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" }
+      })
+    ];
+  }, [language]);
+
+  // --- 5. UI LAYOUT ---
+  return (
+    <div style={{ padding: '20px', backgroundColor: '#0d1117', minHeight: '100vh', color: '#00ff41' }}>
+      <header style={{ marginBottom: '20px', borderBottom: '1px solid #333' }}>
+        <h1 style={{ margin: 0 }}>MATRIX SWARM ARCHITECT</h1>
+        <p style={{ color: status.includes('OFFLINE') ? '#ff4b2b' : '#648FFF' }}>{status}</p>
+        <small>MODE: {language.toUpperCase()} | HOST: localhost:80</small>
+      </header>
+
+      <main style={{ border: '1px solid #648FFF', borderRadius: '8px', overflow: 'hidden' }}>
+        <CodeMirror
+          value={code}
+          height="75vh"
+          theme="dark"
+          extensions={extensions}
+          editable={false}
+          basicSetup={{
+            lineNumbers: true,
+            syntaxHighlighting: true,
+            highlightActiveLine: false,
+            foldGutter: true
+          }}
+        />
+      </main>
+    </div>
+  );
+}
+
+export default App;

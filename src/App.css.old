@@ -1,0 +1,64 @@
+/* src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0d1117; /* Deep terminal black */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #00ff41; /* Classic Matrix green */
+}
+
+.matrix-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  border-bottom: 1px solid #333;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+
+.status-indicator {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.status-online { color: #648FFF; }
+.status-offline { color: #ff4b2b; animation: blink 1s infinite; }
+
+.editor-frame {
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  background-color: #0d1117;
+}
+
+/* CodeMirror overrides */
+.cm-editor {
+  outline: none !important;
+}
+
+.cm-scroller {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}

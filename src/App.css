@@ -1,0 +1,480 @@
+/* src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+/* ========== Base Styles ========== */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0d1117;
+  font-family: 'JetBrains Mono', monospace;
+  color: #00ff41;
+}
+
+.matrix-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ========== Header ========== */
+header {
+  border-bottom: 1px solid #333;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+h1 {
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+  margin: 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.status-indicator {
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.status-online {
+  color: #648FFF;
+  border: 1px solid #648FFF;
+}
+
+.status-offline {
+  color: #ff4b2b;
+  border: 1px solid #ff4b2b;
+  animation: blink 1s infinite;
+}
+
+.history-button {
+  background: transparent;
+  border: 1px solid #00ff41;
+  color: #00ff41;
+  padding: 5px 15px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.history-button:hover {
+  background: rgba(0, 255, 65, 0.1);
+}
+
+/* ========== History Dropdown ========== */
+.history-dropdown {
+  background: #161b22;
+  border: 1px solid #333;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.history-item {
+  padding: 10px 15px;
+  border-bottom: 1px solid #222;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  transition: background 0.2s;
+}
+
+.history-item:hover {
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-prompt {
+  color: #c9d1d9;
+  font-size: 0.9rem;
+}
+
+.history-time {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+/* ========== Prompt Input ========== */
+.prompt-input {
+  background: #161b22;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.prompt-input-row {
+  margin-bottom: 10px;
+}
+
+.prompt-textarea {
+  width: 100%;
+  background: #0d1117;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 12px;
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: #00ff41;
+  box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+}
+
+.prompt-textarea::placeholder {
+  color: #666;
+}
+
+.prompt-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.temperature-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.temperature-control label {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.temp-value {
+  color: #FFB000;
+  font-weight: bold;
+}
+
+.temperature-slider {
+  width: 150px;
+  accent-color: #00ff41;
+}
+
+.submit-button {
+  background: #00ff41;
+  color: #0d1117;
+  border: none;
+  padding: 10px 30px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #33ff66;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+}
+
+.submit-button:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* ========== Error Banner ========== */
+.error-banner {
+  background: rgba(255, 75, 43, 0.1);
+  border: 1px solid #ff4b2b;
+  color: #ff4b2b;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* ========== Agents Grid ========== */
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+@media (max-width: 900px) {
+  .agents-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== Agent Response ========== */
+.agent-response {
+  background: #161b22;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  border-top: 3px solid var(--agent-color, #00ff41);
+}
+
+.agent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border-bottom: 1px solid #333;
+  background: #0d1117;
+}
+
+.agent-name {
+  color: var(--agent-color, #00ff41);
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.agent-port {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.agent-status {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.status-idle {
+  color: #666;
+  border: 1px solid #444;
+}
+
+.status-loading {
+  color: #FFB000;
+  border: 1px solid #FFB000;
+  animation: pulse 1.5s infinite;
+}
+
+.status-ready {
+  color: #00ff41;
+  border: 1px solid #00ff41;
+}
+
+.agent-content {
+  padding: 15px;
+  min-height: 100px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.response-text {
+  margin: 0;
+  color: #c9d1d9;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.idle-text {
+  color: #555;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* ========== Loading Spinner ========== */
+.loading-spinner {
+  display: flex;
+  gap: 3px;
+  color: #FFB000;
+  font-size: 1.5rem;
+}
+
+.spinner-dot {
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.spinner-dot:nth-child(1) { animation-delay: 0s; }
+.spinner-dot:nth-child(2) { animation-delay: 0.2s; }
+.spinner-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+}
+
+/* ========== Code Output Section ========== */
+.code-output-section {
+  margin-top: 20px;
+}
+
+.section-title {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.editor-frame {
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  background-color: #0d1117;
+}
+
+/* ========== Code Display ========== */
+.code-display-empty {
+  padding: 40px;
+  text-align: center;
+  color: #555;
+  font-style: italic;
+}
+
+.code-display-text {
+  padding: 15px;
+}
+
+.code-display-text pre {
+  margin: 0;
+  color: #c9d1d9;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+
+.code-display-header {
+  background: #161b22;
+  padding: 8px 15px;
+  border-bottom: 1px solid #333;
+}
+
+.code-language {
+  color: #FFB000;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+/* ========== CodeMirror Overrides ========== */
+.cm-editor {
+  outline: none !important;
+}
+
+.cm-scroller {
+  font-family: 'JetBrains Mono', monospace !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+.matrix-editor-wrapper {
+  border-radius: 0 0 8px 8px;
+}
+
+/* ========== Animations ========== */
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* ========== Scrollbar Styling ========== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+/* ========== CodeMirror & Toolbar Overrides ========== */
+
+.code-display-container {
+  margin: 1.5rem 0;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #0d1117;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.code-display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.code-lang-tag {
+  color: #8b949e;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.05rem;
+  display: flex;
+  align-items: center;
+}
+
+.code-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  background: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.toolbar-btn:hover {
+  background: #30363d;
+  border-color: #00ff41; /* Matrix Green */
+  color: #00ff41;
+}
+
+.toolbar-btn.active {
+  background: #FFB000; /* Gold */
+  color: #0d1117;
+  border-color: #FFB000;
+  font-weight: bold;
+}
+
+/* Ensure CodeMirror fits the container */
+.cm-editor {
+  background-color: #0d1117 !important;
+}

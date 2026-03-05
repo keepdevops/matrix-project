@@ -1,0 +1,50 @@
+# --- Matrix Swarm Master Gitignore ---
+
+# 1. Javascript / React
+node_modules/
+dist/
+build/
+.env
+.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 2. C++ Binaries & Build Artifacts
+coordinator
+agent
+reaper
+telemetry_engine
+*.o
+*.out
+*.exe
+.vscode/
+.ipp/
+
+# 3. LLM Models & Logs
+# Note: Models are now stored in /Users/Shared/models (outside this repo)
+models/*.gguf
+models/*.bin
+*.log
+logs/
+agent_logs/
+agent_*.log
+*output.md
+llama.cpp/
+*.gguf
+
+# 4. Docker & System
+.docker-compose.override.yml
+.DS_Store
+Thumbs.d
+*.egg-info/
+*.logb
+
+# 5. Python Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.tmp

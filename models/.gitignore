@@ -1,0 +1,153 @@
+# GGUF model files – large quantized weights (do NOT commit!)
+*.gguf
+*.gguf.json                # sometimes accompanying metadata
+models/*.gguf              # if stored in a models/ subfolder
+models/*.gguf.*            # partial downloads or variants
+
+# Optional: more specific if you want to be explicit about these models
+gemma-*.gguf
+llama-*.gguf
+phi-*.gguf
+phi-3*.gguf
+phi-4*.gguf
+
+# Also ignore any model caches or temp files
+~/.cache/llama.cpp/        # llama.cpp download cache (user-specific)
+llama.cpp/models/          # if you placed models inside the llama.cpp folder
+# =====================================
+# llama.cpp & GGUF-specific ignores
+# =====================================
+# If treating llama.cpp as external dep (recommended for clean repos)
+llama.cpp/
+llama.cpp
+
+# All GGUF quantized models – never commit these (multi-GB binaries)
+*.gguf
+*.gguf.json               # metadata sidecars sometimes appear
+*.gguf.*                  # partial downloads, variants, etc.
+
+# Common model storage folders
+models/
+weights/
+*.bin                     # older .bin formats (pre-GGUF)
+*.pth                     # if any PyTorch remnants sneak in
+
+# llama.cpp download cache (user-specific, don't track)
+~/.cache/llama.cpp/
+llama.cpp/models/         # if models end up inside llama.cpp dir
+
+# =====================================
+# Build artifacts & binaries (critical for C++/CMake projects)
+# =====================================
+# CMake build directory (very common pattern)
+build/
+build-*/
+cmake-build-*/
+out/
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+
+# Generated CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeLists.txt.user
+CMakePresets.json
+CMakeUserPresets.json
+
+# Compiled outputs from llama.cpp / your code
+llama-*                   # e.g., llama-cli, llama-server, llama-bench
+main
+server
+rpc-server
+vulkan-shaders-gen
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.bundle
+
+# Temporary / generated files
+*.log
+*.tmp
+tmp/
+compile_commands.json     # clangd / bear output
+*.swp
+*~
+
+# =====================================
+# macOS / BSD-specific junk (you're on a Mac M3)
+# =====================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+Thumbs.db
+ehthumbs.db
+[Tt]humbs.db
+
+# =====================================
+# Editor / IDE files (add yours)
+# =====================================
+# VS Code
+.vscode/
+!.vscode/settings.json    # optional: keep if you want shared settings
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# JetBrains (PyCharm, CLion, etc.)
+.idea/
+*.iml
+
+# Vim / Neovim
+*.swp
+*.swo
+*.swn
+Session.vim
+tags
+
+# Jupyter / notebooks (if experimenting in Python)
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Python virtualenvs / conda (you mentioned conda_envs/matrix)
+.env
+.venv
+venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+conda-meta/
+conda-envs/               # or just the specific one if you want to track others
+matrix-project/           # ← if this is your project root, don't add this line!
+
+# =====================================
+# Misc / project-specific
+# =====================================
+# Logs & temp data
+logs/
+*.log.*
+crash-*.md                # if using llama.cpp crash reports
+
+# Large test data / outputs
+outputs/
+results/
+test-outputs/
+
+# Secrets / keys (critical!)
+.env
+*.key
+*.pem
+api_key.txt
+echo ".DS_Store" >> ~/.gitignore_global
+git config --global core.excludesfile ~/.gitignore_global
