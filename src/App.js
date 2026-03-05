@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { useSwarm } from './hooks/useSwarm';
+import { clearCache } from './api/swarmApi';
 import PromptInput from './components/PromptInput';
 import AgentResponse from './components/AgentResponse';
 import CodeDisplay from './components/CodeDisplay';
 import { extractCodeBlock } from './utils/codeExtractor';
 
-// Agent color scheme (colorblind-friendly)
+// Agent color scheme (IBM colorblind-friendly palette)
 const AGENT_COLORS = {
-  logic: '#648FFF',     // Blue
-  utility: '#DC267F',   // Magenta
-  architect: '#FFB000', // Gold
+  architect:  '#FFB000', // Gold
+  specialist: '#648FFF', // Blue
+  scout:      '#DC267F', // Magenta
+  programmer: '#00ff41', // Matrix Green
+  synthesis:  '#FE6100', // Orange
 };
 
 function App() {
@@ -30,13 +33,16 @@ function App() {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [editedCode, setEditedCode] = useState(null);
+  const [cacheStatus, setCacheStatus] = useState('idle'); // idle | clearing | cleared | failed
 
   const handleHistorySelect = (entry) => {
     // Reload responses into the agent panels and code display
     setResponses({
-      logic: entry.logic || null,
-      utility: entry.utility || null,
-      architect: entry.architect || null,
+      architect:  entry.architect  || null,
+      specialist: entry.specialist || null,
+      scout:      entry.scout      || null,
+      programmer: entry.programmer || null,
+      synthesis:  entry.synthesis  || null,
     });
     // Reload prompt and temperature into the input
     setSelectedPrompt(entry.prompt || '');
@@ -54,6 +60,18 @@ function App() {
     const interval = setInterval(checkStatus, 10000);
     return () => clearInterval(interval);
   }, [checkStatus, loadHistory]);
+
+  const handleClearCache = async () => {
+    setCacheStatus('clearing');
+    try {
+      await clearCache();
+      setCacheStatus('cleared');
+    } catch {
+      setCacheStatus('failed');
+    } finally {
+      setTimeout(() => setCacheStatus('idle'), 2000);
+    }
+  };
 
   const handleSubmit = async (prompt, temperature) => {
     try {
@@ -74,6 +92,16 @@ function App() {
           <span className={`status-indicator ${online ? 'status-online' : 'status-offline'}`}>
             {online ? 'ONLINE' : 'OFFLINE'}
           </span>
+          <button
+            className={`cache-button cache-button--${cacheStatus}`}
+            onClick={handleClearCache}
+            disabled={cacheStatus === 'clearing' || !online}
+          >
+            {cacheStatus === 'clearing' ? 'CLEARING...'
+              : cacheStatus === 'cleared' ? 'CLEARED'
+              : cacheStatus === 'failed'  ? 'FAILED'
+              : 'CLEAR KV'}
+          </button>
           <button
             className="history-button"
             onClick={() => setShowHistory(!showHistory)}
@@ -115,35 +143,49 @@ function App() {
 
       <div className="agents-grid">
         <AgentResponse
-          name="Logic"
-          port="8081"
-          response={responses.logic}
-          color={AGENT_COLORS.logic}
-          loading={loading}
-        />
-        <AgentResponse
-          name="Utility"
-          port="8082"
-          response={responses.utility}
-          color={AGENT_COLORS.utility}
-          loading={loading}
-        />
-        <AgentResponse
-          name="Architect"
+          name="LEAD ARCHITECT"
           port="8080"
           response={responses.architect}
           color={AGENT_COLORS.architect}
           loading={loading}
         />
+        <AgentResponse
+          name="SYSTEMS SPECIALIST"
+          port="8081"
+          response={responses.specialist}
+          color={AGENT_COLORS.specialist}
+          loading={loading}
+        />
+        <AgentResponse
+          name="CONTEXT SCOUT"
+          port="8082"
+          response={responses.scout}
+          color={AGENT_COLORS.scout}
+          loading={loading}
+        />
+        <AgentResponse
+          name="PROGRAMMER"
+          port="8083"
+          response={responses.programmer}
+          color={AGENT_COLORS.programmer}
+          loading={loading}
+        />
+        <AgentResponse
+          name="SYNTHESIS"
+          port="8084"
+          response={responses.synthesis}
+          color={AGENT_COLORS.synthesis}
+          loading={loading}
+        />
       </div>
 
-      {responses.architect && (
+      {responses.programmer && (
         <div className="code-output-section">
           <h2 className="section-title">CODE OUTPUT</h2>
           <div className="editor-frame">
             <CodeDisplay
-              initialCode={extractCodeBlock(responses.architect).code}
-              language={extractCodeBlock(responses.architect).language}
+              initialCode={extractCodeBlock(responses.programmer).code}
+              language={extractCodeBlock(responses.programmer).language}
             />
           </div>
         </div>

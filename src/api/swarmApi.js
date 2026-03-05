@@ -43,6 +43,16 @@ export async function fetchHistory() {
 }
 
 /**
+ * Clear KV cache on all agents
+ * @returns {Promise<Object>} per-agent status map
+ */
+export async function clearCache() {
+  const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
+  if (!response.ok) throw new Error(`Clear cache failed: ${response.status}`);
+  return response.json();
+}
+
+/**
  * Check if the coordinator is healthy/online
  * @returns {Promise<boolean>}
  */

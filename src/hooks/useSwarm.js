@@ -6,9 +6,11 @@ import { submitPrompt, fetchHistory, checkHealth } from '../api/swarmApi';
  */
 export function useSwarm() {
   const [responses, setResponses] = useState({
-    logic: null,
-    utility: null,
     architect: null,
+    specialist: null,
+    scout: null,
+    programmer: null,
+    synthesis: null,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -21,14 +23,16 @@ export function useSwarm() {
   const submit = useCallback(async (prompt, temperature = 0.7) => {
     setLoading(true);
     setError(null);
-    setResponses({ logic: null, utility: null, architect: null });
+    setResponses({ architect: null, specialist: null, scout: null, programmer: null, synthesis: null });
 
     try {
       const result = await submitPrompt(prompt, temperature);
       setResponses({
-        logic: result.logic || null,
-        utility: result.utility || null,
         architect: result.architect || null,
+        specialist: result.specialist || null,
+        scout: result.scout || null,
+        programmer: result.programmer || null,
+        synthesis: result.synthesis || null,
       });
       return result;
     } catch (err) {
@@ -68,7 +72,7 @@ export function useSwarm() {
    * Clear current responses
    */
   const clearResponses = useCallback(() => {
-    setResponses({ logic: null, utility: null, architect: null });
+    setResponses({ architect: null, specialist: null, scout: null, programmer: null, synthesis: null });
     setError(null);
   }, []);
 

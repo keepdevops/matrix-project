@@ -9,19 +9,26 @@ echo "[1/5] Cleaning up existing processes..."
 pkill -f llama-server 2>/dev/null
 pkill -f coordinator 2>/dev/null
 pkill -f "node proxy.mjs" 2>/dev/null
-# Specifically kill the ports to avoid "Address already in use"
-lsof -ti:3000,3001,3002,8000,8080,8081,8082 | xargs kill -9 2>/dev/null
+# Kill all swarm ports
+lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 2>/dev/null
 docker-compose down 2>/dev/null
 
 sleep 2
 
 # Start the LLM swarm agents
-echo "[2/5] Starting LLM Swarm Agents..."
+echo "[2/5] Starting LLM Swarm Agents (5 roles)..."
 cd "$(dirname "$0")"
 
+# Lead Architect — UML & System Design
 /Users/Shared/models/llama-server -m /Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 4096 --port 8080 --n-gpu-layers 81 > logs/8080.log 2>&1 &
-/Users/Shared/models/llama-server -m /Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf -c 4096 --port 8081 --n-gpu-layers 81 > logs/8081.log 2>&1 &
-/Users/Shared/models/llama-server -m /Users/Shared/models/granite-3.1-8b-instruct-Q4_K_M.gguf -c 4096 --port 8082 --n-gpu-layers 81 > logs/8082.log 2>&1 &
+# Systems Specialist — C++ & Go
+/Users/Shared/models/llama-server -m /Users/Shared/models/granite-3.1-8b-instruct-Q4_K_M.gguf -c 4096 --port 8081 --n-gpu-layers 81 > logs/8081.log 2>&1 &
+# Context Scout — Large Repositories
+/Users/Shared/models/llama-server -m /Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf -c 4096 --port 8082 --n-gpu-layers 81 > logs/8082.log 2>&1 &
+# Programmer — Full Implementation (8192 ctx for long code output)
+/Users/Shared/models/llama-server -m /Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 8192 --port 8083 --n-gpu-layers 81 > logs/8083.log 2>&1 &
+# Synthesis — Master Plan
+/Users/Shared/models/llama-server -m /Users/Shared/models/gemma-2-2b-it-Q4_K_M.gguf -c 4096 --port 8084 --n-gpu-layers 81 > logs/8084.log 2>&1 &
 
 echo "    -> Agents Initializing..."
 sleep 5 # Give them a moment to bind ports

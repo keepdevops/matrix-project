@@ -1,19 +1,49 @@
 {
   "agents": {
     "architect": {
+      "role": "Lead Architect — UML & System Design",
       "port": 8080,
       "model": "/Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-      "gpu_layers": 99
+      "gpu_layers": 99,
+      "context": 4096,
+      "read_timeout_secs": 60,
+      "max_tokens": 1024
     },
-    "logic": {
+    "specialist": {
+      "role": "Systems Specialist — C++ & Go",
       "port": 8081,
-      "model": "/Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "gpu_layers": 99
-    },
-    "utility": {
-      "port": 8082,
       "model": "/Users/Shared/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
-      "gpu_layers": 99
+      "gpu_layers": 99,
+      "context": 4096,
+      "read_timeout_secs": 60,
+      "max_tokens": 1024
+    },
+    "scout": {
+      "role": "Context Scout — Large Repositories",
+      "port": 8082,
+      "model": "/Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "gpu_layers": 99,
+      "context": 4096,
+      "read_timeout_secs": 60,
+      "max_tokens": 1024
+    },
+    "programmer": {
+      "role": "Programmer — Full Implementation",
+      "port": 8083,
+      "model": "/Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "gpu_layers": 99,
+      "context": 8192,
+      "read_timeout_secs": 300,
+      "max_tokens": 4096
+    },
+    "synthesis": {
+      "role": "Synthesis — Master Plan",
+      "port": 8084,
+      "model": "/Users/Shared/models/gemma-2-2b-it-Q4_K_M.gguf",
+      "gpu_layers": 99,
+      "context": 4096,
+      "read_timeout_secs": 60,
+      "max_tokens": 1024
     }
   },
   "coordinator": {
