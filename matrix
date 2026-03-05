@@ -1,0 +1,43 @@
+#!/bin/bash
+# Auto-generated from swarm-config.json
+# Use 'swarm-ctl' to modify configuration
+
+LLAMA_SERVER="/Users/Shared/models/llama-server"
+
+case "$1" in
+  up)
+    echo "⚡️ Booting Matrix Swarm (LLM Engines)..."
+    mkdir -p logs
+
+    # Start LLMs in the background
+    $LLAMA_SERVER -m /Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf --port 8080 -ngl 99 > logs/8080.log 2>&1 &
+    $LLAMA_SERVER -m /Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf --port 8081 -ngl 99 > logs/8081.log 2>&1 &
+    $LLAMA_SERVER -m /Users/Shared/models/granite-3.1-8b-instruct-Q4_K_M.gguf --port 8082 -ngl 99 > logs/8082.log 2>&1 &
+
+    # Start the C++ Coordinator
+    ./coordinator > logs/coordinator.log 2>&1 &
+
+    echo "⏳ Waiting for engines to warm up..."
+    sleep 5
+
+    echo "🌐 Opening Matrix UI on Port 80..."
+    open http://localhost:80
+    ;;
+  down)
+    echo "🛑 Killing Swarm..."
+    pkill -f llama-server
+    pkill -f "./coordinator"
+    # Optional: also stop docker containers
+    docker-compose down
+    ;;
+  status)
+    echo "📊 Swarm Status:"
+    echo "  Architect (8080): \$(lsof -i :8080 | grep -q LISTEN && echo '\033[0;32mRUNNING\033[0m' || echo '\033[0;31mSTOPPED\033[0m')"
+    echo "  Logic (8081): \$(lsof -i :8081 | grep -q LISTEN && echo '\033[0;32mRUNNING\033[0m' || echo '\033[0;31mSTOPPED\033[0m')"
+    echo "  Utility (8082): \$(lsof -i :8082 | grep -q LISTEN && echo '\033[0;32mRUNNING\033[0m' || echo '\033[0;31mSTOPPED\033[0m')"
+    echo "  Coordinator (8000): $(lsof -i :8000 | grep -q LISTEN && echo '\033[0;32mRUNNING\033[0m' || echo '\033[0;31mSTOPPED\033[0m')"
+    ;;
+  *)
+    echo "Usage: ./matrix {up|down|status}"
+    ;;
+esac

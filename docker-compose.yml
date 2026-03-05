@@ -1,0 +1,33 @@
+
+services:
+  matrix-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: matrix-ui
+    ports:
+      - "3000:3000"  # Fixed mapping so you can always use localhost:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true # ⚡️ Optimization for Mac file-watchers
+      - WDS_SOCKET_PORT=0
+    networks:
+      - matrix-net
+
+  matrix-proxy:
+    image: caddy:latest
+    container_name: matrix-proxy
+    ports:
+      - "80:80"   # Standard API access
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile  # 👈 Critical: Links your config to the container
+    networks:
+      - matrix-net
+    depends_on:
+      - matrix-ui
+
+networks:
+  matrix-net:
+    driver: bridge

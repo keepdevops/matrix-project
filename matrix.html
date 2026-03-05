@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MATRIX // SWARM</title>
+    <link rel="icon" type="image/png" href="variosyncgold.png">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #1e1e1e; color: #00ff41; font-family: monospace; display: flex; flex-direction: column; }
+        #header { height: 45px; background: #000; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #333; justify-content: space-between; }
+        #main { display: flex; flex: 1; overflow: hidden; }
+        #container { flex: 1; border-right: 1px solid #333; overflow: hidden; }
+        .cm-editor { height: 100%; }
+        #output { width: 400px; background: #111; padding: 15px; overflow-y: auto; font-size: 12px; line-height: 1.4; }
+        #history-panel { width: 250px; background: #0a0a0a; border-left: 1px solid #333; padding: 10px; overflow-y: auto; }
+        #history-panel h3 { margin: 0 0 10px 0; font-size: 11px; color: #666; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .history-item { padding: 8px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #333; cursor: pointer; font-size: 11px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item:hover { background: #002200; border-color: #00ff41; color: #00ff41; }
+        .history-time { font-size: 9px; color: #444; display: block; margin-bottom: 3px; }
+        #command-bar { height: 60px; background: #000; border-top: 1px solid #333; display: flex; align-items: center; padding: 0 20px; gap: 10px; }
+        input { flex: 1; background: #111; border: 1px solid #00ff41; color: #00ff41; padding: 8px; font-family: inherit; }
+        button { background: #004400; color: #00ff41; border: 1px solid #00ff41; padding: 8px 15px; cursor: pointer; }
+        button:hover { background: #00ff41; color: #000; }
+        .node-tag { font-weight: bold; margin-top: 10px; display: block; border-bottom: 1px solid #222; }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <img src="variosyncgold.png" alt="VarioSync" style="height:32px;width:32px;margin-right:10px;border-radius:4px;">
+        <span>MATRIX_SWARM // M3_MAX</span>
+        <div style="display:flex;gap:10px;">
+            <button onclick="loadToEditor()">LOAD_TO_EDITOR</button>
+            <button onclick="downloadSession()">DOWNLOAD_SESSION</button>
+            <button onclick="saveLogic()">SAVE_LOGIC</button>
+        </div>
+    </div>
+    <div id="main">
+        <div id="container"></div>
+        <div id="output"><div>System Initialized. Swarm standing by...</div></div>
+        <div id="history-panel">
+            <h3>PROMPT HISTORY</h3>
+            <div id="history-list"></div>
+        </div>
+    </div>
+    <div id="command-bar">
+        <input type="text" id="cmd" placeholder="Enter Global Command..." onkeypress="if(event.key==='Enter') broadcast()">
+        <button onclick="broadcast()">BROADCAST</button>
+    </div>
+    <script type="module">
+        import { EditorView, basicSetup } from "https://esm.sh/codemirror?bundle";
+        import { javascript } from "https://esm.sh/@codemirror/lang-javascript?bundle";
+        import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark?bundle";
+
+        let editor;
+        let lastSession = { prompt: '', responses: {} };
+
+        // Initialize CodeMirror
+        editor = new EditorView({
+            doc: "// Loading...\n",
+            extensions: [basicSetup, javascript(), oneDark],
+            parent: document.getElementById("container")
+        });
+
+        fetch('/api/load').then(r => r.text()).then(data => {
+            editor.dispatch({
+                changes: { from: 0, to: editor.state.doc.length, insert: data }
+            });
+        });
+
+        function getEditorValue() {
+            return editor.state.doc.toString();
+        }
+
+        function setEditorValue(text) {
+            editor.dispatch({
+                changes: { from: 0, to: editor.state.doc.length, insert: text }
+            });
+        }
+
+        function extractCode(text) {
+            const codeBlock = text.match(/```[\w]*\n?([\s\S]*?)```/);
+            return codeBlock ? codeBlock[1].trim() : text;
+        }
+
+        window.loadToEditor = function() {
+            if (!lastSession.responses.Architect) {
+                alert('No generated code yet. Run a broadcast first.');
+                return;
+            }
+            const code = extractCode(lastSession.responses.Architect);
+            setEditorValue(`// Prompt: ${lastSession.prompt}\n\n${code}`);
+        };
+
+        window.downloadSession = function() {
+            if (!lastSession.prompt) {
+                alert('No session to download. Run a broadcast first.');
+                return;
+            }
+            let content = `// MATRIX SWARM SESSION\n// Prompt: ${lastSession.prompt}\n// Generated: ${new Date().toISOString()}\n\n`;
+            for (const [node, response] of Object.entries(lastSession.responses)) {
+                content += `// === ${node.toUpperCase()} ===\n${extractCode(response)}\n\n`;
+            }
+            const blob = new Blob([content], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `swarm_${Date.now()}.js`;
+            a.click();
+        };
+
+        window.saveLogic = async function() {
+            const code = getEditorValue();
+            await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+        };
+
+        window.broadcast = async function() {
+            const prompt = document.getElementById('cmd').value;
+            const output = document.getElementById('output');
+            if(!prompt) return;
+            output.innerHTML += `<div style="color:#fff; margin-top:15px;">> ${prompt}</div>`;
+
+            const nodes = [{p:8080, n:'Architect'}, {p:8081, n:'Logic'}, {p:8082, n:'Utility'}];
+            let architectResponse = '';
+            lastSession = { prompt, responses: {} };
+
+            const promises = nodes.map(async (node) => {
+                try {
+                    const res = await fetch(`http://127.0.0.1:${node.p}/completion`, {
+                        method: 'POST',
+                        body: JSON.stringify({ prompt: `[USER]: ${prompt}\n[ASSISTANT]:`, n_predict: 100 })
+                    });
+                    const data = await res.json();
+                    output.innerHTML += `<span class="node-tag" style="color:${node.p===8080?'#00d4ff':node.p===8081?'#ff00ff':'#fbff00'}">${node.n}:</span> ${data.content}`;
+                    output.scrollTop = output.scrollHeight;
+                    lastSession.responses[node.n] = data.content;
+                    if (node.p === 8080) architectResponse = data.content;
+                } catch(e) {
+                    output.innerHTML += `<br><span style="color:red">Node ${node.n} Offline</span>`;
+                }
+            });
+
+            await Promise.all(promises);
+
+            // Save to history
+            try {
+                await fetch('http://127.0.0.1:8000/api/save-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, architect: architectResponse, temperature: 0.7 })
+                });
+                loadHistory();
+            } catch(e) { console.log('History save failed'); }
+
+            document.getElementById('cmd').value = '';
+        };
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const history = await res.json();
+                const list = document.getElementById('history-list');
+                list.innerHTML = '';
+                history.slice().reverse().forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    const time = new Date(item.timestamp).toLocaleString();
+                    div.innerHTML = `<span class="history-time">${time}</span>${item.prompt}`;
+                    div.onclick = () => document.getElementById('cmd').value = item.prompt;
+                    list.appendChild(div);
+                });
+            } catch(e) {
+                console.log('History unavailable');
+            }
+        }
+
+        loadHistory();
+        setInterval(loadHistory, 30000);
+    </script>
+</body>
+</html>
