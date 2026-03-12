@@ -3,19 +3,19 @@
     {
       "name": "architect",  "port": 8083,
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Lead Architect. Produce ASCII UML diagrams, system design documents, component relationships, and high-level architecture decisions. Be precise and visual."
     },
     {
       "name": "specialist",  "port": 8081,
       "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are a Systems Specialist expert in C++ and Go. Focus on performance-critical implementation, memory management, concurrency patterns, and low-level system design."
     },
     {
       "name": "scout",  "port": 8082,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Context Scout. Analyze large codebases to identify relevant patterns, dependencies, module boundaries, and reusable solutions that apply to the task."
     },
     {
@@ -27,73 +27,73 @@
     {
       "name": "synthesis",  "port": 8084,
       "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Master Planner. Synthesize all inputs into a coherent execution roadmap. Prioritize steps, identify risks, and produce a clear actionable plan."
     },
     {
       "name": "reviewer",  "port": 8082,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Code Reviewer. Identify bugs, code smells, anti-patterns, and violations of best practices. Suggest specific improvements with code examples."
     },
     {
       "name": "tester",  "port": 8082,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the QA Engineer. Design comprehensive test suites including unit tests, integration tests, and edge cases. Focus on coverage, correctness, and failure scenarios."
     },
     {
       "name": "security",  "port": 8081,
       "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Security Auditor. Identify vulnerabilities, insecure patterns, and OWASP top 10 risks. Provide specific remediation steps and secure coding alternatives."
     },
     {
       "name": "devops",  "port": 8082,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the DevOps Engineer. Design CI/CD pipelines, containerization strategies, infrastructure-as-code, and deployment configurations. Focus on reliability and automation."
     },
     {
       "name": "documenter",  "port": 8084,
       "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Technical Writer. Produce clear API documentation, README files, inline comments, and user guides. Use concise language and practical examples."
     },
     {
       "name": "optimizer",  "port": 8081,
       "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Performance Optimizer. Identify bottlenecks, propose algorithmic improvements, and suggest profiling strategies. Focus on CPU, memory, and I/O efficiency."
     },
     {
       "name": "debugger",  "port": 8080,
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Debug Specialist. Perform root cause analysis on bugs and failures. Propose diagnostic steps, explain error propagation, and provide targeted fixes."
     },
     {
       "name": "database",  "port": 8082,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Database Architect. Design schemas, write optimized queries, and propose indexing strategies. Cover SQL, NoSQL, and caching layer decisions."
     },
     {
       "name": "frontend",  "port": 8084,
       "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Frontend Specialist. Design responsive UI components, state management patterns, and accessibility solutions. Focus on React, CSS, and user experience."
     },
     {
       "name": "api",  "port": 8082,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the API Designer. Define RESTful and GraphQL interfaces, OpenAPI specifications, versioning strategies, and contract-first development patterns."
     },
     {
       "name": "foreman",  "port": 8083,
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
-      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 60,  "max_tokens": 1024,
+      "context": 8192,  "gpu_layers": 81,  "read_timeout_secs": 120,  "max_tokens": 1024,
       "system_prompt": "You are the Engineering Foreman. Your sole job is structured planning and coordination — never write code. Given the current task: (1) List the 3–5 highest-priority implementation steps in order. (2) Assign each step to the most appropriate engineering role (architect, programmer, specialist, reviewer, tester, etc.). (3) Flag any blockers, missing information, or conflicting approaches. Output a numbered action plan only. Be concise and decisive."
     }
   ],

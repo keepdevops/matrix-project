@@ -55,3 +55,28 @@ Requires a C++17-capable compiler (`clang++` or `g++`). Run this once after clon
 ```bash
 c++ -std=c++17 -O2 -o coordinator coordinator.cpp -pthread
 ```
+
+---
+
+## convert_models.sh
+
+Converts HuggingFace models so you can use them with **either** llama (GGUF) or mlx-lm (MLX 4-bit) on M3/Apple Silicon.
+
+```bash
+./scripts/convert_models.sh mlx <hf_repo> [output_name]   # → MLX 4-bit (pip install mlx-lm)
+./scripts/convert_models.sh gguf <hf_repo> [output_name]  # → GGUF (requires LLAMA_CPP_DIR)
+```
+
+See [SETUP_MODELS.md](../SETUP_MODELS.md#converting-models-use-with-llama-or-mlx-lm-on-m3) for details.
+
+---
+
+## run_matrix_pixi.sh
+
+Runs the Matrix project via pixi: installs the pixi environment, builds the coordinator, then runs the interactive launch.
+
+```bash
+./scripts/run_matrix_pixi.sh
+```
+
+Requires [pixi](https://pixi.sh) installed. Uses this project’s `pixi.toml` so it won’t pick up a parent folder’s manifest.

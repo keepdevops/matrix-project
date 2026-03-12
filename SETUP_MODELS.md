@@ -127,6 +127,58 @@ Optionally register either type in `mlx_models.json` for reference.
 
 ---
 
+## Converting models (use with llama or mlx-lm on M3)
+
+You can convert a HuggingFace model once and then use it with **either** llama-server (GGUF) or mlx_lm.server (MLX 4-bit) on Apple Silicon (M3 etc.).
+
+The script `scripts/convert_models.sh` supports two targets:
+
+| Target | Output | Use in Matrix |
+|--------|--------|----------------|
+| **mlx** | MLX 4-bit directory under `models/` | Engine **MLX** — often faster per-token on M-series |
+| **gguf** | GGUF file in `models/` | Engine **LLAMA** — same-model parallelism, CLEAR KV |
+
+### Prerequisites
+
+- **For MLX:** `pip install mlx-lm`
+- **For GGUF:** A clone of [llama.cpp](https://github.com/ggerganov/llama.cpp) with Python deps (e.g. `pip install -r requirements.txt`). Set `LLAMA_CPP_DIR` if not using `/Users/Shared/llama/llama.cpp`.
+
+### Convert to MLX 4-bit (for mlx-lm on M3)
+
+From the project root:
+
+```bash
+# HF repo → MLX 4-bit in /Users/Shared/llama/models/<name>/
+./scripts/convert_models.sh mlx meta-llama/Meta-Llama-3.2-3B-Instruct
+./scripts/convert_models.sh mlx mistralai/Mistral-7B-Instruct-v0.3 Mistral-7B-Instruct-v0.3-4bit
+```
+
+Output appears in CONFIGURE under engine **MLX**. No separate download of pre-converted mlx-community models needed if you have the HF repo.
+
+### Convert to GGUF (for llama-server on M3)
+
+From the project root (requires `LLAMA_CPP_DIR` if llama.cpp is elsewhere):
+
+```bash
+export LLAMA_CPP_DIR=/Users/Shared/llama/llama.cpp   # optional if already there
+
+# HF repo → GGUF (f16); then optionally quantize for smaller/faster
+./scripts/convert_models.sh gguf meta-llama/Meta-Llama-3.2-3B-Instruct
+```
+
+The script prints the exact `llama-quantize` command to produce a Q4_K_M file for lower VRAM and faster inference on M3.
+
+### Custom model directory
+
+Override the models directory:
+
+```bash
+export MATRIX_MODELS_DIR=/path/to/models
+./scripts/convert_models.sh mlx your-org/your-model
+```
+
+---
+
 ## Updating llama.cpp
 
 ```bash

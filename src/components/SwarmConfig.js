@@ -85,9 +85,13 @@ export default function SwarmConfig({ onDeployed }) {
         next.delete(name);
       } else {
         next.add(name);
-        // Assign first engine-matching model when activating a role
+        // Only override model if the current one doesn't match the active engine
         if (hasEngineModels) {
-          setRoleModels(m => ({ ...m, [name]: engineModels[0].path }));
+          const currentModel = roleModels[name];
+          const matchesEngine = currentModel && (engine === 'mlx' ? isMLXPath(currentModel) : !isMLXPath(currentModel));
+          if (!matchesEngine) {
+            setRoleModels(m => ({ ...m, [name]: engineModels[0].path }));
+          }
         }
       }
       return next;
