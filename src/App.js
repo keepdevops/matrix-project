@@ -24,6 +24,7 @@ const AGENT_COLORS = {
   database:   '#A8DADC',
   frontend:   '#F77F00',
   api:        '#4CC9F0',
+  foreman:    '#C77DFF',
 };
 const getAgentColor = name => AGENT_COLORS[name] || '#888888';
 
@@ -106,6 +107,26 @@ function App() {
     } finally {
       setTimeout(() => setCacheStatus('idle'), 2000);
     }
+  };
+
+  const handleSaveCode = () => {
+    const sections = [];
+    activeAgents.forEach(({ name }) => {
+      const resp = responses[name];
+      if (!resp) return;
+      const { code, language } = extractCodeBlock(resp);
+      if (!code || code.trim().length < 10) return;
+      sections.push(`// === ${name.toUpperCase()} (${language}) ===\n\n${code}`);
+    });
+    if (!sections.length) return;
+    const separator = '\n\n// ────────────────────────────────────────────\n\n';
+    const blob = new Blob([sections.join(separator)], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `matrix-swarm-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSubmit = async (prompt, temperature) => {
@@ -205,9 +226,22 @@ function App() {
 
           {responses.programmer && (() => {
             const { code, language } = extractCodeBlock(responses.programmer);
+            const hasAnyCode = activeAgents.some(({ name }) => {
+              const r = responses[name];
+              if (!r) return false;
+              const { code: c } = extractCodeBlock(r);
+              return c && c.trim().length >= 10;
+            });
             return (
               <div className="code-output-section">
-                <h2 className="section-title">CODE OUTPUT</h2>
+                <div className="code-output-header">
+                  <h2 className="section-title">CODE OUTPUT</h2>
+                  {hasAnyCode && (
+                    <button className="save-code-btn" onClick={handleSaveCode}>
+                      SAVE CODE
+                    </button>
+                  )}
+                </div>
                 <div className="editor-frame">
                   <CodeDisplay initialCode={code} language={language} />
                 </div>
@@ -227,16 +261,29 @@ function App() {
             <div className="help-body">
 
               <div className="help-section">
+                <h3>Quick Start</h3>
+                <div className="help-steps">
+                  <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/launch_matrix.sh</code> — choose Docker or Bare Metal</span></div>
+                  <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → pick engine → select agents → click <strong>LAUNCH SWARM</strong></span></div>
+                  <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span style={{color:'#648FFF'}}>ONLINE</span></span></div>
+                  <div className="help-step"><span className="help-step-n">4</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
+                  <div className="help-step"><span className="help-step-n">5</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below</span></div>
+                </div>
+              </div>
+
+              <div className="help-section">
                 <h3>Header Controls</h3>
                 <dl>
                   <dt>ONLINE / OFFLINE</dt>
-                  <dd>Coordinator status. Red means the backend is unreachable — open CONFIGURE to deploy a swarm.</dd>
+                  <dd>Coordinator status. OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
                   <dt>CONFIGURE</dt>
-                  <dd>Opens the swarm configuration panel. Select which agents to activate, assign models, and click LAUNCH SWARM. Same-model agents automatically share one server instance.</dd>
+                  <dd>Opens the swarm panel. Select engine (LLAMA / MLX), choose agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
                   <dt>CLEAR KV</dt>
-                  <dd>Erases the KV cache on all agent servers. Use this when agents seem stuck or after switching to a very different task.</dd>
-                  <dt>HISTORY</dt>
-                  <dd>Shows your last 10 prompts. Click any entry to reload it.</dd>
+                  <dd>Erases the KV cache on all llama-server agents — useful when agents seem stuck, produce repetitive output, or after switching to a completely different task. Has no effect on MLX agents.</dd>
+                  <dt>HISTORY (N)</dt>
+                  <dd>Shows your last 10 broadcasts. Click any entry to reload the prompt and all agent responses exactly as they were. N shows the total number of entries stored.</dd>
+                  <dt>?</dt>
+                  <dd>This help modal. Click outside or press ✕ to close.</dd>
                 </dl>
               </div>
 
@@ -244,11 +291,23 @@ function App() {
                 <h3>Submitting a Prompt</h3>
                 <dl>
                   <dt>Prompt box</dt>
-                  <dd>All active agents receive the same prompt simultaneously.</dd>
+                  <dd>All active agents receive the exact same prompt at the same time. Be specific — concrete prompts produce better results than vague ones.</dd>
                   <dt>Temperature</dt>
-                  <dd><code>0.1</code> = focused/deterministic. <code>1.0</code> = creative/varied.</dd>
+                  <dd>Default is <code>0.20</code>. For engineering swarms stay in the <code>0.10–0.25</code> range — higher values cause agents to hallucinate roles, invent classes, or contradict each other across 10+ parallel responses. Use <code>0.40–0.70</code> only for architecture brainstorming or open-ended exploration.</dd>
                   <dt>BROADCAST / Cmd+Enter</dt>
-                  <dd>Dispatches to all agents in parallel.</dd>
+                  <dd>Dispatches to all agents in parallel via the C++ coordinator. Agent cards update as each response arrives — faster models appear first.</dd>
+                </dl>
+              </div>
+
+              <div className="help-section">
+                <h3>Reading Results</h3>
+                <dl>
+                  <dt>Agent cards</dt>
+                  <dd>Each card is independently scrollable. Cards are colour-coded by role. A spinning indicator means that agent is still processing.</dd>
+                  <dt>CODE OUTPUT</dt>
+                  <dd>The <em>programmer</em> agent's first code block is auto-extracted and shown in a syntax-highlighted CodeMirror editor below the grid. Supports C++, Go, Python, JavaScript, Rust, SQL, and more. Use the copy button in the toolbar to grab the code.</dd>
+                  <dt>Cross-referencing</dt>
+                  <dd><em>architect</em> gives the structure, <em>programmer</em> implements it, <em>reviewer</em> and <em>security</em> flag problems, <em>tester</em> covers edge cases, <em>synthesis</em> ties it into a plan. Read them together for a complete picture of any problem.</dd>
                 </dl>
               </div>
 
@@ -257,20 +316,20 @@ function App() {
                 <div className="help-roles">
                   {[
                     ['architect','System design, ASCII UML, component diagrams'],
-                    ['specialist','C++/Go, performance, memory management'],
-                    ['scout','Codebase analysis, patterns, dependencies'],
-                    ['programmer','Complete production-ready code (large context)'],
-                    ['synthesis','Execution roadmap, risk analysis, planning'],
-                    ['reviewer','Bugs, code smells, anti-patterns'],
-                    ['tester','Unit tests, integration tests, edge cases'],
-                    ['security','OWASP risks, vulnerabilities, remediation'],
-                    ['devops','CI/CD, containers, infrastructure-as-code'],
-                    ['documenter','API docs, READMEs, inline comments'],
-                    ['optimizer','Bottlenecks, algorithmic improvements'],
-                    ['debugger','Root cause analysis, error propagation'],
-                    ['database','Schemas, queries, indexing, caching'],
-                    ['frontend','React, CSS, accessibility, UX'],
-                    ['api','REST/GraphQL design, OpenAPI, versioning'],
+                    ['specialist','C++/Go, performance, memory management, concurrency'],
+                    ['scout','Codebase analysis, patterns, module boundaries'],
+                    ['programmer','Complete production-ready code (large context, 4096 tokens)'],
+                    ['synthesis','Execution roadmap, risk analysis, step-by-step planning'],
+                    ['reviewer','Bugs, code smells, anti-patterns, best practices'],
+                    ['tester','Unit tests, integration tests, edge cases, coverage'],
+                    ['security','OWASP top 10, vulnerabilities, secure coding alternatives'],
+                    ['devops','CI/CD pipelines, containers, infrastructure-as-code'],
+                    ['documenter','API docs, READMEs, inline comments, user guides'],
+                    ['optimizer','CPU/memory/IO bottlenecks, algorithmic improvements'],
+                    ['debugger','Root cause analysis, error propagation, targeted fixes'],
+                    ['database','Schemas, queries, indexing, SQL/NoSQL, caching layers'],
+                    ['frontend','React components, CSS, accessibility, UX patterns'],
+                    ['api','REST/GraphQL design, OpenAPI specs, versioning strategies'],
                   ].map(([name, desc]) => (
                     <div key={name} className="help-role-row">
                       <span className="help-role-name" style={{color: getAgentColor(name)}}>{name}</span>
@@ -281,9 +340,57 @@ function App() {
               </div>
 
               <div className="help-section">
+                <h3>Inference Engines</h3>
+                <dl>
+                  <dt>LLAMA</dt>
+                  <dd>llama-server (llama.cpp). Loads <code>.gguf</code> files. Launches with <code>--parallel N</code> so same-model agents run truly in parallel within one process. CLEAR KV works. Best for maximum throughput when running many agents on the same model.</dd>
+                  <dt>MLX</dt>
+                  <dd>mlx_lm.server (Apple Silicon native). Loads model directories. Requests queue on one process — no <code>--parallel</code>. Often faster per-token than llama.cpp on M-series chips. CLEAR KV has no effect.</dd>
+                </dl>
+                <p>Both backends live in <code>/Users/Shared/llama/models/</code> — <code>.gguf</code> files for LLAMA, directories containing <code>config.json</code> for MLX. The engine button shows how many models of each type are installed.</p>
+              </div>
+
+              <div className="help-section">
+                <h3>How the Coordinator Works</h3>
+                <p>The coordinator is a compiled C++ HTTP server (<code>./coordinator</code>) running on port 8000. It is spawned by the proxy after all model servers pass their health checks, and it is the only process that talks directly to the model servers.</p>
+                <dl>
+                  <dt>Startup</dt>
+                  <dd>Reads <code>/tmp/matrix-active-config.json</code> to load the active agent list (name, port, timeout, max tokens, system prompt). Also loads <code>history.json</code> into memory so history survives restarts.</dd>
+                  <dt>Broadcast — POST /api/architect</dt>
+                  <dd>Receives <code>{'{'}"prompt", "temperature"{'}'}</code>. Launches one <code>std::async</code> thread per agent simultaneously. Each thread POSTs to <code>/v1/chat/completions</code> on its agent's port with a two-message conversation: the agent's system prompt, then the user prompt. The coordinator blocks until every thread completes, collects all responses, writes the entry to <code>history.json</code> under a mutex, then returns the full response map to the UI.</dd>
+                  <dt>Per-agent limits</dt>
+                  <dd>Most agents: 60 s read timeout, 1024 max tokens. The <em>programmer</em> agent: 300 s timeout, 4096 max tokens. Connection timeout is 5 s for all agents.</dd>
+                  <dt>Error isolation</dt>
+                  <dd>If one agent times out or its server is unreachable, that card shows an error message. All other agents' responses are returned normally — a single failure never blocks the whole swarm.</dd>
+                  <dt>Temperature</dt>
+                  <dd>Temperature is accepted in the broadcast request and saved to history, but it is not forwarded to the model servers. Each model server uses its own default sampling settings.</dd>
+                  <dt>Clear KV — POST /api/clear-cache</dt>
+                  <dd>Groups agents by port to find unique server instances. Fires <code>POST /slots/N?action=erase</code> in parallel for each slot on each llama-server port (slot 0 through N−1, where N is the number of agents sharing that port). MLX servers do not implement this endpoint — those requests fail silently.</dd>
+                  <dt>Other endpoints</dt>
+                  <dd><code>GET /api/health</code> — liveness check used by the UI status indicator. <code>GET /api/agents</code> — returns the active agent list (name + port) used to render the agent grid. <code>GET /api/history</code> — returns the full history array.</dd>
+                </dl>
+              </div>
+
+              <div className="help-section">
+                <h3>Tips</h3>
+                <dl>
+                  <dt>Keep temp 0.10–0.25 for coding</dt>
+                  <dd>Higher temperatures cause agents to contradict each other or hallucinate new classes across a 10+ agent swarm. Lock it low, especially for continuation prompts.</dd>
+                  <dt>CLEAR KV before every new major prompt</dt>
+                  <dd>First prompt fills KV with context. A second prompt without clearing can leave half the agents seeing contradictory instructions. Routine: CLEAR KV → 5–7 agents → low temp → focused prompt.</dd>
+                  <dt>5–7 agents is the sweet spot for coding</dt>
+                  <dd>Default is architect + programmer + specialist + reviewer + synthesis. Add tester or debugger for a quality pass. Running 12–15 agents risks VRAM exhaustion and KV token budget overflow — only do that for high-level exploration.</dd>
+                  <dt>Use foreman for continuation</dt>
+                  <dd>After a major output, run the <em>foreman</em> agent alone with "summarise what was built and list the next 3 tasks". Use its output as the next broadcast prompt to keep all agents aligned.</dd>
+                  <dt>SAVE CODE after each successful round</dt>
+                  <dd>The SAVE CODE button below the agent grid exports all code blocks from every agent into a single timestamped file. Use it before clearing KV or refreshing — code is not persisted otherwise.</dd>
+                </dl>
+              </div>
+
+              <div className="help-section">
                 <h3>Launch</h3>
                 <code className="help-code">bash scripts/launch_matrix.sh</code>
-                <p>Starts the proxy and UI. Configure your swarm from the browser — no terminal required.</p>
+                <p>Starts the proxy and UI. All swarm configuration is done from the browser — no further terminal interaction required. See <strong>USER_MANUAL.md</strong> in the project root for full documentation and flow diagrams.</p>
               </div>
 
             </div>

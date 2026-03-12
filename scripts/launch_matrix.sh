@@ -39,6 +39,9 @@ pkill -f "react-scripts start" 2>/dev/null
 lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 2>/dev/null
 sleep 5
 
+echo "[1.5/3] Activating GPU fan control (28–36°C sensor-based)..."
+"$(dirname "$0")/fan_control.sh" start
+
 echo "[2/3] Starting Node Proxy on port 3002..."
 mkdir -p logs
 node proxy.mjs > logs/proxy.log 2>&1 &

@@ -11,7 +11,7 @@ const API_BASE = 'http://localhost:3002/api';
  * @param {number} temperature - Temperature setting (0.1 - 1.0)
  * @returns {Promise<{logic: string, utility: string, architect: string}>}
  */
-export async function submitPrompt(prompt, temperature = 0.7) {
+export async function submitPrompt(prompt, temperature = 0.2) {
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: {

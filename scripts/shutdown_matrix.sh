@@ -47,13 +47,16 @@ echo "[3/4] Releasing ports..."
 lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 2>/dev/null
 
 # Verify
-echo "[4/4] Verifying..."
+echo "[4/5] Verifying..."
 REMAINING=$(lsof -ti:8000,8080,8081,8082,8083,8084 2>/dev/null)
 if [ -z "$REMAINING" ]; then
     echo "  All swarm processes stopped. VRAM released."
 else
     echo "  Warning: some processes still running (PIDs: $REMAINING)"
 fi
+
+echo "[5/5] Restoring system Auto fan control..."
+"$(dirname "$0")/fan_control.sh" stop
 
 echo "========================================"
 echo "  SHUTDOWN COMPLETE"

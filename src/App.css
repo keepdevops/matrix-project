@@ -354,6 +354,35 @@ h1 {
   margin-top: 20px;
 }
 
+.code-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.code-output-header .section-title {
+  margin-bottom: 0;
+}
+
+.save-code-btn {
+  background: transparent;
+  border: 1px solid #00ff41;
+  color: #00ff41;
+  padding: 4px 14px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-code-btn:hover {
+  background: rgba(0, 255, 65, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+
 .section-title {
   font-size: 1rem;
   color: #888;
@@ -681,6 +710,88 @@ h1 {
   cursor: not-allowed;
 }
 
+/* ========== Engine Selector ========== */
+.swarm-engine-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #222;
+}
+
+.swarm-engine-label {
+  color: #888;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.swarm-engine-toggle {
+  display: flex;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.swarm-engine-btn {
+  background: transparent;
+  border: none;
+  color: #555;
+  padding: 5px 16px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+
+.swarm-engine-btn + .swarm-engine-btn {
+  border-left: 1px solid #333;
+}
+
+.swarm-engine-btn:hover:not(.disabled) {
+  color: #c9d1d9;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.swarm-engine-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.swarm-engine-btn.active[class*="llama"],
+.swarm-engine-btn.active:first-child {
+  background: rgba(100, 143, 255, 0.12);
+  color: #648FFF;
+}
+
+.swarm-engine-btn.active:last-child {
+  background: rgba(0, 255, 65, 0.08);
+  color: #00ff41;
+}
+
+.engine-count {
+  font-size: 0.65rem;
+  color: inherit;
+  opacity: 0.6;
+  font-weight: normal;
+}
+
+.swarm-engine-warn {
+  color: #ff4b2b;
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+/* MLX badge colour in layout panel */
+.layout-mlx {
+  color: #00ff41;
+}
+
 /* ========== Help Button ========== */
 .help-button {
   background: transparent;
@@ -822,6 +933,37 @@ h1 {
   font-size: 0.85rem;
   margin-bottom: 10px;
   border: 1px solid #222;
+}
+
+.help-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.help-step {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.83rem;
+  color: #c9d1d9;
+  line-height: 1.5;
+}
+
+.help-step-n {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 50%;
+  border: 1px solid #00ff41;
+  color: #00ff41;
+  font-size: 0.7rem;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 
 .help-roles {

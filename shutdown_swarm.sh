@@ -9,7 +9,7 @@ pkill -f "llama-server"
 
 # 2. Kill the Proxy
 echo "Stopping Matrix Proxy..."
-pkill -f "node proxy.mjs"
+pkill -f "node proxy.js"
 
 # 3. Cleanup temporary files
 if [ -f "proxy.log" ]; then

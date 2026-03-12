@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { readdirSync, writeFileSync, readFileSync, mkdirSync, openSync } from 'fs';
+import { readdirSync, writeFileSync, readFileSync, mkdirSync, openSync, statSync, existsSync } from 'fs';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,17 +11,29 @@ const MODEL_DIR = '/Users/Shared/llama/models';
 const LLAMA_BIN = '/Users/Shared/llama/llama-server';
 const ACTIVE_CONFIG = '/tmp/matrix-active-config.json';
 
+// A model is MLX if its path is a directory (not a .gguf file)
+const isMLXModel = (modelPath) => !modelPath.endsWith('.gguf');
+
 const app = express();
 app.use(cors());
 
 // ── GET /api/models ──────────────────────────────────────────────────────────
 app.get('/api/models', (req, res) => {
     try {
-        const files = readdirSync(MODEL_DIR)
+        const entries = readdirSync(MODEL_DIR).sort();
+
+        const gguf = entries
             .filter(f => f.endsWith('.gguf'))
-            .sort()
-            .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f) }));
-        res.json(files);
+            .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f), backend: 'llama' }));
+
+        const mlx = entries
+            .filter(name => {
+                const p = path.join(MODEL_DIR, name);
+                return statSync(p).isDirectory() && existsSync(path.join(p, 'config.json'));
+            })
+            .map(name => ({ name, path: path.join(MODEL_DIR, name), backend: 'mlx' }));
+
+        res.json([...gguf, ...mlx]);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -68,8 +80,9 @@ app.post('/api/configure', express.json(), async (req, res) => {
             { agents, coordinator: base.coordinator, ui: base.ui }, null, 2
         ));
 
-        // Stop existing services (kill any llama-server variant on swarm ports)
+        // Stop existing services
         try { execSync(`pkill -f llama-server`); } catch {}
+        try { execSync(`pkill -f "mlx_lm.server"`); } catch {}
         try { execSync(`pkill -f "${path.join(__dirname, 'coordinator')}"`); } catch {}
         // Force-free the ports in case of lingering sockets
         try { execSync(`lsof -ti:8080,8081,8082,8083,8084 | xargs kill -9`); } catch {}
@@ -78,19 +91,29 @@ app.post('/api/configure', express.json(), async (req, res) => {
         mkdirSync('/tmp/matrix-slots', { recursive: true });
         mkdirSync(path.join(__dirname, 'logs'), { recursive: true });
 
-        // Start one llama-server per unique model
+        // Start one server per unique model
         for (const [port, g] of Object.entries(portGroups)) {
             const logFile = path.join(__dirname, 'logs', `${port}.log`);
             const out = openSync(logFile, 'a');
-            spawn(LLAMA_BIN, [
-                '-m', g.model,
-                '-c', String(g.context),
-                '--port', port,
-                '--n-gpu-layers', String(g.gpu_layers),
-                '--parallel', String(g.names.length),
-                '--slot-save-path', '/tmp/matrix-slots',
-            ], { detached: true, stdio: ['ignore', out, out] }).unref();
-            console.log(`[Configure] port ${port} | parallel=${g.names.length} | [${g.names.join(', ')}] → logs/${port}.log`);
+            if (isMLXModel(g.model)) {
+                spawn('python', [
+                    '-m', 'mlx_lm.server',
+                    '--model', g.model,
+                    '--port', port,
+                    '--host', '127.0.0.1',
+                ], { detached: true, stdio: ['ignore', out, out] }).unref();
+                console.log(`[Configure] MLX port ${port} | [${g.names.join(', ')}] → logs/${port}.log`);
+            } else {
+                spawn(LLAMA_BIN, [
+                    '-m', g.model,
+                    '-c', String(g.context),
+                    '--port', port,
+                    '--n-gpu-layers', String(g.gpu_layers),
+                    '--parallel', String(g.names.length),
+                    '--slot-save-path', '/tmp/matrix-slots',
+                ], { detached: true, stdio: ['ignore', out, out] }).unref();
+                console.log(`[Configure] port ${port} | parallel=${g.names.length} | [${g.names.join(', ')}] → logs/${port}.log`);
+            }
         }
 
         // Wait for all servers to be healthy (up to 120s — loading 4 large models can take time)

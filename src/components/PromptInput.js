@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
  */
 function PromptInput({ onSubmit, loading = false, disabled = false, externalPrompt, externalTemperature }) {
   const [prompt, setPrompt] = useState('');
-  const [temperature, setTemperature] = useState(0.7);
+  const [temperature, setTemperature] = useState(0.2);
 
   // Sync from external source (e.g. history selection)
   useEffect(() => {
@@ -50,14 +50,14 @@ function PromptInput({ onSubmit, loading = false, disabled = false, externalProm
       <div className="prompt-controls">
         <div className="temperature-control">
           <label htmlFor="temperature">
-            Temperature: <span className="temp-value">{temperature.toFixed(1)}</span>
+            Temperature: <span className="temp-value">{temperature.toFixed(2)}</span>
           </label>
           <input
             type="range"
             id="temperature"
-            min="0.1"
+            min="0.05"
             max="1.0"
-            step="0.1"
+            step="0.05"
             value={temperature}
             onChange={(e) => setTemperature(parseFloat(e.target.value))}
             disabled={loading || disabled}
