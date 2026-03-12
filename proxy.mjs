@@ -13,7 +13,6 @@ const ACTIVE_CONFIG = '/tmp/matrix-active-config.json';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
 // ── GET /api/models ──────────────────────────────────────────────────────────
 app.get('/api/models', (req, res) => {
@@ -41,7 +40,7 @@ app.get('/api/swarm-config', (req, res) => {
 // ── POST /api/configure ──────────────────────────────────────────────────────
 // Accepts an agents array, groups same-model agents onto shared llama-server
 // instances with --parallel N, starts everything, waits for health.
-app.post('/api/configure', async (req, res) => {
+app.post('/api/configure', express.json(), async (req, res) => {
     const { agents } = req.body || {};
     if (!agents?.length) return res.status(400).json({ error: 'agents array required' });
 
