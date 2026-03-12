@@ -4,18 +4,24 @@ import { fetchSwarmConfig, fetchModels, configureSwarm } from '../api/swarmApi';
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
 const isMLXPath = p => !p.endsWith('.gguf');
 
-function computeLayout(roles, selected, roleModels) {
-  const modelToPort = {};
+function computeLayout(roles, selected, roleModels, engine) {
+  const keyToPort = {};
   let nextPort = 8080;
   const groups = {};
 
   for (const role of roles) {
     if (!selected.has(role.name)) continue;
     const model = roleModels[role.name] || role.model;
-    if (!modelToPort[model]) modelToPort[model] = nextPort++;
-    const port = modelToPort[model];
+    const key = `${engine}:${model}`;
+    if (!keyToPort[key]) keyToPort[key] = nextPort++;
+    const port = keyToPort[key];
     if (!groups[port]) {
-      groups[port] = { model: shortName(model), agents: [], mlx: isMLXPath(model) };
+      groups[port] = {
+        model: shortName(model),
+        agents: [],
+        mlx: engine === 'mlx',
+        llamaPy: engine === 'llama_cpp_python',
+      };
     }
     groups[port].agents.push(role.name);
   }
@@ -26,12 +32,14 @@ function computeLayout(roles, selected, roleModels) {
     agents: g.agents,
     parallel: g.agents.length,
     mlx: g.mlx,
+    llamaPy: g.llamaPy,
   }));
 }
 
 const ENGINES = [
   { id: 'llama', label: 'LLAMA', backend: 'llama' },
-  { id: 'mlx',   label: 'MLX',   backend: 'mlx'   },
+  { id: 'llama_cpp_python', label: 'LLAMA.PY', backend: 'llama_cpp_python' },
+  { id: 'mlx', label: 'MLX', backend: 'mlx' },
 ];
 
 export default function SwarmConfig({ onDeployed }) {
@@ -88,7 +96,9 @@ export default function SwarmConfig({ onDeployed }) {
         // Only override model if the current one doesn't match the active engine
         if (hasEngineModels) {
           const currentModel = roleModels[name];
-          const matchesEngine = currentModel && (engine === 'mlx' ? isMLXPath(currentModel) : !isMLXPath(currentModel));
+          const matchesEngine = currentModel && (
+          engine === 'mlx' ? isMLXPath(currentModel) : (engine === 'llama_cpp_python' || engine === 'llama') ? !isMLXPath(currentModel) : true
+        );
           if (!matchesEngine) {
             setRoleModels(m => ({ ...m, [name]: engineModels[0].path }));
           }
@@ -105,10 +115,10 @@ export default function SwarmConfig({ onDeployed }) {
   const handleDeploy = async () => {
     const agents = roles
       .filter(r => selected.has(r.name))
-      .map(r => ({ ...r, model: roleModels[r.name] || r.model }));
+      .map(r => ({ ...r, model: roleModels[r.name] || r.model, backend: engine }));
 
     setStatus('deploying');
-    const engineLabel = engine === 'mlx' ? 'MLX' : 'llama-server';
+    const engineLabel = engine === 'mlx' ? 'MLX' : engine === 'llama_cpp_python' ? 'LLAMA.PY' : 'llama-server';
     setStatusMsg(`Starting ${engineLabel} servers... this may take up to 120s`);
 
     try {
@@ -121,7 +131,7 @@ export default function SwarmConfig({ onDeployed }) {
     }
   };
 
-  const layout = computeLayout(roles, selected, roleModels);
+  const layout = computeLayout(roles, selected, roleModels, engine);
 
   if (loadError) {
     return (
@@ -207,8 +217,8 @@ export default function SwarmConfig({ onDeployed }) {
             {layout.map(s => (
               <div key={s.port} className="swarm-layout-row">
                 <span className="layout-port">:{s.port}</span>
-                <span className={`layout-parallel${s.mlx ? ' layout-mlx' : ''}`}>
-                  {s.mlx ? '[mlx]' : `×${s.parallel}`}
+                <span className={`layout-parallel${s.mlx ? ' layout-mlx' : ''}${s.llamaPy ? ' layout-llama-py' : ''}`}>
+                  {s.mlx ? '[mlx]' : s.llamaPy ? '[llama.py]' : `×${s.parallel}`}
                 </span>
                 <div className="layout-right">
                   <div className="layout-agents">[{s.agents.join(', ')}]</div>

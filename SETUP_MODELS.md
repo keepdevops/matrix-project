@@ -1,13 +1,14 @@
 # Model and llama.cpp / MLX Setup Guide
 
-This guide covers two inference backends supported by Matrix Swarm:
+This guide covers three inference backends supported by Matrix Swarm (all work on M3 with GGUF or MLX format):
 
-| Backend | Binary | Model format | Best for |
+| Backend | Process | Model format | Best for |
 |---------|--------|-------------|---------|
-| **llama.cpp** | `llama-server` | `.gguf` files | Broad model support, VRAM control |
+| **LLAMA** | `llama-server` (C++) | `.gguf` files | Parallel agents, CLEAR KV, broad support |
+| **LLAMA.PY** | `llama_cpp.server` (Python) | Same `.gguf` files | No C++ build; Metal on Mac |
 | **MLX** | `mlx_lm.server` (Python) | HuggingFace directories | Apple Silicon native speed |
 
-Both serve the same OpenAI-compatible API — the proxy auto-detects which to launch based on the model path (`.gguf` → llama, directory → MLX).
+All serve the same OpenAI-compatible API. In CONFIGURE you choose the engine; the proxy starts the matching process per model.
 
 ## Directory Structure
 
@@ -31,9 +32,9 @@ Both GGUF files and MLX model directories live in the same folder. The proxy dis
 ```
 
 The proxy (`proxy.mjs`) looks for:
-- **llama-server binary:** `/Users/Shared/llama/llama-server`
-- **GGUF models:** `*.gguf` files in `/Users/Shared/llama/models/`
-- **MLX models:** subdirectories in `/Users/Shared/llama/models/` that contain a `config.json`
+- **LLAMA:** `llama-server` binary at `/Users/Shared/llama/llama-server` and `*.gguf` in `models/`
+- **LLAMA.PY:** `pip install llama-cpp-python[server]`; same `*.gguf` files in `models/`
+- **MLX:** `pip install mlx-lm`; subdirectories in `models/` that contain a `config.json`
 
 ---
 
@@ -131,12 +132,28 @@ Optionally register either type in `mlx_models.json` for reference.
 
 You can convert a HuggingFace model once and then use it with **either** llama-server (GGUF) or mlx_lm.server (MLX 4-bit) on Apple Silicon (M3 etc.).
 
-The script `scripts/convert_models.sh` supports two targets:
+The script `scripts/convert_models.sh` supports three ways to get models:
 
-| Target | Output | Use in Matrix |
-|--------|--------|----------------|
+| Mode | Output | Use in Matrix |
+|------|--------|----------------|
+| **download** | File in `models/` (via curl) | No gated access; use public GGUF (or other) URLs |
 | **mlx** | MLX 4-bit directory under `models/` | Engine **MLX** — often faster per-token on M-series |
 | **gguf** | GGUF file in `models/` | Engine **LLAMA** — same-model parallelism, CLEAR KV |
+
+### Download via curl (no gated access)
+
+Use public direct URLs so you never need HuggingFace login or tokens:
+
+```bash
+# Public GGUF (e.g. from bartowski or other non-gated repos)
+./scripts/convert_models.sh download \
+  "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+
+# Optional: set output filename
+./scripts/convert_models.sh download "https://.../model.gguf" MyModel-Q4_K_M.gguf
+```
+
+Resume is supported (`curl -C -`). Output goes to `MODEL_DIR`; use in CONFIGURE with engine **LLAMA**.
 
 ### Prerequisites
 

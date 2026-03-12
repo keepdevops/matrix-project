@@ -26,6 +26,10 @@ app.get('/api/models', (req, res) => {
             .filter(f => f.endsWith('.gguf'))
             .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f), backend: 'llama' }));
 
+        const ggufLlamaPy = entries
+            .filter(f => f.endsWith('.gguf'))
+            .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f), backend: 'llama_cpp_python' }));
+
         const mlx = entries
             .filter(name => {
                 const p = path.join(MODEL_DIR, name);
@@ -33,7 +37,7 @@ app.get('/api/models', (req, res) => {
             })
             .map(name => ({ name, path: path.join(MODEL_DIR, name), backend: 'mlx' }));
 
-        res.json([...gguf, ...mlx]);
+        res.json([...gguf, ...ggufLlamaPy, ...mlx]);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -63,11 +67,13 @@ app.post('/api/configure', express.json(), async (req, res) => {
         const portGroups = {};
 
         for (const agent of agents) {
-            if (!modelToPort[agent.model]) modelToPort[agent.model] = nextPort++;
-            agent.port = modelToPort[agent.model];
+            const backend = agent.backend || (agent.model.endsWith('.gguf') ? 'llama' : 'mlx');
+            const key = `${backend}:${agent.model}`;
+            if (!modelToPort[key]) modelToPort[key] = nextPort++;
+            agent.port = modelToPort[key];
             const p = agent.port;
             if (!portGroups[p]) {
-                portGroups[p] = { model: agent.model, context: agent.context, gpu_layers: agent.gpu_layers, names: [] };
+                portGroups[p] = { model: agent.model, context: agent.context, gpu_layers: agent.gpu_layers, names: [], backend };
             } else {
                 portGroups[p].context = Math.max(portGroups[p].context, agent.context);
             }
@@ -82,6 +88,7 @@ app.post('/api/configure', express.json(), async (req, res) => {
 
         // Stop existing services
         try { execSync(`pkill -f llama-server`); } catch {}
+        try { execSync(`pkill -f "llama_cpp.server"`); } catch {}
         try { execSync(`pkill -f "mlx_lm.server"`); } catch {}
         try { execSync(`pkill -f "${path.join(__dirname, 'coordinator')}"`); } catch {}
         // Force-free the ports in case of lingering sockets
@@ -95,7 +102,7 @@ app.post('/api/configure', express.json(), async (req, res) => {
         for (const [port, g] of Object.entries(portGroups)) {
             const logFile = path.join(__dirname, 'logs', `${port}.log`);
             const out = openSync(logFile, 'a');
-            if (isMLXModel(g.model)) {
+            if (g.backend === 'mlx') {
                 spawn('python', [
                     '-m', 'mlx_lm.server',
                     '--model', g.model,
@@ -103,6 +110,16 @@ app.post('/api/configure', express.json(), async (req, res) => {
                     '--host', '127.0.0.1',
                 ], { detached: true, stdio: ['ignore', out, out] }).unref();
                 console.log(`[Configure] MLX port ${port} | [${g.names.join(', ')}] → logs/${port}.log`);
+            } else if (g.backend === 'llama_cpp_python') {
+                spawn('python3', [
+                    '-m', 'llama_cpp.server',
+                    '--model', g.model,
+                    '--host', '127.0.0.1',
+                    '--port', port,
+                    '--n_ctx', String(g.context || 4096),
+                    '--n_gpu_layers', String(g.gpu_layers !== undefined ? g.gpu_layers : -1),
+                ], { detached: true, stdio: ['ignore', out, out] }).unref();
+                console.log(`[Configure] LLAMA.PY port ${port} | [${g.names.join(', ')}] → logs/${port}.log`);
             } else {
                 spawn(LLAMA_BIN, [
                     '-m', g.model,
@@ -112,7 +129,7 @@ app.post('/api/configure', express.json(), async (req, res) => {
                     '--parallel', String(g.names.length),
                     '--slot-save-path', '/tmp/matrix-slots',
                 ], { detached: true, stdio: ['ignore', out, out] }).unref();
-                console.log(`[Configure] port ${port} | parallel=${g.names.length} | [${g.names.join(', ')}] → logs/${port}.log`);
+                console.log(`[Configure] LLAMA port ${port} | parallel=${g.names.length} | [${g.names.join(', ')}] → logs/${port}.log`);
             }
         }
 

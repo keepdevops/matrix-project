@@ -60,11 +60,12 @@ c++ -std=c++17 -O2 -o coordinator coordinator.cpp -pthread
 
 ## convert_models.sh
 
-Converts HuggingFace models so you can use them with **either** llama (GGUF) or mlx-lm (MLX 4-bit) on M3/Apple Silicon.
+Download or convert models for use with llama (GGUF) or mlx-lm (MLX 4-bit) on M3/Apple Silicon.
 
 ```bash
-./scripts/convert_models.sh mlx <hf_repo> [output_name]   # → MLX 4-bit (pip install mlx-lm)
-./scripts/convert_models.sh gguf <hf_repo> [output_name]  # → GGUF (requires LLAMA_CPP_DIR)
+./scripts/convert_models.sh download <url> [output_filename]  # curl, no gated access
+./scripts/convert_models.sh mlx <hf_repo> [output_name]     # → MLX 4-bit (pip install mlx-lm)
+./scripts/convert_models.sh gguf <hf_repo> [output_name]    # → GGUF (requires LLAMA_CPP_DIR)
 ```
 
 See [SETUP_MODELS.md](../SETUP_MODELS.md#converting-models-use-with-llama-or-mlx-lm-on-m3) for details.

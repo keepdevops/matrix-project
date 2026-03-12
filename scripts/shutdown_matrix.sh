@@ -37,6 +37,8 @@ if [ -f "$PID_FILE" ]; then
     echo "  PID file cleared."
 fi
 pkill -f llama-server 2>/dev/null
+pkill -f "llama_cpp.server" 2>/dev/null
+pkill -f "mlx_lm.server" 2>/dev/null
 pkill -f coordinator 2>/dev/null
 pkill -f "node proxy.mjs" 2>/dev/null
 

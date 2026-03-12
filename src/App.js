@@ -277,7 +277,7 @@ function App() {
                   <dt>ONLINE / OFFLINE</dt>
                   <dd>Coordinator status. OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
                   <dt>CONFIGURE</dt>
-                  <dd>Opens the swarm panel. Select engine (LLAMA / MLX), choose agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
+                  <dd>Opens the swarm panel. Select engine (LLAMA / LLAMA.PY / MLX), choose agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
                   <dt>CLEAR KV</dt>
                   <dd>Erases the KV cache on all llama-server agents — useful when agents seem stuck, produce repetitive output, or after switching to a completely different task. Has no effect on MLX agents.</dd>
                   <dt>HISTORY (N)</dt>
@@ -343,11 +343,20 @@ function App() {
                 <h3>Inference Engines</h3>
                 <dl>
                   <dt>LLAMA</dt>
-                  <dd>llama-server (llama.cpp). Loads <code>.gguf</code> files. Launches with <code>--parallel N</code> so same-model agents run truly in parallel within one process. CLEAR KV works. Best for maximum throughput when running many agents on the same model.</dd>
-                  <dt>MLX</dt>
-                  <dd>mlx_lm.server (Apple Silicon native). Loads model directories. Requests queue on one process — no <code>--parallel</code>. Often faster per-token than llama.cpp on M-series chips. CLEAR KV has no effect.</dd>
+                  <dd>llama-server (C++ from llama.cpp). Loads <code>.gguf</code> files. Uses <code>--parallel N</code> so same-model agents run in parallel in one process. CLEAR KV works. Best for many agents on the same model.</dd>
+                  <dt>LLAMA.PY</dt>
+                  <dd>llama-cpp-python server. Same <code>.gguf</code> files as LLAMA; no C++ build required. <code>pip install llama-cpp-python[server]</code>; on Mac use Metal: <code>CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python</code>. One process per model; CLEAR KV has no effect.</dd>
+                  <dt>MLX (mlx-lm)</dt>
+                  <dd>Apple Silicon native (Metal). Uses <code>mlx_lm.server</code>; loads model <strong>directories</strong> (not single files). Often faster per-token on M1/M2/M3. Requests queue per server. CLEAR KV has no effect.</dd>
                 </dl>
-                <p>Both backends live in <code>/Users/Shared/llama/models/</code> — <code>.gguf</code> files for LLAMA, directories containing <code>config.json</code> for MLX. The engine button shows how many models of each type are installed.</p>
+                <p>All use <code>/Users/Shared/llama/models/</code>: <code>.gguf</code> for LLAMA and LLAMA.PY; directories with <code>config.json</code> for MLX. The engine button shows how many models of that type are installed.</p>
+                <h4>MLX (mlx-lm) setup</h4>
+                <ul style={{ marginTop: '0.5em', paddingLeft: '1.2em' }}>
+                  <li><strong>Install:</strong> <code>pip install mlx-lm</code></li>
+                  <li><strong>Model format:</strong> Each MLX model is a <strong>directory</strong> under <code>/Users/Shared/llama/models/</code> containing <code>config.json</code>, <code>tokenizer.json</code>, and <code>*.safetensors</code>.</li>
+                  <li><strong>Get models:</strong> Use <code>./scripts/convert_models.sh mlx &lt;hf_repo&gt;</code> to convert a HuggingFace model to MLX 4-bit (e.g. <code>HuggingFaceTB/SmolLM2-360M-Instruct</code>). Or download pre-converted 4-bit models from the <code>mlx-community</code> org on HuggingFace into that folder.</li>
+                  <li><strong>First load:</strong> MLX servers can take 30–90 s to load; the proxy waits up to 120 s. If LAUNCH SWARM times out, check <code>logs/&lt;port&gt;.log</code> and ensure enough free RAM.</li>
+                </ul>
               </div>
 
               <div className="help-section">

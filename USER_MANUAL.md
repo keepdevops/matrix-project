@@ -53,8 +53,9 @@ architect  programmer  reviewer  security  synthesis
 | OS | macOS (Apple Silicon M1/M2/M3 recommended) |
 | Node.js | 18 or later |
 | C++ compiler | Clang++ or g++ with C++17 |
-| llama-server | Built from llama.cpp at `/Users/Shared/llama/llama-server` |
-| GGUF models | In `/Users/Shared/llama/models/` (for LLAMA engine) |
+| llama-server | Built from llama.cpp at `/Users/Shared/llama/llama-server` (for LLAMA engine) |
+| GGUF models | In `/Users/Shared/llama/models/` (for LLAMA and LLAMA.PY engines) |
+| llama-cpp-python | `pip install llama-cpp-python[server]` (for LLAMA.PY engine; optional, same GGUF as LLAMA) |
 | mlx-lm | `pip install mlx-lm` (for MLX engine, optional) |
 | MLX models | Directories in `/Users/Shared/llama/models/` (for MLX engine) |
 | Docker Desktop | Optional — only needed for Docker UI mode |
@@ -133,8 +134,8 @@ Click **CONFIGURE** in the header to open the panel. It has two columns: agent s
   ┌─────────────────────────────────────────────────────────┐
   │                   CONFIGURE PANEL                       │
   │                                                         │
-  │  ENGINE ──► [ LLAMA (4) ]  [ MLX (2) ]                 │
-  │               ↑ active       ↑ count of available models│
+  │  ENGINE ──► [ LLAMA ] [ LLAMA.PY ] [ MLX ]             │
+  │               ↑          ↑           ↑ count of models │
   │                                                         │
   │  SELECT AGENTS              SERVER LAYOUT               │
   │  ☑ architect ▾ Meta-Llama   :8080  ×2  [architect,      │
@@ -151,17 +152,19 @@ Click **CONFIGURE** in the header to open the panel. It has two columns: agent s
 ### Step-by-step
 
 **1. Choose engine**
-- **LLAMA** — loads `.gguf` files via `llama-server`. Same-model agents share one process with `--parallel N` for true parallelism.
-- **MLX** — loads model directories via `mlx_lm.server`. Faster per-token on Apple Silicon; requests queue rather than running in parallel.
-- The number in parentheses shows how many models of that type are installed. A greyed-out button means no models of that type are found.
+- **LLAMA** — C++ `llama-server` (llama.cpp). Loads `.gguf` files; same-model agents share one process with `--parallel N` for true parallelism. CLEAR KV works.
+- **LLAMA.PY** — Python `llama_cpp.server` (llama-cpp-python). Same `.gguf` files; no C++ build. Good on M3 with Metal. One process per model; CLEAR KV has no effect.
+- **MLX** — `mlx_lm.server` (Apple Silicon). Loads model directories. Often faster per-token on M-series; requests queue per server.
+- The number in parentheses shows how many models of that type are installed. A greyed-out button means none found.
 
 **2. Select agents**
 Check or uncheck agents. Each selected agent shows a model dropdown filtered to the chosen engine. You can assign a different model to each agent — agents that share the same model are automatically grouped onto one server instance.
 
 **3. Read the server layout**
-The right column shows exactly which servers will be started:
+The right column shows which servers will be started:
 - `:8080 ×2` — one llama-server on port 8080 with `--parallel 2`
-- `:8081 [mlx]` — one mlx_lm.server on port 8081
+- `:8081 [llama.py]` — one llama-cpp-python server on port 8081
+- `:8082 [mlx]` — one mlx_lm.server on port 8082
 
 **4. Click LAUNCH SWARM**
 
@@ -376,27 +379,51 @@ Good for: quick exploration, prototyping, one-off questions
                     │          Which engine?                  │
                     └──────────────┬──────────────────────────┘
                                    │
-              ┌────────────────────┼────────────────────┐
-              │                                         │
-              ▼                                         ▼
-         LLAMA (GGUF)                              MLX (Apple Silicon)
-              │                                         │
-    ┌─────────────────┐                     ┌─────────────────────┐
-    │ .gguf file       │                     │ model directory     │
-    │ llama-server     │                     │ mlx_lm.server       │
-    │ --parallel N     │                     │ queued requests     │
-    └────────┬─────────┘                     └──────────┬──────────┘
-             │                                          │
-             ▼                                          ▼
-    Best when:                                 Best when:
-    • Running many agents                      • Speed per token matters
-      on the same model                        • Fewer agents or each
-    • CLEAR KV needed                            on a different model
-    • Broad model choice                       • mlx-community models
-      (any GGUF)                                 available for your task
+              ┌────────────────────┼────────────────────┬────────────────────┐
+              │                    │                    │                    │
+              ▼                    ▼                    ▼                    │
+         LLAMA (C++)          LLAMA.PY (Python)    MLX (Apple Silicon)       │
+              │                    │                    │                    │
+    ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐     │
+    │ .gguf            │  │ .gguf            │  │ model directory     │     │
+    │ llama-server     │  │ llama_cpp.server│  │ mlx_lm.server       │     │
+    │ --parallel N     │  │ one per model    │  │ queued requests     │     │
+    └────────┬─────────┘  └────────┬─────────┘  └──────────┬──────────┘     │
+             │                    │                       │                  │
+             ▼                    ▼                       ▼                  │
+    Best when:            No C++ build;            Best when:                │
+    • Many agents         same GGUF as             • Speed per token         │
+      same model         LLAMA; Metal on           • mlx-community           │
+    • CLEAR KV           M3                       • Fewer agents            │
 ```
 
-**In practice:** For most users on Apple Silicon, MLX is faster per response for a single agent. LLAMA wins when you run 5+ agents on the same model (true parallelism via `--parallel`). Mixed swarms work — assign MLX to some agents and GGUF to others.
+**In practice:** **LLAMA** gives true parallelism (many agents, same model) and CLEAR KV. **LLAMA.PY** uses the same GGUF files without building llama.cpp; good on M3 with `pip install llama-cpp-python[server]`. **MLX** is often fastest per-token on Apple Silicon. Mixed swarms work — you can assign different engines to different agents.
+
+### LLAMA.PY (llama-cpp-python) setup
+
+Same GGUF files as LLAMA, but served by the **llama-cpp-python** Python package so you don't need to build the C++ llama-server. Works on M3 with Metal.
+
+| Step | What to do |
+|------|------------|
+| **Install** | `pip install llama-cpp-python[server]` |
+| **Metal on Mac** | For GPU: `CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python --no-cache-dir` then `pip install llama-cpp-python[server]` |
+| **Models** | Same as LLAMA: `.gguf` files in `/Users/Shared/llama/models/` |
+| **CLEAR KV** | Not supported (no effect on LLAMA.PY servers) |
+
+### MLX (mlx-lm) setup and help
+
+MLX runs models natively on Apple Silicon (M1/M2/M3) using Metal. The Matrix proxy starts `mlx_lm.server` (from the **mlx-lm** Python package) for each unique MLX model you assign in CONFIGURE.
+
+| Step | What to do |
+|------|------------|
+| **Install mlx-lm** | `pip install mlx-lm` (or install inside your pixi/conda env if you use `scripts/run_matrix_pixi.sh`) |
+| **Model location** | MLX models must be **directories** under `/Users/Shared/llama/models/` (same parent as GGUF files). |
+| **Model format** | Each directory must contain `config.json`, plus `tokenizer.json` and weight files (e.g. `*.safetensors`). The proxy only lists directories that have `config.json`. |
+| **Get MLX models** | (1) **Convert from HuggingFace:** `./scripts/convert_models.sh mlx <hf_repo>` (e.g. `HuggingFaceTB/SmolLM2-360M-Instruct`). (2) **Pre-converted 4-bit:** Download from the [mlx-community](https://huggingface.co/mlx-community) org on HuggingFace into that folder (e.g. `Llama-3.2-3B-Instruct-4bit`). |
+| **First load** | Loading a large MLX model can take 30–90 s. The proxy waits up to 120 s for all servers to report healthy. If LAUNCH SWARM times out, check `logs/<port>.log` and free RAM. |
+| **CLEAR KV** | Has no effect on MLX agents; MLX manages its own context. |
+
+See [SETUP_MODELS.md](SETUP_MODELS.md) for detailed model download and conversion (including **convert_models.sh** for both GGUF and MLX, and curl download for non-gated GGUF).
 
 ---
 
@@ -651,12 +678,19 @@ The model server on that port crashed or was never started. Re-deploy via CONFIG
 
 The coordinator could not reach one of the llama-server ports. The servers may have crashed. Re-deploy the swarm.
 
-### MLX model not appearing in the engine picker
+### MLX (mlx-lm) model not appearing in the engine picker
 
-The model directory must contain a `config.json` file. Verify:
+The model must be a **directory** (not a single file) and contain a `config.json` file. Verify:
 ```bash
 ls /Users/Shared/llama/models/<model-name>/config.json
 ```
+If you only have a HuggingFace repo, convert it first: `./scripts/convert_models.sh mlx <hf_repo>` (requires `pip install mlx-lm`).
+
+### MLX server fails to start or LAUNCH SWARM times out
+
+- Ensure **mlx-lm** is installed: `pip install mlx-lm`
+- Check the server log: `logs/<port>.log` (e.g. `logs/8080.log`) for Python or import errors
+- First load of a large MLX model can take 30–90 s; the proxy waits up to 120 s. Free RAM and try again
 
 ### CODE OUTPUT panel is empty
 
@@ -670,4 +704,8 @@ bash scripts/shutdown_matrix.sh
 npm run shutdown
 ```
 
-This kills all tracked PIDs, llama-server processes, mlx_lm.server processes, the coordinator, and the proxy, then force-frees all ports.
+This kills all tracked PIDs, llama-server, llama_cpp.server, mlx_lm.server, the coordinator, and the proxy, then force-frees all ports.
+
+### Other options (not built-in)
+
+**Ollama** runs GGUF and other formats with an OpenAI-compatible API on port 11434. Matrix does not start or manage Ollama; if you run Ollama separately and pull models (e.g. `ollama pull llama3.2`), you could point a custom client at it. Adding Ollama as a first-class engine would require coordinator changes (one server, multiple model names) and is not implemented yet.

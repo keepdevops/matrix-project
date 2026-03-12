@@ -23,6 +23,24 @@ cxx-compiler = ">=1,<2"
 # swarm_diag.py
 requests = ">=2.28,<3"
 
+# Optional engines (install one or both; if llama-cpp-python fails to build, use: pip install llama-cpp-python[server])
+# - LLAMA.PY: pixi install -e llama-py   then  pixi run -e llama-py launch
+# - MLX (Apple Silicon): pixi install -e mlx   then  pixi run -e mlx launch
+[feature.llama-py.dependencies]
+
+[feature.llama-py.pypi-dependencies]
+llama-cpp-python = { version = ">=0.2.20,<1", extras = ["server"] }
+
+[feature.mlx.dependencies]
+
+[feature.mlx.target.osx-arm64.pypi-dependencies]
+mlx-lm = ">=0.19,<0.31"
+
+[environments]
+# default: core only (node, python, cxx-compiler, requests). Use -e llama-py and/or -e mlx for engines.
+llama-py = { features = ["llama-py"] }
+mlx = { features = ["mlx"] }
+
 [tasks]
 # Build C++ coordinator (use pixi's cxx-compiler)
 build-coordinator = "c++ -std=c++17 -O2 -o coordinator coordinator.cpp -pthread"
