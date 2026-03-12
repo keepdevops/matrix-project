@@ -43,6 +43,54 @@ export async function fetchHistory() {
 }
 
 /**
+ * Fetch the list of active agents from the coordinator
+ * @returns {Promise<Array<{name: string, port: number}>>}
+ */
+export async function fetchAgents() {
+  const response = await fetch(`${API_BASE}/agents`);
+  if (!response.ok) throw new Error(`Failed to fetch agents: ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Fetch available GGUF model files from the models directory
+ * @returns {Promise<Array<{name: string, path: string}>>}
+ */
+export async function fetchModels() {
+  const response = await fetch(`${API_BASE}/models`);
+  if (!response.ok) throw new Error(`Failed to fetch models: ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Fetch base swarm role definitions from swarm-config.json
+ * @returns {Promise<Object>}
+ */
+export async function fetchSwarmConfig() {
+  const response = await fetch(`${API_BASE}/swarm-config`);
+  if (!response.ok) throw new Error(`Failed to fetch swarm config: ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Deploy a swarm configuration — starts llama-servers and coordinator
+ * @param {Array} agents - Array of agent objects with model assignments
+ * @returns {Promise<{status: string, servers: Array}>}
+ */
+export async function configureSwarm(agents) {
+  const response = await fetch(`${API_BASE}/configure`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agents }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Configure failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
  * Clear KV cache on all agents
  * @returns {Promise<Object>} per-agent status map
  */
@@ -58,7 +106,7 @@ export async function clearCache() {
  */
 export async function checkHealth() {
   try {
-    const response = await fetch(`${API_BASE}/history`);
+    const response = await fetch(`${API_BASE}/health`);
     return response.ok;
   } catch {
     return false;

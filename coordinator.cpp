@@ -1,10 +1,12 @@
 #include "httplib.h"
 #include "json.hpp"
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <future>
 #include <vector>
 #include <algorithm>
+#include <map>
 
 using json = nlohmann::json;
 
@@ -16,49 +18,7 @@ struct Agent {
     std::string system_prompt;
 };
 
-// Five-role swarm
-std::vector<Agent> agents = {
-    {
-        "architect",
-        8080,
-        60,
-        1024,
-        "You are the Lead Architect. Produce ASCII UML diagrams, system design documents, "
-        "component relationships, and high-level architecture decisions. Be precise and visual."
-    },
-    {
-        "specialist",
-        8081,
-        60,
-        1024,
-        "You are a Systems Specialist expert in C++ and Go. Focus on performance-critical "
-        "implementation, memory management, concurrency patterns, and low-level system design."
-    },
-    {
-        "scout",
-        8082,
-        60,
-        1024,
-        "You are the Context Scout. Analyze large codebases to identify relevant patterns, "
-        "dependencies, module boundaries, and reusable solutions that apply to the task."
-    },
-    {
-        "programmer",
-        8083,
-        300,
-        4096,
-        "You are the Programmer. Produce complete, production-ready code with all imports, "
-        "error handling, and full implementation. Never use placeholders or omit code."
-    },
-    {
-        "synthesis",
-        8084,
-        60,
-        1024,
-        "You are the Master Planner. Synthesize all inputs into a coherent execution roadmap. "
-        "Prioritize steps, identify risks, and produce a clear actionable plan."
-    }
-};
+std::vector<Agent> agents; // loaded from swarm-config.json at startup
 
 std::string call_agent(const Agent& agent, const std::string& user_prompt) {
     try {
@@ -81,13 +41,48 @@ std::string call_agent(const Agent& agent, const std::string& user_prompt) {
                 return j["choices"][0]["message"]["content"];
             }
         }
+        if (res) {
+            try {
+                auto err = json::parse(res->body);
+                if (err.contains("error") && err["error"].contains("message")) {
+                    return "[" + agent.name + " error] " + err["error"]["message"].get<std::string>();
+                }
+            } catch (...) {}
+        }
         return "Agent " + agent.name + " (Port " + std::to_string(agent.port) + ") is not responding.";
     } catch (const std::exception& e) {
         return "Connection Error (" + agent.name + "): " + std::string(e.what());
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    // Parse arguments
+    std::string config_path = "swarm-config.json";
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "--config" && i + 1 < argc) {
+            config_path = argv[i + 1];
+            i++;
+        }
+    }
+
+    // Load agents from config
+    std::ifstream config_file(config_path);
+    if (!config_file.is_open()) {
+        std::cerr << "❌ Could not open " << config_path << std::endl;
+        return 1;
+    }
+    json config = json::parse(config_file);
+    for (auto& a : config["agents"]) {
+        agents.push_back({
+            a["name"].get<std::string>(),
+            a["port"].get<int>(),
+            a["read_timeout_secs"].get<int>(),
+            a["max_tokens"].get<int>(),
+            a["system_prompt"].get<std::string>()
+        });
+    }
+    std::cout << "✅ Loaded " << agents.size() << " agents from " << config_path << std::endl;
+
     httplib::Server svr;
 
     // 1. Health Route (Fixes the "Proxy Unreachable" error)
@@ -97,7 +92,17 @@ int main() {
         std::cout << "🩺 [M3] Health Check: 200 OK" << std::endl;
     });
 
-    // 2. History Route (Fixes the 404 in the sidebar)
+    // 2. Active agents list
+    svr.Get("/api/agents", [](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        json list = json::array();
+        for (const auto& a : agents) {
+            list.push_back({{"name", a.name}, {"port", a.port}});
+        }
+        res.set_content(list.dump(), "application/json");
+    });
+
+    // 3. History Route (Fixes the 404 in the sidebar)
     svr.Get("/api/history", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_content("[]", "application/json");
@@ -138,25 +143,49 @@ int main() {
         }
     });
 
-    // 4. Clear KV Cache on all agents
+    // 4. Clear KV Cache on all agents (handles shared ports with --parallel slots)
     svr.Post("/api/clear-cache", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "\n🗑️  [M3] Clearing KV cache on all agents..." << std::endl;
 
+        // Build port -> slot_count map (agents sharing a port each get their own slot)
+        std::map<int, int> port_slots;
+        for (const auto& a : agents) port_slots[a.port]++;
+
+        // Erase every slot on every unique port in parallel
+        std::vector<std::future<std::pair<int, std::string>>> futures;
+        for (const auto& kv : port_slots) {
+            int port = kv.first;
+            int slot_count = kv.second;
+            futures.push_back(std::async(std::launch::async, [port, slot_count]() {
+                std::string result;
+                try {
+                    httplib::Client cli("127.0.0.1", port);
+                    cli.set_connection_timeout(5);
+                    cli.set_read_timeout(10);
+                    bool all_ok = true;
+                    for (int s = 0; s < slot_count; ++s) {
+                        auto r = cli.Post("/slots/" + std::to_string(s) + "?action=erase", "", "application/json");
+                        if (!r || r->status != 200) all_ok = false;
+                    }
+                    result = all_ok ? "cleared" : "partial";
+                } catch (const std::exception& e) {
+                    result = std::string("error: ") + e.what();
+                }
+                return std::make_pair(port, result);
+            }));
+        }
+
+        // Map results back to agent names for the response
+        std::map<int, std::string> port_results;
+        for (auto& fut : futures) {
+            auto pr = fut.get();
+            port_results[pr.first] = pr.second;
+            std::cout << "  port " << pr.first << ": " << pr.second << std::endl;
+        }
         json results;
-        for (const auto& agent : agents) {
-            try {
-                httplib::Client cli("127.0.0.1", agent.port);
-                cli.set_connection_timeout(5);
-                cli.set_read_timeout(10);
-                auto r = cli.Post("/slots/0?action=erase", "", "application/json");
-                results[agent.name] = (r && r->status == 200) ? "cleared" : "failed";
-                std::cout << "  " << agent.name << ": "
-                          << results[agent.name] << std::endl;
-            } catch (const std::exception& e) {
-                results[agent.name] = "error";
-                std::cerr << "  " << agent.name << ": " << e.what() << std::endl;
-            }
+        for (const auto& a : agents) {
+            results[a.name] = port_results[a.port];
         }
 
         res.set_content(results.dump(), "application/json");

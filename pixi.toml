@@ -1,0 +1,34 @@
+# Matrix Swarm v1.0 — multi-agent LLM system
+# Browser → React UI (3000) → Node Proxy (3002) → C++ Coordinator (8000) → llama-server (8080+)
+#
+# Run pixi from this directory only. If a parent folder has its own pixi.toml (e.g. with mlx),
+# use: pixi run --manifest-path ./pixi.toml <task>
+
+[workspace]
+name = "matrix-project"
+version = "1.0.0"
+description = "Multi-agent LLM swarm: React UI, Node proxy, C++ coordinator, llama-server"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+
+[dependencies]
+# React UI + Node proxy (Node 18+)
+nodejs = ">=18,<23"
+# Scripts (e.g. swarm_diag.py) and tooling
+python = ">=3.10,<3.14"
+# Build coordinator.cpp (C++17)
+cxx-compiler = ">=1,<2"
+
+[pypi-dependencies]
+# swarm_diag.py
+requests = ">=2.28,<3"
+
+[tasks]
+# Build C++ coordinator (use pixi's cxx-compiler)
+build-coordinator = "c++ -std=c++17 -O2 -o coordinator coordinator.cpp -pthread"
+# Install UI deps and start React (run from project root)
+start-ui = "npm install && npm start"
+# Run diagnostics (requires services up)
+diag = "python swarm_diag.py"
+# Full interactive launch (agent/model picker, proxy, UI)
+launch = "bash scripts/launch_matrix.sh"
