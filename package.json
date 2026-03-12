@@ -28,12 +28,24 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "proxy": "node proxy.mjs",
+    "launch": "bash scripts/launch_matrix.sh",
+    "shutdown": "bash scripts/shutdown_matrix.sh",
+    "build:coordinator": "bash scripts/build_coordinator.sh"
   },
   "eslintConfig": {
     "extends": [
       "react-app"
     ]
+  },
+  "overrides": {
+    "nth-check": ">=2.0.1",
+    "postcss": ">=8.4.31",
+    "serialize-javascript": ">=7.0.3",
+    "underscore": ">=1.13.8",
+    "@tootallnate/once": ">=3.0.1",
+    "webpack-dev-server": ">=5.2.1"
   },
   "browserslist": {
     "production": [

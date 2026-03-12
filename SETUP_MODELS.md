@@ -1,242 +1,169 @@
 # Model and llama.cpp Setup Guide
 
-This document describes the new centralized location for models and llama.cpp in the Matrix project.
+This guide covers installing llama.cpp and downloading GGUF models for Matrix Swarm.
 
-## New Directory Structure
+## Directory Structure
 
-All models and the llama.cpp library are now stored in a shared location:
+All models and the llama-server binary live under a shared location:
 
 ```
-/Users/Shared/models/
-├── llama.cpp/                    # llama.cpp repository and builds
-│   ├── build/
-│   │   └── bin/
-│   │       ├── llama-server      # Server binary
-│   │       ├── llama-cli         # CLI binary
-│   │       └── ...
-│   └── models/                   # llama.cpp vocab files
-├── Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf  # Your model files
-├── Llama-3.2-3B-Instruct-Q4_K_M.gguf
-├── granite-3.1-8b-instruct-Q4_K_M.gguf
-├── gemma-2-2b-it-Q4_K_M.gguf
-├── llama-server                  # Standalone llama-server binary
-└── ...                           # Other model files
+/Users/Shared/llama/
+├── llama-server                              # Server binary (used by proxy.mjs)
+├── models/
+│   ├── Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
+│   ├── Llama-3.2-3B-Instruct-Q4_K_M.gguf
+│   ├── granite-3.1-8b-instruct-Q4_K_M.gguf
+│   ├── gemma-2-2b-it-Q4_K_M.gguf
+│   └── ...                                   # Any additional .gguf files
+└── llama.cpp/                                # Source repo (optional — for rebuilding)
 ```
+
+The proxy (`proxy.mjs`) looks for:
+- **Binary:** `/Users/Shared/llama/llama-server`
+- **Models:** `/Users/Shared/llama/models/*.gguf`
+
+---
 
 ## Initial Setup
 
-### 1. Create the Shared Directory
+### 1. Create the shared directory
 
 ```bash
-sudo mkdir -p /Users/Shared/models
-sudo chown $(whoami):staff /Users/Shared/models
-chmod 755 /Users/Shared/models
+sudo mkdir -p /Users/Shared/llama/models
+sudo chown $(whoami):staff /Users/Shared/llama
+chmod -R 755 /Users/Shared/llama
 ```
 
-### 2. Move or Clone llama.cpp
+### 2. Build llama.cpp (get llama-server)
 
-If you already have llama.cpp built in this project:
-
-```bash
-# Move existing llama.cpp to shared location
-mv llama.cpp /Users/Shared/models/
-```
-
-If you need to clone llama.cpp fresh:
+Clone and build with Metal acceleration (Apple Silicon):
 
 ```bash
-cd /Users/Shared/models
+cd /Users/Shared/llama
 git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp
-mkdir build && cd build
-cmake .. -DLLAMA_METAL=on
-cmake --build . --config Release -j 8
-```
-
-For Mac M3 Max with GPU acceleration:
-
-```bash
-cd /Users/Shared/models/llama.cpp
 mkdir build && cd build
 cmake .. -DLLAMA_METAL=on -DLLAMA_NATIVE=on
 cmake --build . --config Release -j 8
 ```
 
-### 3. Move Model Files
-
-If you have existing models in the project's `models/` directory:
+Copy the server binary to the expected location:
 
 ```bash
-# Move .gguf model files to shared location
-mv models/*.gguf /Users/Shared/models/
+cp /Users/Shared/llama/llama.cpp/build/bin/llama-server /Users/Shared/llama/llama-server
+chmod +x /Users/Shared/llama/llama-server
 ```
 
-Or download models directly to the new location:
+### 3. Download model files
+
+Download GGUF models to `/Users/Shared/llama/models/`. The default swarm uses:
+
+| Model file | Size | Used by |
+|-----------|------|---------|
+| `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf` | ~5 GB | architect, programmer, debugger |
+| `Llama-3.2-3B-Instruct-Q4_K_M.gguf` | ~2 GB | scout, reviewer, tester, devops, database, api |
+| `granite-3.1-8b-instruct-Q4_K_M.gguf` | ~5 GB | specialist, security, optimizer |
+| `gemma-2-2b-it-Q4_K_M.gguf` | ~1.5 GB | synthesis, documenter, frontend |
+
+Using `huggingface-cli`:
 
 ```bash
-cd /Users/Shared/models
-# Example: Download a model from Hugging Face
-huggingface-cli download TheBloke/Llama-2-7B-Chat-GGUF llama-2-7b-chat.Q4_K_M.gguf --local-dir .
+cd /Users/Shared/llama/models
+
+# Meta Llama 3.1 8B
+huggingface-cli download bartowski/Meta-Llama-3.1-8B-Instruct-GGUF \
+  Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf --local-dir .
+
+# Llama 3.2 3B
+huggingface-cli download bartowski/Llama-3.2-3B-Instruct-GGUF \
+  Llama-3.2-3B-Instruct-Q4_K_M.gguf --local-dir .
+
+# IBM Granite 3.1 8B
+huggingface-cli download bartowski/granite-3.1-8b-instruct-GGUF \
+  granite-3.1-8b-instruct-Q4_K_M.gguf --local-dir .
+
+# Gemma 2 2B
+huggingface-cli download bartowski/gemma-2-2b-it-GGUF \
+  gemma-2-2b-it-Q4_K_M.gguf --local-dir .
 ```
 
-### 4. Verify Setup
-
-Check that the binaries are accessible:
+### 4. Verify setup
 
 ```bash
-ls -lh /Users/Shared/models/llama.cpp/build/bin/llama-server
-ls -lh /Users/Shared/models/llama.cpp/build/bin/llama-cli
+# Binary is executable
+/Users/Shared/llama/llama-server --version
+
+# Models are in place
+ls -lh /Users/Shared/llama/models/*.gguf
 ```
 
-Check that your models are in place:
-
-```bash
-ls -lh /Users/Shared/models/*.gguf
-```
-
-### 5. Update Configuration
-
-The following files have been updated to use the new paths:
-
-- `swarm-config.json` - Agent model paths
-- `mlx_models.json` - Model registry
-- `launch_matrix.sh` - Launch script
-- `start_swarm.sh` - Swarm start script
-- `swarm_launch.sh` - Swarm launch script
-- `swarm-ctl` - Control utility
-- `agent.cpp` - C++ agent
-- `Dockerfile` - Docker configuration
-
-No additional configuration changes should be needed.
-
-### 6. Test the Setup
-
-Generate the matrix script with new paths:
-
-```bash
-./swarm-ctl generate
-```
-
-Check the configuration:
-
-```bash
-./swarm-ctl config
-./swarm-ctl models
-```
-
-Start the swarm:
-
-```bash
-./matrix up
-```
-
-Check status:
-
-```bash
-./matrix status
-```
-
-## Benefits of This Approach
-
-1. **Centralized Storage**: All models in one shared location accessible by multiple projects
-2. **Single llama.cpp Build**: One build of llama.cpp shared across projects
-3. **Disk Space Savings**: No duplicate models or builds
-4. **Easier Management**: Update llama.cpp once, benefit everywhere
-5. **Better Organization**: Clear separation between project code and large binary assets
+---
 
 ## Adding New Models
 
-To add a new model to the system:
+1. Download the `.gguf` file to `/Users/Shared/llama/models/`
+2. It will automatically appear in the **CONFIGURE** panel model picker (the proxy scans the directory on every `/api/models` request)
+3. Optionally register it in `mlx_models.json` for reference
 
-1. Download or copy the model to `/Users/Shared/models/`:
-   ```bash
-   cp path/to/new-model.gguf /Users/Shared/models/
-   ```
-
-2. Update `mlx_models.json` if you want to register it:
-   ```json
-   {
-     "models": {
-       "new-model": {
-         "path": "/Users/Shared/models/new-model.gguf"
-       }
-     }
-   }
-   ```
-
-3. Use `swarm-ctl` to assign it to an agent:
-   ```bash
-   ./swarm-ctl set architect /Users/Shared/models/new-model.gguf
-   ./swarm-ctl generate
-   ./swarm-ctl restart
-   ```
+---
 
 ## Updating llama.cpp
 
-To update llama.cpp to a newer version:
-
 ```bash
-cd /Users/Shared/models/llama.cpp
+cd /Users/Shared/llama/llama.cpp
 git pull
 cd build
 cmake --build . --config Release -j 8
+cp bin/llama-server /Users/Shared/llama/llama-server
 ```
 
-Then restart your swarm:
+Restart the swarm after updating (`bash scripts/shutdown_matrix.sh`, then `bash scripts/launch_matrix.sh`).
 
-```bash
-./matrix down
-./matrix up
-```
+---
 
 ## Troubleshooting
 
-### Permission Issues
-
-If you get permission errors:
+### Permission errors
 
 ```bash
-sudo chown -R $(whoami):staff /Users/Shared/models
-chmod -R 755 /Users/Shared/models
+sudo chown -R $(whoami):staff /Users/Shared/llama
+chmod -R 755 /Users/Shared/llama
 ```
 
-### Binary Not Found
-
-If llama-server is not found, verify the build:
+### Binary not found
 
 ```bash
-ls -lh /Users/Shared/models/llama.cpp/build/bin/
+ls -lh /Users/Shared/llama/llama-server
 ```
 
-If the directory is empty, rebuild llama.cpp following step 2 above.
+If missing, rebuild following step 2 above.
 
-### Models Not Loading
-
-Verify model paths in configuration:
+### Models not appearing in the UI
 
 ```bash
-./swarm-ctl config
+ls /Users/Shared/llama/models/*.gguf
 ```
 
-Ensure models exist:
+The proxy scans this directory — any `.gguf` file appears automatically.
+
+### Port already in use
 
 ```bash
-ls -lh /Users/Shared/models/*.gguf
+bash scripts/shutdown_matrix.sh
+# Then relaunch
+bash scripts/launch_matrix.sh
 ```
 
-### Port Already in Use
-
-If ports are already in use:
-
-```bash
-./matrix down
-# Wait a moment
-./matrix up
-```
-
-Or manually kill processes:
+Or manually:
 
 ```bash
 pkill -f llama-server
-lsof -ti:8080,8081,8082 | xargs kill -9
+lsof -ti:8080,8081,8082,8083,8084 | xargs kill -9
 ```
+
+### Servers fail health check (timeout during LAUNCH SWARM)
+
+Large models on first load can take 60–90 s. The proxy waits up to 120 s. If it still times out:
+- Check `logs/8080.log` (or whichever port) for llama-server errors
+- Verify enough free RAM/VRAM for the selected model set
+- Try a smaller agent selection (fewer parallel slots = less VRAM)

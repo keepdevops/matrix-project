@@ -17,6 +17,9 @@ Browser → React UI (3000) → Node Proxy (3002) → C++ Coordinator (8000) →
                        │ HTTP
 ┌──────────────────────▼──────────────────────────────┐
 │  Node Proxy  (port 3002)  proxy.mjs                  │
+│  • Serves /api/models, /api/swarm-config             │
+│  • POST /api/configure → starts llama-servers        │
+│  • Proxies all other requests → coordinator          │
 └──────────────────────┬──────────────────────────────┘
                        │ HTTP
 ┌──────────────────────▼──────────────────────────────┐
@@ -35,32 +38,34 @@ Agents that use the same model share a single `llama-server` instance launched w
 
 | Port | Model | Agents | --parallel |
 |------|-------|--------|------------|
-| 8080 | Llama-3.2-3B | scout | 1 |
-| 8081 | Granite-3.1-8B | specialist | 1 |
-| 8082 | Gemma-2-2B | synthesis | 1 |
-| 8083 | Meta-Llama-3.1-8B | architect + programmer | 2 |
+| 8080 | Meta-Llama-3.1-8B | architect + programmer | 2 |
+| 8081 | granite-3.1-8b | specialist | 1 |
+| 8082 | Llama-3.2-3B | scout | 1 |
+| 8083 | gemma-2-2b | synthesis | 1 |
 
-**Full 15-role layout (5 model instances):**
+**Full 15-role layout (4 model instances):**
 
 | Port | Model | Agents | --parallel |
 |------|-------|--------|------------|
-| 8080 | Llama-3.2-3B | scout, reviewer, tester, devops, database, api | 6 |
-| 8081 | Granite-3.1-8B | specialist, security, optimizer | 3 |
-| 8082 | Gemma-2-2B | synthesis, documenter, frontend | 3 |
-| 8083 | Meta-Llama-3.1-8B | architect, programmer | 2 |
-| 8084 | Meta-Llama-3.1-8B | debugger | 1 |
+| 8080 | Meta-Llama-3.1-8B | architect, programmer, debugger | 3 |
+| 8081 | granite-3.1-8b | specialist, security, optimizer | 3 |
+| 8082 | Llama-3.2-3B | scout, reviewer, tester, devops, database, api | 6 |
+| 8083 | gemma-2-2b | synthesis, documenter, frontend | 3 |
+
+Port assignments are dynamic — the proxy assigns ports at deploy time based on model grouping.
 
 ---
 
 ## Prerequisites
 
 - **macOS** (Apple Silicon recommended — Metal GPU acceleration)
-- **llama.cpp** binary at `/Users/Shared/models/llama-server`
-- **GGUF model files** in `/Users/Shared/models/`
+- **llama-server binary** at `/Users/Shared/llama/llama-server`
+- **GGUF model files** in `/Users/Shared/llama/models/`
 - **Node.js** 18+ (`node`, `npm`)
-- **Python 3** (stdlib only — no pip installs needed)
 - **C++ compiler** with C++17 support (`clang++` or `g++`)
 - **Docker Desktop** (optional — only needed for Docker UI mode)
+
+See [SETUP_MODELS.md](SETUP_MODELS.md) for llama.cpp build and model download instructions.
 
 ---
 
@@ -84,17 +89,20 @@ npm install
 bash scripts/launch_matrix.sh
 ```
 
-The launch script prompts for:
-
-1. **Mode** — Docker (UI in container) or Bare Metal (`npm start`)
-2. **Roles** — Pick any of the 15 agents by number (e.g. `1 4 8`), or press Enter for the default 5
-3. **Models** — For each selected role, keep the default or pick another from `/Users/Shared/models/`
-
-The script then cleans up existing processes, starts one `llama-server` per unique model with `--parallel N`, waits for all servers to pass `/health`, and starts the coordinator, proxy, and UI.
+The launch script asks for mode (Docker or Bare Metal), then starts the Node proxy and React UI.
 
 Access the UI at **http://localhost:3000**
 
-### 4. Shutdown
+### 4. Deploy your swarm (in the browser)
+
+1. Click **CONFIGURE** in the header
+2. Select which agents to activate
+3. Optionally override the model for each agent (any `.gguf` from `/Users/Shared/llama/models/`)
+4. Click **LAUNCH SWARM**
+
+The proxy groups same-model agents onto shared `llama-server` instances, waits for all servers to pass `/health` (up to 120 s), then starts the coordinator.
+
+### 5. Shutdown
 
 ```bash
 bash scripts/shutdown_matrix.sh
@@ -124,23 +132,49 @@ bash scripts/shutdown_matrix.sh
 
 ---
 
+## UI Controls
+
+| Control | Description |
+|---------|-------------|
+| **ONLINE / OFFLINE** | Coordinator status. OFFLINE means the backend is unreachable — open CONFIGURE to deploy a swarm. |
+| **CONFIGURE** | Opens the swarm config panel. Select agents, assign models, click LAUNCH SWARM. |
+| **CLEAR KV** | Erases the KV cache on all agent servers. Useful when agents seem stuck or after switching tasks. |
+| **HISTORY (N)** | Shows your last 10 prompts. Click any entry to reload it into the prompt box. |
+| **?** | Opens the in-app help modal. |
+| **Temperature** | `0.1` = focused/deterministic. `1.0` = creative/varied. |
+| **BROADCAST / Cmd+Enter** | Dispatches the prompt to all active agents in parallel. |
+
+The **CODE OUTPUT** panel below the agent grid auto-extracts code blocks from the `programmer` agent response into a syntax-highlighted CodeMirror editor.
+
+---
+
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/launch_matrix.sh` | Main launch — interactive role + model picker, starts all services |
-| `scripts/shutdown_matrix.sh` | Clean shutdown — stops all processes, frees ports |
-| `scripts/build_coordinator.sh` | Recompiles `coordinator.cpp` → `./coordinator` |
+| `scripts/launch_matrix.sh` | Start the proxy and UI (Docker or bare metal mode) |
+| `scripts/shutdown_matrix.sh` | Clean shutdown — stops all processes and frees ports |
+| `scripts/build_coordinator.sh` | Recompile `coordinator.cpp` → `./coordinator` |
 
 ---
 
 ## Configuration
 
-**`swarm-config.json`** — Defines all 15 roles with default model, context size, GPU layers, timeouts, and system prompts. Never modified at runtime.
+**`swarm-config.json`** — Defines all 15 roles with default model path, context size, GPU layers, timeouts, and system prompts. This file is the source of truth; it is never modified at runtime.
 
-At launch the selected agents (with any model overrides) are written to `/tmp/matrix-active-config.json`. Both the coordinator and launch script use this file for the session.
+When you click **LAUNCH SWARM**, the proxy writes the selected agents (with any model overrides) to `/tmp/matrix-active-config.json`. Both the coordinator and proxy use this file for the session.
 
-**`proxy.mjs`** — Forwards all `/api/*` requests from port 3002 to the coordinator at port 8000.
+**`proxy.mjs`** — Forwards `/api/*` requests from the React UI (port 3002) to the coordinator (port 8000). Also owns the `/api/models`, `/api/swarm-config`, and `/api/configure` endpoints directly.
+
+### Key paths
+
+| Path | Purpose |
+|------|---------|
+| `/Users/Shared/llama/llama-server` | llama.cpp server binary |
+| `/Users/Shared/llama/models/` | GGUF model files |
+| `/tmp/matrix-active-config.json` | Active session config (written at deploy time) |
+| `/tmp/matrix-slots/` | llama-server KV slot save path |
+| `logs/` | Runtime logs (proxy, coordinator, per-port llama-server) |
 
 ### Key ports
 
@@ -149,7 +183,7 @@ At launch the selected agents (with any model overrides) are written to `/tmp/ma
 | 3000 | React UI |
 | 3002 | Node proxy |
 | 8000 | C++ coordinator |
-| 8080+ | llama-server instances (one per unique model) |
+| 8080+ | llama-server instances (one per unique model, assigned dynamically) |
 
 ---
 
@@ -159,21 +193,26 @@ At launch the selected agents (with any model overrides) are written to `/tmp/ma
 matrix-project/
 ├── coordinator.cpp          # C++ multi-agent dispatcher
 ├── coordinator              # Compiled binary (after build)
-├── proxy.mjs                # Node.js API proxy
-├── swarm-config.json        # Agent definitions (all 15 roles)
+├── proxy.mjs                # Node.js proxy + deploy logic
+├── swarm-config.json        # All 15 agent role definitions
+├── mlx_models.json          # GGUF model registry
 ├── docker-compose.yml       # UI container (React only)
 ├── Dockerfile.web           # React UI image
+├── pixi.toml                # Pixi environment (Node 18+, Python 3.10+, C++17)
 ├── scripts/
-│   ├── launch_matrix.sh     # Main launch script
-│   ├── shutdown_matrix.sh   # Shutdown script
-│   └── build_coordinator.sh # C++ build script
+│   ├── launch_matrix.sh     # Start proxy + UI
+│   ├── shutdown_matrix.sh   # Shutdown all services
+│   └── build_coordinator.sh # Compile coordinator.cpp
+├── logs/                    # Runtime logs (created automatically)
 └── src/
-    ├── App.js               # Root React component
-    ├── api/swarmApi.js      # API client
+    ├── App.js               # Root React component (header, grid, help modal)
+    ├── App.css              # Dark matrix theme styles
+    ├── api/swarmApi.js      # API client (submit, history, agents, models, etc.)
     ├── hooks/useSwarm.js    # Swarm state hook
     ├── components/
-    │   ├── PromptInput.js   # Prompt + temperature input
-    │   ├── AgentResponse.js # Individual agent card
-    │   └── CodeDisplay.js   # Syntax-highlighted code panel
-    └── utils/codeExtractor.js
+    │   ├── PromptInput.js   # Prompt textarea + temperature slider
+    │   ├── AgentResponse.js # Individual agent response card
+    │   ├── CodeDisplay.js   # CodeMirror syntax-highlighted code panel
+    │   └── SwarmConfig.js   # Agent selector + model picker + LAUNCH SWARM
+    └── utils/codeExtractor.js  # Extract code blocks from agent responses
 ```
