@@ -22,29 +22,37 @@ telemetry_engine
 .ipp/
 
 # 3. LLM Models & Logs
-# Note: Models are now stored in /Users/Shared/models (outside this repo)
 models/*.gguf
 models/*.bin
 *.log
 logs/
 agent_logs/
 agent_*.log
-*output.md
 llama.cpp/
 *.gguf
 
-# 4. Docker & System
+# 4. Runtime / Config
+/tmp/
+*.pids
+*.pid
+*output.md
+*.tmp
+
+# 5. Pixi Environment
+.pixi/
+
+# 6. Claude
+.claude/settings.local.json
+
+# 7. Docker & System
 .docker-compose.override.yml
 .DS_Store
-Thumbs.d
-*.egg-info/
-*.logb
+Thumbs.db
 
-# 5. Python Artifacts
+# 8. Python Artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
 venv/
 env/
-*.tmp
