@@ -2,11 +2,14 @@
 # Convert or download models for use with either llama (GGUF) or mlx-lm on M3/Apple Silicon.
 # Usage:
 #   ./scripts/convert_models.sh download <url> [output_filename]   # curl, no gated access
+#   ./scripts/convert_models.sh bartowski <repo> <filename>        # curl from bartowski GGUF repos
 #   ./scripts/convert_models.sh mlx <hf_repo> [output_name]
 #   ./scripts/convert_models.sh gguf <hf_repo> [output_name]   # requires LLAMA_CPP_DIR
 #
 # Examples:
 #   ./scripts/convert_models.sh download https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+#   ./scripts/convert_models.sh bartowski Llama-3.2-3B-Instruct-GGUF Llama-3.2-3B-Instruct-Q4_K_M.gguf
+#   ./scripts/convert_models.sh bartowski Mistral-7B-Instruct-v0.3-GGUF Mistral-7B-Instruct-v0.3-Q4_K_M.gguf
 #   ./scripts/convert_models.sh mlx HuggingFaceTB/SmolLM2-360M-Instruct
 #   ./scripts/convert_models.sh gguf meta-llama/Meta-Llama-3.2-3B-Instruct  # gated; needs HF_TOKEN
 
@@ -14,15 +17,18 @@ set -e
 
 MODEL_DIR="${MATRIX_MODELS_DIR:-/Users/Shared/llama/models}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+HF_BASE="https://huggingface.co"
 
 usage() {
     echo "Usage: $0 download <url> [output_filename]"
+    echo "       $0 bartowski <repo> <filename>     # e.g. Llama-3.2-3B-Instruct-GGUF Llama-3.2-3B-Instruct-Q4_K_M.gguf"
     echo "       $0 mlx <hf_repo> [output_name]"
     echo "       $0 gguf <hf_repo> [output_name]"
     echo ""
-    echo "  download - Download via curl (no gated access). Use public GGUF/MLX URLs. Output: MODEL_DIR/<output_filename>"
-    echo "  mlx      - Convert HF model to MLX 4-bit (for mlx_lm.server on M3). Output: MODEL_DIR/<output_name>/"
-    echo "  gguf     - Convert HF model to GGUF (for llama-server). Requires LLAMA_CPP_DIR."
+    echo "  download  - Download via curl (any public GGUF/MLX URL). Output: MODEL_DIR/<output_filename>"
+    echo "  bartowski - Download a GGUF file from bartowski's HF repos via curl (no auth). Repo can be 'RepoName' or 'bartowski/RepoName'."
+    echo "  mlx       - Convert HF model to MLX 4-bit (for mlx_lm.server on M3). Output: MODEL_DIR/<output_name>/"
+    echo "  gguf      - Convert HF model to GGUF (for llama-server). Requires LLAMA_CPP_DIR."
     echo ""
     echo "  MODEL_DIR=${MODEL_DIR}"
     exit 1
@@ -46,6 +52,23 @@ if [ "$MODE" = "download" ]; then
     echo "[download] Fetching $URL → $DEST (resume with -C -)"
     curl -L -C - -o "$DEST" "$URL"
     echo "[download] Done. Use in Matrix CONFIGURE; path: $DEST"
+    exit 0
+fi
+
+# --- Bartowski: curl from bartowski/<repo>/resolve/main/<filename>
+if [ "$MODE" = "bartowski" ]; then
+    [ $# -lt 2 ] && { echo "Usage: $0 bartowski <repo> <filename>" >&2; usage; }
+    REPO="$1"
+    FILENAME="$2"
+    if [[ "$REPO" != */* ]]; then
+        REPO="bartowski/$REPO"
+    fi
+    URL="$HF_BASE/${REPO}/resolve/main/${FILENAME}"
+    DEST="$MODEL_DIR/$FILENAME"
+    echo "[bartowski] $REPO → $FILENAME"
+    echo "[bartowski] $URL → $DEST (resume with -C -)"
+    curl -L -C - -o "$DEST" "$URL"
+    echo "[bartowski] Done. Use in Matrix CONFIGURE with LLAMA; path: $DEST"
     exit 0
 fi
 

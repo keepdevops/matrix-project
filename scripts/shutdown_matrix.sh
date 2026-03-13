@@ -58,7 +58,12 @@ else
 fi
 
 echo "[5/5] Restoring system Auto fan control..."
-"$(dirname "$0")/fan_control.sh" stop
+FAN_SCRIPT="$(dirname "$0")/fan_control.sh"
+if [ -x "$FAN_SCRIPT" ]; then
+    "$FAN_SCRIPT" stop
+else
+    echo "  (fan_control.sh not found or not executable — skipping)"
+fi
 
 echo "========================================"
 echo "  SHUTDOWN COMPLETE"

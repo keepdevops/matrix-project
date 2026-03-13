@@ -40,7 +40,12 @@ lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 2>/dev/nul
 sleep 5
 
 echo "[1.5/3] Activating GPU fan control (28–36°C sensor-based)..."
-"$(dirname "$0")/fan_control.sh" start
+FAN_SCRIPT="$(dirname "$0")/fan_control.sh"
+if [ -x "$FAN_SCRIPT" ]; then
+    "$FAN_SCRIPT" start
+else
+    echo "  (fan_control.sh not found or not executable — skipping)"
+fi
 
 echo "[2/3] Starting Node Proxy on port 3002..."
 mkdir -p logs
