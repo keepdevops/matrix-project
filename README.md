@@ -146,6 +146,7 @@ Or `bash scripts/shutdown_matrix.sh`. Choose the same mode (Docker or Bare Metal
 | 13 | **database** | Schemas, queries, indexing, caching |
 | 14 | **frontend** | React, CSS, accessibility, UX |
 | 15 | **api** | REST/GraphQL design, OpenAPI, versioning |
+| 16 | **foreman** | Summaries, continuation planning, next-task orchestration |
 
 ---
 
@@ -192,7 +193,7 @@ npm run build:coordinator  # Same as bash scripts/build_coordinator.sh
 
 ## Configuration
 
-**`swarm-config.json`** — Defines all 15 roles with default model path, context size, GPU layers, timeouts, and system prompts. Never modified at runtime — used as the template when building the active config.
+**`swarm-config.json`** — Defines all 16 roles with default model path, context size, GPU layers, timeouts, and system prompts. Never modified at runtime — used as the template when building the active config.
 
 **`/tmp/matrix-active-config.json`** — Written by the proxy on every LAUNCH SWARM. Contains the selected agents with resolved model paths and assigned ports. Read by the coordinator at startup.
 
@@ -234,7 +235,7 @@ matrix-project/
 ├── coordinator.cpp          # C++ multi-agent dispatcher
 ├── coordinator              # Compiled binary (after build)
 ├── proxy.mjs                # Node.js proxy + deploy logic
-├── swarm-config.json        # All 15 agent role definitions
+├── swarm-config.json        # All 16 agent role definitions
 ├── mlx_models.json          # Model registry (GGUF + MLX)
 ├── docker-compose.yml       # UI container (React only)
 ├── Dockerfile.web           # React UI image

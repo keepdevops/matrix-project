@@ -58,7 +58,7 @@ architect  programmer  reviewer  security  synthesis
 | mlx-lm | `pip install mlx-lm` (for MLX engine, optional) |
 | MLX models | Directories in `/Users/Shared/llama/models/` (for MLX engine) |
 | Docker Desktop | Optional — only needed for Docker UI mode |
-| Free RAM | ~6 GB for the default 5-agent GGUF swarm; varies by model selection |
+| Free RAM | ~6 GB for a typical 5–7 agent GGUF swarm; varies by model selection |
 
 See [SETUP_MODELS.md](SETUP_MODELS.md) for model download instructions.
 
@@ -299,10 +299,15 @@ Supported languages: Python, JavaScript, TypeScript, C++, Go, Rust, Java, PHP, S
 | tester | How do we verify it works? |
 | synthesis | What order should we tackle this? |
 | devops | How do we ship and run this? |
+| foreman | What was built and what are the next 3 tasks? (continuation) |
+
+The full set of 16 roles: architect, specialist, scout, programmer, synthesis, reviewer, tester, security, devops, documenter, optimizer, debugger, database, frontend, api, foreman.
 
 ---
 
 ## 7. Choosing Agents for Your Task
+
+Matrix Swarm has **16 agent roles** to choose from in CONFIGURE. Select only the ones you need for each task — typical setups use 5–7 agents; large swarms (12–16) are possible but use more VRAM and time.
 
 ### New feature development
 
@@ -367,6 +372,10 @@ architect + programmer + synthesis  (3 agents, 2–3 model instances)
 Good for: quick exploration, prototyping, one-off questions
 ```
 
+### Continuation / next steps
+
+After a major round of output, run the **foreman** agent alone with a prompt like: *"Summarise what was built and list the next 3 tasks."* Use its output as the next broadcast prompt to keep the whole swarm aligned on the next phase.
+
 ---
 
 ## 8. Choosing an Inference Engine
@@ -406,7 +415,7 @@ MLX runs models natively on Apple Silicon (M1/M2/M3) using Metal. The Matrix pro
 | **Model location** | MLX models must be **directories** under `/Users/Shared/llama/models/` (same parent as GGUF files). |
 | **Model format** | Each directory must contain `config.json`, plus `tokenizer.json` and weight files (e.g. `*.safetensors`). The proxy only lists directories that have `config.json`. |
 | **Get MLX models** | (1) **Convert from HuggingFace:** `./scripts/convert_models.sh mlx <hf_repo>` (e.g. `HuggingFaceTB/SmolLM2-360M-Instruct`). (2) **Pre-converted 4-bit:** Download from the [mlx-community](https://huggingface.co/mlx-community) org on HuggingFace into that folder (e.g. `Llama-3.2-3B-Instruct-4bit`). |
-| **First load** | Loading a large MLX model can take 30–90 s. The proxy waits up to 120 s for all servers to report healthy. If LAUNCH SWARM times out, check `logs/<port>.log` and free RAM. |
+| **First load** | Loading a large MLX model can take 30–90 s. The proxy waits up to 4 minutes for all servers to report healthy. If LAUNCH SWARM times out, check `agent_logs/<port>.log` (or the CONFIGURE panel) and free RAM. |
 | **CLEAR KV** | Has no effect on MLX agents; MLX manages its own context. |
 
 See [SETUP_MODELS.md](SETUP_MODELS.md) for detailed model download and conversion (including **convert_models.sh** for both GGUF and MLX, and curl download for non-gated GGUF).
@@ -634,7 +643,7 @@ Temperature is accepted in the broadcast request body and stored in `history.jso
 ### Status stays OFFLINE after LAUNCH SWARM
 
 ```
-Check logs/8080.log  (or whichever port timed out)
+Check agent_logs/8080.log  (or whichever port timed out)
         │
         ├─► "model not found" ──► verify path in CONFIGURE model picker
         │                          paths come from /Users/Shared/llama/models/
@@ -675,7 +684,7 @@ If you only have a HuggingFace repo, convert it first: `./scripts/convert_models
 ### MLX server fails to start or LAUNCH SWARM times out
 
 - Ensure **mlx-lm** is installed: `pip install mlx-lm`
-- Check the server log: `logs/<port>.log` (e.g. `logs/8080.log`) for Python or import errors
+- Check the server log: `agent_logs/<port>.log` (e.g. `agent_logs/8080.log`) for Python or import errors
 - First load of a large MLX model can take 30–90 s; the proxy waits up to 120 s. Free RAM and try again
 
 ### CODE OUTPUT panel is empty

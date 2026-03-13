@@ -406,7 +406,7 @@ function App() {
                   <dt>CLEAR KV before every new major prompt</dt>
                   <dd>First prompt fills KV with context. A second prompt without clearing can leave half the agents seeing contradictory instructions. Routine: CLEAR KV → 5–7 agents → low temp → focused prompt.</dd>
                   <dt>5–7 agents is the sweet spot for coding</dt>
-                  <dd>Default is architect + programmer + specialist + reviewer + synthesis. Add tester or debugger for a quality pass. Running 12–15 agents risks VRAM exhaustion and KV token budget overflow — only do that for high-level exploration.</dd>
+                  <dd>Default is architect + programmer + specialist + reviewer + synthesis. Add tester or debugger for a quality pass. Running large swarms (12–16 agents) risks VRAM exhaustion and KV token budget overflow — only do that for high-level exploration.</dd>
                   <dt>Use foreman for continuation</dt>
                   <dd>After a major output, run the <em>foreman</em> agent alone with "summarise what was built and list the next 3 tasks". Use its output as the next broadcast prompt to keep all agents aligned.</dd>
                   <dt>SAVE CODE after each successful round</dt>
