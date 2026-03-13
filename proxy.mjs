@@ -26,10 +26,6 @@ app.get('/api/models', (req, res) => {
             .filter(f => f.endsWith('.gguf'))
             .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f), backend: 'llama' }));
 
-        const ggufLlamaPy = entries
-            .filter(f => f.endsWith('.gguf'))
-            .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f), backend: 'llama_cpp_python' }));
-
         const mlx = entries
             .filter(name => {
                 const p = path.join(MODEL_DIR, name);
@@ -37,7 +33,7 @@ app.get('/api/models', (req, res) => {
             })
             .map(name => ({ name, path: path.join(MODEL_DIR, name), backend: 'mlx' }));
 
-        res.json([...gguf, ...ggufLlamaPy, ...mlx]);
+        res.json([...gguf, ...mlx]);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -96,30 +92,28 @@ app.post('/api/configure', express.json(), async (req, res) => {
         await sleep(5000); // give old servers time to release ports/VRAM
 
         mkdirSync('/tmp/matrix-slots', { recursive: true });
-        mkdirSync(path.join(__dirname, 'logs'), { recursive: true });
+        const logsDir = path.join(__dirname, 'logs');
+        const agentLogsDir = path.join(__dirname, 'agent_logs');
+        mkdirSync(logsDir, { recursive: true });
+        mkdirSync(agentLogsDir, { recursive: true });
 
-        // Start one server per unique model
+        // Start one server per unique model (write to agent_logs/ so "check agent_logs" has server output)
+        let mlxStarted = 0;
         for (const [port, g] of Object.entries(portGroups)) {
-            const logFile = path.join(__dirname, 'logs', `${port}.log`);
+            const logFile = path.join(agentLogsDir, `${port}.log`);
             const out = openSync(logFile, 'a');
             if (g.backend === 'mlx') {
-                spawn('python', [
-                    '-m', 'mlx_lm.server',
-                    '--model', g.model,
-                    '--port', port,
-                    '--host', '127.0.0.1',
-                ], { detached: true, stdio: ['ignore', out, out] }).unref();
-                console.log(`[Configure] MLX port ${port} | [${g.names.join(', ')}] → logs/${port}.log`);
-            } else if (g.backend === 'llama_cpp_python') {
+                // Stagger MLX server starts so they don't all load at once (GPU/memory contention)
+                if (mlxStarted > 0) await sleep(5000);
+                mlxStarted++;
+                const modelArg = path.isAbsolute(g.model) ? g.model : path.join(MODEL_DIR, path.basename(g.model));
                 spawn('python3', [
-                    '-m', 'llama_cpp.server',
-                    '--model', g.model,
+                    '-m', 'mlx_lm.server',
+                    '--model', modelArg,
+                    '--port', String(port),
                     '--host', '127.0.0.1',
-                    '--port', port,
-                    '--n_ctx', String(g.context || 4096),
-                    '--n_gpu_layers', String(g.gpu_layers !== undefined ? g.gpu_layers : -1),
                 ], { detached: true, stdio: ['ignore', out, out] }).unref();
-                console.log(`[Configure] LLAMA.PY port ${port} | [${g.names.join(', ')}] → logs/${port}.log`);
+                console.log(`[Configure] MLX port ${port} | model=${path.basename(modelArg)} | [${g.names.join(', ')}] → agent_logs/${port}.log`);
             } else {
                 spawn(LLAMA_BIN, [
                     '-m', g.model,
@@ -129,18 +123,27 @@ app.post('/api/configure', express.json(), async (req, res) => {
                     '--parallel', String(g.names.length),
                     '--slot-save-path', '/tmp/matrix-slots',
                 ], { detached: true, stdio: ['ignore', out, out] }).unref();
-                console.log(`[Configure] LLAMA port ${port} | parallel=${g.names.length} | [${g.names.join(', ')}] → logs/${port}.log`);
+                console.log(`[Configure] LLAMA port ${port} | parallel=${g.names.length} | [${g.names.join(', ')}] → agent_logs/${port}.log`);
             }
         }
 
-        // Wait for all servers to be healthy (up to 120s — loading 4 large models can take time)
+        // Wait for all servers to be healthy (up to 240s — loading multiple models can take 1–3 min)
         const ports = Object.keys(portGroups).map(Number);
-        if (!await waitForHealth(ports, 120)) {
-            return res.status(503).json({ error: 'Servers failed to become healthy within 120s' });
+        const portToBackend = {};
+        for (const [p, g] of Object.entries(portGroups)) portToBackend[Number(p)] = g.backend;
+        const healthResult = await waitForHealth(ports, 240, portToBackend);
+        if (!healthResult.ok) {
+            const failed = healthResult.failedPorts || ports;
+            const failedList = failed.join(', ');
+            console.error('[Configure] Health timeout. Ports not ready:', failedList);
+            return res.status(503).json({
+                error: `Servers failed to become healthy within 4 minutes. Check CONFIGURE panel or project agent_logs/ — especially agent_logs/${failed[0] || '8080'}.log. Ports not ready: ${failedList}. MLX can take 1–2 min per model on first load.`,
+                failedPorts: failed,
+            });
         }
 
         // Start coordinator
-        const coordLog = path.join(__dirname, 'logs', 'coordinator.log');
+        const coordLog = path.join(agentLogsDir, 'coordinator.log');
         const coordOut = openSync(coordLog, 'a');
         spawn(
             path.join(__dirname, 'coordinator'),
@@ -167,17 +170,82 @@ app.post('/api/configure', express.json(), async (req, res) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function waitForHealth(ports, timeoutSecs) {
+async function waitForHealth(ports, timeoutSecs, portToBackend = {}) {
     const deadline = Date.now() + timeoutSecs * 1000;
     while (Date.now() < deadline) {
         const results = await Promise.all(
-            ports.map(p => fetch(`http://127.0.0.1:${p}/health`).then(r => r.ok).catch(() => false))
+            ports.map(async p => {
+                const backend = portToBackend[p] || 'llama';
+                const url = backend === 'mlx'
+                    ? `http://127.0.0.1:${p}/v1/models`
+                    : `http://127.0.0.1:${p}/health`;
+                try {
+                    const ok = (await fetch(url)).ok;
+                    return { port: p, ok };
+                } catch {
+                    return { port: p, ok: false };
+                }
+            })
         );
-        if (results.every(Boolean)) return true;
+        const failedPorts = results.filter(r => !r.ok).map(r => r.port);
+        if (failedPorts.length === 0) return { ok: true };
         await sleep(2000);
     }
-    return false;
+    // Final check to report which ports never came up
+    const final = await Promise.all(
+        ports.map(async p => {
+            const backend = portToBackend[p] || 'llama';
+            const url = backend === 'mlx'
+                ? `http://127.0.0.1:${p}/v1/models`
+                : `http://127.0.0.1:${p}/health`;
+            try {
+                return { port: p, ok: (await fetch(url)).ok };
+            } catch {
+                return { port: p, ok: false };
+            }
+        })
+    );
+    return { ok: false, failedPorts: final.filter(r => !r.ok).map(r => r.port) };
 }
+
+// ── GET /api/logs ───────────────────────────────────────────────────────────
+// Return last N lines of agent_logs/<port>.log (or logs/<port>.log fallback)
+const LOG_TAIL_LINES = 80;
+const AGENT_LOGS_DIR = path.join(__dirname, 'agent_logs');
+const LEGACY_LOGS_DIR = path.join(__dirname, 'logs');
+const SAFE_PORT = /^[0-9]+$/;
+
+function getLogPath(port) {
+    const inAgent = path.join(AGENT_LOGS_DIR, `${port}.log`);
+    const inLegacy = path.join(LEGACY_LOGS_DIR, `${port}.log`);
+    if (existsSync(inAgent)) return inAgent;
+    return inLegacy;
+}
+
+app.get('/api/logs', (req, res) => {
+    const raw = req.query.ports || req.query.port || '';
+    const ports = [...new Set(String(raw).split(',').map(p => p.trim()).filter(p => SAFE_PORT.test(p)))].slice(0, 10);
+    if (ports.length === 0) return res.status(400).json({ error: 'Query param ports required (e.g. ?ports=8080,8081)' });
+
+    const logs = [];
+    for (const port of ports) {
+        const logPath = getLogPath(port);
+        const dirName = path.basename(path.dirname(logPath));
+        try {
+            if (!existsSync(logPath)) {
+                logs.push({ port: Number(port), lines: [`(file not found: ${dirName}/${port}.log)`] });
+                continue;
+            }
+            const content = readFileSync(logPath, 'utf8');
+            const lines = content.split('\n').filter(Boolean);
+            const tail = lines.slice(-LOG_TAIL_LINES);
+            logs.push({ port: Number(port), lines: tail });
+        } catch (e) {
+            logs.push({ port: Number(port), lines: [`(read error: ${e.message})`] });
+        }
+    }
+    res.json({ logs });
+});
 
 // ── All other requests → coordinator ────────────────────────────────────────
 app.use('/', createProxyMiddleware({

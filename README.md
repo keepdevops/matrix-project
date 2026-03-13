@@ -100,10 +100,10 @@ npm install
 ### 3. Launch
 
 ```bash
-bash scripts/launch_matrix.sh
+./start.sh
 ```
 
-The launch script asks for mode (Docker or Bare Metal), then starts the Node proxy and React UI.
+Or `bash scripts/launch_matrix.sh`. The script asks for mode (Docker or Bare Metal), then starts the Node proxy, React UI, and optional fan control.
 
 Access the UI at **http://localhost:3000**
 
@@ -120,8 +120,10 @@ The proxy groups same-model agents onto a shared server instance, waits for all 
 ### 5. Shutdown
 
 ```bash
-bash scripts/shutdown_matrix.sh
+./stop.sh
 ```
+
+Or `bash scripts/shutdown_matrix.sh`. Choose the same mode (Docker or Bare Metal) you used to start; the script stops the UI, proxy, agents, and restores fan control.
 
 ---
 
@@ -169,8 +171,10 @@ The **CODE OUTPUT** panel below the agent grid auto-extracts code blocks from th
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/launch_matrix.sh` | Start the proxy and UI (Docker or bare metal mode) |
-| `scripts/shutdown_matrix.sh` | Clean shutdown — stops all processes and frees ports |
+| `./start.sh` | **Start** — frontend, backend proxy, optional fan control (prompts for Docker/bare metal) |
+| `./stop.sh` | **Stop** — frontend, backend, agents, ports, fan restore (prompts for same mode) |
+| `scripts/launch_matrix.sh` | Same as `start.sh`; start proxy and UI (Docker or bare metal) |
+| `scripts/shutdown_matrix.sh` | Same as `stop.sh`; clean shutdown, free ports |
 | `scripts/build_coordinator.sh` | Recompile `coordinator.cpp` → `./coordinator` |
 
 ### npm shortcuts

@@ -58,6 +58,17 @@ h1 {
   animation: blink 1s infinite;
 }
 
+.engine-badge {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.15);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
 .history-button {
   background: transparent;
   border: 1px solid #00ff41;
@@ -678,6 +689,44 @@ h1 {
   animation: pulse 1.5s infinite;
 }
 
+.swarm-config-logs {
+  margin-top: 12px;
+  text-align: left;
+}
+
+.swarm-config-logs-title {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.swarm-config-log-block {
+  margin-bottom: 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.swarm-config-log-port {
+  font-size: 0.7rem;
+  color: #648FFF;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.3);
+}
+
+.swarm-config-log-pre {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: rgba(0,0,0,0.4);
+  color: #ccc;
+}
+
 .swarm-deploy-btn {
   background: #00ff41;
   color: #0d1117;
@@ -781,6 +830,15 @@ h1 {
   font-weight: normal;
 }
 
+.swarm-engine-in-use {
+  margin-left: 10px;
+  font-size: 0.8rem;
+  color: #a78bfa;
+}
+.swarm-engine-in-use strong {
+  color: #c4b5fd;
+}
+
 .swarm-engine-warn {
   color: #ff4b2b;
   font-size: 0.72rem;
@@ -790,10 +848,6 @@ h1 {
 /* MLX badge colour in layout panel */
 .layout-mlx {
   color: #00ff41;
-}
-
-.layout-llama-py {
-  color: #a78bfa;
 }
 
 /* ========== Help Button ========== */

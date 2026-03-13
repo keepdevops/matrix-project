@@ -1,11 +1,10 @@
 # Model and llama.cpp / MLX Setup Guide
 
-This guide covers three inference backends supported by Matrix Swarm (all work on M3 with GGUF or MLX format):
+This guide covers two inference backends supported by Matrix Swarm (both work on M3 with GGUF or MLX format):
 
 | Backend | Process | Model format | Best for |
 |---------|--------|-------------|---------|
 | **LLAMA** | `llama-server` (C++) | `.gguf` files | Parallel agents, CLEAR KV, broad support |
-| **LLAMA.PY** | `llama_cpp.server` (Python) | Same `.gguf` files | No C++ build; Metal on Mac |
 | **MLX** | `mlx_lm.server` (Python) | HuggingFace directories | Apple Silicon native speed |
 
 All serve the same OpenAI-compatible API. In CONFIGURE you choose the engine; the proxy starts the matching process per model.
@@ -33,7 +32,6 @@ Both GGUF files and MLX model directories live in the same folder. The proxy dis
 
 The proxy (`proxy.mjs`) looks for:
 - **LLAMA:** `llama-server` binary at `/Users/Shared/llama/llama-server` and `*.gguf` in `models/`
-- **LLAMA.PY:** `pip install llama-cpp-python[server]`; same `*.gguf` files in `models/`
 - **MLX:** `pip install mlx-lm`; subdirectories in `models/` that contain a `config.json`
 
 ---

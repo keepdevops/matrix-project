@@ -18,6 +18,7 @@ struct Agent {
     int read_timeout_secs;
     int max_tokens;
     std::string system_prompt;
+    std::string backend;  // "llama" | "mlx" for UI display
 };
 
 std::vector<Agent> agents;
@@ -98,12 +99,14 @@ int main(int argc, char* argv[]) {
     }
     json config = json::parse(config_file);
     for (auto& a : config["agents"]) {
+        std::string backend = a.contains("backend") ? a["backend"].get<std::string>() : "";
         agents.push_back({
             a["name"].get<std::string>(),
             a["port"].get<int>(),
             a["read_timeout_secs"].get<int>(),
             a["max_tokens"].get<int>(),
-            a["system_prompt"].get<std::string>()
+            a["system_prompt"].get<std::string>(),
+            backend
         });
     }
     std::cout << "✅ Loaded " << agents.size() << " agents from " << config_path << std::endl;
@@ -119,12 +122,14 @@ int main(int argc, char* argv[]) {
         res.set_content("{\"status\":\"ok\",\"engine\":\"matrix-m3\"}", "application/json");
     });
 
-    // 2. Active agents list
+    // 2. Active agents list (include backend when set for UI engine display)
     svr.Get("/api/agents", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         json list = json::array();
         for (const auto& a : agents) {
-            list.push_back({{"name", a.name}, {"port", a.port}});
+            json obj = {{"name", a.name}, {"port", a.port}};
+            if (!a.backend.empty()) obj["backend"] = a.backend;
+            list.push_back(obj);
         }
         res.set_content(list.dump(), "application/json");
     });

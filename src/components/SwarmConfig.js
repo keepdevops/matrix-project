@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchSwarmConfig, fetchModels, configureSwarm } from '../api/swarmApi';
+import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs } from '../api/swarmApi';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
 const isMLXPath = p => !p.endsWith('.gguf');
@@ -20,7 +20,6 @@ function computeLayout(roles, selected, roleModels, engine) {
         model: shortName(model),
         agents: [],
         mlx: engine === 'mlx',
-        llamaPy: engine === 'llama_cpp_python',
       };
     }
     groups[port].agents.push(role.name);
@@ -32,15 +31,17 @@ function computeLayout(roles, selected, roleModels, engine) {
     agents: g.agents,
     parallel: g.agents.length,
     mlx: g.mlx,
-    llamaPy: g.llamaPy,
   }));
 }
 
 const ENGINES = [
   { id: 'llama', label: 'LLAMA', backend: 'llama' },
-  { id: 'llama_cpp_python', label: 'LLAMA.PY', backend: 'llama_cpp_python' },
   { id: 'mlx', label: 'MLX', backend: 'mlx' },
 ];
+
+function getEngineLabel(engineId) {
+  return ENGINES.find(e => e.id === engineId)?.label ?? engineId;
+}
 
 export default function SwarmConfig({ onDeployed }) {
   const [roles, setRoles] = useState([]);
@@ -51,6 +52,7 @@ export default function SwarmConfig({ onDeployed }) {
   const [status, setStatus] = useState('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [logTail, setLogTail] = useState(null);
 
   useEffect(() => {
     Promise.all([fetchSwarmConfig(), fetchModels()])
@@ -97,8 +99,8 @@ export default function SwarmConfig({ onDeployed }) {
         if (hasEngineModels) {
           const currentModel = roleModels[name];
           const matchesEngine = currentModel && (
-          engine === 'mlx' ? isMLXPath(currentModel) : (engine === 'llama_cpp_python' || engine === 'llama') ? !isMLXPath(currentModel) : true
-        );
+            engine === 'mlx' ? isMLXPath(currentModel) : engine === 'llama' ? !isMLXPath(currentModel) : true
+          );
           if (!matchesEngine) {
             setRoleModels(m => ({ ...m, [name]: engineModels[0].path }));
           }
@@ -118,9 +120,10 @@ export default function SwarmConfig({ onDeployed }) {
       .map(r => ({ ...r, model: roleModels[r.name] || r.model, backend: engine }));
 
     setStatus('deploying');
-    const engineLabel = engine === 'mlx' ? 'MLX' : engine === 'llama_cpp_python' ? 'LLAMA.PY' : 'llama-server';
-    setStatusMsg(`Starting ${engineLabel} servers... this may take up to 120s`);
+    const engineLabel = engine === 'mlx' ? 'MLX' : 'llama-server';
+    setStatusMsg(`Starting ${engineLabel} servers... this may take up to 4 minutes on first load`);
 
+    setLogTail(null);
     try {
       await configureSwarm(agents);
       setStatus('idle');
@@ -128,6 +131,10 @@ export default function SwarmConfig({ onDeployed }) {
     } catch (e) {
       setStatus('error');
       setStatusMsg(e.message);
+      const ports = (e.failedPorts && e.failedPorts.length > 0) ? e.failedPorts : layout.map(s => s.port);
+      if (ports.length > 0) {
+        fetchLogs(ports).then(({ logs }) => setLogTail(logs)).catch(() => setLogTail([]));
+      }
     }
   };
 
@@ -172,6 +179,11 @@ export default function SwarmConfig({ onDeployed }) {
                 );
               })}
             </div>
+            {hasEngineModels && (
+              <span className="swarm-engine-in-use" title="Inference engine for this configuration">
+                Using: <strong>{getEngineLabel(engine)}</strong>
+              </span>
+            )}
             {!hasEngineModels && (
               <span className="swarm-engine-warn">no models found</span>
             )}
@@ -211,14 +223,14 @@ export default function SwarmConfig({ onDeployed }) {
         {/* Right: server layout preview */}
         <div className="swarm-config-section">
           <div className="swarm-config-title">
-            SERVER LAYOUT — {layout.length} server{layout.length !== 1 ? 's' : ''}, {selected.size} agent{selected.size !== 1 ? 's' : ''}
+            SERVER LAYOUT — {getEngineLabel(engine)} · {layout.length} server{layout.length !== 1 ? 's' : ''}, {selected.size} agent{selected.size !== 1 ? 's' : ''}
           </div>
           <div className="swarm-layout">
             {layout.map(s => (
               <div key={s.port} className="swarm-layout-row">
                 <span className="layout-port">:{s.port}</span>
-                <span className={`layout-parallel${s.mlx ? ' layout-mlx' : ''}${s.llamaPy ? ' layout-llama-py' : ''}`}>
-                  {s.mlx ? '[mlx]' : s.llamaPy ? '[llama.py]' : `×${s.parallel}`}
+                <span className={`layout-parallel${s.mlx ? ' layout-mlx' : ''}`}>
+                  {s.mlx ? '[mlx]' : `×${s.parallel}`}
                 </span>
                 <div className="layout-right">
                   <div className="layout-agents">[{s.agents.join(', ')}]</div>
@@ -232,7 +244,23 @@ export default function SwarmConfig({ onDeployed }) {
           </div>
 
           {status === 'error' && (
-            <div className="swarm-config-error">{statusMsg}</div>
+            <>
+              <div className="swarm-config-error">{statusMsg}</div>
+              {logTail && logTail.length > 0 && (
+                <div className="swarm-config-logs">
+                  <div className="swarm-config-logs-title">
+                    Recent server logs (agent_logs/*.log)
+                    {engine === 'mlx' && ' — look for Python tracebacks or "No such file" above'}
+                  </div>
+                  {logTail.map(({ port, lines }) => (
+                    <div key={port} className="swarm-config-log-block">
+                      <div className="swarm-config-log-port">:{port}.log</div>
+                      <pre className="swarm-config-log-pre">{lines.join('\n') || '(empty)'}</pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
           {status === 'deploying' && (
             <div className="swarm-config-deploying">{statusMsg}</div>

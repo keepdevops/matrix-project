@@ -1,15 +1,14 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies (using ci for deterministic builds)
-COPY package*.json ./
+# Install dependencies (npm ci for deterministic, lockfile-based installs)
+COPY package.json package-lock.json* ./
 RUN npm ci --silent
 
 # Copy source code
 COPY . .
 
-# React default port
 EXPOSE 3000
 
 CMD ["npm", "start"]

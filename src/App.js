@@ -30,6 +30,16 @@ const getAgentColor = name => AGENT_COLORS[name] || '#888888';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp']);
 
+const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX' };
+function getEngineLabel(backend) {
+  return ENGINE_LABELS[backend] || backend || null;
+}
+function getRunningEngines(agents) {
+  const backends = new Set();
+  agents.forEach(a => { if (a.backend) backends.add(a.backend); });
+  return [...backends].map(getEngineLabel).filter(Boolean);
+}
+
 function App() {
   const {
     responses,
@@ -146,6 +156,11 @@ function App() {
           <span className={`status-indicator ${online ? 'status-online' : 'status-offline'}`}>
             {online ? 'ONLINE' : 'OFFLINE'}
           </span>
+          {online && getRunningEngines(activeAgents).length > 0 && (
+            <span className="engine-badge" title="Inference engine(s) in use">
+              {getRunningEngines(activeAgents).join(' + ')}
+            </span>
+          )}
           <button
             className={`cache-button cache-button--${cacheStatus}`}
             onClick={handleClearCache}
@@ -263,9 +278,9 @@ function App() {
               <div className="help-section">
                 <h3>Quick Start</h3>
                 <div className="help-steps">
-                  <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/launch_matrix.sh</code> — choose Docker or Bare Metal</span></div>
-                  <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → pick engine → select agents → click <strong>LAUNCH SWARM</strong></span></div>
-                  <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span style={{color:'#648FFF'}}>ONLINE</span></span></div>
+                  <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/launch_matrix.sh</code> (Docker or Bare Metal) or <code>./scripts/run_matrix_pixi.sh</code> (pixi: installs env, builds coordinator, then launch)</span></div>
+                  <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
+                  <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span style={{color:'#648FFF'}}>ONLINE</span> (header may show the engine in use, e.g. MLX)</span></div>
                   <div className="help-step"><span className="help-step-n">4</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
                   <div className="help-step"><span className="help-step-n">5</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below</span></div>
                 </div>
@@ -275,9 +290,9 @@ function App() {
                 <h3>Header Controls</h3>
                 <dl>
                   <dt>ONLINE / OFFLINE</dt>
-                  <dd>Coordinator status. OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
+                  <dd>Coordinator status. When ONLINE, the header shows which inference engine(s) are in use (e.g. MLX). OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
                   <dt>CONFIGURE</dt>
-                  <dd>Opens the swarm panel. Select engine (LLAMA / LLAMA.PY / MLX), choose agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
+                  <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
                   <dt>CLEAR KV</dt>
                   <dd>Erases the KV cache on all llama-server agents — useful when agents seem stuck, produce repetitive output, or after switching to a completely different task. Has no effect on MLX agents.</dd>
                   <dt>HISTORY (N)</dt>
@@ -344,18 +359,21 @@ function App() {
                 <dl>
                   <dt>LLAMA</dt>
                   <dd>llama-server (C++ from llama.cpp). Loads <code>.gguf</code> files. Uses <code>--parallel N</code> so same-model agents run in parallel in one process. CLEAR KV works. Best for many agents on the same model.</dd>
-                  <dt>LLAMA.PY</dt>
-                  <dd>llama-cpp-python server. Same <code>.gguf</code> files as LLAMA; no C++ build required. <code>pip install llama-cpp-python[server]</code>; on Mac use Metal: <code>CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python</code>. One process per model; CLEAR KV has no effect.</dd>
                   <dt>MLX (mlx-lm)</dt>
-                  <dd>Apple Silicon native (Metal). Uses <code>mlx_lm.server</code>; loads model <strong>directories</strong> (not single files). Often faster per-token on M1/M2/M3. Requests queue per server. CLEAR KV has no effect.</dd>
+                  <dd>Apple Silicon native (Metal). Uses <code>mlx_lm.server</code>; loads model <strong>directories</strong> (not single files). Often faster per-token on M1/M2/M3. <code>pip install mlx-lm</code> or pixi env <code>mlx</code> (osx-arm64 only). Requests queue per server. CLEAR KV has no effect.</dd>
                 </dl>
-                <p>All use <code>/Users/Shared/llama/models/</code>: <code>.gguf</code> for LLAMA and LLAMA.PY; directories with <code>config.json</code> for MLX. The engine button shows how many models of that type are installed.</p>
+                <p>All use <code>/Users/Shared/llama/models/</code>: <code>.gguf</code> for LLAMA; directories with <code>config.json</code> for MLX. In CONFIGURE, the engine buttons show how many models of that type are installed; the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine.</p>
+                <h4>Getting models</h4>
+                <ul style={{ marginTop: '0.5em', paddingLeft: '1.2em' }}>
+                  <li><strong>Download (curl, no gated access):</strong> <code>./scripts/convert_models.sh download &lt;url&gt; [filename]</code></li>
+                  <li><strong>GGUF from HuggingFace:</strong> <code>./scripts/convert_models.sh gguf &lt;hf_repo&gt;</code> (requires <code>LLAMA_CPP_DIR</code>)</li>
+                  <li><strong>MLX 4-bit from HuggingFace:</strong> <code>./scripts/convert_models.sh mlx &lt;hf_repo&gt;</code> (e.g. <code>HuggingFaceTB/SmolLM2-360M-Instruct</code>). Or use pre-converted 4-bit dirs from <code>mlx-community</code> on HuggingFace.</li>
+                </ul>
                 <h4>MLX (mlx-lm) setup</h4>
                 <ul style={{ marginTop: '0.5em', paddingLeft: '1.2em' }}>
-                  <li><strong>Install:</strong> <code>pip install mlx-lm</code></li>
-                  <li><strong>Model format:</strong> Each MLX model is a <strong>directory</strong> under <code>/Users/Shared/llama/models/</code> containing <code>config.json</code>, <code>tokenizer.json</code>, and <code>*.safetensors</code>.</li>
-                  <li><strong>Get models:</strong> Use <code>./scripts/convert_models.sh mlx &lt;hf_repo&gt;</code> to convert a HuggingFace model to MLX 4-bit (e.g. <code>HuggingFaceTB/SmolLM2-360M-Instruct</code>). Or download pre-converted 4-bit models from the <code>mlx-community</code> org on HuggingFace into that folder.</li>
-                  <li><strong>First load:</strong> MLX servers can take 30–90 s to load; the proxy waits up to 120 s. If LAUNCH SWARM times out, check <code>logs/&lt;port&gt;.log</code> and ensure enough free RAM.</li>
+                  <li><strong>Install:</strong> <code>pip install mlx-lm</code> (or pixi env <code>mlx</code> on Apple Silicon)</li>
+                  <li><strong>Model format:</strong> Each MLX model is a <strong>directory</strong> under <code>/Users/Shared/llama/models/</code> with <code>config.json</code>, <code>tokenizer.json</code>, and <code>*.safetensors</code>.</li>
+                  <li><strong>First load:</strong> MLX servers can take 30–90 s to load; the proxy waits up to 4 min. If LAUNCH SWARM times out, check <code>agent_logs/&lt;port&gt;.log</code> (or the CONFIGURE panel) and ensure enough free RAM.</li>
                 </ul>
               </div>
 
@@ -376,7 +394,7 @@ function App() {
                   <dt>Clear KV — POST /api/clear-cache</dt>
                   <dd>Groups agents by port to find unique server instances. Fires <code>POST /slots/N?action=erase</code> in parallel for each slot on each llama-server port (slot 0 through N−1, where N is the number of agents sharing that port). MLX servers do not implement this endpoint — those requests fail silently.</dd>
                   <dt>Other endpoints</dt>
-                  <dd><code>GET /api/health</code> — liveness check used by the UI status indicator. <code>GET /api/agents</code> — returns the active agent list (name + port) used to render the agent grid. <code>GET /api/history</code> — returns the full history array.</dd>
+                  <dd><code>GET /api/health</code> — liveness check used by the UI status indicator. <code>GET /api/agents</code> — returns the active agent list (name, port, backend) used to render the agent grid and the header engine badge. <code>GET /api/history</code> — returns the full history array.</dd>
                 </dl>
               </div>
 
@@ -399,7 +417,7 @@ function App() {
               <div className="help-section">
                 <h3>Launch</h3>
                 <code className="help-code">bash scripts/launch_matrix.sh</code>
-                <p>Starts the proxy and UI. All swarm configuration is done from the browser — no further terminal interaction required. See <strong>USER_MANUAL.md</strong> in the project root for full documentation and flow diagrams.</p>
+                <p>Starts the proxy and UI (choose Docker or Bare Metal). Alternatively with pixi: <code>./scripts/run_matrix_pixi.sh</code> (installs env, builds coordinator, then runs the same launch). All swarm configuration is done from the browser. See <strong>USER_MANUAL.md</strong> and <strong>SETUP_MODELS.md</strong> in the project root for full documentation and model setup.</p>
               </div>
 
             </div>

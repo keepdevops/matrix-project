@@ -72,22 +72,40 @@ export async function fetchSwarmConfig() {
   return response.json();
 }
 
+/** Timeout for configure (server waits up to 240s; allow a bit more for slow responses) */
+const CONFIGURE_TIMEOUT_MS = 270000;
+
 /**
  * Deploy a swarm configuration — starts llama-servers and coordinator
  * @param {Array} agents - Array of agent objects with model assignments
  * @returns {Promise<{status: string, servers: Array}>}
  */
 export async function configureSwarm(agents) {
-  const response = await fetch(`${API_BASE}/configure`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agents }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Configure failed: ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CONFIGURE_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE}/configure`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agents }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const msg = err.error || `Configure failed: ${response.status}`;
+      const ex = new Error(msg);
+      if (err.failedPorts?.length) ex.failedPorts = err.failedPorts;
+      throw ex;
+    }
+    return response.json();
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error('Launch timed out (4.5 min). Check logs in CONFIGURE or project logs/ and try again.');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return response.json();
 }
 
 /**
@@ -111,4 +129,17 @@ export async function checkHealth() {
   } catch {
     return false;
   }
+}
+
+/**
+ * Fetch last lines of server logs (e.g. for MLX ports when launch fails)
+ * @param {number[]} ports - e.g. [8080, 8081]
+ * @returns {Promise<{ logs: Array<{ port: number, lines: string[] }> }>}
+ */
+export async function fetchLogs(ports) {
+  if (!ports?.length) return { logs: [] };
+  const q = ports.join(',');
+  const response = await fetch(`${API_BASE}/logs?ports=${encodeURIComponent(q)}`);
+  if (!response.ok) throw new Error(`Failed to fetch logs: ${response.status}`);
+  return response.json();
 }
