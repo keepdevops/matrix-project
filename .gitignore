@@ -1,7 +1,7 @@
 .pixi/
 node_modules/
+llama.cpp/
 agent_logs/
 *.log
 .DS_Store
-coordinator
-llama.cpp/
+build/
