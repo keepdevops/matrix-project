@@ -392,7 +392,7 @@ if [[ "$ARCH" == "arm64" ]]; then
     echo    "  mlx-lm provides faster per-token throughput on M-series chips."
     echo
     read -rp "  Install mlx-lm now? [y/n]: " MLX_CHOICE
-    if [[ "$(echo "$MLX_CHOICE" | tr "[:upper:]" "[:lower:]")" =~ ^[Yy]$ ]]; then
+    if [[ "${MLX_CHOICE,,}" == "y" ]]; then
         info "Installing mlx-lm via pixi (mlx environment)..."
         pixi install -e mlx
         ok "MLX environment ready — use 'pixi run -e mlx ...' or select MLX engine in UI"
