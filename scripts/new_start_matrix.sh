@@ -2,6 +2,18 @@
 # Start the Matrix Swarm using pixi: builds coordinator, then starts the backend proxy.
 
 set -e
+echo "[1/4] Stopping existing backend processes..."
+if [ -f "$PID_FILE" ]; then
+    while IFS= read -r pid; do
+        kill "$pid" 2>/dev/null
+    done < "$PID_FILE"
+    rm -f "$PID_FILE"
+fi
+pkill -f llama-server            2>/dev/null || true
+pkill -f coordinator             2>/dev/null || true
+pkill -f "node proxy.mjs"        2>/dev/null || true
+PIDS=$(lsof -ti:3002,8000,8080,8081,8082,8083,8084 2>/dev/null)
+[ -n "$PIDS" ] && echo "$PIDS" | xargs kill -9 2>/dev/null || true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [ -f "$SCRIPT_DIR/pixi.toml" ]; then
@@ -23,24 +35,12 @@ if ! command -v pixi >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/4] Installing pixi environment..."
+echo "[2/44] Installing pixi environment..."
 pixi install --manifest-path "$MANIFEST"
 
-echo "[2/4] Building coordinator..."
+echo "[3/4] Building coordinator..."
 pixi run --manifest-path "$MANIFEST" build-coordinator
 
-echo "[3/4] Stopping existing backend processes..."
-if [ -f "$PID_FILE" ]; then
-    while IFS= read -r pid; do
-        kill "$pid" 2>/dev/null
-    done < "$PID_FILE"
-    rm -f "$PID_FILE"
-fi
-pkill -f llama-server            2>/dev/null || true
-pkill -f coordinator             2>/dev/null || true
-pkill -f "node proxy.mjs"        2>/dev/null || true
-PIDS=$(lsof -ti:3002,8000,8080,8081,8082,8083,8084 2>/dev/null)
-[ -n "$PIDS" ] && echo "$PIDS" | xargs kill -9 2>/dev/null || true
 sleep 3
 
 echo "[4/4] Starting proxy on port 3002..."

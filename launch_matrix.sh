@@ -20,15 +20,15 @@ echo "[2/5] Starting LLM Swarm Agents (5 roles)..."
 cd "$(dirname "$0")"
 
 # Lead Architect — UML & System Design
-/Users/Shared/models/llama-server -m /Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 4096 --port 8080 --n-gpu-layers 81 > logs/8080.log 2>&1 &
+/Users/Shared/llama/llama-server -m /Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 4096 --port 8080 --n-gpu-layers 81 > logs/8080.log 2>&1 &
 # Systems Specialist — C++ & Go
-/Users/Shared/models/llama-server -m /Users/Shared/models/granite-3.1-8b-instruct-Q4_K_M.gguf -c 4096 --port 8081 --n-gpu-layers 81 > logs/8081.log 2>&1 &
+/Users/Shared/llama/llama-server -m /Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf -c 4096 --port 8081 --n-gpu-layers 81 > logs/8081.log 2>&1 &
 # Context Scout — Large Repositories
-/Users/Shared/models/llama-server -m /Users/Shared/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf -c 4096 --port 8082 --n-gpu-layers 81 > logs/8082.log 2>&1 &
+/Users/Shared/llama/llama-server -m /Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf -c 4096 --port 8082 --n-gpu-layers 81 > logs/8082.log 2>&1 &
 # Programmer — Full Implementation (8192 ctx for long code output)
-/Users/Shared/models/llama-server -m /Users/Shared/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 8192 --port 8083 --n-gpu-layers 81 > logs/8083.log 2>&1 &
+/Users/Shared/llama/llama-server -m /Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 8192 --port 8083 --n-gpu-layers 81 > logs/8083.log 2>&1 &
 # Synthesis — Master Plan
-/Users/Shared/models/llama-server -m /Users/Shared/models/gemma-2-2b-it-Q4_K_M.gguf -c 4096 --port 8084 --n-gpu-layers 81 > logs/8084.log 2>&1 &
+/Users/Shared/llama/llama-server -m /Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf -c 4096 --port 8084 --n-gpu-layers 81 > logs/8084.log 2>&1 &
 
 echo "    -> Agents Initializing..."
 sleep 5 # Give them a moment to bind ports
