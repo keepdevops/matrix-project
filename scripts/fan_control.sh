@@ -20,15 +20,15 @@ AUTO_PRESET_RAW="Predefined:0"
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _mfc_running() {
-    pgrep -x "Macs Fan Control" >/dev/null 2>&1
+    pgrep -x "Macs Fan Control" 
 }
 
 _kill_mfc() {
     local pid
-    pid=$(pgrep -x "Macs Fan Control" 2>/dev/null)
+    pid=$(pgrep -x "Macs Fan Control" )
     if [ -n "$pid" ]; then
         # Force-kill so MFC cannot write its in-memory state over our changes
-        kill -9 "$pid" 2>/dev/null
+        kill -9 "$pid" 
         sleep 1
     fi
 }
@@ -36,10 +36,10 @@ _kill_mfc() {
 _write_preset() {
     local value="$1"
     # Write directly to the plist file (bypasses cfprefsd cache)
-    /usr/libexec/PlistBuddy -c "Set :ActivePreset $value" "$MFC_PLIST" 2>/dev/null \
-        || /usr/libexec/PlistBuddy -c "Add :ActivePreset string $value" "$MFC_PLIST" 2>/dev/null
+    /usr/libexec/PlistBuddy -c "Set :ActivePreset $value" "$MFC_PLIST" \
+        || /usr/libexec/PlistBuddy -c "Add :ActivePreset string $value" "$MFC_PLIST" 
     # Flush cfprefsd so defaults domain reflects the change
-    killall -HUP cfprefsd 2>/dev/null
+    killall -HUP cfprefsd 
     sleep 0.5
 }
 
@@ -70,14 +70,14 @@ cmd_stop() {
 
 cmd_status() {
     local raw
-    raw=$(/usr/libexec/PlistBuddy -c "Print :ActivePreset" "$MFC_PLIST" 2>/dev/null)
+    raw=$(/usr/libexec/PlistBuddy -c "Print :ActivePreset" "$MFC_PLIST" )
     if [ -z "$raw" ]; then
         echo "[Fan] No active preset found in plist"
         return
     fi
     # Try to Base64-decode; if it fails it's a plain string (e.g. Predefined:0)
     local decoded
-    decoded=$(echo "$raw" | base64 -d 2>/dev/null)
+    decoded=$(echo "$raw" | base64 -d )
     if echo "$decoded" | grep -q "|"; then
         echo "[Fan] Active: $decoded"
     else
