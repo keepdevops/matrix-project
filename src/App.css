@@ -812,15 +812,19 @@ h1 {
   cursor: not-allowed;
 }
 
-.swarm-engine-btn.active[class*="llama"],
-.swarm-engine-btn.active:first-child {
+.swarm-engine-btn.active.engine-llama {
   background: rgba(100, 143, 255, 0.12);
   color: #648FFF;
 }
 
-.swarm-engine-btn.active:last-child {
+.swarm-engine-btn.active.engine-mlx {
   background: rgba(0, 255, 65, 0.08);
   color: #00ff41;
+}
+
+.swarm-engine-btn.active.engine-vllm {
+  background: rgba(255, 107, 53, 0.12);
+  color: #FF6B35;
 }
 
 .engine-count {
@@ -845,10 +849,10 @@ h1 {
   opacity: 0.8;
 }
 
-/* MLX badge colour in layout panel */
-.layout-mlx {
-  color: #00ff41;
-}
+/* Engine badge colours in layout panel */
+.layout-engine-llama { color: #FFB000; }
+.layout-engine-mlx   { color: #00ff41; }
+.layout-engine-vllm  { color: #FF6B35; }
 
 /* ========== Help Button ========== */
 .help-button {

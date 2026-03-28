@@ -19,7 +19,7 @@ function computeLayout(roles, selected, roleModels, engine) {
       groups[port] = {
         model: shortName(model),
         agents: [],
-        mlx: engine === 'mlx',
+        engine,
       };
     }
     groups[port].agents.push(role.name);
@@ -30,13 +30,14 @@ function computeLayout(roles, selected, roleModels, engine) {
     model: g.model,
     agents: g.agents,
     parallel: g.agents.length,
-    mlx: g.mlx,
+    engine: g.engine,
   }));
 }
 
 const ENGINES = [
   { id: 'llama', label: 'LLAMA', backend: 'llama' },
-  { id: 'mlx', label: 'MLX', backend: 'mlx' },
+  { id: 'mlx',  label: 'MLX',   backend: 'mlx'   },
+  { id: 'vllm', label: 'vLLM',  backend: 'vllm'  },
 ];
 
 function getEngineLabel(engineId) {
@@ -99,7 +100,7 @@ export default function SwarmConfig({ onDeployed }) {
         if (hasEngineModels) {
           const currentModel = roleModels[name];
           const matchesEngine = currentModel && (
-            engine === 'mlx' ? isMLXPath(currentModel) : engine === 'llama' ? !isMLXPath(currentModel) : true
+            engine === 'llama' ? !isMLXPath(currentModel) : isMLXPath(currentModel)
           );
           if (!matchesEngine) {
             setRoleModels(m => ({ ...m, [name]: engineModels[0].path }));
@@ -120,7 +121,7 @@ export default function SwarmConfig({ onDeployed }) {
       .map(r => ({ ...r, model: roleModels[r.name] || r.model, backend: engine }));
 
     setStatus('deploying');
-    const engineLabel = engine === 'mlx' ? 'MLX' : 'llama-server';
+    const engineLabel = engine === 'mlx' ? 'MLX' : engine === 'vllm' ? 'vLLM' : 'llama-server';
     setStatusMsg(`Starting ${engineLabel} servers... this may take up to 4 minutes on first load`);
 
     setLogTail(null);
@@ -169,7 +170,7 @@ export default function SwarmConfig({ onDeployed }) {
                 return (
                   <button
                     key={e.id}
-                    className={`swarm-engine-btn${engine === e.id ? ' active' : ''}${count === 0 ? ' disabled' : ''}`}
+                    className={`swarm-engine-btn engine-${e.id}${engine === e.id ? ' active' : ''}${count === 0 ? ' disabled' : ''}`}
                     onClick={() => count > 0 && handleEngineChange(e.id)}
                     title={count === 0 ? `No ${e.label} models found in /Users/Shared/llama/models/` : `${count} model${count !== 1 ? 's' : ''} available`}
                   >
@@ -229,8 +230,8 @@ export default function SwarmConfig({ onDeployed }) {
             {layout.map(s => (
               <div key={s.port} className="swarm-layout-row">
                 <span className="layout-port">:{s.port}</span>
-                <span className={`layout-parallel${s.mlx ? ' layout-mlx' : ''}`}>
-                  {s.mlx ? '[mlx]' : `×${s.parallel}`}
+                <span className={`layout-parallel layout-engine-${s.engine}`}>
+                  {s.engine === 'mlx' ? '[mlx]' : s.engine === 'vllm' ? '[vllm]' : `×${s.parallel}`}
                 </span>
                 <div className="layout-right">
                   <div className="layout-agents">[{s.agents.join(', ')}]</div>
@@ -250,7 +251,7 @@ export default function SwarmConfig({ onDeployed }) {
                 <div className="swarm-config-logs">
                   <div className="swarm-config-logs-title">
                     Recent server logs (agent_logs/*.log)
-                    {engine === 'mlx' && ' — look for Python tracebacks or "No such file" above'}
+                    {(engine === 'mlx' || engine === 'vllm') && ' — look for Python tracebacks or "No such file" above'}
                   </div>
                   {logTail.map(({ port, lines }) => (
                     <div key={port} className="swarm-config-log-block">

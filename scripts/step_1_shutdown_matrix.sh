@@ -13,19 +13,19 @@ echo "========================================"
 echo " Stopping processes..."
 cd "$(dirname "$0")/.."
 
-pkill -f "react-scripts start" 
+pkill -f "react-scripts start" || true
 echo "-1--------------------------------------"
 
-docker-compose down 
+docker-compose down 2>/dev/null || true
 sleep 2
-docker-compose down --remove-orphans
+docker-compose down --remove-orphans 2>/dev/null || true
 sleep 2
 
-docker ps -a
-docker stop matrix-proxy
-docker stop matrix-ui
-docker rm   matrix-proxy
-docker rm   matrix-ui
+docker ps -a 2>/dev/null || true
+docker stop matrix-proxy 2>/dev/null || true
+docker stop matrix-ui 2>/dev/null || true
+docker rm   matrix-proxy 2>/dev/null || true
+docker rm   matrix-ui 2>/dev/null || true
 echo "-2--------------------------------------"
 
 PID_FILE="$(dirname "$0")/../logs/matrix.pids"

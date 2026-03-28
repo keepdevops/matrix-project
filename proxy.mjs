@@ -11,8 +11,9 @@ const MODEL_DIR = '/Users/Shared/llama/models';
 const LLAMA_BIN = '/Users/Shared/llama/llama-server';
 const ACTIVE_CONFIG = '/tmp/matrix-active-config.json';
 
-// A model is MLX if its path is a directory (not a .gguf file)
-const isMLXModel = (modelPath) => !modelPath.endsWith('.gguf');
+// Backend detection helpers
+const isGGUF = (modelPath) => modelPath.endsWith('.gguf');
+const isMLXModel = (modelPath) => !isGGUF(modelPath); // kept for compat
 
 const app = express();
 app.use(cors());
@@ -26,14 +27,16 @@ app.get('/api/models', (req, res) => {
             .filter(f => f.endsWith('.gguf'))
             .map(f => ({ name: path.basename(f, '.gguf'), path: path.join(MODEL_DIR, f), backend: 'llama' }));
 
-        const mlx = entries
-            .filter(name => {
-                const p = path.join(MODEL_DIR, name);
-                return statSync(p).isDirectory() && existsSync(path.join(p, 'config.json'));
-            })
-            .map(name => ({ name, path: path.join(MODEL_DIR, name), backend: 'mlx' }));
+        const hfDirs = entries.filter(name => {
+            const p = path.join(MODEL_DIR, name);
+            return statSync(p).isDirectory() && existsSync(path.join(p, 'config.json'));
+        });
 
-        res.json([...gguf, ...mlx]);
+        // HuggingFace directories work with both MLX (Apple Silicon) and vLLM (CUDA)
+        const mlx  = hfDirs.map(name => ({ name, path: path.join(MODEL_DIR, name), backend: 'mlx' }));
+        const vllm = hfDirs.map(name => ({ name, path: path.join(MODEL_DIR, name), backend: 'vllm' }));
+
+        res.json([...gguf, ...mlx, ...vllm]);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -86,6 +89,7 @@ app.post('/api/configure', express.json(), async (req, res) => {
         try { execSync(`pkill -f llama-server`); } catch {}
         try { execSync(`pkill -f "llama_cpp.server"`); } catch {}
         try { execSync(`pkill -f "mlx_lm.server"`); } catch {}
+        try { execSync(`pkill -f "vllm.entrypoints"`); } catch {}
         try { execSync(`pkill -f "${path.join(__dirname, 'coordinator')}"`); } catch {}
         // Force-free the ports in case of lingering sockets
         try { execSync(`lsof -ti:8080,8081,8082,8083,8084 | xargs kill -9`); } catch {}
@@ -98,14 +102,14 @@ app.post('/api/configure', express.json(), async (req, res) => {
         mkdirSync(agentLogsDir, { recursive: true });
 
         // Start one server per unique model (write to agent_logs/ so "check agent_logs" has server output)
-        let mlxStarted = 0;
+        let hfStarted = 0; // stagger both MLX and vLLM starts
         for (const [port, g] of Object.entries(portGroups)) {
             const logFile = path.join(agentLogsDir, `${port}.log`);
             const out = openSync(logFile, 'a');
             if (g.backend === 'mlx') {
                 // Stagger MLX server starts so they don't all load at once (GPU/memory contention)
-                if (mlxStarted > 0) await sleep(5000);
-                mlxStarted++;
+                if (hfStarted > 0) await sleep(5000);
+                hfStarted++;
                 const modelArg = path.isAbsolute(g.model) ? g.model : path.join(MODEL_DIR, path.basename(g.model));
                 spawn('python3', [
                     '-m', 'mlx_lm.server',
@@ -114,6 +118,19 @@ app.post('/api/configure', express.json(), async (req, res) => {
                     '--host', '127.0.0.1',
                 ], { detached: true, stdio: ['ignore', out, out] }).unref();
                 console.log(`[Configure] MLX port ${port} | model=${path.basename(modelArg)} | [${g.names.join(', ')}] → agent_logs/${port}.log`);
+            } else if (g.backend === 'vllm') {
+                // Stagger vLLM server starts to avoid VRAM contention
+                if (hfStarted > 0) await sleep(5000);
+                hfStarted++;
+                const modelArg = path.isAbsolute(g.model) ? g.model : path.join(MODEL_DIR, path.basename(g.model));
+                spawn('python3', [
+                    '-m', 'vllm.entrypoints.openai.api_server',
+                    '--model', modelArg,
+                    '--port', String(port),
+                    '--host', '127.0.0.1',
+                    '--max-model-len', String(g.context),
+                ], { detached: true, stdio: ['ignore', out, out] }).unref();
+                console.log(`[Configure] vLLM port ${port} | model=${path.basename(modelArg)} | [${g.names.join(', ')}] → agent_logs/${port}.log`);
             } else {
                 spawn(LLAMA_BIN, [
                     '-m', g.model,
@@ -176,6 +193,7 @@ async function waitForHealth(ports, timeoutSecs, portToBackend = {}) {
         const results = await Promise.all(
             ports.map(async p => {
                 const backend = portToBackend[p] || 'llama';
+                // mlx_lm.server: /v1/models | llama-server & vllm: /health
                 const url = backend === 'mlx'
                     ? `http://127.0.0.1:${p}/v1/models`
                     : `http://127.0.0.1:${p}/health`;
