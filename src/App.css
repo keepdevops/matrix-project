@@ -1145,3 +1145,31 @@ h1 {
 .cm-editor {
   background-color: #0d1117 !important;
 }
+
+/* ========== Pipeline Stage Grouping ========== */
+.agent-stage-section {
+  margin-bottom: var(--space-lg, 24px);
+}
+
+.agent-stage-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #444d58;
+  border-bottom: 1px solid #1e2530;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+
+.agent-stage-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #444d58;
+  border: 1px solid #2a3340;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  opacity: 0.8;
+}

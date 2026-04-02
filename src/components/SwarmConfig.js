@@ -12,7 +12,7 @@ function computeLayout(roles, selected, roleModels, engine) {
   for (const role of roles) {
     if (!selected.has(role.name)) continue;
     const model = roleModels[role.name] || role.model;
-    const key = `${engine}:${model}`;
+    const key = `${engine}:${model}:${role.server_group || ''}`;
     if (!keyToPort[key]) keyToPort[key] = nextPort++;
     const port = keyToPort[key];
     if (!groups[port]) {
@@ -79,11 +79,19 @@ export default function SwarmConfig({ onDeployed }) {
     setEngine(newEngine);
     const available = models.filter(m => m.backend === newEngine);
     if (!available.length) return;
-    // Reset all selected agents to the first available model of the new engine
+    // Map each distinct old model group to a different new-engine model (preserving grouping)
     setRoleModels(prev => {
       const next = { ...prev };
+      const oldModelToNew = {};
+      let idx = 0;
       roles.forEach(r => {
-        if (selected.has(r.name)) next[r.name] = available[0].path;
+        if (!selected.has(r.name)) return;
+        const oldModel = prev[r.name] || r.model;
+        if (!(oldModel in oldModelToNew)) {
+          oldModelToNew[oldModel] = available[idx % available.length].path;
+          idx++;
+        }
+        next[r.name] = oldModelToNew[oldModel];
       });
       return next;
     });
@@ -103,7 +111,19 @@ export default function SwarmConfig({ onDeployed }) {
             engine === 'llama' ? !isMLXPath(currentModel) : isMLXPath(currentModel)
           );
           if (!matchesEngine) {
-            setRoleModels(m => ({ ...m, [name]: engineModels[0].path }));
+            // Prefer the same engine model already assigned to a peer agent
+            // sharing the same swarm-config default model (keeps grouping intact).
+            // Fall back to the first unused engine model to avoid collapsing to one port.
+            const agentDefault = roles.find(r => r.name === name)?.model;
+            const peerModel = roles
+              .filter(r => selected.has(r.name) && r.model === agentDefault)
+              .map(r => roleModels[r.name])
+              .find(p => p && (engine === 'llama' ? !isMLXPath(p) : isMLXPath(p)));
+            const usedPaths = new Set(
+              roles.filter(r => selected.has(r.name)).map(r => roleModels[r.name])
+            );
+            const unused = engineModels.find(m => !usedPaths.has(m.path));
+            setRoleModels(m => ({ ...m, [name]: peerModel || (unused || engineModels[0]).path }));
           }
         }
       }

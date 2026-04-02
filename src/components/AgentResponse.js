@@ -1,8 +1,5 @@
 import React from 'react';
 
-/**
- * Component to display individual agent response
- */
 function AgentResponse({ name, response, color = '#00ff41', loading = false, port }) {
   const getStatusClass = () => {
     if (loading) return 'status-loading';

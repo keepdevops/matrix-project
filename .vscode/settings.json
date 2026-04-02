@@ -1,7 +1,0 @@
-{
-    "workbench.cloudChanges.autoResume": "off",
-    "workbench.cloudChanges.continueOn": "off",
-    "workbench.experimental.cloudChanges.partialMatches.enabled": false,
-    "workbench.settings.enableNaturalLanguageSearch": false,
-    "json.schemaDownload.enable": true
-}

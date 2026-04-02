@@ -1,63 +1,90 @@
 #!/bin/bash
 
 echo "========================================"
-echo "  MATRIX SWARM SHUTDOWN"
+echo "$0"
+echo "  SWARM MATRIX SHUTDOWN ALL"
 echo "========================================"
-echo "  1) Docker"
-echo "  2) Bare Metal"
+echo " run with sudo $0"
 echo "========================================"
-read -rp "Select mode [1/2]: " MODE
 
-if [ "$MODE" = "2" ]; then
-    NO_DOCKER=true
-else
-    NO_DOCKER=false
-fi
-echo
+
 
 # Stop UI
-echo "[1/4] Stopping UI..."
+echo " Stopping processes..."
 cd "$(dirname "$0")/.."
-if $NO_DOCKER; then
-    pkill -f "react-scripts start" 2>/dev/null
-else
-    docker-compose down 2>/dev/null
-fi
+
+pkill -f "react-scripts start" || true
+echo "-1--------------------------------------"
+
+docker-compose down 2>/dev/null || true
+sleep 2
+docker-compose down --remove-orphans 2>/dev/null || true
+sleep 2
+
+docker ps -a 2>/dev/null || true
+docker stop matrix-proxy 2>/dev/null || true
+docker stop matrix-ui 2>/dev/null || true
+docker rm   matrix-proxy 2>/dev/null || true
+docker rm   matrix-ui 2>/dev/null || true
+echo "-2--------------------------------------"
 
 PID_FILE="$(dirname "$0")/../logs/matrix.pids"
 
 # Kill tracked PIDs
-echo "[2/4] Stopping agents, coordinator, and proxy..."
+echo " Stopping agents, coordinator, and proxy..."
 if [ -f "$PID_FILE" ]; then
     echo "  Killing tracked PIDs..."
     while IFS= read -r pid; do
-        kill "$pid" 2>/dev/null && echo "    killed $pid"
+        kill "$pid"  && echo "    killed $pid"
     done < "$PID_FILE"
-    rm -f "$PID_FILE"
-    echo "  PID file cleared."
+    rm -f  "$PID_FILE"
+    echo "   PID file cleared."
 fi
-pkill -f llama-server 2>/dev/null
-pkill -f "llama_cpp.server" 2>/dev/null
-pkill -f "mlx_lm.server" 2>/dev/null
-pkill -f coordinator 2>/dev/null
-pkill -f "node proxy.mjs" 2>/dev/null
+
+# C++ HTTP proxy (launch_matrix runs "$ROOT/proxy"; may be missing from PID file)
+ROOT_ABS="$(cd "$(dirname "$0")/.." && pwd)"
+echo "-3a--------------------------------------"
+echo " Stopping C++ proxy (${ROOT_ABS}/proxy)..."
+if [[ -x "${ROOT_ABS}/proxy" ]]; then
+    pkill -f "${ROOT_ABS}/proxy" 2>/dev/null && echo "    stopped ${ROOT_ABS}/proxy" || true
+fi
+
+echo "-3--------------------------------------"
+pkill -f llama-server 
+
+echo "-4--------------------------------------"
+pkill -f "llama_cpp.server" 
+
+echo "-5--------------------------------------"
+pkill -f "mlx_lm.server" 
+
+echo "-6--------------------------------------"
+pkill -f coordinator 
+
+echo "-7--------------------------------------"
+pkill -f "node proxy.mjs" 
 
 sleep 1
 
-# Force-kill anything still holding the ports
-echo "[3/4] Releasing ports..."
-lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 2>/dev/null
+echo "-8--------------------------------------"
+echo " Releasing ports..."
+echo "pkill <ports>--------------------------"
+lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 
 
-# Verify
-echo "[4/5] Verifying..."
-REMAINING=$(lsof -ti:8000,8080,8081,8082,8083,8084 2>/dev/null)
+echo "-9--------------------------------------"
+echo " Verifying..."
+REMAINING=$(lsof -ti:8000,8080,8081,8082,8083,8084 )
 if [ -z "$REMAINING" ]; then
+    echo "-9.1----------------------"
     echo "  All swarm processes stopped. VRAM released."
 else
+    echo "-9.2----------------------"
     echo "  Warning: some processes still running (PIDs: $REMAINING)"
 fi
 
-echo "[5/5] Restoring system Auto fan control..."
+echo "-10--------------------------------------"
+echo "stop fan--------------------------"
+echo " Restoring system Auto fan control..."
 FAN_SCRIPT="$(dirname "$0")/fan_control.sh"
 if [ -x "$FAN_SCRIPT" ]; then
     "$FAN_SCRIPT" stop
@@ -65,6 +92,18 @@ else
     echo "  (fan_control.sh not found or not executable — skipping)"
 fi
 
+echo "-11--------------------------------------"
+
+
+ps -ef | grep -v grep | grep llama
+ps -ef | grep -v grep | grep coordinator
+ps -ef | grep -v grep | grep npm
+docker ps -a
+
+
+
+
 echo "========================================"
 echo "  SHUTDOWN COMPLETE"
 echo "========================================"
+echo "Next... close Firefox"

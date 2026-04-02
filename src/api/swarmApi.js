@@ -1,15 +1,29 @@
 /**
- * MATRIX SWARM API 
- * Target: Node Proxy (3002) -> C++ Coordinator (8000)
+ * Swarm Matrix API
+ * Browser → Proxy (:3002) → Coordinator (:8000)
+ *
+ * Set at build time: REACT_APP_API_BASE
+ *   - Dev default: http://localhost:3002/api
+ *   - Same-origin (nginx): /api
  */
 
-const API_BASE = 'http://localhost:3002/api';
+function normalizeApiBase() {
+  const raw = process.env.REACT_APP_API_BASE;
+  if (raw === undefined || raw === '') {
+    return 'http://localhost:3002/api';
+  }
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  }
+  // Relative e.g. /api
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
+const API_BASE = normalizeApiBase();
 
 /**
- * Submit a prompt to all three agents via the coordinator
- * @param {string} prompt - The user's prompt
- * @param {number} temperature - Temperature setting (0.1 - 1.0)
- * @returns {Promise<{logic: string, utility: string, architect: string}>}
+ * Submit a prompt to all agents via the coordinator
  */
 export async function submitPrompt(prompt, temperature = 0.2) {
   const response = await fetch(`${API_BASE}/architect`, {
@@ -30,7 +44,6 @@ export async function submitPrompt(prompt, temperature = 0.2) {
 
 /**
  * Fetch history of previous prompts and responses
- * @returns {Promise<Array>}
  */
 export async function fetchHistory() {
   const response = await fetch(`${API_BASE}/history`);
@@ -44,7 +57,6 @@ export async function fetchHistory() {
 
 /**
  * Fetch the list of active agents from the coordinator
- * @returns {Promise<Array<{name: string, port: number}>>}
  */
 export async function fetchAgents() {
   const response = await fetch(`${API_BASE}/agents`);
@@ -53,8 +65,7 @@ export async function fetchAgents() {
 }
 
 /**
- * Fetch available GGUF model files from the models directory
- * @returns {Promise<Array<{name: string, path: string}>>}
+ * Fetch available model files from the models directory
  */
 export async function fetchModels() {
   const response = await fetch(`${API_BASE}/models`);
@@ -64,7 +75,6 @@ export async function fetchModels() {
 
 /**
  * Fetch base swarm role definitions from swarm-config.json
- * @returns {Promise<Object>}
  */
 export async function fetchSwarmConfig() {
   const response = await fetch(`${API_BASE}/swarm-config`);
@@ -77,8 +87,6 @@ const CONFIGURE_TIMEOUT_MS = 270000;
 
 /**
  * Deploy a swarm configuration — starts llama-servers and coordinator
- * @param {Array} agents - Array of agent objects with model assignments
- * @returns {Promise<{status: string, servers: Array}>}
  */
 export async function configureSwarm(agents) {
   const controller = new AbortController();
@@ -110,7 +118,6 @@ export async function configureSwarm(agents) {
 
 /**
  * Clear KV cache on all agents
- * @returns {Promise<Object>} per-agent status map
  */
 export async function clearCache() {
   const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
@@ -120,7 +127,6 @@ export async function clearCache() {
 
 /**
  * Check if the coordinator is healthy/online
- * @returns {Promise<boolean>}
  */
 export async function checkHealth() {
   try {
@@ -133,8 +139,6 @@ export async function checkHealth() {
 
 /**
  * Fetch last lines of server logs (e.g. for MLX ports when launch fails)
- * @param {number[]} ports - e.g. [8080, 8081]
- * @returns {Promise<{ logs: Array<{ port: number, lines: string[] }> }>}
  */
 export async function fetchLogs(ports) {
   if (!ports?.length) return { logs: [] };

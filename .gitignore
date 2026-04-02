@@ -1,9 +1,20 @@
-.pixi/
+# Dependencies & build
 node_modules/
-llama.cpp/
-agent_logs/
-venv/
-bin/
 build/
+
+# Local env
+.env
+.env.local
+
+# Runtime / binaries (build locally)
+coordinator
+proxy
+*.o
+
+# Logs
+logs/
 *.log
+agent_logs/
+
+# OS
 .DS_Store
