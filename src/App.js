@@ -10,7 +10,7 @@ import { extractCodeBlock } from './utils/codeExtractor';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp']);
 
-const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX' };
+const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 function getEngineLabel(backend) {
   return ENGINE_LABELS[backend] || backend || null;
 }
@@ -193,7 +193,13 @@ function App() {
             externalPrompt={selectedPrompt}
             externalTemperature={selectedTemperature}
           />
-          {error && <div className="error-banner">ERROR: {error}</div>}
+          {error && (
+            <div className="error-banner">
+              {error.includes('Coordinator offline')
+                ? 'Swarm not running — open CONFIGURE and click LAUNCH SWARM.'
+                : `ERROR: ${error}`}
+            </div>
+          )}
           <AgentGrid
             activeAgents={activeAgents}
             responses={responses}

@@ -37,6 +37,55 @@ static json tail_json(const std::string& path, int n) {
 
 // ── model scanner ─────────────────────────────────────────────────────────────
 
+static bool is_gguf_name(const std::string& n) {
+    return n.size() > 5 && n.compare(n.size() - 5, 5, ".gguf") == 0;
+}
+
+// Scan a directory for .gguf files and MLX model dirs (dirs with config.json).
+// Recurses into plain subdirectories up to max_depth levels.
+static void scan_dir(const std::string& dir, json& result, int max_depth = 1) {
+    DIR* d = opendir(dir.c_str());
+    if (!d) return;
+    std::vector<std::string> entries;
+    for (struct dirent* e; (e = readdir(d)) != nullptr;) {
+        std::string n = e->d_name;
+        if (n != "." && n != "..") entries.push_back(n);
+    }
+    closedir(d);
+    std::sort(entries.begin(), entries.end());
+    for (const auto& name : entries) {
+        std::string p = dir + "/" + name;
+        if (is_gguf_name(name)) {
+            result.push_back({{"name", name.substr(0, name.size()-5)},
+                              {"path", p}, {"backend", "llama"}});
+        } else {
+            struct stat st{};
+            if (stat(p.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+            if (access((p + "/config.json").c_str(), F_OK) == 0) {
+                result.push_back({{"name", name}, {"path", p}, {"backend", "mlx"}});
+                result.push_back({{"name", name}, {"path", p}, {"backend", "vllm"}});
+            } else if (max_depth > 0) {
+                scan_dir(p, result, max_depth - 1);
+            }
+        }
+    }
+}
+
+// Append Docker Model Runner models via `docker model ls`
+static void scan_docker_models(json& result) {
+    FILE* fp = popen("docker model ls --format '{{.Name}}' 2>/dev/null", "r");
+    if (!fp) return;
+    char buf[512];
+    while (fgets(buf, sizeof(buf), fp)) {
+        std::string name = buf;
+        while (!name.empty() && (name.back() == '\n' || name.back() == '\r' || name.back() == ' '))
+            name.pop_back();
+        if (name.empty() || name == "NAME") continue;
+        result.push_back({{"name", name}, {"path", name}, {"backend", "docker"}});
+    }
+    pclose(fp);
+}
+
 static json scan_models() {
     json result = json::array();
     DIR* d = opendir(g_env.model_dir.c_str());
@@ -50,16 +99,19 @@ static json scan_models() {
     std::sort(entries.begin(), entries.end());
     for (const auto& name : entries) {
         std::string p = g_env.model_dir + "/" + name;
-        bool is_gguf  = name.size() > 5 && name.compare(name.size() - 5, 5, ".gguf") == 0;
-        if (is_gguf) {
+        if (is_gguf_name(name)) {
             result.push_back({{"name", name.substr(0, name.size()-5)},
                               {"path", p}, {"backend", "llama"}});
         } else {
             struct stat st{};
-            if (stat(p.c_str(), &st) == 0 && S_ISDIR(st.st_mode) &&
-                access((p + "/config.json").c_str(), F_OK) == 0) {
-                result.push_back({{"name",name},{"path",p},{"backend","mlx"}});
-                result.push_back({{"name",name},{"path",p},{"backend","vllm"}});
+            if (stat(p.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+            if (access((p + "/config.json").c_str(), F_OK) == 0) {
+                // MLX model directory
+                result.push_back({{"name", name}, {"path", p}, {"backend", "mlx"}});
+                result.push_back({{"name", name}, {"path", p}, {"backend", "vllm"}});
+            } else {
+                // Plain subdirectory — scan one level deeper for models
+                scan_dir(p, result);
             }
         }
     }
@@ -93,11 +145,14 @@ int main(int argc, char* argv[]) {
         res.status = 204;
     });
 
-    // GET /api/models
+    // GET /api/models — local files + Docker Model Runner models
     svr.Get("/api/models", [&cors](const httplib::Request&, httplib::Response& res) {
         cors(res);
-        try { res.set_content(scan_models().dump(), "application/json"); }
-        catch (const std::exception& e) {
+        try {
+            json models = scan_models();
+            scan_docker_models(models);
+            res.set_content(models.dump(), "application/json");
+        } catch (const std::exception& e) {
             res.status = 500;
             res.set_content(json{{"error", e.what()}}.dump(), "application/json");
         }
@@ -151,6 +206,30 @@ int main(int argc, char* argv[]) {
             logs.push_back({{"port", std::stoi(tok)}, {"lines", tail_json(lp, 80)}});
         }
         res.set_content(json{{"logs", logs}}.dump(), "application/json");
+    });
+
+    // GET /api/swarm/status — lightweight coordinator liveness + agent count
+    svr.Get("/api/swarm/status", [&cors](const httplib::Request&, httplib::Response& res) {
+        cors(res);
+        try {
+            httplib::Client coord("127.0.0.1", g_env.coordinator_port);
+            coord.set_connection_timeout(2);
+            coord.set_read_timeout(5);
+            auto health = coord.Get("/api/health");
+            if (!health || health->status != 200) {
+                res.set_content(json{{"online", false}, {"agents", 0}}.dump(), "application/json");
+                return;
+            }
+            auto agents_r = coord.Get("/api/agents");
+            int agent_count = 0;
+            if (agents_r && agents_r->status == 200) {
+                try { agent_count = (int)json::parse(agents_r->body).size(); } catch (...) {}
+            }
+            res.set_content(json{{"online", true}, {"agents", agent_count}}.dump(), "application/json");
+        } catch (const std::exception& e) {
+            std::cerr << "[swarm/status] " << e.what() << "\n";
+            res.set_content(json{{"online", false}, {"agents", 0}}.dump(), "application/json");
+        }
     });
 
     // Catch-all: forward to coordinator on :8000

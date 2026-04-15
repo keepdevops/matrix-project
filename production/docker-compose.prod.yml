@@ -1,0 +1,25 @@
+# Production UI only (nginx static build). Start the C++ proxy + coordinator on the host
+# (GPU / llama-server) per scripts/launch_matrix.sh, then from repo root:
+#   docker compose -f production/docker-compose.prod.yml up -d
+#
+# UI: http://localhost (port 80). API requests go to host:3002 via host.docker.internal.
+
+services:
+  swarm-ui:
+    build:
+      context: ..
+      dockerfile: production/Dockerfile
+      args:
+        REACT_APP_API_BASE: /api
+    container_name: swarm-matrix-ui
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - swarm-net
+
+networks:
+  swarm-net:
+    driver: bridge

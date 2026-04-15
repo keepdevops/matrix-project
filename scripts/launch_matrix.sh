@@ -16,6 +16,16 @@ else
     read -rp "Select mode [1/2]: " MODE
 fi
 
+# Optional: pre-start docker-vllm inference servers before the proxy.
+# Set MATRIX_START_VLLM=1 to launch them (waits for health before proceeding).
+# Set MATRIX_START_VLLM=0 or leave unset to skip (use if servers are already running).
+if [ "${MATRIX_START_VLLM:-0}" = "1" ]; then
+    echo
+    echo "[0/3] Starting docker-vllm inference servers..."
+    bash "$ROOT/scripts/start_vllm_servers.sh" --wait
+    echo
+fi
+
 if [ "$MODE" = "2" ]; then
     NO_DOCKER=true
     echo "  Mode: Bare Metal"
@@ -28,7 +38,14 @@ echo
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PID_FILE="$ROOT/logs/matrix.pids"
 
-# Load MATRIX_* defaults (override by exporting before launch or in ~/.profile)
+# Load .env first (written by setup.sh with machine-specific conda paths etc.)
+# Then overlay matrix-env.sh defaults for any vars still unset.
+if [[ -f "$ROOT/.env" ]]; then
+  set -o allexport
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +o allexport
+fi
 if [[ -f "$ROOT/scripts/matrix-env.sh" ]]; then
   # shellcheck disable=SC1091
   source "$ROOT/scripts/matrix-env.sh"
@@ -44,7 +61,7 @@ fi
 #---------------------------------------------
 
 
-echo "[2/3] Activating GPU fan control (28–36°C sensor-based)..."
+echo "[1/3] Activating GPU fan control (28–36°C sensor-based)..."
 FAN_SCRIPT="$ROOT/scripts/fan_control.sh"
 if [ -x "$FAN_SCRIPT" ]; then
     "$FAN_SCRIPT" start
@@ -54,6 +71,8 @@ fi
 
 echo "[2/3] Starting C++ Proxy on port 3002..."
 mkdir -p "$ROOT/logs"
+# Clear stale PID file from any previous run
+> "$PID_FILE"
 "$ROOT/proxy" > "$ROOT/logs/proxy.log" 2>&1 &
 echo $! >> "$PID_FILE"
 sleep 2
@@ -68,7 +87,7 @@ else
     ### lsof -ti:3000 | xargs kill -9 
     sleep 2
     echo "===== docker-compose up ====="
-    docker-compose up -d
+    docker-compose -f "$ROOT/production/docker-compose.prod.yml" up -d
 fi
 
 echo "========================================"

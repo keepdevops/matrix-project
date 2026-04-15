@@ -1,0 +1,13 @@
+# Development: hot-reload React (npm start). Mount source via docker-compose.
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --silent
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]

@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <mutex>
+#include <thread>
 #include <chrono>
 
 using json = nlohmann::json;
@@ -18,48 +19,82 @@ struct Agent {
     int max_tokens;
     std::string system_prompt;
     std::string backend;
+    std::string engine; // "llama" (default), "mlx", or "docker"
+    std::string model;  // model ID — sent in request body for docker/vllm
 };
 
 std::vector<Agent> agents;
+
+// mlx-lm does not support concurrent requests on the same port.
+// Serialize all calls to mlx ports via a per-port mutex.
+static std::map<int, std::unique_ptr<std::mutex>> mlx_port_locks;
 
 static std::vector<json> history;
 static std::mutex history_mutex;
 static std::string history_path;
 
 static std::string call_agent(const Agent& agent, const std::string& prompt) {
+    // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts
+    std::unique_lock<std::mutex> mlx_lock;
+    if (agent.engine == "mlx") {
+        auto it = mlx_port_locks.find(agent.port);
+        if (it != mlx_port_locks.end()) {
+            mlx_lock = std::unique_lock<std::mutex>(*it->second);
+        }
+    }
+
     try {
         httplib::Client cli("127.0.0.1", agent.port);
         cli.set_connection_timeout(5);
         cli.set_read_timeout(agent.read_timeout_secs);
 
+        json messages = json::array();
+        // mlx-lm often rejects "system" role — merge into first user message instead.
+        if (agent.engine == "mlx" && !agent.system_prompt.empty()) {
+            messages.push_back({{"role", "user"}, {"content", agent.system_prompt + "\n\n" + prompt}});
+        } else {
+            if (!agent.system_prompt.empty())
+                messages.push_back({{"role", "system"}, {"content", agent.system_prompt}});
+            messages.push_back({{"role", "user"}, {"content", prompt}});
+        }
+
         json body = {
-            {"messages", json::array({
-                {{"role", "system"}, {"content", agent.system_prompt}},
-                {{"role", "user"},   {"content", prompt}}
-            })},
+            {"messages", messages},
             {"max_tokens", agent.max_tokens}
         };
+        // Docker Model Runner, docker-vllm, and vLLM require the model name in the request body
+        if (!agent.model.empty() && (agent.backend == "docker" || agent.backend == "vllm"
+                                     || agent.backend == "docker-vllm")) {
+            body["model"] = agent.model;
+        }
 
         auto res = cli.Post("/v1/chat/completions", body.dump(), "application/json");
 
+        std::string result;
         if (res && res->status == 200) {
             auto j = json::parse(res->body);
             if (j.contains("choices") && !j["choices"].empty()) {
-                return j["choices"][0]["message"]["content"];
+                result = j["choices"][0]["message"]["content"];
             }
-        }
-        if (res) {
+        } else if (res) {
             try {
                 auto err = json::parse(res->body);
                 if (err.contains("error") && err["error"].contains("message")) {
-                    return "[" + agent.name + " error] " + err["error"]["message"].get<std::string>();
+                    result = "[" + agent.name + " error] " + err["error"]["message"].get<std::string>();
                 }
             } catch (...) {
                 std::cerr << "[coordinator] Non-JSON error body from " << agent.name
                           << " (status " << res->status << ")" << std::endl;
             }
         }
-        return "Agent " + agent.name + " (Port " + std::to_string(agent.port) + ") is not responding.";
+        if (result.empty()) {
+            result = "Agent " + agent.name + " (Port " + std::to_string(agent.port) + ") is not responding.";
+        }
+        // Drain delay: let mlx-lm's KV cache reset before next serialized request.
+        if (agent.engine == "mlx") {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        return result;
 
     } catch (const std::exception& e) {
         std::cerr << "[coordinator] call_agent exception for " << agent.name
@@ -81,8 +116,8 @@ static json run_parallel_swarm(const std::vector<Agent>& all, const std::string&
     }
 
     for (auto& fut : futures) {
-        auto [name, text] = fut.get();
-        response_json[name] = text;
+        auto pair = fut.get();
+        response_json[pair.first] = pair.second;
     }
 
     return response_json;
@@ -127,14 +162,25 @@ int main(int argc, char* argv[]) {
     }
     json config = json::parse(config_file);
     for (auto& a : config["agents"]) {
+        // "engine" takes priority; fall back to "backend" so configs using
+        // backend:"mlx" also get serialized without needing an "engine" key.
+        std::string backend_val = a.contains("backend") ? a["backend"].get<std::string>() : "";
+        std::string engine = a.contains("engine") ? a["engine"].get<std::string>()
+                             : (backend_val == "mlx" ? "mlx"
+                               : backend_val == "docker" ? "docker" : "llama");
         agents.push_back({
             a["name"].get<std::string>(),
             a["port"].get<int>(),
             a["read_timeout_secs"].get<int>(),
             a["max_tokens"].get<int>(),
             a["system_prompt"].get<std::string>(),
-            a.contains("backend") ? a["backend"].get<std::string>() : ""
+            backend_val,
+            engine,
+            a.value("model", "")
         });
+        if (engine == "mlx" && mlx_port_locks.find(a["port"].get<int>()) == mlx_port_locks.end()) {
+            mlx_port_locks[a["port"].get<int>()] = std::make_unique<std::mutex>();
+        }
     }
     std::cout << "✅ Loaded " << agents.size() << " agents from " << config_path << std::endl;
 
@@ -154,7 +200,7 @@ int main(int argc, char* argv[]) {
         res.set_header("Access-Control-Allow-Origin", "*");
         json list = json::array();
         for (const auto& a : agents) {
-            json obj = {{"name", a.name}, {"port", a.port}};
+            json obj = {{"name", a.name}, {"port", a.port}, {"engine", a.engine}};
             if (!a.backend.empty()) obj["backend"] = a.backend;
             list.push_back(obj);
         }

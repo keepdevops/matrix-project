@@ -65,21 +65,52 @@ export async function fetchAgents() {
 }
 
 /**
- * Fetch available model files from the models directory
+ * Fetch available model files from the models directory.
+ * Merges live proxy results with /models.json static list so that known
+ * models appear even when the proxy scanner can't verify them (e.g. empty
+ * MLX dirs that haven't been populated yet).
+ * Falls back entirely to /models.json when the proxy is unreachable.
  */
 export async function fetchModels() {
-  const response = await fetch(`${API_BASE}/models`);
-  if (!response.ok) throw new Error(`Failed to fetch models: ${response.status}`);
-  return response.json();
+  let liveModels = null;
+  try {
+    const response = await fetch(`${API_BASE}/models`);
+    if (response.ok) liveModels = await response.json();
+  } catch {
+    // proxy not running — fall through to static fallback
+  }
+
+  const staticRes = await fetch('/models.json');
+  const staticModels = staticRes.ok ? await staticRes.json() : [];
+
+  if (!liveModels) {
+    if (!staticModels.length) throw new Error('Failed to fetch models (proxy and static fallback both unavailable)');
+    return staticModels;
+  }
+
+  // Merge: add static entries whose path isn't already in the live list
+  const livePaths = new Set(liveModels.map(m => m.path));
+  const merged = [...liveModels];
+  for (const m of staticModels) {
+    if (!livePaths.has(m.path)) merged.push(m);
+  }
+  return merged;
 }
 
 /**
- * Fetch base swarm role definitions from swarm-config.json
+ * Fetch base swarm role definitions from swarm-config.json.
+ * Falls back to /swarm-config.json (public static) when the proxy is unreachable.
  */
 export async function fetchSwarmConfig() {
-  const response = await fetch(`${API_BASE}/swarm-config`);
-  if (!response.ok) throw new Error(`Failed to fetch swarm config: ${response.status}`);
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE}/swarm-config`);
+    if (response.ok) return response.json();
+  } catch {
+    // proxy not running — fall through to static fallback
+  }
+  const fallback = await fetch('/swarm-config.json');
+  if (!fallback.ok) throw new Error('Failed to fetch swarm config (proxy and static fallback both unavailable)');
+  return fallback.json();
 }
 
 /** Timeout for configure (server waits up to 240s; allow a bit more for slow responses) */

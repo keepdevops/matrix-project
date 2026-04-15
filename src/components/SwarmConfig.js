@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs } from '../api/swarmApi';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
-const isMLXPath = p => !p.endsWith('.gguf');
+// A local MLX path is a filesystem path (starts with '/') that isn't a .gguf file.
+// HuggingFace repo IDs like 'meta-llama/Llama-3.2-3B-Instruct' do NOT start with '/'.
+const isMLXPath = p => p.startsWith('/') && !p.endsWith('.gguf');
+
+const DOCKER_PORT = 12434;
 
 function computeLayout(roles, selected, roleModels, engine) {
   const keyToPort = {};
@@ -12,8 +16,10 @@ function computeLayout(roles, selected, roleModels, engine) {
   for (const role of roles) {
     if (!selected.has(role.name)) continue;
     const model = roleModels[role.name] || role.model;
-    const key = `${engine}:${model}:${role.server_group || ''}`;
-    if (!keyToPort[key]) keyToPort[key] = nextPort++;
+    // Docker Model Runner: one shared endpoint regardless of model
+    const key = engine === 'docker' ? 'docker:shared'
+      : `${engine}:${model}:${role.server_group || ''}`;
+    if (!keyToPort[key]) keyToPort[key] = engine === 'docker' ? DOCKER_PORT : nextPort++;
     const port = keyToPort[key];
     if (!groups[port]) {
       groups[port] = {
@@ -35,9 +41,10 @@ function computeLayout(roles, selected, roleModels, engine) {
 }
 
 const ENGINES = [
-  { id: 'llama', label: 'LLAMA', backend: 'llama' },
-  { id: 'mlx',  label: 'MLX',   backend: 'mlx'   },
-  { id: 'vllm', label: 'vLLM',  backend: 'vllm'  },
+  { id: 'llama',  label: 'LLAMA',  backend: 'llama'  },
+  { id: 'mlx',   label: 'MLX',    backend: 'mlx'    },
+  { id: 'vllm',  label: 'vLLM',   backend: 'vllm'   },
+  { id: 'docker', label: 'DOCKER', backend: 'docker' },
 ];
 
 function getEngineLabel(engineId) {
@@ -53,24 +60,56 @@ export default function SwarmConfig({ onDeployed }) {
   const [status, setStatus] = useState('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [loadRetries, setLoadRetries] = useState(0);
   const [logTail, setLogTail] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadError('');
     Promise.all([fetchSwarmConfig(), fetchModels()])
       .then(([config, modelList]) => {
+        if (cancelled) return;
         setRoles(config.agents);
         setModels(modelList);
         const DEFAULT_AGENTS = new Set(['architect', 'programmer', 'specialist', 'reviewer', 'synthesis']);
-        setSelected(new Set(config.agents.filter(a => DEFAULT_AGENTS.has(a.name)).map(a => a.name)));
+        const selectedNames = new Set(config.agents.filter(a => DEFAULT_AGENTS.has(a.name)).map(a => a.name));
+        setSelected(selectedNames);
         const defaults = {};
         config.agents.forEach(a => { defaults[a.name] = a.model; });
+
+        // Detect engine from backend field or local path shape
+        const firstAgent = config.agents[0];
+        const firstBackend = firstAgent?.backend;
+        const firstModel = firstAgent?.model;
+        const detectedEngine =
+          firstBackend === 'mlx'    ? 'mlx'
+          : firstBackend === 'vllm'   ? 'vllm'
+          : firstBackend === 'docker' ? 'docker'
+          : (firstModel && isMLXPath(firstModel)) ? 'mlx'
+          : 'llama';
+        setEngine(detectedEngine);
+
+        // If the stored models are not local paths (e.g. HF repo IDs from a docker-vllm config),
+        // remap each selected agent to the best available local model for the detected engine.
+        const engineModelsNow = modelList.filter(m => m.backend === detectedEngine);
+        const hasNonLocalModels = config.agents.some(a => selectedNames.has(a.name) && !a.model.startsWith('/'));
+        if (hasNonLocalModels && engineModelsNow.length > 0) {
+          const oldModelToNew = {};
+          let idx = 0;
+          config.agents.forEach(a => {
+            if (!selectedNames.has(a.name)) return;
+            if (!(a.model in oldModelToNew)) {
+              oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
+              idx++;
+            }
+            defaults[a.name] = oldModelToNew[a.model];
+          });
+        }
         setRoleModels(defaults);
-        // Set initial engine from first default model type
-        const firstDefault = config.agents[0]?.model;
-        if (firstDefault && isMLXPath(firstDefault)) setEngine('mlx');
       })
-      .catch(e => setLoadError(e.message));
-  }, []);
+      .catch(e => { if (!cancelled) setLoadError(e.message); });
+    return () => { cancelled = true; };
+  }, [loadRetries]);
 
   const engineModels = models.filter(m => m.backend === engine);
   const hasEngineModels = engineModels.length > 0;
@@ -141,8 +180,14 @@ export default function SwarmConfig({ onDeployed }) {
       .map(r => ({ ...r, model: roleModels[r.name] || r.model, backend: engine }));
 
     setStatus('deploying');
-    const engineLabel = engine === 'mlx' ? 'MLX' : engine === 'vllm' ? 'vLLM' : 'llama-server';
-    setStatusMsg(`Starting ${engineLabel} servers... this may take up to 4 minutes on first load`);
+    const engineLabel = engine === 'mlx' ? 'MLX'
+      : engine === 'vllm' ? 'vLLM'
+      : engine === 'docker' ? 'Docker Model Runner'
+      : 'llama-server';
+    const deployMsg = engine === 'docker'
+      ? 'Connecting to Docker Model Runner (port 12434)...'
+      : `Starting ${engineLabel} servers... this may take up to 4 minutes on first load`;
+    setStatusMsg(deployMsg);
 
     setLogTail(null);
     try {
@@ -165,12 +210,19 @@ export default function SwarmConfig({ onDeployed }) {
     return (
       <div className="swarm-config">
         <div className="swarm-config-offline">
-          <div className="swarm-offline-title">BACKEND UNREACHABLE</div>
+          <div className="swarm-offline-title">CONFIG UNAVAILABLE</div>
           <div className="swarm-offline-msg">
-            The proxy is not running. Start it from a terminal, then reload the page.
+            Could not load swarm configuration. Start the proxy, then click Retry.
           </div>
           <code className="swarm-offline-cmd">bash scripts/launch_matrix.sh</code>
           <div className="swarm-offline-detail">{loadError}</div>
+          <button
+            className="swarm-deploy-btn"
+            style={{ marginTop: '1rem' }}
+            onClick={() => setLoadRetries(r => r + 1)}
+          >
+            RETRY
+          </button>
         </div>
       </div>
     );
@@ -251,7 +303,10 @@ export default function SwarmConfig({ onDeployed }) {
               <div key={s.port} className="swarm-layout-row">
                 <span className="layout-port">:{s.port}</span>
                 <span className={`layout-parallel layout-engine-${s.engine}`}>
-                  {s.engine === 'mlx' ? '[mlx]' : s.engine === 'vllm' ? '[vllm]' : `×${s.parallel}`}
+                  {s.engine === 'mlx'    ? '[mlx]'
+                  : s.engine === 'vllm'  ? '[vllm]'
+                  : s.engine === 'docker' ? '[docker]'
+                  : `×${s.parallel}`}
                 </span>
                 <div className="layout-right">
                   <div className="layout-agents">[{s.agents.join(', ')}]</div>
@@ -271,6 +326,7 @@ export default function SwarmConfig({ onDeployed }) {
                 <div className="swarm-config-logs">
                   <div className="swarm-config-logs-title">
                     Recent server logs (agent_logs/*.log)
+                    {engine === 'docker' && ' — verify Docker Desktop is running and model is loaded (docker model run)'}
                     {(engine === 'mlx' || engine === 'vllm') && ' — look for Python tracebacks or "No such file" above'}
                   </div>
                   {logTail.map(({ port, lines }) => (

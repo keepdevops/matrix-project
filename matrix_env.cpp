@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <vector>
+#include <string>
 
 MatrixEnv g_env;
 
@@ -42,11 +44,46 @@ void matrix_env_init(const std::string& project_root) {
     if (!mlx_from_env.empty()) {
         g_env.mlx_python = mlx_from_env;
     } else {
-        std::string pixi_mlx = project_root + "/.pixi/envs/mlx/bin/python3";
-        if (file_exists(pixi_mlx))
-            g_env.mlx_python = pixi_mlx;
-        else
+        // Search common conda roots for any env containing mlx_lm.
+        // Priority: matrix-mlx > mlx-env > mlx across all known conda roots.
+        std::string home = getenv_or("HOME", "/root");
+        std::vector<std::string> roots = {
+            home + "/miniforge3", home + "/mambaforge",
+            home + "/miniconda3", home + "/anaconda3",
+            "/opt/homebrew/Caskroom/miniforge/base", "/opt/conda",
+        };
+        std::vector<std::string> env_names = {"matrix-mlx", "mlx-env", "mlx"};
+        bool found = false;
+        for (const auto& root : roots) {
+            for (const auto& env : env_names) {
+                std::string p = root + "/envs/" + env + "/bin/python3";
+                if (file_exists(p)) { g_env.mlx_python = p; found = true; break; }
+            }
+            if (found) break;
+        }
+        if (!found)
             g_env.mlx_python = getenv_or("PYTHON3", "/usr/bin/python3");
+    }
+
+    // vLLM python: prefer explicit env var, then conda env, then system python3
+    std::string vllm_from_env = getenv_or("MATRIX_VLLM_PYTHON", "");
+    if (!vllm_from_env.empty()) {
+        g_env.vllm_python = vllm_from_env;
+    } else {
+        // Check common conda env locations
+        std::vector<std::string> conda_roots = {
+            getenv_or("HOME", "/root") + "/miniforge3/envs/matrix-vllm/bin/python3",
+            getenv_or("HOME", "/root") + "/mambaforge/envs/matrix-vllm/bin/python3",
+            getenv_or("HOME", "/root") + "/miniconda3/envs/matrix-vllm/bin/python3",
+            getenv_or("HOME", "/root") + "/anaconda3/envs/matrix-vllm/bin/python3",
+            "/opt/conda/envs/matrix-vllm/bin/python3",
+        };
+        bool found = false;
+        for (const auto& p : conda_roots) {
+            if (file_exists(p)) { g_env.vllm_python = p; found = true; break; }
+        }
+        if (!found)
+            g_env.vllm_python = getenv_or("PYTHON3", "/usr/bin/python3");
     }
 
     g_env.proxy_port = getenv_int("MATRIX_PROXY_PORT", 3002);

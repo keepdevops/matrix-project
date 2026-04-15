@@ -8,6 +8,8 @@ struct MatrixEnv {
     std::string active_config_path;
     /** Python interpreter for mlx_lm (full path). */
     std::string mlx_python;
+    /** Python interpreter for vllm.entrypoints (full path). */
+    std::string vllm_python;
     std::string matrix_slots_dir;
     int proxy_port = 3002;
     int coordinator_port = 8000;

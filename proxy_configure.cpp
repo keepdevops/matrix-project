@@ -1,4 +1,5 @@
 #include "proxy_configure.h"
+#include "proxy_validate.h"
 #include "matrix_env.h"
 #include "httplib.h"
 #include <iostream>
@@ -75,11 +76,14 @@ void spawn_detached(const std::string& bin,
     close(fd);
 }
 
+static const int DOCKER_PORT = 12434;
+
 // ── wait_for_health ──────────────────────────────────────────────────────────
 
 struct PortGroup {
     std::string model, backend;
     int context = 0, gpu_layers = 0;
+    float gpu_mem_util = 0.75f;
     std::vector<std::string> names;
 };
 
@@ -91,7 +95,9 @@ static std::vector<int> wait_for_health(
     auto check = [&]() -> std::vector<int> {
         std::vector<int> failed;
         for (const auto& [port, g] : pgs) {
-            const char* path = (g.backend == "mlx") ? "/v1/models" : "/health";
+            const char* path = (g.backend == "mlx" || g.backend == "docker"
+                            || g.backend == "vllm" || g.backend == "docker-vllm")
+                           ? "/v1/models" : "/health";
             try {
                 httplib::Client cli("127.0.0.1", port);
                 cli.set_connection_timeout(5);
@@ -109,6 +115,50 @@ static std::vector<int> wait_for_health(
     return check();
 }
 
+// ── check_docker_model_runner ─────────────────────────────────────────────────
+
+// Pre-flight check for the "docker" backend (Docker Desktop Model Runner).
+// Probes port 12434 with a short timeout and verifies the model is already loaded.
+// Returns "" on success, error string on failure.
+static std::string check_docker_model_runner(const std::string& model) {
+    if (model.empty())
+        return "docker agent requires a non-empty model field"
+               "\n  (e.g. ai/meta-llama-3.2-3b-instruct:Q8_0-F32)";
+
+    httplib::Client cli("127.0.0.1", DOCKER_PORT);
+    cli.set_connection_timeout(3);
+    cli.set_read_timeout(3);
+    auto r = cli.Get("/v1/models");
+    if (!r || r->status != 200)
+        return "Docker Model Runner is not running on port "
+             + std::to_string(DOCKER_PORT)
+             + ".\n  Start it with: docker model run " + model
+             + "\n  Then relaunch the swarm.";
+
+    // Check if the requested model appears in the loaded model list.
+    // Use substring match to handle tag variants (e.g. ":Q8_0-F32" suffixes).
+    const std::string& body = r->body;
+    if (body.find(model) != std::string::npos) return "";
+
+    // Model not found — collect loaded model IDs for a helpful error.
+    std::string loaded;
+    try {
+        json j = json::parse(body);
+        if (j.contains("data") && j["data"].is_array()) {
+            for (const auto& m : j["data"]) {
+                if (m.contains("id") && m["id"].is_string()) {
+                    if (!loaded.empty()) loaded += ", ";
+                    loaded += m["id"].get<std::string>();
+                }
+            }
+        }
+    } catch (...) {}
+
+    return "Model '" + model + "' is not loaded in Docker Model Runner."
+         + "\n  Run: docker model run " + model
+         + (loaded.empty() ? "" : "\n  Currently loaded: " + loaded);
+}
+
 // ── handle_configure ─────────────────────────────────────────────────────────
 
 ConfigureResult handle_configure(const json& request_body, const std::string& proj) {
@@ -117,6 +167,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         return {false, 400, {{"error", "agents array required"}}};
 
     json agents = request_body["agents"];
+
     std::map<std::string, int> key_to_port;
     int next_port = 8080;
     std::map<int, PortGroup> pgs;
@@ -126,12 +177,26 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         std::string sg    = a.value("server_group", "");
         std::string bk    = a.value("backend",
                               std::string(ends_with_gguf(model) ? "llama" : "mlx"));
-        std::string key   = bk + ":" + model + ":" + sg;
-        if (!key_to_port.count(key)) key_to_port[key] = next_port++;
+        // docker-vllm: each model gets a fixed port specified in the agent config.
+        // docker (Docker Desktop shared endpoint): all agents share DOCKER_PORT.
+        std::string key;
+        int fixed_port = a.contains("port") ? a["port"].get<int>() : -1;
+        if (bk == "docker") key = "docker:shared";
+        else if (bk == "docker-vllm" && fixed_port > 0) key = "docker-vllm:" + std::to_string(fixed_port);
+        else key = bk + ":" + model + ":" + sg;
+        if (!key_to_port.count(key)) {
+            if (bk == "docker") key_to_port[key] = DOCKER_PORT;
+            else if (bk == "docker-vllm" && fixed_port > 0) key_to_port[key] = fixed_port;
+            else key_to_port[key] = next_port++;
+        }
         int port = key_to_port[key];
         a["port"] = port;
         auto& g = pgs[port];
-        if (g.model.empty()) g = {model, bk, a["context"].get<int>(), a["gpu_layers"].get<int>(), {}};
+        float gmu = a.value("gpu_mem_util", 0.75f);
+        // Default to 99 (all layers on GPU) for llama backend — CPU-only (0) causes
+        // inference to exceed read_timeout on large models like Codestral-22B.
+        int default_gpu_layers = (bk == "llama") ? 99 : 0;
+        if (g.model.empty()) g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}};
         else g.context = std::max(g.context, a["context"].get<int>());
         g.names.push_back(a["name"].get<std::string>());
     }
@@ -148,11 +213,12 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         return {false, 500, {{"error", std::string(e.what())}}};
     }
 
-    // Kill old processes, free ports
+    // Kill old processes, free ports (never touch Docker Desktop / port 12434)
     system("pkill -f llama-server 2>/dev/null");
     system("pkill -f 'llama_cpp.server' 2>/dev/null");
     system("pkill -f 'mlx_lm.server' 2>/dev/null");
     system("pkill -f 'vllm.entrypoints' 2>/dev/null");
+    system("pkill -f 'docker model run' 2>/dev/null");
     system(("pkill -f '" + proj + "/coordinator' 2>/dev/null").c_str());
     system("lsof -ti:8080,8081,8082,8083,8084,8085,8086 | xargs kill -9 2>/dev/null");
     std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -160,23 +226,65 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     mkdir((proj + "/logs").c_str(), 0755);
     mkdir((proj + "/agent_logs").c_str(), 0755);
 
+    // Pre-flight: validate all models before killing existing processes
+    for (const auto& [port, g] : pgs) {
+        std::string err;
+        if (g.backend == "llama")
+            err = validate_llama_model(g.model);
+        else if (g.backend == "mlx")
+            err = validate_mlx_model(g.model, g_env.mlx_python);
+        else if (g.backend == "vllm")
+            err = validate_vllm_model(g.model, g_env.vllm_python, g.context);
+        else if (g.backend == "docker-vllm")
+            err = validate_docker_vllm_model(g.model);
+        else if (g.backend == "docker")
+            err = check_docker_model_runner(g.model);
+        if (!err.empty()) {
+            std::cerr << "[Configure] Pre-flight failed port " << port << ": " << err << "\n";
+            return {false, 400, {{"error", err}, {"port", port}, {"model", g.model}}};
+        }
+    }
+
     // Spawn inference servers
     int hf_n = 0;
     for (const auto& [port, g] : pgs) {
         std::string log = proj + "/agent_logs/" + std::to_string(port) + ".log";
         std::string ps  = std::to_string(port);
-        if (g.backend == "mlx") {
+        if (g.backend == "docker") {
+            // Docker Model Runner is managed by Docker Desktop — no local spawning.
+            // The model must already be loaded via: docker model run <model> --port 12434
+            std::cout << "[Configure] DOCKER :" << port << " model=" << g.model
+                      << " [" << join(g.names) << "]\n";
+        } else if (g.backend == "mlx") {
             if (hf_n++ > 0) std::this_thread::sleep_for(std::chrono::seconds(5));
             spawn_detached(g_env.mlx_python,
-                {"-m","mlx_lm.server","--model",g.model,"--port",ps,"--host","127.0.0.1"}, log);
+                {"-m","mlx_lm","server","--model",g.model,"--port",ps,"--host","127.0.0.1"}, log);
             std::cout << "[Configure] MLX :" << port << " [" << join(g.names) << "]\n";
         } else if (g.backend == "vllm") {
             if (hf_n++ > 0) std::this_thread::sleep_for(std::chrono::seconds(5));
-            spawn_detached("python3",
+            char gmu_buf[16];
+            snprintf(gmu_buf, sizeof(gmu_buf), "%.2f", g.gpu_mem_util);
+            // Use MATRIX_VLLM_PYTHON (conda env) if set; fallback to system python3
+            const std::string& vllm_py = g_env.vllm_python;
+            spawn_detached(vllm_py,
                 {"-m","vllm.entrypoints.openai.api_server","--model",g.model,
-                 "--port",ps,"--host","127.0.0.1","--max-model-len",std::to_string(g.context)},
+                 "--port",ps,"--host","127.0.0.1","--max-model-len",std::to_string(g.context),
+                 "--gpu-memory-utilization",std::string(gmu_buf)},
+                log, /*use_path_search=*/false);
+            std::cout << "[Configure] vLLM :" << port << " gpu_mem=" << gmu_buf
+                      << " python=" << vllm_py << " [" << join(g.names) << "]\n";
+        } else if (g.backend == "docker-vllm") {
+            char gmu_buf[16];
+            snprintf(gmu_buf, sizeof(gmu_buf), "%.2f", g.gpu_mem_util);
+            spawn_detached("docker",
+                {"model","run",g.model,
+                 "--backend","vllm",
+                 "--port",ps,
+                 "--gpu-memory-utilization",std::string(gmu_buf),
+                 "--max-model-len",std::to_string(g.context)},
                 log, /*use_path_search=*/true);
-            std::cout << "[Configure] vLLM :" << port << " [" << join(g.names) << "]\n";
+            std::cout << "[Configure] DOCKER-vLLM :" << port << " gpu_mem=" << gmu_buf
+                      << " [" << join(g.names) << "]\n";
         } else {
             int ctx = std::min(g.context, 8192) * (int)g.names.size();
             spawn_detached(g_env.llama_server_bin,
@@ -189,8 +297,12 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         }
     }
 
-    // Wait for health (up to 240 s)
-    auto failed = wait_for_health(pgs, 240);
+    // docker-vllm cold-starts take 1–3 min per model; use 600 s when any are present
+    int health_timeout = 240;
+    for (const auto& kv : pgs) {
+        if (kv.second.backend == "docker-vllm") { health_timeout = 600; break; }
+    }
+    auto failed = wait_for_health(pgs, health_timeout);
     if (!failed.empty()) {
         json fa = json::array();
         std::string fl;
@@ -207,7 +319,26 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     // Start coordinator
     spawn_detached(proj + "/coordinator", {"--config", g_env.active_config_path},
                    proj + "/agent_logs/coordinator.log");
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+    // Poll until coordinator is actually listening (up to 8 s) instead of a blind sleep
+    {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+        bool coord_ready = false;
+        while (std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            try {
+                httplib::Client cli("127.0.0.1", g_env.coordinator_port);
+                cli.set_connection_timeout(1);
+                cli.set_read_timeout(2);
+                auto r = cli.Get("/api/health");
+                if (r && r->status == 200) { coord_ready = true; break; }
+            } catch (...) {}
+        }
+        if (!coord_ready) {
+            std::cerr << "[Configure] Warning: coordinator did not respond within 8 s — "
+                         "UI health poll may show offline briefly.\n";
+        }
+    }
 
     json servers = json::array();
     for (const auto& [port, g] : pgs) {

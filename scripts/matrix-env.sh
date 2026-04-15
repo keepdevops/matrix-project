@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 OS="$(uname -s)"
 
 if [[ -n "${MATRIX_MODEL_DIR:-}" ]]; then
@@ -35,13 +35,22 @@ fi
 : "${MATRIX_PROXY_PORT:=3002}"
 : "${MATRIX_COORDINATOR_PORT:=8000}"
 
-PIXI_MLX="$ROOT/.pixi/envs/mlx/bin/python3"
 if [[ -n "${MATRIX_MLX_PYTHON:-}" ]]; then
   MLX_PY="$MATRIX_MLX_PYTHON"
-elif [[ -x "$PIXI_MLX" ]]; then
-  MLX_PY="$PIXI_MLX"
 else
-  MLX_PY="$(command -v python3 2>/dev/null || echo /usr/bin/python3)"
+  # Search common conda install roots for any env that contains mlx_lm.
+  # Checks env names in priority order: matrix-mlx, mlx-env, mlx, base.
+  _conda_mlx_found=""
+  for _root in \
+    "$HOME/miniforge3" "$HOME/mambaforge" "$HOME/miniconda3" \
+    "$HOME/anaconda3" "/opt/homebrew/Caskroom/miniforge/base" "/opt/conda"
+  do
+    for _env_name in matrix-mlx mlx-env mlx; do
+      _candidate="$_root/envs/$_env_name/bin/python3"
+      if [[ -x "$_candidate" ]]; then _conda_mlx_found="$_candidate"; break 2; fi
+    done
+  done
+  MLX_PY="${_conda_mlx_found:-$(command -v python3 2>/dev/null || echo /usr/bin/python3)}"
 fi
 
 export MATRIX_MODEL_DIR="$MODEL_DIR"
@@ -52,7 +61,7 @@ export MATRIX_PROXY_PORT
 export MATRIX_COORDINATOR_PORT
 export MATRIX_MLX_PYTHON="$MLX_PY"
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
   echo "# Add to your shell or systemd EnvironmentFile:"
   echo "export MATRIX_MODEL_DIR=$MATRIX_MODEL_DIR"
   echo "export MATRIX_LLAMA_SERVER=$MATRIX_LLAMA_SERVER"
