@@ -95,16 +95,31 @@ export default function SwarmConfig({ onDeployed }) {
         const engineModelsNow = modelList.filter(m => m.backend === detectedEngine);
         const hasNonLocalModels = config.agents.some(a => selectedNames.has(a.name) && !a.model.startsWith('/'));
         if (hasNonLocalModels && engineModelsNow.length > 0) {
-          const oldModelToNew = {};
-          let idx = 0;
-          config.agents.forEach(a => {
-            if (!selectedNames.has(a.name)) return;
-            if (!(a.model in oldModelToNew)) {
-              oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
-              idx++;
-            }
-            defaults[a.name] = oldModelToNew[a.model];
-          });
+          // For vLLM: map by server_group to preserve port assignments (8080/8081/8082/8083)
+          if (detectedEngine === 'vllm' && engineModelsNow.length >= 4) {
+            const groupToModel = {
+              llama8b: engineModelsNow[0]?.path,
+              granite8b: engineModelsNow[1]?.path,
+              llama3b: engineModelsNow[2]?.path,
+              gemma2b: engineModelsNow[3]?.path,
+            };
+            config.agents.forEach(a => {
+              if (!selectedNames.has(a.name)) return;
+              defaults[a.name] = groupToModel[a.server_group] || engineModelsNow[0]?.path;
+            });
+          } else {
+            // Generic remapping for other engines
+            const oldModelToNew = {};
+            let idx = 0;
+            config.agents.forEach(a => {
+              if (!selectedNames.has(a.name)) return;
+              if (!(a.model in oldModelToNew)) {
+                oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
+                idx++;
+              }
+              defaults[a.name] = oldModelToNew[a.model];
+            });
+          }
         }
         setRoleModels(defaults);
       })
@@ -119,20 +134,36 @@ export default function SwarmConfig({ onDeployed }) {
     setEngine(newEngine);
     const available = models.filter(m => m.backend === newEngine);
     if (!available.length) return;
-    // Map each distinct old model group to a different new-engine model (preserving grouping)
+    // For vLLM: map by server_group to preserve port assignments (8080/8081/8082/8083)
+    // For other engines: map each distinct old model group to a different new-engine model
     setRoleModels(prev => {
       const next = { ...prev };
-      const oldModelToNew = {};
-      let idx = 0;
-      roles.forEach(r => {
-        if (!selected.has(r.name)) return;
-        const oldModel = prev[r.name] || r.model;
-        if (!(oldModel in oldModelToNew)) {
-          oldModelToNew[oldModel] = available[idx % available.length].path;
-          idx++;
-        }
-        next[r.name] = oldModelToNew[oldModel];
-      });
+      if (newEngine === 'vllm' && available.length >= 4) {
+        // Map server groups to vLLM models: llama8b→[0], granite8b→[1], llama3b→[2], gemma2b→[3]
+        const groupToModel = {
+          llama8b: available[0]?.path,
+          granite8b: available[1]?.path,
+          llama3b: available[2]?.path,
+          gemma2b: available[3]?.path,
+        };
+        roles.forEach(r => {
+          if (!selected.has(r.name)) return;
+          next[r.name] = groupToModel[r.server_group] || available[0]?.path;
+        });
+      } else {
+        // Generic engine remapping
+        const oldModelToNew = {};
+        let idx = 0;
+        roles.forEach(r => {
+          if (!selected.has(r.name)) return;
+          const oldModel = prev[r.name] || r.model;
+          if (!(oldModel in oldModelToNew)) {
+            oldModelToNew[oldModel] = available[idx % available.length].path;
+            idx++;
+          }
+          next[r.name] = oldModelToNew[oldModel];
+        });
+      }
       return next;
     });
   };
