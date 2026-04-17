@@ -1,5 +1,5 @@
 #!/bin/bash
-# Launch 4 docker-vllm inference servers for the swarm.
+# Launch 4 vLLM inference servers via docker run (standard Docker, not docker model).
 # GPU memory is auto-scaled based on system RAM to avoid OOM.
 # Usage: ./scripts/start_vllm_servers.sh [--wait]
 #   --wait  Block until all 4 servers pass /v1/models health check (up to 10 min).
@@ -43,49 +43,52 @@ MEM_8082=$(awk "BEGIN {printf \"%.2f\", $GB_8082 / $TOTAL_GB}")
 MEM_8083=$(awk "BEGIN {printf \"%.2f\", $GB_8083 / $TOTAL_GB}")
 
 echo "========================================"
-echo "  Starting docker-vllm inference servers"
+echo "  Starting vLLM inference servers"
 echo "  System RAM: ${TOTAL_GB}GB | Available: ${AVAILABLE_GB}GB"
 echo "========================================"
 
-# Kill any prior docker model run processes occupying 8080-8083
+# Kill any prior vllm containers/processes occupying 8080-8083
 lsof -ti:8080,8081,8082,8083 | xargs kill -9 2>/dev/null || true
-pkill -f 'docker model run' 2>/dev/null || true
+docker ps -q | xargs -r docker kill 2>/dev/null || true
 sleep 2
 
 echo "[1/4] Port 8080 — Qwen2.5-14B-Instruct (reasoning, ctx=8192, gpu_mem=${GB_8080}GB/${MEM_8080})"
-docker model run Qwen/Qwen2.5-14B-Instruct \
-  --backend vllm \
-  --port 8080 \
-  --gpu-memory-utilization "$MEM_8080" \
-  --max-model-len 8192 \
-  --tensor-parallel-size 1 \
+docker run -d --rm --name vllm-8080 \
+  -p 8080:8000 \
+  -e MODEL_NAME="Qwen/Qwen2.5-14B-Instruct" \
+  -e gpu_memory_utilization="$MEM_8080" \
+  -e max_model_len=8192 \
+  vllm/vllm-openai:latest \
   > "$LOGS/8080.log" 2>&1 &
 echo "  PID $! — logs: $LOGS/8080.log"
 
 echo "[2/4] Port 8081 — Llama-3.2-3B-Instruct (fast general, ctx=4096, gpu_mem=${GB_8081}GB/${MEM_8081})"
-docker model run meta-llama/Llama-3.2-3B-Instruct \
-  --backend vllm \
-  --port 8081 \
-  --gpu-memory-utilization "$MEM_8081" \
-  --max-model-len 4096 \
+docker run -d --rm --name vllm-8081 \
+  -p 8081:8000 \
+  -e MODEL_NAME="meta-llama/Llama-3.2-3B-Instruct" \
+  -e gpu_memory_utilization="$MEM_8081" \
+  -e max_model_len=4096 \
+  vllm/vllm-openai:latest \
   > "$LOGS/8081.log" 2>&1 &
 echo "  PID $! — logs: $LOGS/8081.log"
 
 echo "[3/4] Port 8082 — DeepSeek-Coder-V2-Lite-Instruct (coding, ctx=4096, gpu_mem=${GB_8082}GB/${MEM_8082})"
-docker model run deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct \
-  --backend vllm \
-  --port 8082 \
-  --gpu-memory-utilization "$MEM_8082" \
-  --max-model-len 4096 \
+docker run -d --rm --name vllm-8082 \
+  -p 8082:8000 \
+  -e MODEL_NAME="deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct" \
+  -e gpu_memory_utilization="$MEM_8082" \
+  -e max_model_len=4096 \
+  vllm/vllm-openai:latest \
   > "$LOGS/8082.log" 2>&1 &
 echo "  PID $! — logs: $LOGS/8082.log"
 
 echo "[4/4] Port 8083 — Phi-4-mini-instruct (research, ctx=4096, gpu_mem=${GB_8083}GB/${MEM_8083})"
-docker model run microsoft/Phi-4-mini-instruct \
-  --backend vllm \
-  --port 8083 \
-  --gpu-memory-utilization "$MEM_8083" \
-  --max-model-len 4096 \
+docker run -d --rm --name vllm-8083 \
+  -p 8083:8000 \
+  -e MODEL_NAME="microsoft/Phi-4-mini-instruct" \
+  -e gpu_memory_utilization="$MEM_8083" \
+  -e max_model_len=4096 \
+  vllm/vllm-openai:latest \
   > "$LOGS/8083.log" 2>&1 &
 echo "  PID $! — logs: $LOGS/8083.log"
 
