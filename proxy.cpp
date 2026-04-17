@@ -130,8 +130,8 @@ int main(int argc, char* argv[]) {
     matrix_env_init(proj_root);
 
     httplib::Server svr;
-    svr.set_read_timeout(300, 0);   // configure blocks up to 245 s
-    svr.set_write_timeout(300, 0);
+    svr.set_read_timeout(660, 0);   // vllm/start can block up to 600s
+    svr.set_write_timeout(660, 0);
 
     auto cors = [](httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -229,6 +229,28 @@ int main(int argc, char* argv[]) {
         } catch (const std::exception& e) {
             std::cerr << "[swarm/status] " << e.what() << "\n";
             res.set_content(json{{"online", false}, {"agents", 0}}.dump(), "application/json");
+        }
+    });
+
+    // POST /api/inference/vllm/start — launch vllm servers via start_vllm_servers.sh --wait
+    svr.Post("/api/inference/vllm/start", [&](const httplib::Request&, httplib::Response& res) {
+        cors(res);
+        std::string script = proj_root + "/scripts/start_vllm_servers.sh --wait 2>&1";
+        FILE* fp = popen(script.c_str(), "r");
+        if (!fp) {
+            res.status = 500;
+            res.set_content(json{{"ok", false}, {"error", "popen failed"}}.dump(), "application/json");
+            return;
+        }
+        std::string out;
+        char buf[256];
+        while (fgets(buf, sizeof(buf), fp)) out += buf;
+        int rc = pclose(fp);
+        if (rc == 0) {
+            res.set_content(json{{"ok", true}, {"ports", {8080,8081,8082,8083}}, {"log", out}}.dump(), "application/json");
+        } else {
+            res.status = 500;
+            res.set_content(json{{"ok", false}, {"error", "start_vllm_servers.sh exited " + std::to_string(rc)}, {"log", out}}.dump(), "application/json");
         }
     });
 

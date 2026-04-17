@@ -178,3 +178,34 @@ export async function fetchLogs(ports) {
   if (!response.ok) throw new Error(`Failed to fetch logs: ${response.status}`);
   return response.json();
 }
+
+/** Timeout slightly over the script's internal 600s health-check window */
+const VLLM_START_TIMEOUT_MS = 620_000;
+
+/**
+ * Start all four vLLM inference servers via start_vllm_servers.sh --wait.
+ * Blocks until all ports pass /v1/models or the 10-minute timeout elapses.
+ */
+export async function startVllmServers() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), VLLM_START_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE}/inference/vllm/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `vLLM start failed: ${response.status}`);
+    }
+    return response.json();
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error('vLLM servers did not become healthy within 10 minutes. Check agent_logs/*.log');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

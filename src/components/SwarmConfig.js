@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs } from '../api/swarmApi';
+import VllmPanel from './VllmPanel';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
 // A local MLX path is a filesystem path (starts with '/') that isn't a .gguf file.
@@ -318,6 +319,8 @@ export default function SwarmConfig({ onDeployed }) {
               <div className="layout-empty">Select at least one agent</div>
             )}
           </div>
+
+          {engine === 'vllm' && <VllmPanel />}
 
           {status === 'error' && (
             <>
