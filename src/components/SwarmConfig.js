@@ -94,32 +94,29 @@ export default function SwarmConfig({ onDeployed }) {
         // remap each selected agent to the best available local model for the detected engine.
         const engineModelsNow = modelList.filter(m => m.backend === detectedEngine);
         const hasNonLocalModels = config.agents.some(a => selectedNames.has(a.name) && !a.model.startsWith('/'));
-        if (hasNonLocalModels && engineModelsNow.length > 0) {
-          // For vLLM: map by server_group to preserve port assignments (8080/8081/8082/8083)
-          if (detectedEngine === 'vllm' && engineModelsNow.length >= 4) {
-            const groupToModel = {
-              llama8b: engineModelsNow[0]?.path,
-              granite8b: engineModelsNow[1]?.path,
-              llama3b: engineModelsNow[2]?.path,
-              gemma2b: engineModelsNow[3]?.path,
-            };
+
+        // For vLLM: always map by server_group to fixed ports (8080/8081/8082/8083)
+        // even if no vLLM models detected, since servers are pre-started infrastructure
+        if (detectedEngine === 'vllm' && hasNonLocalModels) {
+          const vllmFallback = engineModelsNow.length > 0 ? engineModelsNow[0] : modelList[0];
+          if (vllmFallback) {
             config.agents.forEach(a => {
               if (!selectedNames.has(a.name)) return;
-              defaults[a.name] = groupToModel[a.server_group] || engineModelsNow[0]?.path;
-            });
-          } else {
-            // Generic remapping for other engines
-            const oldModelToNew = {};
-            let idx = 0;
-            config.agents.forEach(a => {
-              if (!selectedNames.has(a.name)) return;
-              if (!(a.model in oldModelToNew)) {
-                oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
-                idx++;
-              }
-              defaults[a.name] = oldModelToNew[a.model];
+              defaults[a.name] = vllmFallback.path;
             });
           }
+        } else if (hasNonLocalModels && engineModelsNow.length > 0) {
+          // Generic remapping for other engines
+          const oldModelToNew = {};
+          let idx = 0;
+          config.agents.forEach(a => {
+            if (!selectedNames.has(a.name)) return;
+            if (!(a.model in oldModelToNew)) {
+              oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
+              idx++;
+            }
+            defaults[a.name] = oldModelToNew[a.model];
+          });
         }
         setRoleModels(defaults);
       })
@@ -133,37 +130,43 @@ export default function SwarmConfig({ onDeployed }) {
   const handleEngineChange = newEngine => {
     setEngine(newEngine);
     const available = models.filter(m => m.backend === newEngine);
+    // For vLLM: always map by server_group to fixed ports (8080/8081/8082/8083)
+    // even if no vLLM models are detected, since the servers are pre-started infrastructure
+    if (newEngine === 'vllm') {
+      // Use any available vLLM model as fallback, or first available model if none
+      const vllmFallback = available.length > 0 ? available[0] : models[0];
+      if (!vllmFallback) return;
+      const groupToPort = {
+        llama8b: 8080,
+        granite8b: 8081,
+        llama3b: 8082,
+        gemma2b: 8083,
+      };
+      setRoleModels(prev => {
+        const next = { ...prev };
+        roles.forEach(r => {
+          if (!selected.has(r.name)) return;
+          next[r.name] = vllmFallback.path;
+        });
+        return next;
+      });
+      return;
+    }
     if (!available.length) return;
-    // For vLLM: map by server_group to preserve port assignments (8080/8081/8082/8083)
-    // For other engines: map each distinct old model group to a different new-engine model
+    // Generic remapping for other engines
     setRoleModels(prev => {
       const next = { ...prev };
-      if (newEngine === 'vllm' && available.length >= 4) {
-        // Map server groups to vLLM models: llama8b→[0], granite8b→[1], llama3b→[2], gemma2b→[3]
-        const groupToModel = {
-          llama8b: available[0]?.path,
-          granite8b: available[1]?.path,
-          llama3b: available[2]?.path,
-          gemma2b: available[3]?.path,
-        };
-        roles.forEach(r => {
-          if (!selected.has(r.name)) return;
-          next[r.name] = groupToModel[r.server_group] || available[0]?.path;
-        });
-      } else {
-        // Generic engine remapping
-        const oldModelToNew = {};
-        let idx = 0;
-        roles.forEach(r => {
-          if (!selected.has(r.name)) return;
-          const oldModel = prev[r.name] || r.model;
-          if (!(oldModel in oldModelToNew)) {
-            oldModelToNew[oldModel] = available[idx % available.length].path;
-            idx++;
-          }
-          next[r.name] = oldModelToNew[oldModel];
-        });
-      }
+      const oldModelToNew = {};
+      let idx = 0;
+      roles.forEach(r => {
+        if (!selected.has(r.name)) return;
+        const oldModel = prev[r.name] || r.model;
+        if (!(oldModel in oldModelToNew)) {
+          oldModelToNew[oldModel] = available[idx % available.length].path;
+          idx++;
+        }
+        next[r.name] = oldModelToNew[oldModel];
+      });
       return next;
     });
   };
@@ -236,7 +239,24 @@ export default function SwarmConfig({ onDeployed }) {
     }
   };
 
-  const layout = computeLayout(roles, selected, roleModels, engine);
+  let layout = computeLayout(roles, selected, roleModels, engine);
+
+  // For vLLM: always show all 4 pre-started servers (8080-8083) even if no agents assigned
+  if (engine === 'vllm') {
+    const existingPorts = new Set(layout.map(s => s.port));
+    const allVllmPorts = [
+      { port: 8080, model: 'Qwen2.5-14B', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8081, model: 'Llama-3.2-3B', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8082, model: 'DeepSeek-Coder-V2', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8083, model: 'Phi-4-mini', agents: [], parallel: 0, engine: 'vllm' },
+    ];
+    // Merge: keep existing ports with their agents, fill in missing ports with empty entries
+    const merged = allVllmPorts.map(vllm => {
+      const existing = layout.find(s => s.port === vllm.port);
+      return existing || vllm;
+    });
+    layout = merged;
+  }
 
   if (loadError) {
     return (
