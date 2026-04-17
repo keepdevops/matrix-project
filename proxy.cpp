@@ -235,22 +235,13 @@ int main(int argc, char* argv[]) {
     // POST /api/inference/vllm/start — launch vllm servers via start_vllm_servers.sh --wait
     svr.Post("/api/inference/vllm/start", [&](const httplib::Request&, httplib::Response& res) {
         cors(res);
-        std::string script = proj_root + "/scripts/start_vllm_servers.sh --wait 2>&1";
-        FILE* fp = popen(script.c_str(), "r");
-        if (!fp) {
-            res.status = 500;
-            res.set_content(json{{"ok", false}, {"error", "popen failed"}}.dump(), "application/json");
-            return;
-        }
-        std::string out;
-        char buf[256];
-        while (fgets(buf, sizeof(buf), fp)) out += buf;
-        int rc = pclose(fp);
+        std::string script = "cd " + proj_root + " && bash scripts/start_vllm_servers.sh --wait >/dev/null 2>&1";
+        int rc = system(script.c_str());
         if (rc == 0) {
-            res.set_content(json{{"ok", true}, {"ports", {8080,8081,8082,8083}}, {"log", out}}.dump(), "application/json");
+            res.set_content(json{{"ok", true}, {"ports", {8080,8081,8082,8083}}}.dump(), "application/json");
         } else {
             res.status = 500;
-            res.set_content(json{{"ok", false}, {"error", "start_vllm_servers.sh exited " + std::to_string(rc)}, {"log", out}}.dump(), "application/json");
+            res.set_content(json{{"ok", false}, {"error", "start_vllm_servers.sh failed"}}.dump(), "application/json");
         }
     });
 
