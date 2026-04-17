@@ -129,6 +129,8 @@ export default function SwarmConfig({ onDeployed }) {
 
   const handleEngineChange = newEngine => {
     setEngine(newEngine);
+    // Clear agent selection when switching engines to start fresh
+    setSelected(new Set());
     const available = models.filter(m => m.backend === newEngine);
     // For vLLM: always map by server_group to fixed ports (8080/8081/8082/8083)
     // even if no vLLM models are detected, since the servers are pre-started infrastructure
