@@ -9,6 +9,10 @@ const isMLXPath = p => p.startsWith('/') && !p.endsWith('.gguf');
 
 const DOCKER_PORT = 12434;
 
+// Detect if system is Apple Silicon (M-series)
+const isAppleSilicon = navigator.platform === 'MacIntel' ||
+  (navigator.userAgent.includes('Mac') && navigator.userAgent.includes('ARM'));
+
 function computeLayout(roles, selected, roleModels, engine) {
   const keyToPort = {};
   let nextPort = 8080;
@@ -292,13 +296,19 @@ export default function SwarmConfig({ onDeployed }) {
             <span className="swarm-engine-label">ENGINE</span>
             <div className="swarm-engine-toggle">
               {ENGINES.map(e => {
+                const isAppleSiliconDisabled = isAppleSilicon && (e.id === 'vllm' || e.id === 'docker');
                 const count = models.filter(m => m.backend === e.backend).length;
+                const isDisabled = count === 0 || isAppleSiliconDisabled;
                 return (
                   <button
                     key={e.id}
-                    className={`swarm-engine-btn engine-${e.id}${engine === e.id ? ' active' : ''}${count === 0 ? ' disabled' : ''}`}
-                    onClick={() => count > 0 && handleEngineChange(e.id)}
-                    title={count === 0 ? `No ${e.label} models found in /Users/Shared/llama/models/` : `${count} model${count !== 1 ? 's' : ''} available`}
+                    className={`swarm-engine-btn engine-${e.id}${engine === e.id ? ' active' : ''}${isDisabled ? ' disabled' : ''}`}
+                    onClick={() => !isDisabled && handleEngineChange(e.id)}
+                    title={
+                      isAppleSiliconDisabled ? `${e.label} requires NVIDIA GPU (not available on Apple Silicon)`
+                      : count === 0 ? `No ${e.label} models found in /Users/Shared/llama/models/`
+                      : `${count} model${count !== 1 ? 's' : ''} available`
+                    }
                   >
                     {e.label}
                     <span className="engine-count">{count}</span>
