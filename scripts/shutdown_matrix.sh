@@ -1,10 +1,20 @@
 #!/bin/bash
 
+BAREMETAL=false
+
+if [[ "$1" == "baremetal" ]] || [[ "$1" == "--baremetal" ]]; then
+    BAREMETAL=true
+fi
+
 echo "========================================"
 echo "$0"
-echo "  SWARM MATRIX SHUTDOWN ALL"
+if [ "$BAREMETAL" = true ]; then
+    echo "  SWARM MATRIX SHUTDOWN (BAREMETAL)"
+else
+    echo "  SWARM MATRIX SHUTDOWN ALL"
+fi
 echo "========================================"
-echo " run with sudo $0"
+echo " run with sudo $0 [baremetal]"
 echo "========================================"
 
 
@@ -16,17 +26,28 @@ cd "$(dirname "$0")/.."
 pkill -f "react-scripts start" || true
 echo "-1--------------------------------------"
 
-docker-compose down 2>/dev/null || true
-sleep 2
-docker-compose down --remove-orphans 2>/dev/null || true
-sleep 2
+# Stop production docker-compose (if running)
+if [ "$BAREMETAL" = false ]; then
+    echo " Stopping production docker-compose..."
+    docker compose -f production/docker-compose.prod.yml down 2>/dev/null || true
+    sleep 1
+    docker compose -f production/docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+    sleep 1
+    echo "-0.5--------------------------------------"
 
-docker ps -a 2>/dev/null || true
-docker stop matrix-proxy 2>/dev/null || true
-docker stop matrix-ui 2>/dev/null || true
-docker rm   matrix-proxy 2>/dev/null || true
-docker rm   matrix-ui 2>/dev/null || true
-echo "-2--------------------------------------"
+    docker-compose down 2>/dev/null || true
+    sleep 2
+    docker-compose down --remove-orphans 2>/dev/null || true
+    sleep 2
+
+    docker ps -a 2>/dev/null || true
+    docker stop matrix-proxy swarm-matrix-ui production-swarm-ui matrix-ui 2>/dev/null || true
+    docker rm   matrix-proxy swarm-matrix-ui production-swarm-ui matrix-ui 2>/dev/null || true
+    echo "-2--------------------------------------"
+else
+    echo " (Skipping Docker operations - baremetal mode)"
+    echo "-2--------------------------------------"
+fi
 
 PID_FILE="$(dirname "$0")/../logs/matrix.pids"
 
@@ -98,7 +119,9 @@ echo "-11--------------------------------------"
 ps -ef | grep -v grep | grep llama
 ps -ef | grep -v grep | grep coordinator
 ps -ef | grep -v grep | grep npm
-docker ps -a
+if [ "$BAREMETAL" = false ]; then
+    docker ps -a
+fi
 
 
 

@@ -13,7 +13,7 @@ $CXX_CMD -std=c++17 -O2 -o coordinator coordinator.cpp -pthread
 echo "  -> $ROOT/coordinator"
 
 echo "[build] Compiling proxy..."
-$CXX_CMD -std=c++17 -O2 -o proxy proxy.cpp proxy_configure.cpp matrix_env.cpp -pthread
+$CXX_CMD -std=c++17 -O2 -o proxy proxy.cpp proxy_configure.cpp proxy_validate.cpp matrix_env.cpp -pthread
 echo "  -> $ROOT/proxy"
 
 echo "[build] Done."

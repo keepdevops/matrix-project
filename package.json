@@ -27,7 +27,7 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "NODE_NO_WARNINGS=1 react-scripts start",
     "build": "react-scripts build",
     "proxy": "node proxy.mjs",
     "launch": "bash scripts/launch_matrix.sh",
@@ -47,7 +47,7 @@
     "underscore": ">=1.13.8",
     "@tootallnate/once": ">=3.0.1",
     "yaml": "^1.10.3",
-    "webpack-dev-server": ">=5.2.1"
+    "webpack-dev-server": "^4.15.2"
   },
   "browserslist": {
     "production": [

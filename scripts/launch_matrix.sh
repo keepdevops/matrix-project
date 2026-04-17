@@ -80,11 +80,18 @@ sleep 2
 echo "[3/3] Starting UI..."
 cd "$ROOT"
 if $NO_DOCKER; then
-    npm start > logs/ui.log  &
+    npm start > logs/ui.log 2>&1 &
     echo $! >> "$PID_FILE"
     echo "    -> React dev server starting (bare metal)..."
+    sleep 4
+    echo "===== Opening http://localhost:3000 ====="
+    if command -v open &> /dev/null; then
+        open "http://localhost:3000"
+    elif command -v xdg-open &> /dev/null; then
+        xdg-open "http://localhost:3000"
+    fi
 else
-    ### lsof -ti:3000 | xargs kill -9 
+    ### lsof -ti:3000 | xargs kill -9
     sleep 2
     echo "===== docker-compose up ====="
     docker-compose -f "$ROOT/production/docker-compose.prod.yml" up -d
