@@ -30,7 +30,7 @@ function HelpModal({ onClose }) {
               <dt>CONFIGURE</dt>
               <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
               <dt>CLEAR KV</dt>
-              <dd>Erases the KV cache on all llama-server agents — useful when agents seem stuck, produce repetitive output, or after switching to a completely different task. Has no effect on MLX agents.</dd>
+              <dd>Clears state on all agents: erases the KV cache on llama-server agents and restarts MLX servers to clear conversation history. Useful when agents seem stuck, produce repetitive output, or after switching to a completely different task.</dd>
               <dt>HISTORY (N)</dt>
               <dd>Shows your last 10 broadcasts. Click any entry to reload the prompt and all agent responses exactly as they were. N shows the total number of entries stored.</dd>
               <dt>?</dt>
@@ -54,11 +54,13 @@ function HelpModal({ onClose }) {
             <h3>Reading Results</h3>
             <dl>
               <dt>Agent cards</dt>
-              <dd>Cards are shown in a grid, colour-coded by role. A spinning indicator means that agent is still processing.</dd>
+              <dd>Cards are shown in a grid, colour-coded by role. A spinning indicator means that agent is still processing. Click the expand icon (⤢) on any completed card to open the full response in a CodeMirror editor with syntax highlighting, edit mode, copy, and save options.</dd>
+              <dt>Expand to editor</dt>
+              <dd>Each completed agent response has an expand button (⤢) in the top-right corner. Click it to pop out the response into a full-screen modal editor. The editor auto-detects language for syntax highlighting, supports editing, copying to clipboard, and exporting to file.</dd>
               <dt>CODE OUTPUT</dt>
               <dd>The <em>programmer</em> agent's first code block is auto-extracted and shown in a syntax-highlighted CodeMirror editor below the grid. Supports C++, Go, Python, JavaScript, Rust, SQL, and more.</dd>
               <dt>Cross-referencing</dt>
-              <dd>Use multiple roles together — e.g. <em>architect</em> for structure, <em>programmer</em> for code, <em>reviewer</em> / <em>security</em> for critique — in one broadcast and compare answers.</dd>
+              <dd>Use multiple roles together — e.g. <em>architect</em> for structure, <em>programmer</em> for code, <em>reviewer</em> / <em>security</em> for critique — in one broadcast and compare answers. Expand any card to compare full responses side-by-side in separate editor windows.</dd>
             </dl>
           </div>
 
@@ -97,7 +99,9 @@ function HelpModal({ onClose }) {
               <dt>LLAMA</dt>
               <dd>llama-server (C++ from llama.cpp). Loads <code>.gguf</code> files. Uses <code>--parallel N</code> so same-model agents run in parallel in one process. CLEAR KV works. Best for many agents on the same model.</dd>
               <dt>MLX (mlx-lm)</dt>
-              <dd>Apple Silicon native (Metal). Uses <code>mlx_lm.server</code>; loads model <strong>directories</strong> (not single files). Often faster per-token on M1/M2/M3. Requests queue per server. CLEAR KV has no effect.</dd>
+              <dd>Apple Silicon native (Metal). Uses <code>mlx_lm.server</code>; loads model <strong>directories</strong> (not single files). Often faster per-token on M1/M2/M3. Requests queue per server. CLEAR KV restarts servers.</dd>
+              <dt>Mixed Swarms (LLAMA + MLX)</dt>
+              <dd>Select standard agents (architect, programmer, etc.) together with <strong>mlx-coder</strong> to run a hybrid swarm. LLAMA agents run in parallel on their ports; mlx-coder runs on its dedicated MLX server. Useful to compare coding output across both inference engines or get Apple Silicon performance for the coding specialist role.</dd>
             </dl>
           </div>
 
@@ -112,6 +116,8 @@ function HelpModal({ onClose }) {
               <dd>Running large swarms (12–16 agents) risks VRAM exhaustion and KV token budget overflow — only do that for high-level exploration.</dd>
               <dt>SAVE CODE after each successful round</dt>
               <dd>The SAVE CODE button below the agent grid exports all code blocks from every agent into a single timestamped file.</dd>
+              <dt>Try mlx-coder for Apple Silicon</dt>
+              <dd>If running on M1/M2/M3, select standard agents plus <strong>mlx-coder</strong> to benchmark Metal-optimized inference. MLX often produces code faster per-token on Apple Silicon; compare outputs across both engines in one broadcast.</dd>
             </dl>
           </div>
 

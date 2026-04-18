@@ -183,10 +183,11 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         int fixed_port = a.contains("port") ? a["port"].get<int>() : -1;
         if (bk == "docker") key = "docker:shared";
         else if (bk == "docker-vllm" && fixed_port > 0) key = "docker-vllm:" + std::to_string(fixed_port);
+        else if ((bk == "mlx" || bk == "vllm") && fixed_port > 0) key = bk + ":" + std::to_string(fixed_port);
         else key = bk + ":" + model + ":" + sg;
         if (!key_to_port.count(key)) {
             if (bk == "docker") key_to_port[key] = DOCKER_PORT;
-            else if (bk == "docker-vllm" && fixed_port > 0) key_to_port[key] = fixed_port;
+            else if ((bk == "docker-vllm" || bk == "mlx" || bk == "vllm") && fixed_port > 0) key_to_port[key] = fixed_port;
             else key_to_port[key] = next_port++;
         }
         int port = key_to_port[key];
@@ -220,7 +221,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     system("pkill -f 'vllm.entrypoints' 2>/dev/null");
     system("pkill -f 'docker model run' 2>/dev/null");
     system(("pkill -f '" + proj + "/coordinator' 2>/dev/null").c_str());
-    system("lsof -ti:8080,8081,8082,8083,8084,8085,8086 | xargs kill -9 2>/dev/null");
+    system("lsof -ti:8080,8081,8082,8083,8084,8085,8086,8087,8088,8089,8090 | xargs kill -9 2>/dev/null");
     std::this_thread::sleep_for(std::chrono::seconds(5));
     mkdir(g_env.matrix_slots_dir.c_str(), 0755);
     mkdir((proj + "/logs").c_str(), 0755);

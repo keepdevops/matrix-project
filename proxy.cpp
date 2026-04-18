@@ -245,6 +245,33 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    // POST /api/clear-cache — clear KV cache on llama + restart MLX servers
+    svr.Post("/api/clear-cache", [&](const httplib::Request& req, httplib::Response& res) {
+        cors(res);
+        json result;
+        try {
+            system("pkill -f 'mlx_lm.server' 2>/dev/null");
+            result["mlx_killed"] = "MLX servers restarted to clear state";
+
+            httplib::Client coord("127.0.0.1", g_env.coordinator_port);
+            coord.set_connection_timeout(5);
+            coord.set_read_timeout(10);
+            auto r = coord.Post("/api/clear-cache", "", "application/json");
+
+            if (r && r->status == 200) {
+                auto coord_result = json::parse(r->body);
+                result["llama"] = coord_result;
+            } else {
+                result["llama"] = "coordinator offline";
+            }
+
+            res.set_content(result.dump(), "application/json");
+        } catch (const std::exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
     // Catch-all: forward to coordinator on :8000
     auto fwd = [&cors](const httplib::Request& req, httplib::Response& res) {
         cors(res);

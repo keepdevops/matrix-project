@@ -1260,3 +1260,66 @@ h1 {
 .vllm-start-btn:disabled {
   cursor: not-allowed;
 }
+
+/* ========== Agent Editor Modal ========== */
+.agent-expand-btn {
+  background: transparent;
+  border: none;
+  color: #444d58;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: color 0.15s;
+  margin-left: auto;
+}
+
+.agent-expand-btn:hover {
+  color: #00ff41;
+}
+
+.agent-editor-modal {
+  background: #161b22;
+  border: 1px solid var(--agent-color, #333);
+  border-radius: 8px;
+  width: 92%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-editor-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #333;
+}
+
+.agent-editor-modal-name {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--agent-color, #00ff41);
+}
+
+.agent-editor-modal-content {
+  flex: 1;
+  overflow: auto;
+  background: #0d1117;
+}
+
+.agent-editor-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  transition: color 0.2s;
+}
+
+.agent-editor-close:hover {
+  color: #ff4b2b;
+}

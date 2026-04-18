@@ -218,7 +218,7 @@ export default function SwarmConfig({ onDeployed }) {
   const handleDeploy = async () => {
     const agents = roles
       .filter(r => selected.has(r.name))
-      .map(r => ({ ...r, model: roleModels[r.name] || r.model, backend: engine }));
+      .map(r => ({ ...r, model: roleModels[r.name] || r.model }));
 
     setStatus('deploying');
     const engineLabel = engine === 'mlx' ? 'MLX'
@@ -333,7 +333,10 @@ export default function SwarmConfig({ onDeployed }) {
                 key={role.name}
                 className={`swarm-role-row ${selected.has(role.name) ? 'active' : ''}`}
               >
-                <label className="swarm-role-check">
+                <label
+                  className="swarm-role-check"
+                  title={role.name === 'mlx-coder' ? 'Apple Silicon optimized coding agent — pairs well with standard LLAMA agents for mixed swarms' : ''}
+                >
                   <input
                     type="checkbox"
                     checked={selected.has(role.name)}
