@@ -310,7 +310,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         for (int p : failed) { fa.push_back(p); if (!fl.empty()) fl += ", "; fl += std::to_string(p); }
         std::cerr << "[Configure] Health timeout. Ports not ready: " << fl << "\n";
         return {false, 503, {
-            {"error", "Servers failed to become healthy within 4 minutes. Check agent_logs/"
+            {"error", "Servers failed to become healthy within several minutes. Check agent_logs/"
                       + std::to_string(failed[0]) + ".log. Ports not ready: " + fl
                       + ". MLX can take 1-2 min per model on first load."},
             {"failedPorts", fa}

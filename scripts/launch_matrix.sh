@@ -8,6 +8,10 @@ echo "========================================"
 echo "  1) Docker  (UI in container)"
 echo "  2) Bare Metal  (UI via npm start)"
 echo "========================================"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+echo "ROOT=${ROOT}" 
+echo "========================================"
+
 # Non-interactive: MATRIX_LAUNCH_MODE=1 (Docker) or 2 (bare metal)
 if [ -n "${MATRIX_LAUNCH_MODE:-}" ]; then
     MODE="${MATRIX_LAUNCH_MODE}"
@@ -35,7 +39,7 @@ else
 fi
 echo
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 PID_FILE="$ROOT/logs/matrix.pids"
 
 # Load .env first (written by setup.sh with machine-specific conda paths etc.)
@@ -80,20 +84,27 @@ sleep 2
 echo "[3/3] Starting UI..."
 cd "$ROOT"
 if $NO_DOCKER; then
+    echo "======= npm start ================"
     npm start > logs/ui.log 2>&1 &
     echo $! >> "$PID_FILE"
     echo "    -> React dev server starting (bare metal)..."
+
     sleep 4
-    echo "===== Opening http://localhost:3000 ====="
-    if command -v open &> /dev/null; then
-        open "http://localhost:3000"
-    elif command -v xdg-open &> /dev/null; then
-        xdg-open "http://localhost:3000"
-    fi
+    # MK
+    # echo "===== Opening http://localhost:3000 ====="
+    # echo "<return> to continue"
+    # read aaa
+    # if command -v open &> /dev/null; then
+    #     open "http://localhost:3000"
+    # elif command -v xdg-open &> /dev/null; then
+    #     xdg-open "http://localhost:3000"
+    # fi
 else
     ### lsof -ti:3000 | xargs kill -9
     sleep 2
     echo "===== docker-compose up ====="
+    echo "<return> to continue"
+    read aaa
     docker-compose -f "$ROOT/production/docker-compose.prod.yml" up -d
 fi
 
