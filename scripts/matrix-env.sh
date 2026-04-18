@@ -1,35 +1,28 @@
 #!/usr/bin/env bash
 # Print suggested Matrix environment exports (defaults by OS / layout).
 # Usage:
-#   source scripts/matrix-env.sh          # exports into current shell
-#   bash scripts/matrix-env.sh           # print only (no export)
-# Override any variable before sourcing to keep your values.
+echo "---------------------------------------------"
+echo "${BASH_SOURCE[0]}"
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 OS="$(uname -s)"
 
-# NOT NEEDED, MK
+
 if [[ -n "${MATRIX_MODEL_DIR:-}" ]]; then
   MODEL_DIR="$MATRIX_MODEL_DIR"
 elif [[ "$OS" == "Darwin" ]]; then
   MODEL_DIR="/Users/Shared/llama/models"
-  #elif [[ -d /opt/matrix/models ]]; then
-  #  MODEL_DIR="/opt/matrix/models"
-  #else
-  #  MODEL_DIR="${HOME}/.local/share/matrix/models"
 fi
 
-# NOT NEEDED, MK
+
 if [[ -n "${MATRIX_LLAMA_SERVER:-}" ]]; then
   LLAMA_BIN="$MATRIX_LLAMA_SERVER"
 elif [[ "$OS" == "Darwin" ]]; then
   LLAMA_BIN="/Users/Shared/llama/llama-server"
 elif [[ -x /usr/local/bin/llama-server ]]; then
   LLAMA_BIN="/usr/local/bin/llama-server"
-  #else
-  #  LLAMA_BIN="${HOME}/.local/bin/llama-server"
 fi
 
 
@@ -75,8 +68,7 @@ if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
   echo "export MATRIX_MLX_PYTHON=$MLX_PY"
 fi
 
-echo "================================================"
-echo "ROOT               =${ROOT}"
-echo "MODEL_DIR          =${MODEL_DIR}"
-echo "MATRIX_LLAMA_SERVER=${MATRIX_LLAMA_SERVER}"
-echo "================================================"
+echo "MODELS:     =${MODEL_DIR}"
+echo "LLAMA_SERVER=${MATRIX_LLAMA_SERVER}"
+
+# EOF
