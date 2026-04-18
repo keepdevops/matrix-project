@@ -1,6 +1,9 @@
 # Dependencies & build
 node_modules/
 build/
+_unused/
+unused/
+bkup*
 
 # Local env
 .env
