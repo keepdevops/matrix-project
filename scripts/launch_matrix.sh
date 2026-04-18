@@ -1,70 +1,20 @@
 #!/bin/bash
-
-echo "========================================"
-echo "launch_matrix.sh"
-echo "========================================"
-echo "  SWARM MATRIX LAUNCH SEQUENCE"
-echo "========================================"
-echo "  1) Docker  (UI in container)"
-echo "  2) Bare Metal  (UI via npm start)"
-echo "========================================"
+echo "=========================================================="
+echo "SWARM MATRIX starting"
+echo "${BASH_SOURCE[0]}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-echo "ROOT=${ROOT}" 
-echo "========================================"
-
-# Non-interactive: MATRIX_LAUNCH_MODE=1 (Docker) or 2 (bare metal)
-if [ -n "${MATRIX_LAUNCH_MODE:-}" ]; then
-    MODE="${MATRIX_LAUNCH_MODE}"
-    echo "  Using MATRIX_LAUNCH_MODE=${MODE}"
-else
-    read -rp "Select mode [1/2]: " MODE
-fi
-
-# Optional: pre-start docker-vllm inference servers before the proxy.
-# Set MATRIX_START_VLLM=1 to launch them (waits for health before proceeding).
-# Set MATRIX_START_VLLM=0 or leave unset to skip (use if servers are already running).
-if [ "${MATRIX_START_VLLM:-0}" = "1" ]; then
-    echo
-    echo "[0/3] Starting docker-vllm inference servers..."
-    bash "$ROOT/scripts/start_vllm_servers.sh" --wait
-    echo
-fi
-
-if [ "$MODE" = "2" ]; then
-    NO_DOCKER=true
-    echo "  Mode: Bare Metal"
-else
-    NO_DOCKER=false
-    echo "  Mode: Docker"
-fi
-echo
+echo "Working directory = ${ROOT}" 
+mkdir -p "$ROOT/logs"
 
 
-PID_FILE="$ROOT/logs/matrix.pids"
-
-# Load .env first (written by setup.sh with machine-specific conda paths etc.)
-# Then overlay matrix-env.sh defaults for any vars still unset.
-if [[ -f "$ROOT/.env" ]]; then
-  set -o allexport
-  # shellcheck disable=SC1091
-  source "$ROOT/.env"
-  set +o allexport
-fi
+# overlay matrix-env.sh , may include conda, etc.
+# possible shellcheck disable=SC1091
 if [[ -f "$ROOT/scripts/matrix-env.sh" ]]; then
-  # shellcheck disable=SC1091
   source "$ROOT/scripts/matrix-env.sh"
 fi
 
 
-#---------------------------------------------
-#echo "[1/3] Cleaning up docker processes..."
-#if ! $NO_DOCKER; then
-#    docker-compose down --remove-orphans 
-#    sleep 3
-#fi
-#---------------------------------------------
-
-
+: '
 echo "[1/3] Activating GPU fan control (28–36°C sensor-based)..."
 FAN_SCRIPT="$ROOT/scripts/fan_control.sh"
 if [ -x "$FAN_SCRIPT" ]; then
@@ -72,47 +22,27 @@ if [ -x "$FAN_SCRIPT" ]; then
 else
     echo "  (fan_control.sh not found or not executable — skipping)"
 fi
+'
 
-echo "[2/3] Starting C++ Proxy on port 3002..."
-mkdir -p "$ROOT/logs"
-# Clear stale PID file from any previous run
+# --------------------------------------------------------------
+echo "Starting Proxy..."
+PID_FILE="$ROOT/logs/matrix.pids"
+# Following command clears stale PID file from any previous run
 > "$PID_FILE"
 "$ROOT/proxy" > "$ROOT/logs/proxy.log" 2>&1 &
 echo $! >> "$PID_FILE"
-sleep 2
 
-echo "[3/3] Starting UI..."
+for i in {1..10}; do echo -n "."; sleep 0.1; done; echo "."  
+
+# --------------------------------------------------------------
+echo "Starting UI"
 cd "$ROOT"
-if $NO_DOCKER; then
-    echo "======= npm start ================"
-    npm start > logs/ui.log 2>&1 &
-    echo $! >> "$PID_FILE"
-    echo "    -> React dev server starting (bare metal)..."
+npm start > logs/ui.log 2>&1 &
+echo $! >> "$PID_FILE"
 
-    sleep 4
-    # MK
-    # echo "===== Opening http://localhost:3000 ====="
-    # echo "<return> to continue"
-    # read aaa
-    # if command -v open &> /dev/null; then
-    #     open "http://localhost:3000"
-    # elif command -v xdg-open &> /dev/null; then
-    #     xdg-open "http://localhost:3000"
-    # fi
-else
-    ### lsof -ti:3000 | xargs kill -9
-    sleep 2
-    echo "===== docker-compose up ====="
-    echo "<return> to continue"
-    read aaa
-    docker-compose -f "$ROOT/production/docker-compose.prod.yml" up -d
-fi
+for i in {1..20}; do echo -n "."; sleep 0.1; done; echo "."  
 
-echo "========================================"
-echo "  MATRIX PROXY ONLINE"
-if $NO_DOCKER; then echo "  Mode: Bare Metal"; fi
-echo "========================================"
-echo "  Open:   http://localhost:3000"
-echo "  Select agents and models in the UI,"
-echo "  then click LAUNCH SWARM to start."
-echo "========================================"
+echo "SWARM MATRIX started -> localhost:3000"
+echo "=========================================================="
+
+# EOF

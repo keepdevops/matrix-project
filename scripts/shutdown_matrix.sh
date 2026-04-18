@@ -1,132 +1,138 @@
 #!/bin/bash
 
-BAREMETAL=false
+# Function to kill process(es) and verify
+kill_process_on_port() {
+  local port=$1
+  local service_name=$2
 
-if [[ "$1" == "baremetal" ]] || [[ "$1" == "--baremetal" ]]; then
-    BAREMETAL=true
-fi
+  echo "Stopping $service_name on :$port"
 
-echo "========================================"
-echo "$0"
-if [ "$BAREMETAL" = true ]; then
-    echo "  SWARM MATRIX SHUTDOWN (BAREMETAL)"
+  pids=$(lsof -ti :$port 2>/dev/null)
+  if [ -z "$pids" ]; then
+    echo "  ✓ No process running on port $port"
+    return 0
+  fi
+
+
+  echo "  Sending SIGTERM to PID(s): $pids"
+  kill $pids 2>/dev/null
+  for i in {1..30}; do echo -n "."; sleep 0.1; done; echo ""
+
+
+  pids=$(lsof -ti :$port 2>/dev/null)
+  if [ -z "$pids" ]; then
+    echo "  ✓ Process terminated gracefully"
+    return 0
+  fi
+
+  # Force kill
+  echo "  Sending SIGKILL to PID(s): $pids (graceful shutdown failed)"
+  kill -9 $pids 2>/dev/null
+  sleep 1
+
+  # Final verification
+  pids=$(lsof -ti :$port 2>/dev/null)
+  if [ -z "$pids" ]; then
+    echo "  ✓ Process force-killed successfully"
+    return 0
+  else
+    echo "  ✗ FAILED: Process still running on port $port"
+    echo "    Full process info:"
+    lsof -i :$port | tail -n +2
+    return 1
+  fi
+}
+
+#----------------------------------------------
+# Function to kill by pattern and verify
+kill_process_by_pattern() {
+  local pattern=$1
+  local service_name=$2
+
+  echo "Stopping $service_name"
+
+  pids=$(pgrep -f "$pattern" 2>/dev/null)
+  if [ -z "$pids" ]; then
+    echo "  ✓ No process matching '$pattern' found"
+    return 0
+  fi
+
+  # Graceful termination
+  echo "  Sending SIGTERM to matching process(es)"
+  pkill -f "$pattern" 2>/dev/null
+  for i in {1..30}; do echo -n "."; sleep 0.1; done; echo ""
+
+  # Check if still running
+  pids=$(pgrep -f "$pattern" 2>/dev/null)
+  if [ -z "$pids" ]; then
+    echo "  ✓ Process terminated gracefully"
+    return 0
+  fi
+
+  # Force kill
+  echo "  Sending SIGKILL to matching process(es)"
+  pkill -9 -f "$pattern" 2>/dev/null
+  sleep 1
+
+  # Final verification
+  pids=$(pgrep -f "$pattern" 2>/dev/null)
+  if [ -z "$pids" ]; then
+    echo "  ✓ Process force-killed successfully"
+    return 0
+  else
+    echo "  ✗ FAILED: Process still running matching '$pattern'"
+    return 1
+  fi
+}
+
+echo "================================================================"
+# Kill services in order
+# Kill npm and serve first (UI server), then by port as fallback
+kill_process_by_pattern "npm.*start" "npm start (UI server)"
+kill_process_by_pattern "serve.*3000" "serve static server"
+kill_process_on_port 3000 "UI server (port fallback)"
+kill_process_by_pattern "matrix-project/proxy" "proxy"
+kill_process_by_pattern "matrix-project/coordinator" "coordinator"
+kill_process_by_pattern "llama-server" "llama-server"
+kill_process_by_pattern "mlx-lm" "mlx-lm"
+
+# This prevented KeepAlive restarts in the background
+# Disable the launchd agent permanently
+echo ""
+echo "Disabling launchd agent (com.caribou.swarm-dashboard)..."
+mkdir -p ~/Library/LaunchAgents
+
+# Create a disabled plist to override the active one
+cat > ~/Library/LaunchAgents/com.caribou.swarm-dashboard.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.caribou.swarm-dashboard</string>
+    <key>Disabled</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+# Unload the agent from launchd
+launchctl unload ~/Library/LaunchAgents/com.caribou.swarm-dashboard.plist 2>/dev/null || true
+echo "  ✓ Launchd agent unloaded"
+
+# Final summary
+echo ""
+echo "========== SHUTDOWN SUMMARY =========="
+remaining=$(lsof -ti :3000 2>/dev/null)
+if [ -z "$remaining" ]; then
+  echo "✓ Port 3000 is free"
 else
-    echo "  SWARM MATRIX SHUTDOWN ALL"
-fi
-echo "========================================"
-echo " run with sudo $0 [baremetal]"
-echo "========================================"
-
-
-
-# Stop UI
-echo " Stopping processes..."
-cd "$(dirname "$0")/.."
-
-pkill -f "react-scripts start" || true
-echo "-1--------------------------------------"
-
-# Stop production docker-compose (if running)
-if [ "$BAREMETAL" = false ]; then
-    echo " Stopping production docker-compose..."
-    docker compose -f production/docker-compose.prod.yml down 2>/dev/null || true
-    sleep 1
-    docker compose -f production/docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
-    sleep 1
-    echo "-0.5--------------------------------------"
-
-    docker-compose down 2>/dev/null || true
-    sleep 2
-    docker-compose down --remove-orphans 2>/dev/null || true
-    sleep 2
-
-    docker ps -a 2>/dev/null || true
-    docker stop matrix-proxy swarm-matrix-ui production-swarm-ui matrix-ui 2>/dev/null || true
-    docker rm   matrix-proxy swarm-matrix-ui production-swarm-ui matrix-ui 2>/dev/null || true
-    echo "-2--------------------------------------"
-else
-    echo " (Skipping Docker operations - baremetal mode)"
-    echo "-2--------------------------------------"
+  echo "✗ Port 3000 still in use by PID(s): $remaining"
+  echo "  Process details:"
+  lsof -i :3000 | tail -n +2
 fi
 
-PID_FILE="$(dirname "$0")/../logs/matrix.pids"
-
-# Kill tracked PIDs
-echo " Stopping agents, coordinator, and proxy..."
-if [ -f "$PID_FILE" ]; then
-    echo "  Killing tracked PIDs..."
-    while IFS= read -r pid; do
-        kill "$pid"  && echo "    killed $pid"
-    done < "$PID_FILE"
-    rm -f  "$PID_FILE"
-    echo "   PID file cleared."
-fi
-
-# C++ HTTP proxy (launch_matrix runs "$ROOT/proxy"; may be missing from PID file)
-ROOT_ABS="$(cd "$(dirname "$0")/.." && pwd)"
-echo "-3a--------------------------------------"
-echo " Stopping C++ proxy (${ROOT_ABS}/proxy)..."
-if [[ -x "${ROOT_ABS}/proxy" ]]; then
-    pkill -f "${ROOT_ABS}/proxy" 2>/dev/null && echo "    stopped ${ROOT_ABS}/proxy" || true
-fi
-
-echo "-3--------------------------------------"
-pkill -f llama-server 
-
-echo "-4--------------------------------------"
-pkill -f "llama_cpp.server" 
-
-echo "-5--------------------------------------"
-pkill -f "mlx_lm.server" 
-
-echo "-6--------------------------------------"
-pkill -f coordinator 
-
-echo "-7--------------------------------------"
-pkill -f "node proxy.mjs" 
-
-sleep 1
-
-echo "-8--------------------------------------"
-echo " Releasing ports..."
-echo "pkill <ports>--------------------------"
-lsof -ti:3000,3001,3002,8000,8080,8081,8082,8083,8084 | xargs kill -9 2>/dev/null || true
-
-echo "-9--------------------------------------"
-echo " Verifying..."
-REMAINING=$(lsof -ti:8000,8080,8081,8082,8083,8084 )
-if [ -z "$REMAINING" ]; then
-    echo "-9.1----------------------"
-    echo "  All swarm processes stopped. VRAM released."
-else
-    echo "-9.2----------------------"
-    echo "  Warning: some processes still running (PIDs: $REMAINING)"
-fi
-
-echo "-10--------------------------------------"
-echo "stop fan--------------------------"
-echo " Restoring system Auto fan control..."
-FAN_SCRIPT="$(dirname "$0")/fan_control.sh"
-if [ -x "$FAN_SCRIPT" ]; then
-    "$FAN_SCRIPT" stop
-else
-    echo "  (fan_control.sh not found or not executable — skipping)"
-fi
-
-echo "-11--------------------------------------"
-
-
-ps -ef | grep -v grep | grep llama
-ps -ef | grep -v grep | grep coordinator
-ps -ef | grep -v grep | grep npm
-if [ "$BAREMETAL" = false ]; then
-    docker ps -a
-fi
-
-
-
-
-echo "========================================"
-echo "  SHUTDOWN COMPLETE"
-echo "========================================"
-echo "Next... close Firefox"
+echo "Shutdown complete. Close web browser if needed."
+echo "Note: Launchd agent disabled. To re-enable, delete:"
+echo "  ~/Library/LaunchAgents/com.caribou.swarm-dashboard.plist"
+echo "================================================================"
