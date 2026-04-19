@@ -4,6 +4,9 @@ build/
 _unused/
 unused/
 bkup*
+_bin/
+bin/
+archive
 
 # Local env
 .env
