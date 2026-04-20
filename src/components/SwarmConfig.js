@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs } from '../api/swarmApi';
+import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs, fetchAgents } from '../api/swarmApi';
 import VllmPanel from './VllmPanel';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
@@ -71,23 +71,28 @@ export default function SwarmConfig({ onDeployed }) {
   useEffect(() => {
     let cancelled = false;
     setLoadError('');
-    Promise.all([fetchSwarmConfig(), fetchModels()])
-      .then(([config, modelList]) => {
+    const activeAgentsPromise = fetchAgents().catch(e => {
+      console.error('fetchAgents failed — rendering without running-swarm state:', e);
+      return [];
+    });
+    Promise.all([fetchSwarmConfig(), fetchModels(), activeAgentsPromise])
+      .then(([config, modelList, activeAgents]) => {
         if (cancelled) return;
         setRoles(config.agents);
         setModels(modelList);
-        const DEFAULT_AGENTS = new Set(['architect', 'programmer', 'specialist', 'reviewer', 'synthesis']);
-        const selectedNames = new Set(config.agents.filter(a => DEFAULT_AGENTS.has(a.name)).map(a => a.name));
-        setSelected(selectedNames);
+        setSelected(new Set(activeAgents.map(a => a.name)));
         const defaults = {};
         config.agents.forEach(a => { defaults[a.name] = a.model; });
 
-        // Detect engine from backend field or local path shape
+        // Prefer the engine of the currently-running swarm; fall back to
+        // detection from the stored config.
+        const running = activeAgents[0];
         const firstAgent = config.agents[0];
         const firstBackend = firstAgent?.backend;
         const firstModel = firstAgent?.model;
-        const detectedEngine =
-          firstBackend === 'mlx'    ? 'mlx'
+        const detectedEngine = running
+          ? (running.engine || running.backend || 'llama')
+          : firstBackend === 'mlx'    ? 'mlx'
           : firstBackend === 'vllm'   ? 'vllm'
           : firstBackend === 'docker' ? 'docker'
           : (firstModel && isMLXPath(firstModel)) ? 'mlx'
@@ -97,7 +102,7 @@ export default function SwarmConfig({ onDeployed }) {
         // If the stored models are not local paths (e.g. HF repo IDs from a docker-vllm config),
         // remap each selected agent to the best available local model for the detected engine.
         const engineModelsNow = modelList.filter(m => m.backend === detectedEngine);
-        const hasNonLocalModels = config.agents.some(a => selectedNames.has(a.name) && !a.model.startsWith('/'));
+        const hasNonLocalModels = config.agents.some(a => !a.model.startsWith('/'));
 
         // For vLLM: always map by server_group to fixed ports (8080/8081/8082/8083)
         // even if no vLLM models detected, since servers are pre-started infrastructure
@@ -105,7 +110,6 @@ export default function SwarmConfig({ onDeployed }) {
           const vllmFallback = engineModelsNow.length > 0 ? engineModelsNow[0] : modelList[0];
           if (vllmFallback) {
             config.agents.forEach(a => {
-              if (!selectedNames.has(a.name)) return;
               defaults[a.name] = vllmFallback.path;
             });
           }
@@ -114,7 +118,6 @@ export default function SwarmConfig({ onDeployed }) {
           const oldModelToNew = {};
           let idx = 0;
           config.agents.forEach(a => {
-            if (!selectedNames.has(a.name)) return;
             if (!(a.model in oldModelToNew)) {
               oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
               idx++;
@@ -218,7 +221,12 @@ export default function SwarmConfig({ onDeployed }) {
   const handleDeploy = async () => {
     const agents = roles
       .filter(r => selected.has(r.name))
-      .map(r => ({ ...r, model: roleModels[r.name] || r.model }));
+      .map(r => {
+        const model = roleModels[r.name] || r.model;
+        const modelMeta = models.find(m => m.path === model);
+        const backend = r.backend || r.engine || modelMeta?.backend;
+        return backend ? { ...r, model, backend } : { ...r, model };
+      });
 
     setStatus('deploying');
     const engineLabel = engine === 'mlx' ? 'MLX'
