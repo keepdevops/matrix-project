@@ -104,7 +104,11 @@
   "coordinator": {
     "port": 8000,
     "default_mode": "flat",
-    "modes": {}
+    "modes": {
+      "pipeline": {
+        "order": ["architect", "programmer", "reviewer", "synthesis"]
+      }
+    }
   },
   "ui": {
     "port": 3000

@@ -340,6 +340,41 @@ h1 {
   font-size: 0.9rem;
 }
 
+/* ========== Final Answer Panel ========== */
+.final-answer-panel {
+  background: rgba(0, 255, 65, 0.05);
+  border: 1px solid #00ff41;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.final-answer-panel__header {
+  background: rgba(0, 255, 65, 0.12);
+  border-bottom: 1px solid #00ff41;
+  padding: 6px 12px;
+}
+
+.final-answer-panel__label {
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  font-weight: bold;
+}
+
+.final-answer-panel__body {
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
 /* ========== Agents Grid — responsive, dynamic count ========== */
 .agents-grid {
   display: grid;

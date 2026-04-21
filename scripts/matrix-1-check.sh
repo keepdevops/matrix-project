@@ -31,6 +31,10 @@ memory_pressure=$(memory_pressure | grep "System-wide memory free percentage" | 
 echo -e "System Memory Free: ${BOLD}${memory_pressure}${NC}"
 
 echo "------------------------------------------------------------"
+curl -s http://127.0.0.1:8000/api/modes | jq                                                                          
+
+
+echo "------------------------------------------------------------"
 echo "NUMBER llama-server="  `ps -ef | grep llama-server | grep -v grep | wc -l`
 echo "------------------------------------------------------------"
 echo "NUMBER mlx lm server=" `ps -ef | grep mlx          | grep -v grep | wc -l`

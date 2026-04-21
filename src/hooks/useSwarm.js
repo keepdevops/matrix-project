@@ -3,6 +3,7 @@ import { submitPrompt, fetchHistory, checkHealth } from '../api/swarmApi';
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
+  const [finalAnswer, setFinalAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
@@ -12,12 +13,14 @@ export function useSwarm() {
     setLoading(true);
     setError(null);
     setResponses({});
+    setFinalAnswer(null);
     try {
       const result = await submitPrompt(prompt, temperature);
       // submitPrompt returns { mode, agents, final, meta }; store the flat
       // agents map so existing consumers (AgentGrid, handleSaveCode, history
       // selection) keep seeing the same shape as before.
       setResponses(result.agents || {});
+      setFinalAnswer(result.final || null);
       return result;
     } catch (err) {
       setError(err.message);
@@ -48,6 +51,7 @@ export function useSwarm() {
 
   return {
     responses,
+    finalAnswer,
     loading,
     error,
     history,
@@ -56,6 +60,7 @@ export function useSwarm() {
     loadHistory,
     checkStatus,
     setResponses,
+    setFinalAnswer,
   };
 }
 

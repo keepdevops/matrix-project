@@ -7,9 +7,10 @@ import AgentGrid from './components/AgentGrid';
 import SwarmConfig from './components/SwarmConfig';
 import HelpModal from './components/HelpModal';
 import ModeSelector from './components/ModeSelector';
+import FinalAnswerPanel from './components/FinalAnswerPanel';
 import { extractCodeBlock } from './utils/codeExtractor';
 
-const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp']);
+const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode']);
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 function getEngineLabel(backend) {
@@ -24,6 +25,7 @@ function getRunningEngines(agents) {
 function App() {
   const {
     responses,
+    finalAnswer,
     loading,
     error,
     history,
@@ -32,6 +34,7 @@ function App() {
     loadHistory,
     checkStatus,
     setResponses,
+    setFinalAnswer,
   } = useSwarm();
 
   const [activeAgents, setActiveAgents] = useState([]);
@@ -142,6 +145,7 @@ function App() {
       if (!METADATA_KEYS.has(k)) resps[k] = entry[k] || null;
     });
     setResponses(resps);
+    setFinalAnswer(entry._final || null);
     setSelectedPrompt(entry.prompt || '');
     setSelectedTemperature(entry.temperature ?? 0.7);
     setShowHistory(false);
@@ -269,6 +273,7 @@ function App() {
                 : `ERROR: ${error}`}
             </div>
           )}
+          <FinalAnswerPanel text={finalAnswer} />
           <AgentGrid
             activeAgents={activeAgents}
             responses={responses}
