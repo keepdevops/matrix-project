@@ -29,3 +29,9 @@ echo "------------------------------------------------------------"
 # Show total system memory pressure summary
 memory_pressure=$(memory_pressure | grep "System-wide memory free percentage" | awk '{print $5}')
 echo -e "System Memory Free: ${BOLD}${memory_pressure}${NC}"
+
+echo "------------------------------------------------------------"
+echo "NUMBER llama-server="  `ps -ef | grep llama-server | grep -v grep | wc -l`
+echo "------------------------------------------------------------"
+echo "NUMBER mlx_lm server=" `ps -ef | grep mlx          | grep -v grep | wc -l`
+echo "------------------------------------------------------------"

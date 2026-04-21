@@ -14,8 +14,8 @@ function HelpModal({ onClose }) {
           <div className="help-section">
             <h3>Quick Start</h3>
             <div className="help-steps">
-              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/launch_matrix.sh</code> (Docker or Bare Metal) or <code>./scripts/run_matrix_pixi.sh</code> (pixi: installs env, builds coordinator, then launch)</span></div>
-              <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
+              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/matrix_launch.sh</code> to start the proxy and UI. Shut down with <code>bash scripts/matrix_shutdown.sh</code>; check memory with <code>bash scripts/matrix_memory_status.sh</code></span></div>
+              <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX / vLLM) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
               <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span style={{color:'#648FFF'}}>ONLINE</span> (header may show the engine in use, e.g. MLX)</span></div>
               <div className="help-step"><span className="help-step-n">4</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
               <div className="help-step"><span className="help-step-n">5</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below</span></div>
@@ -28,7 +28,7 @@ function HelpModal({ onClose }) {
               <dt>ONLINE / OFFLINE</dt>
               <dd>Coordinator status. When ONLINE, the header shows which inference engine(s) are in use (e.g. MLX). OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
               <dt>CONFIGURE</dt>
-              <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
+              <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX / vLLM); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
               <dt>CLEAR KV</dt>
               <dd>Clears state on all agents: erases the KV cache on llama-server agents and restarts MLX servers to clear conversation history. Useful when agents seem stuck, produce repetitive output, or after switching to a completely different task.</dd>
               <dt>HISTORY (N)</dt>
@@ -100,6 +100,8 @@ function HelpModal({ onClose }) {
               <dd>llama-server (C++ from llama.cpp). Loads <code>.gguf</code> files. Uses <code>--parallel N</code> so same-model agents run in parallel in one process. CLEAR KV works. Best for many agents on the same model.</dd>
               <dt>MLX (mlx-lm)</dt>
               <dd>Apple Silicon native (Metal). Uses <code>mlx_lm.server</code>; loads model <strong>directories</strong> (not single files). Often faster per-token on M1/M2/M3. Requests queue per server. CLEAR KV restarts servers.</dd>
+              <dt>vLLM</dt>
+              <dd>Launches 4 vLLM servers via Docker Model Runner on ports 8080–8083 (Qwen2.5-14B, Llama-3.2-3B, DeepSeek-Coder-V2, Phi-4-mini). Use the <strong>vLLM INFERENCE SERVERS</strong> panel in CONFIGURE to start them and tail logs on failure.</dd>
               <dt>Mixed Swarms (LLAMA + MLX)</dt>
               <dd>Select standard agents (architect, programmer, etc.) together with <strong>mlx-coder</strong> to run a hybrid swarm. LLAMA agents run in parallel on their ports; mlx-coder runs on its dedicated MLX server. Useful to compare coding output across both inference engines or get Apple Silicon performance for the coding specialist role.</dd>
             </dl>
@@ -123,8 +125,8 @@ function HelpModal({ onClose }) {
 
           <div className="help-section">
             <h3>Launch</h3>
-            <code className="help-code">bash scripts/launch_matrix.sh</code>
-            <p>Starts the proxy and UI (choose Docker or Bare Metal). Alternatively with pixi: <code>./scripts/run_matrix_pixi.sh</code>. All swarm configuration is done from the browser. See <strong>USER_MANUAL.md</strong> and <strong>SETUP_MODELS.md</strong> for full documentation.</p>
+            <code className="help-code">bash scripts/matrix_launch.sh</code>
+            <p>Starts the proxy and UI. Use <code>bash scripts/matrix_shutdown.sh</code> to stop and <code>bash scripts/matrix_memory_status.sh</code> to inspect GPU/RAM usage. All swarm configuration is done from the browser. See <strong>README.md</strong> for full documentation.</p>
           </div>
 
         </div>
