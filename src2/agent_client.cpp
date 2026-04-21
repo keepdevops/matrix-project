@@ -23,7 +23,9 @@ void init_mlx_port_locks(const std::vector<Agent>& agents) {
     }
 }
 
-std::string call_agent(const Agent& agent, const std::string& prompt) {
+static std::string call_agent_impl(const Agent& agent,
+                                   const std::string& system_prompt,
+                                   const std::string& prompt) {
     // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts
     std::unique_lock<std::mutex> mlx_lock;
     if (agent.engine == "mlx") {
@@ -40,11 +42,11 @@ std::string call_agent(const Agent& agent, const std::string& prompt) {
 
         json messages = json::array();
         // mlx-lm often rejects "system" role — merge into first user message instead.
-        if (agent.engine == "mlx" && !agent.system_prompt.empty()) {
-            messages.push_back({{"role", "user"}, {"content", agent.system_prompt + "\n\n" + prompt}});
+        if (agent.engine == "mlx" && !system_prompt.empty()) {
+            messages.push_back({{"role", "user"}, {"content", system_prompt + "\n\n" + prompt}});
         } else {
-            if (!agent.system_prompt.empty())
-                messages.push_back({{"role", "system"}, {"content", agent.system_prompt}});
+            if (!system_prompt.empty())
+                messages.push_back({{"role", "system"}, {"content", system_prompt}});
             messages.push_back({{"role", "user"}, {"content", prompt}});
         }
 
@@ -91,4 +93,14 @@ std::string call_agent(const Agent& agent, const std::string& prompt) {
                   << ": " << e.what() << std::endl;
         return "Connection Error (" + agent.name + "): " + std::string(e.what());
     }
+}
+
+std::string call_agent(const Agent& agent, const std::string& prompt) {
+    return call_agent_impl(agent, agent.system_prompt, prompt);
+}
+
+std::string call_agent_with_system(const Agent& agent,
+                                   const std::string& system_prompt_override,
+                                   const std::string& prompt) {
+    return call_agent_impl(agent, system_prompt_override, prompt);
 }

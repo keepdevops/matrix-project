@@ -107,6 +107,12 @@
     "modes": {
       "pipeline": {
         "order": ["architect", "programmer", "reviewer", "synthesis"]
+      },
+      "router": {
+        "classifier": "foreman",
+        "choices": ["architect", "programmer", "reviewer", "debugger", "specialist", "synthesis"],
+        "max_select": 3,
+        "fallback": ["architect", "programmer"]
       }
     }
   },

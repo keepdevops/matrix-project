@@ -93,8 +93,10 @@ kill_process_by_pattern "serve.*3000" "serve static server"
 kill_process_on_port 3000 "UI server (port fallback)"
 kill_process_by_pattern "matrix-project/proxy" "proxy"
 kill_process_by_pattern "matrix-project/coordinator" "coordinator"
-kill_process_by_pattern "llama_server" "llama-server"
-kill_process_by_pattern "mlx_lm" "mlx-lm"
+kill_process_by_pattern "llama_server" "llama_server"
+kill_process_by_pattern "llama-server" "llama-server"
+kill_process_by_pattern "mlx_lm" "mlx_lm"
+kill_process_by_pattern "mlx-lm" "mlx-lm"
 
 # This prevented KeepAlive restarts in the background
 # Disable the launchd agent permanently

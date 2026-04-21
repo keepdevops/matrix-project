@@ -27,3 +27,8 @@ cd ./node_modules/.cache
 
 
 
+MODE: ROUTER
+  What the config says router can pick:                                                                        
+  choices:   [architect, programmer, reviewer, debugger, specialist, synthesis]                                
+  fallback:  [architect, programmer]                                                                           
+  classifier: foreman      

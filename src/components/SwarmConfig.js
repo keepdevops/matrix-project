@@ -7,30 +7,29 @@ const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
 // HuggingFace repo IDs like 'meta-llama/Llama-3.2-3B-Instruct' do NOT start with '/'.
 const isMLXPath = p => p.startsWith('/') && !p.endsWith('.gguf');
 
-const DOCKER_PORT = 12434;
-
 // Detect if system is Apple Silicon (M-series)
 const isAppleSilicon = navigator.platform === 'MacIntel' ||
   (navigator.userAgent.includes('Mac') && navigator.userAgent.includes('ARM'));
 
-function computeLayout(roles, selected, roleModels, engine) {
+function computeLayout(roles, selected, roleModels, models) {
   const keyToPort = {};
   let nextPort = 8080;
   const groups = {};
 
   for (const role of roles) {
     if (!selected.has(role.name)) continue;
-    const model = roleModels[role.name] || role.model;
-    // Docker Model Runner: one shared endpoint regardless of model
-    const key = engine === 'docker' ? 'docker:shared'
-      : `${engine}:${model}:${role.server_group || ''}`;
-    if (!keyToPort[key]) keyToPort[key] = engine === 'docker' ? DOCKER_PORT : nextPort++;
+    const model = roleModels[role.name];
+    if (!model) continue;
+    const modelMeta = models.find(m => m.path === model);
+    const agentEngine = modelMeta?.backend || role.backend || role.engine || 'llama';
+    const key = `${agentEngine}:${model}:${role.server_group || ''}`;
+    if (!keyToPort[key]) keyToPort[key] = nextPort++;
     const port = keyToPort[key];
     if (!groups[port]) {
       groups[port] = {
         model: shortName(model),
         agents: [],
-        engine,
+        engine: agentEngine,
       };
     }
     groups[port].agents.push(role.name);
@@ -49,7 +48,6 @@ const ENGINES = [
   { id: 'llama',  label: 'LLAMA',  backend: 'llama'  },
   { id: 'mlx',   label: 'MLX',    backend: 'mlx'    },
   { id: 'vllm',  label: 'vLLM',   backend: 'vllm'   },
-  { id: 'docker', label: 'DOCKER', backend: 'docker' },
 ];
 
 function getEngineLabel(engineId) {
@@ -81,51 +79,16 @@ export default function SwarmConfig({ onDeployed }) {
         setRoles(config.agents);
         setModels(modelList);
         setSelected(new Set(activeAgents.map(a => a.name)));
-        const defaults = {};
-        config.agents.forEach(a => { defaults[a.name] = a.model; });
 
-        // Prefer the engine of the currently-running swarm; fall back to
-        // detection from the stored config.
         const running = activeAgents[0];
-        const firstAgent = config.agents[0];
-        const firstBackend = firstAgent?.backend;
-        const firstModel = firstAgent?.model;
         const detectedEngine = running
           ? (running.engine || running.backend || 'llama')
-          : firstBackend === 'mlx'    ? 'mlx'
-          : firstBackend === 'vllm'   ? 'vllm'
-          : firstBackend === 'docker' ? 'docker'
-          : (firstModel && isMLXPath(firstModel)) ? 'mlx'
           : 'llama';
         setEngine(detectedEngine);
 
-        // If the stored models are not local paths (e.g. HF repo IDs from a docker-vllm config),
-        // remap each selected agent to the best available local model for the detected engine.
-        const engineModelsNow = modelList.filter(m => m.backend === detectedEngine);
-        const hasNonLocalModels = config.agents.some(a => !a.model.startsWith('/'));
-
-        // For vLLM: always map by server_group to fixed ports (8080/8081/8082/8083)
-        // even if no vLLM models detected, since servers are pre-started infrastructure
-        if (detectedEngine === 'vllm' && hasNonLocalModels) {
-          const vllmFallback = engineModelsNow.length > 0 ? engineModelsNow[0] : modelList[0];
-          if (vllmFallback) {
-            config.agents.forEach(a => {
-              defaults[a.name] = vllmFallback.path;
-            });
-          }
-        } else if (hasNonLocalModels && engineModelsNow.length > 0) {
-          // Generic remapping for other engines
-          const oldModelToNew = {};
-          let idx = 0;
-          config.agents.forEach(a => {
-            if (!(a.model in oldModelToNew)) {
-              oldModelToNew[a.model] = engineModelsNow[idx % engineModelsNow.length].path;
-              idx++;
-            }
-            defaults[a.name] = oldModelToNew[a.model];
-          });
-        }
-        setRoleModels(defaults);
+        const preselected = {};
+        activeAgents.forEach(a => { if (a.model) preselected[a.name] = a.model; });
+        setRoleModels(preselected);
       })
       .catch(e => { if (!cancelled) setLoadError(e.message); });
     return () => { cancelled = true; };
@@ -136,80 +99,15 @@ export default function SwarmConfig({ onDeployed }) {
 
   const handleEngineChange = newEngine => {
     setEngine(newEngine);
-    // Clear agent selection when switching engines to start fresh
     setSelected(new Set());
-    const available = models.filter(m => m.backend === newEngine);
-    // For vLLM: always map by server_group to fixed ports (8080/8081/8082/8083)
-    // even if no vLLM models are detected, since the servers are pre-started infrastructure
-    if (newEngine === 'vllm') {
-      // Use any available vLLM model as fallback, or first available model if none
-      const vllmFallback = available.length > 0 ? available[0] : models[0];
-      if (!vllmFallback) return;
-      const groupToPort = {
-        llama8b: 8080,
-        granite8b: 8081,
-        llama3b: 8082,
-        gemma2b: 8083,
-      };
-      setRoleModels(prev => {
-        const next = { ...prev };
-        roles.forEach(r => {
-          if (!selected.has(r.name)) return;
-          next[r.name] = vllmFallback.path;
-        });
-        return next;
-      });
-      return;
-    }
-    if (!available.length) return;
-    // Generic remapping for other engines
-    setRoleModels(prev => {
-      const next = { ...prev };
-      const oldModelToNew = {};
-      let idx = 0;
-      roles.forEach(r => {
-        if (!selected.has(r.name)) return;
-        const oldModel = prev[r.name] || r.model;
-        if (!(oldModel in oldModelToNew)) {
-          oldModelToNew[oldModel] = available[idx % available.length].path;
-          idx++;
-        }
-        next[r.name] = oldModelToNew[oldModel];
-      });
-      return next;
-    });
+    setRoleModels({});
   };
 
   const toggleRole = name => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-        // Only override model if the current one doesn't match the active engine
-        if (hasEngineModels) {
-          const currentModel = roleModels[name];
-          const matchesEngine = currentModel && (
-            engine === 'llama' ? !isMLXPath(currentModel) : isMLXPath(currentModel)
-          );
-          if (!matchesEngine) {
-            // Prefer the same engine model already assigned to a peer agent
-            // sharing the same swarm-config default model (keeps grouping intact).
-            // Fall back to the first unused engine model to avoid collapsing to one port.
-            const agentDefault = roles.find(r => r.name === name)?.model;
-            const peerModel = roles
-              .filter(r => selected.has(r.name) && r.model === agentDefault)
-              .map(r => roleModels[r.name])
-              .find(p => p && (engine === 'llama' ? !isMLXPath(p) : isMLXPath(p)));
-            const usedPaths = new Set(
-              roles.filter(r => selected.has(r.name)).map(r => roleModels[r.name])
-            );
-            const unused = engineModels.find(m => !usedPaths.has(m.path));
-            setRoleModels(m => ({ ...m, [name]: peerModel || (unused || engineModels[0]).path }));
-          }
-        }
-      }
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
   };
@@ -222,21 +120,25 @@ export default function SwarmConfig({ onDeployed }) {
     const agents = roles
       .filter(r => selected.has(r.name))
       .map(r => {
-        const model = roleModels[r.name] || r.model;
+        const model = roleModels[r.name];
+        if (!model) return null;
         const modelMeta = models.find(m => m.path === model);
-        const backend = r.backend || r.engine || modelMeta?.backend;
+        const backend = modelMeta?.backend || r.backend || r.engine;
         return backend ? { ...r, model, backend } : { ...r, model };
-      });
+      })
+      .filter(Boolean);
+
+    if (agents.length === 0) {
+      setStatus('error');
+      setStatusMsg('Select a model for at least one agent');
+      return;
+    }
 
     setStatus('deploying');
     const engineLabel = engine === 'mlx' ? 'MLX'
       : engine === 'vllm' ? 'vLLM'
-      : engine === 'docker' ? 'Docker Model Runner'
       : 'llama-server';
-    const deployMsg = engine === 'docker'
-      ? 'Connecting to Docker Model Runner (port 12434)...'
-      : `Starting ${engineLabel} servers... this may take up to 4 minutes on first load`;
-    setStatusMsg(deployMsg);
+    setStatusMsg(`Starting ${engineLabel} servers... this may take up to 4 minutes on first load`);
 
     setLogTail(null);
     try {
@@ -253,7 +155,7 @@ export default function SwarmConfig({ onDeployed }) {
     }
   };
 
-  let layout = computeLayout(roles, selected, roleModels, engine);
+  let layout = computeLayout(roles, selected, roleModels, models);
 
   // For vLLM: always show all 4 pre-started servers (8080-8083) even if no agents assigned
   if (engine === 'vllm') {
@@ -304,7 +206,7 @@ export default function SwarmConfig({ onDeployed }) {
             <span className="swarm-engine-label">ENGINE</span>
             <div className="swarm-engine-toggle">
               {ENGINES.map(e => {
-                const isAppleSiliconDisabled = isAppleSilicon && (e.id === 'vllm' || e.id === 'docker');
+                const isAppleSiliconDisabled = isAppleSilicon && e.id === 'vllm';
                 const count = models.filter(m => m.backend === e.backend).length;
                 const isDisabled = count === 0 || isAppleSiliconDisabled;
                 return (
@@ -352,14 +254,19 @@ export default function SwarmConfig({ onDeployed }) {
                   />
                   <span className="swarm-role-name">{role.name}</span>
                 </label>
-                {selected.has(role.name) && engineModels.length > 0 && (
+                {selected.has(role.name) && models.length > 0 && (
                   <select
                     className="swarm-model-select"
-                    value={roleModels[role.name] || engineModels[0]?.path || ''}
+                    value={roleModels[role.name] || ''}
                     onChange={e => setModel(role.name, e.target.value)}
                   >
-                    {engineModels.map(m => (
-                      <option key={m.path} value={m.path}>{m.name}</option>
+                    <option value="" disabled>Select model…</option>
+                    {Array.from(new Set(models.map(m => m.backend))).map(backend => (
+                      <optgroup key={backend} label={backend}>
+                        {models.filter(m => m.backend === backend).map(m => (
+                          <option key={m.path} value={m.path}>{m.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 )}
@@ -380,7 +287,6 @@ export default function SwarmConfig({ onDeployed }) {
                 <span className={`layout-parallel layout-engine-${s.engine}`}>
                   {s.engine === 'mlx'    ? '[mlx]'
                   : s.engine === 'vllm'  ? '[vllm]'
-                  : s.engine === 'docker' ? '[docker]'
                   : `×${s.parallel}`}
                 </span>
                 <div className="layout-right">
@@ -403,7 +309,6 @@ export default function SwarmConfig({ onDeployed }) {
                 <div className="swarm-config-logs">
                   <div className="swarm-config-logs-title">
                     Recent server logs (agent_logs/*.log)
-                    {engine === 'docker' && ' — verify Docker Desktop is running and model is loaded (docker model run)'}
                     {(engine === 'mlx' || engine === 'vllm') && ' — look for Python tracebacks or "No such file" above'}
                   </div>
                   {logTail.map(({ port, lines }) => (
@@ -423,7 +328,7 @@ export default function SwarmConfig({ onDeployed }) {
           <button
             className={`swarm-deploy-btn ${status}`}
             onClick={handleDeploy}
-            disabled={selected.size === 0 || status === 'deploying' || !hasEngineModels}
+            disabled={selected.size === 0 || status === 'deploying' || !Array.from(selected).some(n => roleModels[n])}
           >
             {status === 'deploying' ? 'LAUNCHING...' : 'LAUNCH SWARM'}
           </button>
