@@ -7,8 +7,13 @@ echo "ROOT=${ROOT}"
 echo "Building coordinator..."
 ###c++ -std=c++17 -O2 -o "$ROOT/bin/coordinator" \
 
+# modes/*.cpp glob picks up registry.cpp and every registered mode, so future
+# modes drop in without editing this script.
 c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
-   "$ROOT/src2/coordinator.cpp" -pthread
+   "$ROOT/src2/coordinator.cpp" \
+   "$ROOT/src2/agent_client.cpp" \
+   $ROOT/src2/modes/*.cpp \
+   -pthread
 
 echo "Building proxy..."
 ###c++ -std=c++17 -O2 -o "$ROOT/bin/proxy" \

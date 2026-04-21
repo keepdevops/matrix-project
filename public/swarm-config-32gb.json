@@ -1,5 +1,5 @@
 {
-  "_ram_tier": "32GB — M2 Max 32GB, M3 Max 32GB, M4 Max 36GB, M4 Pro 48GB (use 36GB config), M2 Pro 32GB. No MLX engine. ~20 GB total, ~7.7 GB headroom on 32 GB.",
+  "_ram_tier": "32GB \u2014 M2 Max 32GB, M3 Max 32GB, M4 Max 36GB, M4 Pro 48GB (use 36GB config), M2 Pro 32GB. No MLX engine. ~20 GB total, ~7.7 GB headroom on 32 GB.",
   "agents": [
     {
       "name": "architect",
@@ -179,7 +179,9 @@
     }
   ],
   "coordinator": {
-    "port": 8000
+    "port": 8000,
+    "default_mode": "flat",
+    "modes": {}
   },
   "ui": {
     "port": 3000

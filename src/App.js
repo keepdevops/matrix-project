@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { useSwarm } from './hooks/useSwarm';
-import { clearCache, fetchAgents, fetchSwarmConfig, fetchModels } from './api/swarmApi';
+import { clearCache, fetchAgents, fetchSwarmConfig, fetchModels, fetchModes, setActiveMode } from './api/swarmApi';
 import PromptInput from './components/PromptInput';
 import AgentGrid from './components/AgentGrid';
 import SwarmConfig from './components/SwarmConfig';
 import HelpModal from './components/HelpModal';
+import ModeSelector from './components/ModeSelector';
 import { extractCodeBlock } from './utils/codeExtractor';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp']);
@@ -44,6 +45,28 @@ function App() {
 
   const [agentMeta, setAgentMeta] = useState({}); // { [name]: { model, backend } }
 
+  const [modes, setModes] = useState([]);
+  const [activeMode, setActiveModeState] = useState(null);
+
+  const refreshModes = () =>
+    fetchModes()
+      .then(list => {
+        setModes(list);
+        const cur = list.find(m => m.active);
+        if (cur) setActiveModeState(cur.name);
+      })
+      .catch(() => {});
+
+  const handleModeChange = async (name) => {
+    try {
+      await setActiveMode(name);
+      setActiveModeState(name);
+      setModes(prev => prev.map(m => ({ ...m, active: m.name === name })));
+    } catch (err) {
+      console.error('Failed to change mode:', err);
+    }
+  };
+
   const refreshAgents = () =>
     fetchAgents()
       .then(agents => {
@@ -76,12 +99,25 @@ function App() {
     checkStatus();
     loadHistory();
     refreshAgents();
+    refreshModes();
     const interval = setInterval(() => {
       checkStatus();
-      if (online) refreshAgents();
+      if (online) { refreshAgents(); refreshModes(); }
     }, 10000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkStatus, loadHistory]); // eslint-disable-line
+
+  // When the coordinator comes online (after LAUNCH SWARM), refresh modes and
+  // agents. Without this the ModeSelector stays stuck on "UNKNOWN" because
+  // the initial mount-time fetch happened before the coordinator existed.
+  useEffect(() => {
+    if (online) {
+      refreshModes();
+      refreshAgents();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online]);
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
@@ -165,6 +201,12 @@ function App() {
               {getRunningEngines(activeAgents).join(' + ')}
             </span>
           )}
+          <ModeSelector
+            modes={modes}
+            active={activeMode}
+            onChange={handleModeChange}
+            disabled={!online}
+          />
           <button
             className={`cache-button cache-button--${cacheStatus}`}
             onClick={handleClearCache}

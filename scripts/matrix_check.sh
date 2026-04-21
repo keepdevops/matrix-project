@@ -33,5 +33,23 @@ echo -e "System Memory Free: ${BOLD}${memory_pressure}${NC}"
 echo "------------------------------------------------------------"
 echo "NUMBER llama-server="  `ps -ef | grep llama-server | grep -v grep | wc -l`
 echo "------------------------------------------------------------"
-echo "NUMBER mlx_lm server=" `ps -ef | grep mlx          | grep -v grep | wc -l`
+echo "NUMBER mlx lm server=" `ps -ef | grep mlx          | grep -v grep | wc -l`
 echo "------------------------------------------------------------"
+
+
+
+
+
+
+echo "------------------------------------------------------------"
+lsof -i :8000
+echo "------------------------------------------------------------"
+ps aux | grep coordinator
+echo "------------------------------------------------------------"
+curl http://127.0.0.1:8000/api/health 
+echo "------------------------------------------------------------"
+curl http://127.0.0.1:8000/api/agents                                                                                 \n
+echo "------------------------------------------------------------"
+curl -X POST http://127.0.0.1:8000/api/architect     -H 'Content-Type: application/json'  -d '{"prompt":"Reply with exactly the single word: pong","temperature":0}'
+echo "------------------------------------------------------------"
+

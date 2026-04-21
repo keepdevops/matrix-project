@@ -189,7 +189,9 @@
     }
   ],
   "coordinator": {
-    "port": 8000
+    "port": 8000,
+    "default_mode": "flat",
+    "modes": {}
   },
   "ui": {
     "port": 3000

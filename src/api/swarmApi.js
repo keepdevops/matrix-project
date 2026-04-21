@@ -23,6 +23,24 @@ function normalizeApiBase() {
 const API_BASE = normalizeApiBase();
 
 /**
+ * Normalize a coordinator /api/architect response into { mode, agents, final, meta }.
+ * Accepts both the envelope shape (new) and the legacy flat-map shape.
+ */
+function normalizeArchitectResponse(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)
+      && raw.agents && typeof raw.agents === 'object') {
+    return {
+      mode: raw.mode || null,
+      agents: raw.agents,
+      final: raw.final ?? null,
+      meta: raw.meta || {},
+    };
+  }
+  // Legacy: coordinator returned {agent_name: text, ...} directly
+  return { mode: null, agents: raw || {}, final: null, meta: {} };
+}
+
+/**
  * Submit a prompt to all agents via the coordinator
  */
 export async function submitPrompt(prompt, temperature = 0.2) {
@@ -39,6 +57,37 @@ export async function submitPrompt(prompt, temperature = 0.2) {
     throw new Error(`API error (${response.status}): ${errorText}`);
   }
 
+  const raw = await response.json();
+  return normalizeArchitectResponse(raw);
+}
+
+/**
+ * List all modes registered on the coordinator.
+ * Returns [{ name, description, active }].
+ */
+export async function fetchModes() {
+  const response = await fetch(`${API_BASE}/modes`);
+  if (!response.ok) throw new Error(`Failed to fetch modes: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchActiveMode() {
+  const response = await fetch(`${API_BASE}/modes/active`);
+  if (!response.ok) throw new Error(`Failed to fetch active mode: ${response.status}`);
+  const j = await response.json();
+  return j.mode || null;
+}
+
+export async function setActiveMode(name) {
+  const response = await fetch(`${API_BASE}/modes/active`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: name }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to set mode: ${response.status}`);
+  }
   return response.json();
 }
 

@@ -14,7 +14,10 @@ export function useSwarm() {
     setResponses({});
     try {
       const result = await submitPrompt(prompt, temperature);
-      setResponses(result);
+      // submitPrompt returns { mode, agents, final, meta }; store the flat
+      // agents map so existing consumers (AgentGrid, handleSaveCode, history
+      // selection) keep seeing the same shape as before.
+      setResponses(result.agents || {});
       return result;
     } catch (err) {
       setError(err.message);

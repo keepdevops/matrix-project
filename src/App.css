@@ -84,6 +84,88 @@ h1 {
   background: rgba(0, 255, 65, 0.1);
 }
 
+/* ========== Mode Selector ========== */
+.mode-selector {
+  position: relative;
+  display: inline-block;
+}
+
+.mode-button {
+  background: transparent;
+  border: 1px solid #648FFF;
+  color: #648FFF;
+  padding: 5px 15px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.mode-button:hover:not(:disabled) {
+  background: rgba(100, 143, 255, 0.1);
+}
+
+.mode-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mode-button.active {
+  background: rgba(100, 143, 255, 0.15);
+}
+
+.mode-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 260px;
+  background: #0a0f14;
+  border: 1px solid #648FFF;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-option {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(100, 143, 255, 0.2);
+  color: #c8d0dc;
+  text-align: left;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.mode-option:last-child {
+  border-bottom: none;
+}
+
+.mode-option:hover {
+  background: rgba(100, 143, 255, 0.12);
+}
+
+.mode-option.selected {
+  background: rgba(100, 143, 255, 0.2);
+  color: #648FFF;
+}
+
+.mode-option-name {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mode-option-desc {
+  margin-top: 2px;
+  color: #8a93a6;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
 /* ========== Clear KV Cache Button ========== */
 .cache-button {
   background: transparent;

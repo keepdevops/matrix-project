@@ -1,129 +1,32 @@
 #include "httplib.h"
 #include "json.hpp"
-#include <iostream>
+#include "agent.h"
+#include "agent_client.h"
+#include "modes/mode.h"
+
+#include <chrono>
 #include <fstream>
-#include <string>
 #include <future>
-#include <vector>
+#include <iostream>
 #include <map>
 #include <mutex>
-#include <thread>
-#include <chrono>
+#include <string>
+#include <utility>
+#include <vector>
 
 using json = nlohmann::json;
 
-struct Agent {
-    std::string name;
-    int port;
-    int read_timeout_secs;
-    int max_tokens;
-    std::string system_prompt;
-    std::string backend;
-    std::string engine; // "llama" (default), "mlx", or "docker"
-    std::string model;  // model ID — sent in request body for docker/vllm
-};
-
-std::vector<Agent> agents;
-
-// mlx-lm does not support concurrent requests on the same port.
-// Serialize all calls to mlx ports via a per-port mutex.
-static std::map<int, std::unique_ptr<std::mutex>> mlx_port_locks;
+static std::vector<Agent> agents;
 
 static std::vector<json> history;
 static std::mutex history_mutex;
 static std::string history_path;
 
-static std::string call_agent(const Agent& agent, const std::string& prompt) {
-    // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts
-    std::unique_lock<std::mutex> mlx_lock;
-    if (agent.engine == "mlx") {
-        auto it = mlx_port_locks.find(agent.port);
-        if (it != mlx_port_locks.end()) {
-            mlx_lock = std::unique_lock<std::mutex>(*it->second);
-        }
-    }
+// Per-mode config map from swarm-config.json (coordinator.modes), passed to
+// each mode invocation so mode-specific options live with the mode.
+static json modes_config = json::object();
 
-    try {
-        httplib::Client cli("127.0.0.1", agent.port);
-        cli.set_connection_timeout(5);
-        cli.set_read_timeout(agent.read_timeout_secs);
-
-        json messages = json::array();
-        // mlx-lm often rejects "system" role — merge into first user message instead.
-        if (agent.engine == "mlx" && !agent.system_prompt.empty()) {
-            messages.push_back({{"role", "user"}, {"content", agent.system_prompt + "\n\n" + prompt}});
-        } else {
-            if (!agent.system_prompt.empty())
-                messages.push_back({{"role", "system"}, {"content", agent.system_prompt}});
-            messages.push_back({{"role", "user"}, {"content", prompt}});
-        }
-
-        json body = {
-            {"messages", messages},
-            {"max_tokens", agent.max_tokens}
-        };
-        // Docker Model Runner, docker-vllm, and vLLM require the model name in the request body
-        if (!agent.model.empty() && (agent.backend == "docker" || agent.backend == "vllm"
-                                     || agent.backend == "docker-vllm")) {
-            body["model"] = agent.model;
-        }
-
-        auto res = cli.Post("/v1/chat/completions", body.dump(), "application/json");
-
-        std::string result;
-        if (res && res->status == 200) {
-            auto j = json::parse(res->body);
-            if (j.contains("choices") && !j["choices"].empty()) {
-                result = j["choices"][0]["message"]["content"];
-            }
-        } else if (res) {
-            try {
-                auto err = json::parse(res->body);
-                if (err.contains("error") && err["error"].contains("message")) {
-                    result = "[" + agent.name + " error] " + err["error"]["message"].get<std::string>();
-                }
-            } catch (...) {
-                std::cerr << "[coordinator] Non-JSON error body from " << agent.name
-                          << " (status " << res->status << ")" << std::endl;
-            }
-        }
-        if (result.empty()) {
-            result = "Agent " + agent.name + " (Port " + std::to_string(agent.port) + ") is not responding.";
-        }
-        // Drain delay: let mlx-lm's KV cache reset before next serialized request.
-        if (agent.engine == "mlx") {
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        }
-        return result;
-
-    } catch (const std::exception& e) {
-        std::cerr << "[coordinator] call_agent exception for " << agent.name
-                  << ": " << e.what() << std::endl;
-        return "Connection Error (" + agent.name + "): " + std::string(e.what());
-    }
-}
-
-/** Parallel broadcast: every agent receives the same user prompt (no staged pipeline). */
-static json run_parallel_swarm(const std::vector<Agent>& all, const std::string& user_prompt) {
-    json response_json;
-    std::cout << "🔀 Broadcasting to " << all.size() << " agent(s) in parallel..." << std::endl;
-
-    std::vector<std::future<std::pair<std::string, std::string>>> futures;
-    for (const auto& agent : all) {
-        futures.push_back(std::async(std::launch::async, [user_prompt, agent]() {
-            return std::make_pair(agent.name, call_agent(agent, user_prompt));
-        }));
-    }
-
-    for (auto& fut : futures) {
-        auto pair = fut.get();
-        response_json[pair.first] = pair.second;
-    }
-
-    return response_json;
-}
-
-void load_history() {
+static void load_history() {
     std::ifstream f(history_path);
     if (!f.is_open()) return;
     try {
@@ -134,7 +37,7 @@ void load_history() {
     }
 }
 
-void save_history() {
+static void save_history() {
     std::ofstream f(history_path);
     if (!f.is_open()) {
         std::cerr << "❌ Failed to open history file for writing: " << history_path << std::endl;
@@ -162,8 +65,6 @@ int main(int argc, char* argv[]) {
     }
     json config = json::parse(config_file);
     for (auto& a : config["agents"]) {
-        // "engine" takes priority; fall back to "backend" so configs using
-        // backend:"mlx" also get serialized without needing an "engine" key.
         std::string backend_val = a.contains("backend") ? a["backend"].get<std::string>() : "";
         std::string engine = a.contains("engine") ? a["engine"].get<std::string>()
                              : (backend_val == "mlx" ? "mlx"
@@ -178,11 +79,25 @@ int main(int argc, char* argv[]) {
             engine,
             a.value("model", "")
         });
-        if (engine == "mlx" && mlx_port_locks.find(a["port"].get<int>()) == mlx_port_locks.end()) {
-            mlx_port_locks[a["port"].get<int>()] = std::make_unique<std::mutex>();
+    }
+    init_mlx_port_locks(agents);
+    std::cout << "✅ Loaded " << agents.size() << " agents from " << config_path << std::endl;
+
+    // Resolve coordinator.default_mode; fall back to whatever mode registered first.
+    if (config.contains("coordinator")) {
+        const auto& coord = config["coordinator"];
+        if (coord.contains("modes") && coord["modes"].is_object()) {
+            modes_config = coord["modes"];
+        }
+        if (coord.contains("default_mode") && coord["default_mode"].is_string()) {
+            const std::string desired = coord["default_mode"].get<std::string>();
+            if (!modes::set_active(desired)) {
+                std::cerr << "⚠️  default_mode '" << desired
+                          << "' not registered; staying on '" << modes::active() << "'" << std::endl;
+            }
         }
     }
-    std::cout << "✅ Loaded " << agents.size() << " agents from " << config_path << std::endl;
+    std::cout << "🧠 active mode: " << modes::active() << std::endl;
 
     load_history();
     std::cout << "📜 Loaded " << history.size() << " history entries from " << history_path << std::endl;
@@ -214,7 +129,52 @@ int main(int argc, char* argv[]) {
         res.set_content(json(history).dump(), "application/json");
     });
 
-    // 4. Parallel swarm broadcast
+    // 4. Mode registry — list all modes + active flag
+    svr.Get("/api/modes", [](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string cur = modes::active();
+        json out = json::array();
+        for (const auto& m : modes::list()) {
+            out.push_back({
+                {"name", m.name},
+                {"description", m.description},
+                {"active", m.name == cur}
+            });
+        }
+        res.set_content(out.dump(), "application/json");
+    });
+
+    svr.Get("/api/modes/active", [](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(json({{"mode", modes::active()}}).dump(), "application/json");
+    });
+
+    svr.Post("/api/modes/active", [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        try {
+            auto j = json::parse(req.body);
+            std::string name = j.value("mode", "");
+            if (!modes::set_active(name)) {
+                json available = json::array();
+                for (const auto& m : modes::list()) available.push_back(m.name);
+                res.status = 404;
+                res.set_content(json({
+                    {"error", "unknown mode"},
+                    {"requested", name},
+                    {"available", available}
+                }).dump(), "application/json");
+                return;
+            }
+            std::cout << "🧠 active mode switched to: " << name << std::endl;
+            res.set_content(json({{"mode", name}}).dump(), "application/json");
+        } catch (const std::exception& e) {
+            std::cerr << "❌ [modes/active] " << e.what() << std::endl;
+            res.status = 400;
+            res.set_content(json({{"error", e.what()}}).dump(), "application/json");
+        }
+    });
+
+    // 5. Swarm dispatch — delegate to active mode
     svr.Post("/api/architect", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "\n🚀 [Swarm Matrix] Incoming broadcast" << std::endl;
@@ -224,15 +184,44 @@ int main(int argc, char* argv[]) {
             double temperature = j_body.value("temperature", 0.7);
             std::cout << "📝 Prompt: " << user_prompt << std::endl;
 
-            json response_json = run_parallel_swarm(agents, user_prompt);
+            const std::string mode_name = modes::active();
+            const Mode* mode = modes::get(mode_name);
+            if (!mode) {
+                res.status = 500;
+                res.set_content(json({{"error", "no active mode registered"}}).dump(),
+                                "application/json");
+                return;
+            }
+
+            const json& cfg_for_mode = modes_config.contains(mode_name)
+                ? modes_config[mode_name] : json::object();
+            ModeContext ctx{agents, user_prompt, temperature, cfg_for_mode};
+
+            json envelope;
+            try { envelope = mode->run(ctx); }
+            catch (const std::exception& e) {
+                std::cerr << "❌ [mode:" << mode_name << "] " << e.what() << std::endl;
+                res.status = 500;
+                res.set_content(json({{"error", e.what()}, {"mode", mode_name}}).dump(),
+                                "application/json");
+                return;
+            }
 
             auto now = std::chrono::system_clock::now();
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now.time_since_epoch()).count();
-            json entry = response_json;
+
+            // History entry preserves the legacy flat shape (agent_name → text +
+            // prompt/temperature/timestamp) so existing UI history handling is
+            // unaffected. The envelope's agents map is unwrapped into the entry.
+            json entry = envelope.value("agents", json::object());
             entry["prompt"] = user_prompt;
             entry["temperature"] = temperature;
             entry["timestamp"] = ms;
+            if (!envelope.value("final", json()).is_null()) {
+                entry["_final"] = envelope["final"];
+            }
+            if (envelope.contains("mode")) entry["_mode"] = envelope["mode"];
 
             {
                 std::lock_guard<std::mutex> lock(history_mutex);
@@ -240,8 +229,8 @@ int main(int argc, char* argv[]) {
                 save_history();
             }
 
-            res.set_content(response_json.dump(), "application/json");
-            std::cout << "✅ [Swarm Matrix] Response sent" << std::endl;
+            res.set_content(envelope.dump(), "application/json");
+            std::cout << "✅ [Swarm Matrix] Response sent (mode=" << mode_name << ")" << std::endl;
 
         } catch (const std::exception& e) {
             std::cerr << "❌ [Swarm Matrix] Error: " << e.what() << std::endl;
@@ -250,7 +239,7 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    // 5. Clear KV cache on all llama-server slots
+    // 6. Clear KV cache on all llama-server slots
     svr.Post("/api/clear-cache", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "\n🗑️  [Swarm Matrix] Clearing KV cache on all agents..." << std::endl;
@@ -297,7 +286,7 @@ int main(int argc, char* argv[]) {
         std::cout << "✅ [Swarm Matrix] KV cache clear complete" << std::endl;
     });
 
-    // 6. CORS preflight
+    // 7. CORS preflight
     svr.Options(R"(/api/.*)", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -305,10 +294,7 @@ int main(int argc, char* argv[]) {
         res.status = 204;
     });
 
-    std::cout << "========================================" << std::endl;
     std::cout << "🌐 Swarm Matrix coordinator ONLINE (port 8000)" << std::endl;
-    std::cout << "========================================" << std::endl;
-
     svr.listen("0.0.0.0", 8000);
     return 0;
 }

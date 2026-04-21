@@ -1,5 +1,5 @@
 {
-  "_ram_tier": "16GB/24GB — M2 16GB, M2 Pro 16-24GB, M4 16-24GB, M4 Pro 24GB. 3B+2B models only, 9 agents across 3 ports. ~8.3 GB total, ~3.7 GB headroom on 16 GB.",
+  "_ram_tier": "16GB/24GB \u2014 M2 16GB, M2 Pro 16-24GB, M4 16-24GB, M4 Pro 24GB. 3B+2B models only, 9 agents across 3 ports. ~8.3 GB total, ~3.7 GB headroom on 16 GB.",
   "agents": [
     {
       "name": "architect",
@@ -102,7 +102,9 @@
     }
   ],
   "coordinator": {
-    "port": 8000
+    "port": 8000,
+    "default_mode": "flat",
+    "modes": {}
   },
   "ui": {
     "port": 3000
