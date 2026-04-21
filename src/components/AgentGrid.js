@@ -4,6 +4,13 @@ import CodeDisplay from './CodeDisplay';
 import { getAgentColor } from '../utils/agentColors';
 import { extractCodeBlock } from '../utils/codeExtractor';
 
+const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
+const modelDisplayName = (m) => {
+  if (!m) return null;
+  const s = String(m);
+  return s.includes('/') ? s.split('/').pop() : s;
+};
+
 function AgentGrid({ activeAgents, responses, loading, onSaveCode }) {
   const hasAnyCode = activeAgents.some(({ name }) => {
     const r = responses[name];
@@ -17,7 +24,7 @@ function AgentGrid({ activeAgents, responses, loading, onSaveCode }) {
     ? extractCodeBlock(programmerResp)
     : { code: null, language: null };
 
-  const renderCard = ({ name, port }) => (
+  const renderCard = ({ name, port, model, backend, engine }) => (
     <AgentResponse
       key={name}
       name={name.toUpperCase()}
@@ -25,6 +32,8 @@ function AgentGrid({ activeAgents, responses, loading, onSaveCode }) {
       response={responses[name] || null}
       color={getAgentColor(name)}
       loading={loading}
+      model={modelDisplayName(model)}
+      engine={ENGINE_LABELS[backend || engine] || backend || engine || null}
     />
   );
 

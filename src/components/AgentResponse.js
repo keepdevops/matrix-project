@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AgentEditorModal from './AgentEditorModal';
 
-function AgentResponse({ name, response, color = '#00ff41', loading = false, port }) {
+function AgentResponse({ name, response, color = '#00ff41', loading = false, port, model, engine }) {
   const [showModal, setShowModal] = useState(false);
 
   const getStatusClass = () => {
@@ -35,6 +35,12 @@ function AgentResponse({ name, response, color = '#00ff41', loading = false, por
             </button>
           )}
         </div>
+        {(model || engine) && (
+          <div className="agent-meta">
+            <span className="agent-meta-item">MODEL: {model || '—'}</span>
+            <span className="agent-meta-item">ENGINE: {engine || '—'}</span>
+          </div>
+        )}
         <div className="agent-content">
           {loading ? (
             <div className="loading-spinner">

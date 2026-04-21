@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { useSwarm } from './hooks/useSwarm';
-import { clearCache, fetchAgents } from './api/swarmApi';
+import { clearCache, fetchAgents, fetchSwarmConfig, fetchModels } from './api/swarmApi';
 import PromptInput from './components/PromptInput';
 import AgentGrid from './components/AgentGrid';
 import SwarmConfig from './components/SwarmConfig';
@@ -42,8 +42,35 @@ function App() {
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [cacheStatus, setCacheStatus] = useState('idle');
 
+  const [agentMeta, setAgentMeta] = useState({}); // { [name]: { model, backend } }
+
   const refreshAgents = () =>
-    fetchAgents().then(setActiveAgents).catch(() => {});
+    fetchAgents()
+      .then(agents => {
+        setActiveAgents(agents.map(a => ({
+          ...a,
+          model: a.model || agentMeta[a.name]?.model || null,
+          backend: a.backend || agentMeta[a.name]?.backend || null,
+        })));
+      })
+      .catch(() => {});
+
+  useEffect(() => {
+    Promise.all([fetchSwarmConfig().catch(() => null), fetchModels().catch(() => [])])
+      .then(([cfg, models]) => {
+        if (!cfg?.agents) return;
+        const pathToBackend = Object.fromEntries((models || []).map(m => [m.path, m.backend]));
+        const meta = {};
+        cfg.agents.forEach(a => {
+          meta[a.name] = {
+            model: a.model || null,
+            backend: a.backend || a.engine || pathToBackend[a.model] || null,
+          };
+        });
+        setAgentMeta(meta);
+      })
+      .catch(err => console.error('Failed to load agent metadata:', err));
+  }, []);
 
   useEffect(() => {
     checkStatus();
