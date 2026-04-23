@@ -287,7 +287,17 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
             std::cout << "[Configure] DOCKER-vLLM :" << port << " gpu_mem=" << gmu_buf
                       << " [" << join(g.names) << "]\n";
         } else {
-            int ctx = std::min(g.context, 8192) * (int)g.names.size();
+            int per_agent = std::min(g.context, 8192);
+            int ctx = per_agent * (int)g.names.size();
+            const int ctx_cap = 16384;
+            if (ctx > ctx_cap) {
+                std::cerr << "[Configure] WARNING: effective ctx "
+                          << ctx << " exceeds cap " << ctx_cap
+                          << " on port " << port << "; truncating. "
+                          << "Lower per-agent 'context' in swarm-config.json "
+                          << "to avoid Metal OOM." << std::endl;
+                ctx = ctx_cap;
+            }
             spawn_detached(g_env.llama_server_bin,
                 {"-m",g.model,"-c",std::to_string(ctx),"--port",ps,
                  "--n-gpu-layers",std::to_string(g.gpu_layers),

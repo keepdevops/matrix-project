@@ -705,6 +705,53 @@ h1 {
   color: #c9d1d9;
 }
 
+.swarm-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.swarm-profile-label {
+  color: #888;
+  font-size: 0.72rem;
+  letter-spacing: 0.8px;
+  min-width: 52px;
+}
+
+.swarm-profile-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.swarm-profile-btn {
+  border: 1px solid #2a3341;
+  background: #0d1117;
+  color: #8e9aab;
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.8px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.swarm-profile-btn:hover {
+  border-color: #648FFF;
+  color: #c9d1d9;
+}
+
+.swarm-profile-btn.active {
+  color: #00ff41;
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.08);
+}
+
+.swarm-profile-note {
+  color: #667487;
+  font-size: 0.72rem;
+}
+
 /* VRAM layout preview */
 .swarm-layout {
   display: flex;
@@ -762,6 +809,124 @@ h1 {
   font-style: italic;
   font-size: 0.85rem;
   padding: 10px 0;
+}
+
+.swarm-risk-card {
+  border: 1px solid #2b2f36;
+  border-left: 4px solid #2b2f36;
+  background: #0d1117;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.swarm-risk-card.risk-low {
+  border-left-color: #00ff41;
+}
+
+.swarm-risk-card.risk-medium {
+  border-left-color: #ffb000;
+}
+
+.swarm-risk-card.risk-high {
+  border-left-color: #ff4b2b;
+}
+
+.swarm-risk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #9da7b3;
+  font-size: 0.74rem;
+  letter-spacing: 0.8px;
+  font-weight: bold;
+}
+
+.swarm-risk-badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.68rem;
+}
+
+.swarm-risk-badge.risk-low {
+  color: #00ff41;
+}
+
+.swarm-risk-badge.risk-medium {
+  color: #ffb000;
+}
+
+.swarm-risk-badge.risk-high {
+  color: #ff4b2b;
+}
+
+.swarm-risk-score {
+  color: #c9d1d9;
+  font-size: 0.78rem;
+}
+
+.swarm-risk-mixed {
+  color: #648FFF;
+  font-size: 0.72rem;
+  border: 1px solid #648FFF44;
+  background: rgba(100, 143, 255, 0.08);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.swarm-risk-hint {
+  color: #667487;
+  font-size: 0.72rem;
+}
+
+.swarm-risk-block {
+  color: #ff4b2b;
+  border: 1px solid #ff4b2b66;
+  border-radius: 4px;
+  background: rgba(255, 75, 43, 0.08);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+}
+
+.swarm-risk-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.swarm-risk-row {
+  border: 1px solid #202833;
+  background: #0a0f14;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.swarm-risk-model {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #b6c0cd;
+  font-size: 0.74rem;
+}
+
+.swarm-risk-engine {
+  color: #8a97aa;
+}
+
+.swarm-risk-math {
+  color: #8a97aa;
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+
+.swarm-risk-warn {
+  color: #ffb000;
+  font-size: 0.68rem;
+  margin-top: 3px;
 }
 
 .swarm-config-offline {

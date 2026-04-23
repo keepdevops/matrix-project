@@ -117,6 +117,7 @@ int main(int argc, char* argv[]) {
         for (const auto& a : agents) {
             json obj = {{"name", a.name}, {"port", a.port}, {"engine", a.engine}};
             if (!a.backend.empty()) obj["backend"] = a.backend;
+            if (!a.model.empty())   obj["model"]   = a.model;
             list.push_back(obj);
         }
         res.set_content(list.dump(), "application/json");
@@ -178,6 +179,11 @@ int main(int argc, char* argv[]) {
     svr.Post("/api/architect", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "\n🚀 [Swarm Matrix] Incoming broadcast" << std::endl;
+        if (req.body.empty()) {
+            res.status = 400;
+            res.set_content("{\"error\":\"empty body\"}", "application/json");
+            return;
+        }
         try {
             auto j_body = json::parse(req.body);
             std::string user_prompt = j_body.value("prompt", "");

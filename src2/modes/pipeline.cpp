@@ -1,6 +1,7 @@
 #include "mode.h"
 #include "../agent_client.h"
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -9,6 +10,50 @@
 using json = nlohmann::json;
 
 namespace {
+
+bool is_mlx_centric_run(const std::vector<Agent>& agents) {
+    int mlx = 0;
+    int other = 0;
+    for (const auto& a : agents) {
+        if (a.engine == "mlx" || a.backend == "mlx") ++mlx;
+        else ++other;
+    }
+    return mlx > 0 && mlx >= other;
+}
+
+std::vector<std::string> preferred_names(const std::vector<Agent>& agents,
+                                         const std::vector<std::string>& preferred) {
+    std::vector<std::string> active;
+    active.reserve(agents.size());
+    for (const auto& a : agents) active.push_back(a.name);
+    std::vector<std::string> out;
+    for (const auto& p : preferred) {
+        if (std::find(active.begin(), active.end(), p) != active.end()) out.push_back(p);
+    }
+    return out;
+}
+
+std::vector<std::string> default_pipeline_order(const std::vector<Agent>& agents) {
+    if (agents.empty()) return {};
+
+    if (is_mlx_centric_run(agents)) {
+        // MLX-centric chain: start with mlx-coder if present, then coordinator-like roles.
+        auto mlx_pref = preferred_names(agents, {
+            "mlx-coder", "foreman", "api", "documenter", "scout",
+            "architect", "programmer"
+        });
+        if (!mlx_pref.empty()) return mlx_pref;
+    }
+
+    // Prefer classic coding chain if available.
+    auto classic = preferred_names(agents, {"architect", "programmer"});
+    if (!classic.empty()) return classic;
+
+    // Fallback: first two active agents in config order (or one if only one active).
+    std::vector<std::string> out{agents.front().name};
+    if (agents.size() > 1) out.push_back(agents[1].name);
+    return out;
+}
 
 // Build the staged prompt fed to stage N>1: original request + previous output.
 std::string build_staged_prompt(const std::string& user_prompt,
@@ -31,16 +76,41 @@ json run_pipeline(const ModeContext& ctx) {
     json agent_outputs = json::object();
     json meta = json::object();
 
-    if (!ctx.mode_config.contains("order") || !ctx.mode_config["order"].is_array()
-        || ctx.mode_config["order"].empty()) {
-        std::cerr << "❌ [pipeline] mode_config.order missing or empty" << std::endl;
-        meta["error"] = "pipeline.order not configured";
-        return json{
-            {"mode", "pipeline"},
-            {"agents", agent_outputs},
-            {"final", nullptr},
-            {"meta", meta}
-        };
+    std::vector<std::string> effective_order;
+    bool fallback_order_used = false;
+    if (ctx.mode_config.contains("order") && ctx.mode_config["order"].is_array()
+        && !ctx.mode_config["order"].empty()) {
+        for (const auto& item : ctx.mode_config["order"]) {
+            if (item.is_string()) effective_order.push_back(item.get<std::string>());
+        }
+    }
+    if (!effective_order.empty() && is_mlx_centric_run(ctx.agents)) {
+        // In MLX-centric runs, require mlx-coder to participate when available.
+        std::unordered_map<std::string, const Agent*> by_name_for_check;
+        for (const auto& a : ctx.agents) by_name_for_check[a.name] = &a;
+        const bool has_mlx_coder = by_name_for_check.find("mlx-coder") != by_name_for_check.end();
+        bool order_has_mlx_coder = false;
+        for (const auto& n : effective_order) if (n == "mlx-coder") { order_has_mlx_coder = true; break; }
+        if (has_mlx_coder && !order_has_mlx_coder) {
+            effective_order = default_pipeline_order(ctx.agents);
+            fallback_order_used = true;
+            std::cerr << "⚠️  [pipeline] overriding static order for MLX-centric run (mlx-coder not in order)" << std::endl;
+        } else if (has_mlx_coder && order_has_mlx_coder && !effective_order.empty()
+                   && effective_order.front() != "mlx-coder") {
+            // Keep configured order but move mlx-coder to the front for MLX-centric runs.
+            std::vector<std::string> reordered;
+            reordered.reserve(effective_order.size());
+            reordered.push_back("mlx-coder");
+            for (const auto& n : effective_order) if (n != "mlx-coder") reordered.push_back(n);
+            effective_order.swap(reordered);
+            fallback_order_used = true;
+            std::cerr << "⚠️  [pipeline] reordered static order for MLX-centric run (mlx-coder first)" << std::endl;
+        }
+    }
+    if (effective_order.empty()) {
+        effective_order = default_pipeline_order(ctx.agents);
+        fallback_order_used = true;
+        std::cerr << "⚠️  [pipeline] using fallback order from active agents" << std::endl;
     }
 
     std::unordered_map<std::string, const Agent*> by_name;
@@ -49,16 +119,13 @@ json run_pipeline(const ModeContext& ctx) {
     std::vector<std::string> executed;
     std::vector<std::string> missing;
 
-    const auto& order = ctx.mode_config["order"];
     std::string prev_agent;
     std::string prev_output;
     std::string final_output;
 
-    const size_t total = order.size();
+    const size_t total = effective_order.size();
     size_t step = 0;
-    for (const auto& item : order) {
-        if (!item.is_string()) continue;
-        const std::string name = item.get<std::string>();
+    for (const auto& name : effective_order) {
         auto it = by_name.find(name);
         if (it == by_name.end()) {
             std::cerr << "⚠️  [pipeline] skipping unknown agent '" << name << "'" << std::endl;
@@ -82,9 +149,24 @@ json run_pipeline(const ModeContext& ctx) {
     }
 
     if (executed.empty()) {
-        std::cerr << "❌ [pipeline] no agents from order matched active agents" << std::endl;
-        meta["error"] = "no agents in 'order' matched active agents";
+        // Last-resort fallback: run first active agent so mode always produces output.
+        if (!ctx.agents.empty()) {
+            const Agent& a0 = ctx.agents.front();
+            std::cerr << "⚠️  [pipeline] no configured agents matched; falling back to "
+                      << a0.name << std::endl;
+            std::string result = call_agent(a0, ctx.user_prompt);
+            agent_outputs[a0.name] = result;
+            final_output = result;
+            executed.push_back(a0.name);
+            meta["fallback_single_agent"] = a0.name;
+        }
+    }
+
+    if (executed.empty()) {
+        std::cerr << "❌ [pipeline] no active agents available" << std::endl;
+        meta["error"] = "no active agents available for pipeline";
         meta["missing"] = missing;
+        meta["fallback_order_used"] = fallback_order_used;
         return json{
             {"mode", "pipeline"},
             {"agents", agent_outputs},
@@ -97,6 +179,7 @@ json run_pipeline(const ModeContext& ctx) {
 
     meta["order"] = executed;
     meta["missing"] = missing;
+    meta["fallback_order_used"] = fallback_order_used;
     return json{
         {"mode", "pipeline"},
         {"agents", agent_outputs},

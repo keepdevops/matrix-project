@@ -1,8 +1,11 @@
 #include "mode.h"
 #include "../agent_client.h"
 
+#include <algorithm>
+#include <cctype>
 #include <future>
 #include <iostream>
+#include <regex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -13,6 +16,110 @@ using json = nlohmann::json;
 
 namespace {
 
+bool is_mlx_agent(const Agent& a) {
+    return a.engine == "mlx" || a.backend == "mlx";
+}
+
+bool is_mlx_centric_run(const std::vector<Agent>& agents) {
+    int mlx = 0;
+    int other = 0;
+    for (const auto& a : agents) {
+        if (is_mlx_agent(a)) ++mlx;
+        else ++other;
+    }
+    return mlx > 0 && mlx >= other;
+}
+
+std::vector<std::string> mlx_first_agents(const std::vector<Agent>& agents,
+                                          const std::string& exclude = "") {
+    std::vector<std::string> mlx;
+    std::vector<std::string> other;
+    for (const auto& a : agents) {
+        if (!exclude.empty() && a.name == exclude) continue;
+        if (is_mlx_agent(a)) mlx.push_back(a.name);
+        else other.push_back(a.name);
+    }
+    mlx.insert(mlx.end(), other.begin(), other.end());
+    return mlx;
+}
+
+std::vector<std::string> mlx_priority_targets(const std::vector<Agent>& agents,
+                                              const std::string& exclude = "") {
+    std::vector<std::string> active;
+    active.reserve(agents.size());
+    for (const auto& a : agents) {
+        if (!exclude.empty() && a.name == exclude) continue;
+        active.push_back(a.name);
+    }
+    std::vector<std::string> out;
+    std::vector<std::string> preferred = {
+        "foreman", "api", "documenter", "scout",
+        "mlx-coder", "architect", "programmer", "tester", "devops"
+    };
+    for (const auto& p : preferred) {
+        for (const auto& n : active) {
+            if (n == p) { out.push_back(n); break; }
+        }
+    }
+    // Append any active names not already present.
+    std::unordered_set<std::string> seen(out.begin(), out.end());
+    for (const auto& n : active) if (!seen.count(n)) out.push_back(n);
+    return out;
+}
+
+std::vector<std::string> mlx_strict_fallback_order(const std::vector<Agent>& agents,
+                                                   const std::string& exclude = "") {
+    std::vector<std::string> active;
+    active.reserve(agents.size());
+    for (const auto& a : agents) {
+        if (!exclude.empty() && a.name == exclude) continue;
+        active.push_back(a.name);
+    }
+    // Tier-1: MLX-support/coordinator roles.
+    const std::vector<std::string> tier1 = {
+        "foreman", "api", "documenter", "scout", "mlx-coder", "tester", "devops"
+    };
+    // Tier-2: coding/heavy roles, only after tier1 is exhausted.
+    const std::vector<std::string> tier2 = {
+        "architect", "programmer", "reviewer", "security", "optimizer",
+        "specialist", "database", "frontend", "synthesis"
+    };
+    std::vector<std::string> out;
+    out.reserve(active.size());
+    auto append_if_active = [&](const std::vector<std::string>& tier) {
+        for (const auto& p : tier) {
+            for (const auto& n : active) {
+                if (n == p) { out.push_back(n); break; }
+            }
+        }
+    };
+    append_if_active(tier1);
+    append_if_active(tier2);
+    // Append any active names not already present.
+    std::unordered_set<std::string> seen(out.begin(), out.end());
+    for (const auto& n : active) if (!seen.count(n)) out.push_back(n);
+    return out;
+}
+
+bool contains_any(const std::vector<std::string>& xs, const std::unordered_set<std::string>& set) {
+    for (const auto& x : xs) if (set.count(x)) return true;
+    return false;
+}
+
+std::string choose_classifier(const std::vector<Agent>& agents, bool mlx_centric) {
+    auto has = [&](const std::string& n) {
+        for (const auto& a : agents) if (a.name == n) return true;
+        return false;
+    };
+    if (mlx_centric) {
+        if (has("mlx-coder")) return "mlx-coder";
+        if (has("foreman")) return "foreman";
+    } else {
+        if (has("foreman")) return "foreman";
+    }
+    return agents.empty() ? std::string() : agents.front().name;
+}
+
 std::vector<std::string> as_string_vec(const json& j) {
     std::vector<std::string> out;
     if (!j.is_array()) return out;
@@ -22,63 +129,110 @@ std::vector<std::string> as_string_vec(const json& j) {
     return out;
 }
 
-// Extract a JSON array from the classifier's raw text. Accepts a bare array or
-// one fenced inside markdown. Returns empty vector + sets parse_ok=false on
-// failure. Any parse failure is caller's cue to use fallback.
-std::vector<std::string> parse_classifier_reply(const std::string& raw, bool& parse_ok) {
-    parse_ok = false;
-    auto lb = raw.find('[');
-    auto rb = raw.rfind(']');
-    if (lb == std::string::npos || rb == std::string::npos || rb <= lb) {
-        return {};
-    }
-    std::string slice = raw.substr(lb, rb - lb + 1);
-    try {
-        json arr = json::parse(slice);
-        auto names = as_string_vec(arr);
-        parse_ok = true;
-        return names;
-    } catch (const std::exception& e) {
-        std::cerr << "❌ [router] classifier JSON parse failed: " << e.what() << std::endl;
-        return {};
-    }
-}
+// Parse "SELECTED: a, b, c" line if present. Returns ordered, deduped names
+// drawn from `choice_set`. Case-insensitive on names; tolerant of whitespace
+// and surrounding markdown (e.g. "**SELECTED:** a, b").
+std::vector<std::string> parse_selected_line(
+    const std::string& raw,
+    const std::unordered_set<std::string>& choice_set) {
+    std::vector<std::string> out;
+    std::regex line_re(R"((?:^|\n)[^\n]*\bSELECTED\s*:\s*([^\n]+))",
+                       std::regex::icase);
+    std::smatch m;
+    if (!std::regex_search(raw, m, line_re)) return out;
 
-std::string build_classifier_system(const std::vector<std::string>& choices,
-                                    int max_select) {
-    std::string list = "[";
-    for (size_t i = 0; i < choices.size(); ++i) {
-        if (i) list += ", ";
-        list += "\"" + choices[i] + "\"";
+    std::string list = m[1].str();
+    std::unordered_set<std::string> choice_lower;
+    std::unordered_map<std::string, std::string> lower_to_canonical;
+    for (const auto& n : choice_set) {
+        std::string l = n;
+        std::transform(l.begin(), l.end(), l.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        choice_lower.insert(l);
+        lower_to_canonical[l] = n;
     }
-    list += "]";
-    std::string out;
-    out.reserve(list.size() + 320);
-    out += "You are a routing classifier. Your ONLY job is to choose between 1 and ";
-    out += std::to_string(max_select);
-    out += " agent names from this exact list: ";
-    out += list;
-    out += ".\nReply with ONLY a JSON array of names from that list. No prose. No markdown. No explanation. No code fences.\n";
-    out += "Example valid reply: [\"programmer\"]\n";
-    out += "Example valid reply: [\"architect\",\"reviewer\"]";
+
+    std::unordered_set<std::string> seen;
+    std::regex tok_re(R"([A-Za-z][A-Za-z0-9_-]*)");
+    auto begin = std::sregex_iterator(list.begin(), list.end(), tok_re);
+    auto end = std::sregex_iterator();
+    for (auto it = begin; it != end; ++it) {
+        std::string tok = it->str();
+        std::transform(tok.begin(), tok.end(), tok.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (!choice_lower.count(tok)) continue;
+        if (seen.insert(tok).second) out.push_back(lower_to_canonical[tok]);
+    }
     return out;
 }
 
-std::string build_classifier_user(const std::string& user_prompt) {
-    return "User request:\n<<<\n" + user_prompt + "\n>>>";
+// Fallback: ordered, deduped agent names mentioned anywhere in `raw`, drawn
+// from `choice_set`. Word-boundary match avoids substring false positives
+// (e.g. "programmer" inside "reprogrammer").
+std::vector<std::string> extract_names_from_plan(
+    const std::string& raw,
+    const std::unordered_set<std::string>& choice_set) {
+    auto selected = parse_selected_line(raw, choice_set);
+    if (!selected.empty()) return selected;
+
+    std::string lower = raw;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    std::vector<std::pair<size_t, std::string>> hits;
+    hits.reserve(choice_set.size());
+    for (const auto& name : choice_set) {
+        std::string pat = name;
+        std::transform(pat.begin(), pat.end(), pat.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        try {
+            std::regex re("\\b" + pat + "\\b");
+            std::smatch m;
+            if (std::regex_search(lower, m, re)) {
+                hits.emplace_back((size_t)m.position(0), name);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "⚠️  [router] regex error for '" << name << "': "
+                      << e.what() << std::endl;
+        }
+    }
+    std::sort(hits.begin(), hits.end(),
+              [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    std::vector<std::string> out;
+    out.reserve(hits.size());
+    for (const auto& h : hits) out.push_back(h.second);
+    return out;
 }
 
 json run_router(const ModeContext& ctx) {
     const auto& cfg = ctx.mode_config;
     json meta = json::object();
+    const bool mlx_centric = is_mlx_centric_run(ctx.agents);
 
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : ctx.agents) by_name[a.name] = &a;
 
     std::string classifier_name = cfg.value("classifier", std::string(""));
+    const std::string configured_classifier = classifier_name;
     int max_select = cfg.value("max_select", 3);
     std::vector<std::string> fallback = cfg.contains("fallback")
         ? as_string_vec(cfg["fallback"]) : std::vector<std::string>{};
+
+    bool fallback_classifier_used = false;
+    bool mlx_classifier_override_used = false;
+    if (mlx_centric && by_name.find("mlx-coder") != by_name.end()
+        && classifier_name != "mlx-coder") {
+        classifier_name = "mlx-coder";
+        mlx_classifier_override_used = true;
+        std::cerr << "⚠️  [router] MLX-centric run: overriding classifier to 'mlx-coder'"
+                  << (configured_classifier.empty() ? "" : " (from config '" + configured_classifier + "')")
+                  << std::endl;
+    }
+    if (classifier_name.empty() || by_name.find(classifier_name) == by_name.end()) {
+        classifier_name = choose_classifier(ctx.agents, mlx_centric);
+        fallback_classifier_used = true;
+    }
 
     std::vector<std::string> choices = cfg.contains("choices")
         ? as_string_vec(cfg["choices"]) : std::vector<std::string>{};
@@ -87,11 +241,18 @@ json run_router(const ModeContext& ctx) {
             if (a.name != classifier_name) choices.push_back(a.name);
         }
     }
+    if (mlx_centric && !choices.empty()) {
+        // Reorder with strict MLX-centric priority (tier1 before architect/programmer).
+        std::vector<std::string> preferred = mlx_strict_fallback_order(ctx.agents, classifier_name);
+        std::unordered_set<std::string> allowed(choices.begin(), choices.end());
+        std::vector<std::string> reordered;
+        for (const auto& n : preferred) if (allowed.count(n)) reordered.push_back(n);
+        if (!reordered.empty()) choices = reordered;
+    }
     std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
 
     if (classifier_name.empty() || by_name.find(classifier_name) == by_name.end()) {
-        std::cerr << "❌ [router] classifier '" << classifier_name
-                  << "' not found among active agents" << std::endl;
+        std::cerr << "❌ [router] no active agents available for classifier" << std::endl;
         meta["error"] = "classifier not available";
         meta["classifier"] = classifier_name;
         return json{
@@ -102,17 +263,30 @@ json run_router(const ModeContext& ctx) {
         };
     }
 
+    if (mlx_centric) {
+        // Strict MLX policy: ignore configured fallback and enforce tiered MLX-priority.
+        fallback.clear();
+        const auto candidates = mlx_strict_fallback_order(ctx.agents, classifier_name);
+        for (const auto& n : candidates) {
+            fallback.push_back(n);
+            if ((int)fallback.size() >= max_select) break;
+        }
+    } else if (fallback.empty()) {
+        // Non-MLX: keep existing behavior.
+        for (const auto& a : ctx.agents) {
+            if (a.name == classifier_name) continue;
+            fallback.push_back(a.name);
+            if ((int)fallback.size() >= max_select) break;
+        }
+    }
+
     std::cout << "🧭 [router] classifier=" << classifier_name
               << " choices=" << choices.size()
               << " max_select=" << max_select << std::endl;
 
-    const std::string classifier_system = build_classifier_system(choices, max_select);
-    const std::string classifier_user = build_classifier_user(ctx.user_prompt);
-    const std::string raw = call_agent_with_system(
-        *by_name[classifier_name], classifier_system, classifier_user);
+    const std::string raw = call_agent(*by_name[classifier_name], ctx.user_prompt);
 
-    bool parse_ok = false;
-    std::vector<std::string> parsed = parse_classifier_reply(raw, parse_ok);
+    std::vector<std::string> parsed = extract_names_from_plan(raw, choice_set);
 
     std::vector<std::string> selected;
     std::unordered_set<std::string> seen;
@@ -124,6 +298,14 @@ json run_router(const ModeContext& ctx) {
     }
 
     bool fallback_used = false;
+    const std::unordered_set<std::string> mlx_prioritized = {"foreman", "api", "documenter", "scout", "mlx-coder"};
+    if (mlx_centric && !selected.empty() && !contains_any(selected, mlx_prioritized)) {
+        // If classifier chose only late coding roles, bias toward MLX-centric defaults.
+        fallback_used = true;
+        selected.clear();
+        seen.clear();
+        std::cerr << "⚠️  [router] MLX-centric run: classifier selection not mlx-priority; using fallback" << std::endl;
+    }
     if (selected.empty()) {
         fallback_used = true;
         std::cerr << "⚠️  [router] no valid selection; using fallback" << std::endl;
@@ -131,6 +313,16 @@ json run_router(const ModeContext& ctx) {
             if (by_name.find(name) == by_name.end()) continue;
             if (seen.insert(name).second) selected.push_back(name);
             if ((int)selected.size() >= max_select) break;
+        }
+        if (selected.empty()) {
+            // Final safety net: pick first active non-classifier agents.
+            const auto final_candidates = mlx_centric
+                ? mlx_strict_fallback_order(ctx.agents, classifier_name)
+                : mlx_first_agents(ctx.agents, classifier_name);
+            for (const auto& n : final_candidates) {
+                if (seen.insert(n).second) selected.push_back(n);
+                if ((int)selected.size() >= max_select) break;
+            }
         }
     }
 
@@ -160,10 +352,13 @@ json run_router(const ModeContext& ctx) {
     }
 
     meta["classifier"] = classifier_name;
+    if (!configured_classifier.empty()) meta["configured_classifier"] = configured_classifier;
     meta["selected"] = selected;
     meta["classifier_raw"] = raw;
     meta["fallback_used"] = fallback_used;
-    meta["parse_ok"] = parse_ok;
+    meta["fallback_classifier_used"] = fallback_classifier_used;
+    meta["mlx_classifier_override_used"] = mlx_classifier_override_used;
+    meta["mlx_centric"] = mlx_centric;
 
     return json{
         {"mode", "router"},

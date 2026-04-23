@@ -19,7 +19,17 @@ export function useSwarm() {
       // submitPrompt returns { mode, agents, final, meta }; store the flat
       // agents map so existing consumers (AgentGrid, handleSaveCode, history
       // selection) keep seeing the same shape as before.
-      setResponses(result.agents || {});
+      const merged = { ...(result.agents || {}) };
+      // In router mode the classifier (e.g. foreman) doesn't appear in
+      // `agents` because it didn't answer the user prompt — it produced the
+      // routing plan. Surface that plan under the classifier's tile so the
+      // user can see why the selected agents were chosen.
+      const classifier = result?.meta?.classifier;
+      const classifierRaw = result?.meta?.classifier_raw;
+      if (classifier && classifierRaw && merged[classifier] == null) {
+        merged[classifier] = classifierRaw;
+      }
+      setResponses(merged);
       setFinalAnswer(result.final || null);
       return result;
     } catch (err) {
