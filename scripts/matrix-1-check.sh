@@ -39,14 +39,16 @@ echo "NUMBER llama-server="  `ps -ef | grep llama-server | grep -v grep | wc -l`
 echo "------------------------------------------------------------"
 echo "NUMBER mlx lm server=" `ps -ef | grep mlx          | grep -v grep | wc -l`
 echo "------------------------------------------------------------"
+echo "node                =" `ps -ef | grep react        | grep -v grep | wc -l`
+echo "------------------------------------------------------------"
 
 
 lsof -i :8000
 echo "------------------------------------------------------------"
-ps aux | grep coordinator
+ps aux | grep coordinator | grep -v grep
 echo "------------------------------------------------------------"
 curl http://127.0.0.1:8000/api/health 
 echo "------------------------------------------------------------"
-curl http://127.0.0.1:8000/api/agents                                                                                 \n
+curl http://127.0.0.1:8000/api/agents 
 echo "------------------------------------------------------------"
 
