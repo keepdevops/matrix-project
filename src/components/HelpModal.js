@@ -14,11 +14,12 @@ function HelpModal({ onClose }) {
           <div className="help-section">
             <h3>Quick Start</h3>
             <div className="help-steps">
-              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/matrix_launch.sh</code> to start the proxy and UI. Shut down with <code>bash scripts/matrix_shutdown.sh</code>; check memory with <code>bash scripts/matrix_memory_status.sh</code></span></div>
+              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/matrix-1-check.sh</code> for a pre-flight check, then <code>bash scripts/matrix-2-launch.sh</code> to start the proxy and UI. Shut down with <code>bash scripts/matrix-3-shutdown.sh</code></span></div>
               <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX / vLLM) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
               <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span style={{color:'#648FFF'}}>ONLINE</span> (header may show the engine in use, e.g. MLX)</span></div>
-              <div className="help-step"><span className="help-step-n">4</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
-              <div className="help-step"><span className="help-step-n">5</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below</span></div>
+              <div className="help-step"><span className="help-step-n">4</span><span>Pick an orchestration <strong>MODE</strong> (flat / pipeline / router) from the header dropdown</span></div>
+              <div className="help-step"><span className="help-step-n">5</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
+              <div className="help-step"><span className="help-step-n">6</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below; click <strong>⤢</strong> on any card for a full-screen CodeMirror editor</span></div>
             </div>
           </div>
 
@@ -27,6 +28,8 @@ function HelpModal({ onClose }) {
             <dl>
               <dt>ONLINE / OFFLINE</dt>
               <dd>Coordinator status. When ONLINE, the header shows which inference engine(s) are in use (e.g. MLX). OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
+              <dt>MODE: FLAT / PIPELINE / ROUTER</dt>
+              <dd>Orchestration strategy. <strong>flat</strong> broadcasts the prompt to every active agent in parallel (no reducer). <strong>pipeline</strong> chains agents sequentially — each receives the previous agent's output. <strong>router</strong> uses a classifier agent to pick a subset of agents that are best for the prompt and only sends to those. Switch any time; the active mode is persisted on the coordinator.</dd>
               <dt>CONFIGURE</dt>
               <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX / vLLM); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
               <dt>CLEAR KV</dt>
@@ -42,7 +45,7 @@ function HelpModal({ onClose }) {
             <h3>Submitting a Prompt</h3>
             <dl>
               <dt>Prompt box</dt>
-              <dd>Every selected agent receives the <strong>same</strong> user prompt in parallel. There is no sequential “pipeline” — responses are independent unless you design that in the prompt.</dd>
+              <dd>The prompt is dispatched according to the active <strong>MODE</strong>. In <em>flat</em> every selected agent receives the same prompt in parallel and responses are independent. In <em>pipeline</em> the prompt flows through the agents in order, each consuming the previous output. In <em>router</em> a classifier agent first selects which agents to engage.</dd>
               <dt>Temperature</dt>
               <dd>Default is <code>0.20</code>. For engineering swarms stay in the <code>0.10–0.25</code> range — higher values cause agents to hallucinate roles, invent classes, or contradict each other across 10+ parallel responses. Use <code>0.40–0.70</code> only for architecture brainstorming or open-ended exploration.</dd>
               <dt>BROADCAST / Cmd+Enter</dt>
@@ -124,9 +127,21 @@ function HelpModal({ onClose }) {
           </div>
 
           <div className="help-section">
+            <h3>Orchestration Modes</h3>
+            <dl>
+              <dt>flat</dt>
+              <dd>Default. Broadcast the prompt to every selected agent in parallel; no reducer. Best for cross-referencing answers from different roles on the same question.</dd>
+              <dt>pipeline</dt>
+              <dd>Sequential chain. Each agent receives the previous agent's output as additional context. Pairs naturally with role orderings like architect → programmer → reviewer, or scout → synthesis → programmer.</dd>
+              <dt>router</dt>
+              <dd>A classifier agent inspects the prompt and selects a subset of agents to engage. Saves tokens and time when only a few roles are relevant. Falls back to a default agent if classification fails.</dd>
+            </dl>
+          </div>
+
+          <div className="help-section">
             <h3>Launch</h3>
-            <code className="help-code">bash scripts/matrix_launch.sh</code>
-            <p>Starts the proxy and UI. Use <code>bash scripts/matrix_shutdown.sh</code> to stop and <code>bash scripts/matrix_memory_status.sh</code> to inspect GPU/RAM usage. All swarm configuration is done from the browser. See <strong>README.md</strong> for full documentation.</p>
+            <code className="help-code">bash scripts/matrix-1-check.sh && bash scripts/matrix-2-launch.sh</code>
+            <p>Step 1 verifies ports, binaries, and models. Step 2 starts the proxy (:3002) and React UI (:3000). Use <code>bash scripts/matrix-3-shutdown.sh</code> to stop. Build the C++ binaries with <code>bash scripts/build_cpp_binaries.sh</code>. All swarm configuration is done from the browser. See <strong>README.md</strong> for full documentation.</p>
           </div>
 
         </div>
