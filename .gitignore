@@ -1,11 +1,13 @@
 # Dependencies & build
 node_modules/
 build/
+dist/
 _unused/
 unused/
 bkup*
 _bin/
-bin/
+bin/*
+!bin/matrix.mjs
 archive
 
 # Local env
