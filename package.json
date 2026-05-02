@@ -1,9 +1,9 @@
 {
   "name": "@keepdevops/matrix",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Matrix UI + proxy + coordinator stack — npx-installable on macOS and Linux.",
-  "license": "MIT",
-  "author": "keepdevops",
+  "license": "AGPL-3.0-only",
+  "author": "Bret Kuhne <keepdevops@gmail.com> (Coficube)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/keepdevops/matrix-project.git"
@@ -21,12 +21,14 @@
     "dist/web/",
     "dist/config/",
     "scripts/postinstall.mjs",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "COPYRIGHT"
   ],
   "os": ["darwin", "linux"],
-  "cpu": ["x64", "arm64"],
+  "cpu": ["arm64", "x64"],
   "engines": {
-    "node": ">=18.0.0 <23.0.0",
+    "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
