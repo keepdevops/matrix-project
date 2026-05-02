@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/keepdevops/matrix-project.git"
   },
-  "homepage": "https://github.com/keepdevops/matrix-project#readme",
+  "homepage": ".",
   "bugs": {
     "url": "https://github.com/keepdevops/matrix-project/issues"
   },
