@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-/**
- * User input component for submitting prompts to the swarm
- */
 function PromptInput({ onSubmit, loading = false, disabled = false, externalPrompt, externalTemperature, onPromptConsumed }) {
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.2);
+  const onPromptConsumedRef = useRef(onPromptConsumed);
+  useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; });
 
   // Sync from external source (e.g. history selection)
   useEffect(() => {
     if (externalPrompt !== undefined && externalPrompt !== null) {
       setPrompt(externalPrompt);
-      onPromptConsumed?.();
+      onPromptConsumedRef.current?.();
     }
   }, [externalPrompt]);
 
