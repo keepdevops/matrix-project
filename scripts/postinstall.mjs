@@ -20,7 +20,7 @@ if (process.env.MATRIX_SKIP_POSTINSTALL === '1') {
   process.exit(0);
 }
 
-const SUPPORTED = { darwin: ['arm64'], linux: ['arm64', 'x64'] };
+const SUPPORTED = { darwin: ['arm64', 'x64'], linux: ['arm64', 'x64'] };
 const { platform, arch } = process;
 if (!SUPPORTED[platform]?.includes(arch)) {
   console.warn(
@@ -62,47 +62,100 @@ mkdirSync(distBin, { recursive: true });
 const tmpTar = join(pkgRoot, 'dist', tarName);
 const tmpSha = `${tmpTar}.sha256`;
 
-console.log(`[matrix postinstall] downloading ${tarUrl}`);
-await download(tarUrl, tmpTar);
-await download(shaUrl, tmpSha);
-await verifySha(tmpTar, tmpSha);
+const cleanup = () => {
+  for (const f of [tmpTar, tmpSha]) {
+    try { if (existsSync(f)) unlinkSync(f); } catch {}
+  }
+};
 
-console.log('[matrix postinstall] extracting');
-const r = spawnSync('tar', ['-xzf', tmpTar, '-C', join(pkgRoot, 'dist'), '--strip-components=1'], {
-  stdio: 'inherit',
-});
-if (r.status !== 0) {
-  console.error('[matrix postinstall] tar extraction failed');
+try {
+  console.log(`[matrix postinstall] downloading ${tarUrl}`);
+  await downloadWithRetry(tarUrl, tmpTar);
+  await downloadWithRetry(shaUrl, tmpSha);
+  await verifySha(tmpTar, tmpSha);
+
+  console.log('[matrix postinstall] extracting');
+  const r = spawnSync('tar', ['-xzf', tmpTar, '-C', join(pkgRoot, 'dist'), '--strip-components=1'], {
+    stdio: 'inherit',
+  });
+  if (r.status !== 0) {
+    console.error('[matrix postinstall] tar extraction failed');
+    cleanup();
+    process.exit(1);
+  }
+
+  cleanup();
+
+  for (const p of [proxyPath, coordPath]) {
+    if (!existsSync(p)) {
+      console.error(`[matrix postinstall] expected binary missing after extract: ${p}`);
+      process.exit(1);
+    }
+    chmodSync(p, 0o755);
+  }
+
+  console.log(`[matrix postinstall] installed binaries for ${target}`);
+} catch (err) {
+  cleanup();
+  console.error(`[matrix postinstall] failed: ${err.message}`);
+  if (err.message.includes('HTTP 404')) {
+    console.error(
+      `[matrix postinstall] Release ${tag} not found on GitHub.\n` +
+      `  Check https://github.com/${repo}/releases for available versions.\n` +
+      `  Set MATRIX_SKIP_POSTINSTALL=1 to skip this step.`
+    );
+  }
   process.exit(1);
 }
 
-unlinkSync(tmpTar);
-unlinkSync(tmpSha);
-
-for (const p of [proxyPath, coordPath]) {
-  if (!existsSync(p)) {
-    console.error(`[matrix postinstall] expected binary missing after extract: ${p}`);
-    process.exit(1);
-  }
-  chmodSync(p, 0o755);
-}
-
-console.log(`[matrix postinstall] installed binaries for ${target}`);
-
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+async function downloadWithRetry(url, dest, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await download(url, dest);
+      return;
+    } catch (err) {
+      const isLast = i === attempts;
+      // Don't retry 404 — the release asset simply doesn't exist.
+      if (err.message.includes('HTTP 404') || isLast) throw err;
+      const delay = i * 2000;
+      console.warn(`[matrix postinstall] attempt ${i} failed (${err.message}), retrying in ${delay / 1000}s…`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
 
 async function download(url, dest, redirects = 5) {
   const { get } = await import('node:https');
   await new Promise((res, rej) => {
-    const req = get(url, { headers: { 'User-Agent': 'matrix-postinstall' } }, (resp) => {
+    const req = get(url, { headers: { 'User-Agent': `matrix-postinstall/${pkg.version}` } }, (resp) => {
       if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
         if (redirects <= 0) return rej(new Error('too many redirects'));
         resp.resume();
         return download(resp.headers.location, dest, redirects - 1).then(res, rej);
       }
       if (resp.statusCode !== 200) {
-        return rej(new Error(`GET ${url} → HTTP ${resp.statusCode}`));
+        resp.resume();
+        return rej(new Error(`HTTP ${resp.statusCode} fetching ${url}`));
       }
+
+      const total = parseInt(resp.headers['content-length'] || '0', 10);
+      let received = 0;
+      let lastPct = -1;
+
+      resp.on('data', (chunk) => {
+        received += chunk.length;
+        if (total > 0) {
+          const pct = Math.floor((received / total) * 100);
+          if (pct !== lastPct && pct % 10 === 0) {
+            process.stdout.write(`\r[matrix postinstall] ${pct}% (${(received / 1024 / 1024).toFixed(1)} MB)`);
+            lastPct = pct;
+          }
+        }
+      });
+      resp.on('end', () => { if (total > 0) process.stdout.write('\n'); });
+
       pipeline(resp, createWriteStream(dest)).then(res, rej);
     });
     req.on('error', rej);
@@ -115,7 +168,6 @@ async function verifySha(file, shaFile) {
   await pipeline(createReadStream(file), hash);
   const actual = hash.digest('hex');
   if (actual !== expected) {
-    console.error(`[matrix postinstall] sha256 mismatch\n  expected ${expected}\n  actual   ${actual}`);
-    process.exit(1);
+    throw new Error(`sha256 mismatch\n  expected ${expected}\n  actual   ${actual}`);
   }
 }

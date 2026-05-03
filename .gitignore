@@ -8,6 +8,7 @@ bkup*
 _bin/
 bin/*
 !bin/matrix.mjs
+!bin/matrix-uninstall.mjs
 archive
 
 # Local env

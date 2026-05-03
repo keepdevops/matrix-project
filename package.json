@@ -21,7 +21,8 @@
     "agents"
   ],
   "bin": {
-    "matrix": "bin/matrix.mjs"
+    "matrix": "bin/matrix.mjs",
+    "matrix-uninstall": "bin/matrix-uninstall.mjs"
   },
   "files": [
     "bin/",
