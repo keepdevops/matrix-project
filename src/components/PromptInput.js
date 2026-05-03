@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 /**
  * User input component for submitting prompts to the swarm
  */
-function PromptInput({ onSubmit, loading = false, disabled = false, externalPrompt, externalTemperature }) {
+function PromptInput({ onSubmit, loading = false, disabled = false, externalPrompt, externalTemperature, onPromptConsumed }) {
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.2);
 
@@ -11,6 +11,7 @@ function PromptInput({ onSubmit, loading = false, disabled = false, externalProm
   useEffect(() => {
     if (externalPrompt !== undefined && externalPrompt !== null) {
       setPrompt(externalPrompt);
+      onPromptConsumed?.();
     }
   }, [externalPrompt]);
 

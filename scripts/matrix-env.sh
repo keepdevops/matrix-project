@@ -26,8 +26,8 @@ elif [[ -x /usr/local/bin/llama-server ]]; then
 fi
 
 
-: "${MATRIX_ACTIVE_CONFIG:=/tmp/matrix-active-config.json}"
-: "${MATRIX_SLOTS_DIR:=/tmp/matrix-slots}"
+: "${MATRIX_ACTIVE_CONFIG:=$HOME/.matrix/run/matrix-active-config.json}"
+: "${MATRIX_SLOTS_DIR:=$HOME/.matrix/slots}"
 : "${MATRIX_PROXY_PORT:=3002}"
 : "${MATRIX_COORDINATOR_PORT:=8000}"
 

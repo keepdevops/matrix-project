@@ -24,6 +24,8 @@ else
 fi
 '
 
+mkdir -p "$HOME/.matrix/run" "$HOME/.matrix/slots"
+
 # --------------------------------------------------------------
 echo "Starting Proxy..."
 PID_FILE="$ROOT/logs/matrix.pids"

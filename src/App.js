@@ -265,6 +265,7 @@ function App() {
             disabled={!online}
             externalPrompt={selectedPrompt}
             externalTemperature={selectedTemperature}
+            onPromptConsumed={() => setSelectedPrompt(null)}
           />
           {error && (
             <div className="error-banner">
