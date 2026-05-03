@@ -48,14 +48,18 @@ console.log(`[matrix] config:      ${configPath}`);
 
 // Stage a runtime working dir so binaries find swarm-config.json next to themselves.
 const runDir = join(homedir(), '.matrix', 'run');
+const slotsDir = join(homedir(), '.matrix', 'slots');
 mkdirSync(runDir, { recursive: true });
 mkdirSync(join(runDir, 'logs'), { recursive: true });
+mkdirSync(slotsDir, { recursive: true });
 copyFileSync(configPath, join(runDir, 'swarm-config.json'));
 
 const env = {
   ...process.env,
   MATRIX_PROXY_PORT: String(proxyPort),
   MATRIX_COORDINATOR_PORT: String(coordPort),
+  MATRIX_ACTIVE_CONFIG: join(runDir, 'matrix-active-config.json'),
+  MATRIX_SLOTS_DIR: slotsDir,
 };
 
 console.log(`[matrix] coordinator: http://127.0.0.1:${coordPort}`);
