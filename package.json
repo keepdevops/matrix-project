@@ -1,6 +1,6 @@
 {
   "name": "@keepdevops/matrix",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Matrix UI + proxy + coordinator stack — npx-installable on macOS and Linux.",
   "license": "AGPL-3.0-only",
   "author": "Bret Kuhne <keepdevops@gmail.com> (Coficube)",
@@ -21,8 +21,7 @@
     "agents"
   ],
   "bin": {
-    "matrix": "bin/matrix.mjs",
-    "matrix-uninstall": "bin/matrix-uninstall.mjs"
+    "matrix": "bin/matrix.mjs"
   },
   "files": [
     "bin/",
@@ -87,7 +86,7 @@
     "underscore": ">=1.13.8",
     "@tootallnate/once": ">=3.0.1",
     "yaml": "^1.10.3",
-    "webpack-dev-server": "^4.15.1",
+    "webpack-dev-server": "^5.2.1",
     "lodash": ">=4.18.1",
     "follow-redirects": ">=1.16.0",
     "uuid": ">=14.0.0"
