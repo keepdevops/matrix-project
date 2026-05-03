@@ -6,12 +6,12 @@ import { existsSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 
-const SUPPORTED = { darwin: ['arm64', 'x64'], linux: ['arm64', 'x64'] };
+const SUPPORTED = { darwin: ['arm64'], linux: ['arm64', 'x64'] };
 const { platform, arch } = process;
 if (!SUPPORTED[platform]?.includes(arch)) {
   console.error(
     `[matrix] Unsupported platform: ${platform}-${arch}. ` +
-    `Supported: macOS (arm64, x64) and Linux (x64, arm64).`
+    `Supported: macOS (arm64) and Linux (x64, arm64).`
   );
   process.exit(1);
 }

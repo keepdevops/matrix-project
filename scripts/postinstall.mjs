@@ -20,7 +20,7 @@ if (process.env.MATRIX_SKIP_POSTINSTALL === '1') {
   process.exit(0);
 }
 
-const SUPPORTED = { darwin: ['arm64', 'x64'], linux: ['arm64', 'x64'] };
+const SUPPORTED = { darwin: ['arm64'], linux: ['arm64', 'x64'] };
 const { platform, arch } = process;
 if (!SUPPORTED[platform]?.includes(arch)) {
   console.warn(
