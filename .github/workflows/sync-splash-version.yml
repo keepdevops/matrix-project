@@ -3,14 +3,20 @@ on:
   push:
     branches: [main]
     paths: ['package.json', 'docs/index.html']
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ['Release binaries']
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to sync (without v prefix). Leave blank to use package.json.'
+        required: false
 permissions:
   contents: write
 jobs:
   sync:
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,20 +24,31 @@ jobs:
       - name: Resolve version
         id: ver
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "release" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
-            V="${GITHUB_REF_NAME#v}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
+            TAG="${{ github.event.workflow_run.head_branch }}"
+            if [[ "$TAG" == v* ]]; then
+              V="${TAG#v}"
+            else
+              echo "workflow_run head_branch '$TAG' is not a version tag; skipping"
+              echo "skip=1" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${{ inputs.version }}" ]; then
+            V="${{ inputs.version }}"
           else
             V=$(node -p "require('./package.json').version")
           fi
           echo "v=$V" >> "$GITHUB_OUTPUT"
       - name: Update version strings
+        if: steps.ver.outputs.skip != '1'
         run: |
           V="${{ steps.ver.outputs.v }}"
           sed -i -E "s/• v[0-9]+\.[0-9]+\.[0-9]+/• v${V}/g; s/open source · v[0-9]+\.[0-9]+\.[0-9]+/open source · v${V}/g" docs/index.html
-          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
             npm version "$V" --no-git-tag-version --allow-same-version
           fi
       - name: Commit if changed
+        if: steps.ver.outputs.skip != '1'
         run: |
           if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
