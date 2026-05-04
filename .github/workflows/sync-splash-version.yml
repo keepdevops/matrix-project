@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
     paths: ['package.json', 'docs/index.html']
+  release:
+    types: [published]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -10,15 +13,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "release" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V=$(node -p "require('./package.json').version")
+          fi
+          echo "v=$V" >> "$GITHUB_OUTPUT"
       - name: Update version strings
         run: |
-          V=$(node -p "require('./package.json').version")
+          V="${{ steps.ver.outputs.v }}"
           sed -i -E "s/• v[0-9]+\.[0-9]+\.[0-9]+/• v${V}/g; s/open source · v[0-9]+\.[0-9]+\.[0-9]+/open source · v${V}/g" docs/index.html
+          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+            npm version "$V" --no-git-tag-version --allow-same-version
+          fi
       - name: Commit if changed
         run: |
           if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -am "chore: sync splash version to package.json"
+            git commit -am "chore: sync splash to v${{ steps.ver.outputs.v }}"
             git push
           fi
