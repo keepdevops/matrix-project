@@ -17,6 +17,9 @@ mkdir -p "$DIST/web" "$DIST/config"
 
 cp -R "$ROOT/build"/* "$DIST/web/"
 
+# Remove source maps — they expose original source code in the published package.
+find "$DIST/web" -name '*.map' -delete
+
 cp "$ROOT/swarm-config.json"                    "$DIST/config/default.json"
 cp "$ROOT/swarm-config-16gb.json"               "$DIST/config/16gb.json"
 cp "$ROOT/swarm-config-32gb.json"               "$DIST/config/32gb.json"
