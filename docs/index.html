@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Swarm | Multi-Agent Local LLM System</title>
+    <meta name="description" content="Matrix Swarm - Powerful multi-agent local LLM workbench. Run specialized AI agents in parallel on your hardware.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="cube.css">
+    <link rel="stylesheet" href="sections.css">
+    <script src="theme.js"></script>
+</head>
+<body>
+
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">☾ Dark</button>
+
+    <section class="hero">
+        <div>
+            <div class="logo-container">
+                <div class="cube">
+                    <div class="cube-face front">coficube</div>
+                    <div class="cube-face back">coficube</div>
+                    <div class="cube-face right">coficube</div>
+                    <div class="cube-face left">coficube</div>
+                    <div class="cube-face top">coficube</div>
+                    <div class="cube-face bottom">coficube</div>
+                </div>
+
+                <!-- Coficube mug photo: stationary at center; cube rotates around it -->
+                <img class="mugphoto" src="coffee-cup.png" alt="coficube glass cube mug" />
+            </div>
+
+            <h1>Matrix Swarm</h1>
+            <p class="tagline">
+                Run 16+ AI coding agents locally — in parallel, on your hardware.
+            </p>
+            <p class="subhead">
+                Run MLX and llama.cpp <strong>simultaneously</strong> on Apple Silicon, or vLLM on Linux/CUDA — across three coordinator modes (Flat, Pipeline, Router). No cloud, no API keys, no data leaves your machine.
+            </p>
+
+            <div class="npm-badge">
+                <strong>npm</strong>
+                <span>@keepdevops/matrix</span>
+                <span style="color:var(--accent);">• v1.1</span>
+            </div>
+
+            <div class="badges">
+                <a href="https://github.com/keepdevops/matrix-project" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/stars/keepdevops/matrix-project?style=for-the-badge&logo=github&color=00ff9d&labelColor=111114" alt="GitHub stars" />
+                </a>
+                <a href="https://www.npmjs.com/package/@keepdevops/matrix" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/npm/v/@keepdevops/matrix?style=for-the-badge&logo=npm&color=00ccff&labelColor=111114" alt="npm version" />
+                </a>
+                <a href="https://www.npmjs.com/package/@keepdevops/matrix" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/npm/dm/@keepdevops/matrix?style=for-the-badge&color=8a8a99&labelColor=111114&label=downloads" alt="npm downloads" />
+                </a>
+                <a href="https://github.com/keepdevops/matrix-project/blob/main/LICENSE" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/license/keepdevops/matrix-project?style=for-the-badge&color=8a8a99&labelColor=111114" alt="license" />
+                </a>
+            </div>
+
+            <div>
+                <div class="install">
+                    <span class="dollar">$</span>
+                    <code id="install-cmd">npm i @keepdevops/matrix</code>
+                    <button id="copy-install" type="button" aria-label="Copy install command">Copy</button>
+                </div>
+            </div>
+
+            <div class="cta">
+                <a href="https://www.npmjs.com/package/@keepdevops/matrix" target="_blank" class="cta-button primary">
+                    npm install @keepdevops/matrix
+                </a>
+                <a href="https://github.com/keepdevops/matrix-project" target="_blank" class="cta-button secondary">
+                    GitHub Repository →
+                </a>
+            </div>
+
+            <div class="demo">
+                <div><span class="prompt">$</span> <span class="user">matrix "build a REST API for a todo app"</span></div>
+                <div><span class="muted">→ broadcasting to 4 agents…</span></div>
+                <div><span class="agent">[Architect]</span> proposing schema + endpoints…</div>
+                <div><span class="agent">[Programmer]</span> generating Express + SQLite…</div>
+                <div><span class="agent">[Security]</span> auditing auth &amp; input validation…</div>
+                <div><span class="agent">[DevOps]</span> writing Dockerfile + CI…</div>
+                <div><span class="muted">✓ done in 11.4s — 312 LOC across 6 files</span></div>
+            </div>
+
+            <div class="agents">
+                <span class="chip">Architect</span>
+                <span class="chip">Programmer</span>
+                <span class="chip">Security</span>
+                <span class="chip">DevOps</span>
+                <span class="chip">Reviewer</span>
+                <span class="chip">Tester</span>
+                <span class="chip">Researcher</span>
+                <span class="chip">Debugger</span>
+                <span class="chip">Refactorer</span>
+                <span class="chip">Documenter</span>
+                <span class="chip">+ 6 more</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="blurb">
+        <h2>What it is</h2>
+        <p>
+            <strong>Matrix Swarm</strong> is a local-first orchestration layer for open-weight LLMs. Spin up a fleet of role-specialized agents — <strong>Architect, Programmer, Security, DevOps</strong>, and more — then broadcast one prompt to all of them, pipe it through a sequence, or let a Router model dispatch each task to the best fit.
+        </p>
+        <p>
+            Models run entirely on your hardware: <strong>MLX + llama.cpp</strong> on Apple Silicon, <strong>vLLM</strong> on Linux/CUDA. Nothing leaves the box. Built for engineers who want Cursor-class productivity without sending their codebase to the cloud.
+        </p>
+    </section>
+
+    <section id="install" class="section">
+        <h2>Quickstart — under a minute</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="num">1</div>
+                <h3>Install</h3>
+                <pre>npm i @keepdevops/matrix</pre>
+                <p>Node.js 18+ on macOS (Apple Silicon) or Linux/CUDA.</p>
+            </div>
+            <div class="step">
+                <div class="num">2</div>
+                <h3>Configure</h3>
+                <pre>matrix init --preset 16gb</pre>
+                <p>Generates a swarm config with sensible agent + model defaults for your hardware.</p>
+            </div>
+            <div class="step">
+                <div class="num">3</div>
+                <h3>Run</h3>
+                <pre>matrix run "build a REST API"</pre>
+                <p>Broadcasts to all agents (Flat) or pipe through with <code>--mode pipeline</code> / <code>router</code>.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="how" class="section">
+        <h2>How it works</h2>
+        <div class="arch">
+            <div class="row"><div class="node">Your Prompt</div></div>
+            <div class="arrow">↓</div>
+            <div class="row">
+                <div class="node">Coordinator</div>
+            </div>
+            <div class="arrow">↓ Flat / Pipeline / Router</div>
+            <div class="row">
+                <div class="node">Architect</div>
+                <div class="node">Programmer</div>
+                <div class="node">Security</div>
+                <div class="node">DevOps</div>
+                <div class="node">Reviewer</div>
+                <div class="node">+ 11 more</div>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="row">
+                <div class="node">MLX</div>
+                <div class="node">llama.cpp</div>
+                <div class="node">vLLM</div>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="row"><div class="node">Code · Files · Reviews</div></div>
+        </div>
+    </section>
+
+    <section id="use-cases" class="section">
+        <h2>Who it's for</h2>
+        <div class="usecases">
+            <div class="usecase">
+                <h3>Solo developers</h3>
+                <p>Cursor-class productivity without sending your codebase to a cloud LLM. Your laptop, your models, your repo.</p>
+            </div>
+            <div class="usecase">
+                <h3>ML researchers</h3>
+                <p>Mix MLX, llama.cpp, and vLLM in a single run. Compare model behavior across agents on identical prompts.</p>
+            </div>
+            <div class="usecase">
+                <h3>Regulated teams</h3>
+                <p>Financial, healthcare, defense — anywhere proprietary code can't leave the box. Air-gapped friendly.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="section">
+        <h2>Features &amp; requirements</h2>
+        <div class="features">
+            <div class="card">
+                <h3>Key Features</h3>
+                <ul>
+                    <li>16+ specialized agents (Architect, Programmer, DevOps, Security, etc.)</li>
+                    <li>Run <strong>MLX + llama.cpp concurrently</strong> on Apple Silicon, or <strong>vLLM</strong> on Linux/CUDA (via Docker Model Runner) — mix backends per agent</li>
+                    <li>Three coordinator modes: <strong>Flat</strong> (broadcast), <strong>Pipeline</strong> (sequential), <strong>Router</strong> (smart dispatch)</li>
+                    <li>Real-time code extraction &amp; editing</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Requirements</h3>
+                <ul>
+                    <li>macOS (Apple Silicon) — MLX + llama.cpp</li>
+                    <li>Linux (NVIDIA GPU, CUDA 12+) — vLLM via Docker Model Runner</li>
+                    <li>Node.js ≥ 18</li>
+                    <li>Local GGUF / MLX / HF models</li>
+                    <li>16GB+ RAM (32GB+ recommended)</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2>How it compares</h2>
+        <table class="compare">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th class="us">Matrix Swarm</th>
+                    <th>Cursor</th>
+                    <th>Aider</th>
+                    <th>Cline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Runs fully local</td><td class="us yes">Yes</td><td class="no">No</td><td>Optional</td><td>Optional</td></tr>
+                <tr><td>Multi-agent orchestration</td><td class="us yes">Yes (16+)</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+                <tr><td>Mix backends per agent</td><td class="us yes">MLX + llama.cpp + vLLM</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+                <tr><td>Coordinator modes</td><td class="us yes">Flat · Pipeline · Router</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Open source</td><td class="us yes">Yes</td><td class="no">No</td><td>Yes</td><td>Yes</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="faq" class="section faq">
+        <h2>FAQ</h2>
+        <details>
+            <summary>Do I need a GPU?</summary>
+            <p>No. On Apple Silicon, MLX and llama.cpp use the unified memory and Neural Engine. On Linux, vLLM needs an NVIDIA GPU (CUDA 12+). CPU-only llama.cpp also works — just slower.</p>
+        </details>
+        <details>
+            <summary>Where do models come from?</summary>
+            <p>You bring your own GGUF (llama.cpp), MLX, or HuggingFace weights. Matrix Swarm doesn't ship models. Recommended starters: Llama 3, Qwen 2.5, DeepSeek-Coder.</p>
+        </details>
+        <details>
+            <summary>What's the difference between Flat, Pipeline, and Router?</summary>
+            <p><strong>Flat</strong> broadcasts your prompt to all agents in parallel. <strong>Pipeline</strong> chains them in a fixed sequence (e.g., Architect → Programmer → Reviewer). <strong>Router</strong> uses a small dispatcher model to pick the best agent per request.</p>
+        </details>
+        <details>
+            <summary>Is anything sent to the cloud?</summary>
+            <p>No. Inference, code extraction, and config all happen locally. There are no telemetry calls. (You can optionally point an agent at a remote OpenAI-compatible endpoint if you want — but it's off by default.)</p>
+        </details>
+        <details>
+            <summary>How do I add a custom agent?</summary>
+            <p>Drop a JSON entry into your <code>swarm-config.json</code> with a system prompt, model binding, and role. See <code>swarm-config-16gb.json</code> in the repo for examples.</p>
+        </details>
+        <details>
+            <summary>Is there a Docker install?</summary>
+            <p>The CLI installs via npm. Docker is used to run vLLM model servers (via Docker Model Runner on ports 8080–8083) when running the Linux/CUDA backend. See <code>docker/Dockerfile.vllm-metal</code>.</p>
+        </details>
+    </section>
+
+    <footer class="site-footer">
+        <div class="links">
+            <a href="#install">Install</a>
+            <a href="#how">How it works</a>
+            <a href="#use-cases">Use cases</a>
+            <a href="#features">Features</a>
+            <a href="#faq">FAQ</a>
+            <a href="https://github.com/keepdevops/matrix-project" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://www.npmjs.com/package/@keepdevops/matrix" target="_blank" rel="noopener">npm</a>
+        </div>
+        <div>© 2026 coficube · Matrix Swarm is open source · v1.1</div>
+    </footer>
+
+
+</body>
+</html>

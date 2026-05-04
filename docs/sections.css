@@ -1,0 +1,165 @@
+/* Splash page sections: badges, quickstart, architecture, use-cases, comparison, FAQ, footer */
+
+.badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin: 14px 0 0;
+}
+.badges img { height: 22px; }
+
+.section {
+    max-width: 1000px;
+    margin: 90px auto;
+    padding: 0 24px;
+}
+.section h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.8rem;
+    color: var(--accent);
+    text-align: center;
+    margin: 0 0 36px;
+    letter-spacing: 0.5px;
+}
+
+/* Quickstart: 3 numbered steps */
+.steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+}
+.step {
+    background: var(--bg-elev);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+}
+.step .num {
+    position: absolute;
+    top: -16px; left: 24px;
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+}
+.step h3 { margin: 6px 0 10px; font-size: 1.1rem; color: var(--text); font-family: 'Space Grotesk', sans-serif; }
+.step pre {
+    background: var(--bg-deep);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 0.9rem;
+    margin: 0 0 8px;
+    overflow-x: auto;
+}
+.step p { color: var(--text-muted); font-size: 0.92rem; margin: 6px 0 0; line-height: 1.5; }
+
+/* Architecture diagram: simple text-based flow */
+.arch {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 28px;
+    text-align: center;
+    font-family: 'SF Mono', Menlo, monospace;
+    line-height: 2;
+}
+.arch .row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.arch .node {
+    background: var(--bg-deep);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 16px;
+    color: var(--accent);
+    font-size: 0.95rem;
+}
+.arch .arrow { color: var(--text-dim); font-size: 1.4rem; }
+
+/* Use-case cards */
+.usecases {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+.usecase {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 26px;
+}
+.usecase h3 { margin: 0 0 10px; color: var(--accent); font-family: 'Space Grotesk', sans-serif; }
+.usecase p { color: var(--text-muted); margin: 0; line-height: 1.6; font-size: 0.95rem; }
+
+/* Comparison table */
+.compare {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-elev);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.compare th, .compare td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-soft);
+}
+.compare th {
+    background: var(--bg-deep);
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.95rem;
+}
+.compare td { color: var(--text-muted); font-size: 0.92rem; }
+.compare td.yes { color: var(--accent); font-weight: 700; }
+.compare td.no { color: #c0392b; }
+.compare tr:last-child td { border-bottom: none; }
+.compare th.us, .compare td.us { background: rgba(0, 255, 157, 0.06); }
+
+/* FAQ */
+.faq details {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+}
+.faq summary {
+    cursor: pointer;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    list-style: none;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::before { content: '+ '; color: var(--accent); margin-right: 6px; }
+.faq details[open] summary::before { content: '− '; }
+.faq details p { color: var(--text-muted); margin: 12px 0 0; line-height: 1.6; }
+
+/* Footer */
+.site-footer {
+    border-top: 1px solid var(--border-soft);
+    margin-top: 60px;
+    padding: 36px 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+.site-footer .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+.site-footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--border-soft);
+}
+.site-footer a:hover { color: var(--accent); border-bottom-color: var(--accent); }
