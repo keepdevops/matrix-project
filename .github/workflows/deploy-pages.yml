@@ -1,0 +1,44 @@
+name: Deploy @keepdevops/matrix static build to Cloudflare Pages
+
+on:
+  workflow_run:
+    workflows: ['Release binaries']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download latest npm tarball
+        run: |
+          VERSION=$(npm view @keepdevops/matrix version)
+          echo "Latest version: $VERSION"
+          npm pack "@keepdevops/matrix@${VERSION}"
+
+      - name: Extract tarball
+        run: |
+          TARBALL=$(ls *.tgz | head -n 1)
+          mkdir -p ./extracted
+          tar -xzf "$TARBALL" -C ./extracted --strip-components=1
+          rm "$TARBALL"
+          echo "Extracted structure:"
+          ls -la ./extracted
+          ls -la ./extracted/dist/web
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./extracted/dist/web --project-name=coficube
