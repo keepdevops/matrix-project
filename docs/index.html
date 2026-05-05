@@ -41,7 +41,7 @@
             <div class="npm-badge">
                 <strong>npm</strong>
                 <span>@keepdevops/matrix</span>
-                <span style="color:var(--accent);">• v2.0.3</span>
+                <span style="color:var(--accent);">• <span class="npm-version">v2.0.3</span></span>
             </div>
 
             <div class="badges">
@@ -267,9 +267,21 @@
             <a href="https://github.com/keepdevops/matrix-project" target="_blank" rel="noopener">GitHub</a>
             <a href="https://www.npmjs.com/package/@keepdevops/matrix" target="_blank" rel="noopener">npm</a>
         </div>
-        <div>© 2026 coficube · Matrix Swarm is open source · v2.0.3</div>
+        <div>© 2026 coficube · Matrix Swarm is open source · <span class="npm-version">v2.0.3</span></div>
     </footer>
 
-
+    <script>
+        fetch('https://registry.npmjs.org/@keepdevops/matrix/latest')
+            .then(function (r) {
+                if (!r.ok) throw new Error('npm registry HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (data) {
+                if (!data || !data.version) throw new Error('no version field in npm response');
+                var label = 'v' + data.version;
+                document.querySelectorAll('.npm-version').forEach(function (el) { el.textContent = label; });
+            })
+            .catch(function (err) { console.error('npm version fetch failed:', err); });
+    </script>
 </body>
 </html>

@@ -8,14 +8,14 @@
 #
 # Usage:
 #   ./scripts/deploy.sh                     # deploy current docs/ to production
-#   PAGES_PROJECT=coficube ./scripts/deploy.sh
+#   PAGES_PROJECT=coficube-splash ./scripts/deploy.sh
 #   BRANCH=preview ./scripts/deploy.sh      # deploy as a preview branch
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="${ROOT}/docs"
-PAGES_PROJECT="${PAGES_PROJECT:-coficube}"
+PAGES_PROJECT="${PAGES_PROJECT:-coficube-splash}"
 BRANCH="${BRANCH:-main}"
 
 if [ ! -d "$DIR" ]; then
