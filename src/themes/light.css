@@ -1,0 +1,158 @@
+/* Light theme overrides. Activated by `data-theme="light"` on <body>.
+   Mirrors the dark App.css palette but flips surfaces to cream/white and
+   swaps neon matrix-green for a darker, readable green. */
+
+body[data-theme="light"] {
+  background-color: #f6f5f0;
+  color: #0f3d24;
+}
+
+body[data-theme="light"] h1 {
+  text-shadow: 0 0 6px rgba(0, 140, 60, 0.25);
+}
+
+/* Surfaces */
+body[data-theme="light"] header { border-bottom-color: #d8d6cc; }
+body[data-theme="light"] .agent-card,
+body[data-theme="light"] .config-panel,
+body[data-theme="light"] .help-modal,
+body[data-theme="light"] .history-dropdown,
+body[data-theme="light"] .final-answer-panel,
+body[data-theme="light"] .mode-selector,
+body[data-theme="light"] .agent-editor-modal { background: #ffffff; }
+
+body[data-theme="light"] .agent-response,
+body[data-theme="light"] .agent-editor-modal-content,
+body[data-theme="light"] textarea,
+body[data-theme="light"] input[type="text"],
+body[data-theme="light"] input[type="number"],
+body[data-theme="light"] select,
+body[data-theme="light"] pre,
+body[data-theme="light"] code { background: #ecebe4; color: #0f3d24; }
+
+/* Matrix-green elements -> darker green */
+body[data-theme="light"] .history-button,
+body[data-theme="light"] .help-button,
+body[data-theme="light"] .configure-button,
+body[data-theme="light"] .save-code-button,
+body[data-theme="light"] .submit-button {
+  border-color: #008c2a;
+  color: #008c2a;
+}
+
+body[data-theme="light"] .history-button:hover,
+body[data-theme="light"] .help-button:hover,
+body[data-theme="light"] .configure-button:hover,
+body[data-theme="light"] .save-code-button:hover {
+  background: rgba(0, 140, 42, 0.08);
+}
+
+body[data-theme="light"] .submit-button {
+  background: #008c2a;
+  color: #ffffff;
+}
+body[data-theme="light"] .submit-button:hover { background: #00a832; }
+body[data-theme="light"] .submit-button:disabled { background: #c4c2b8; color: #6a6a75; border-color: #c4c2b8; }
+
+/* Theme toggle button */
+.theme-toggle-button {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: #00ff41;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.theme-toggle-button:hover { background: rgba(0, 255, 65, 0.1); }
+body[data-theme="light"] .theme-toggle-button { color: #008c2a; }
+body[data-theme="light"] .theme-toggle-button:hover { background: rgba(0, 140, 42, 0.08); }
+
+/* Status / accents: keep blue/red/purple but soften backgrounds */
+body[data-theme="light"] .status-online { color: #1a56db; border-color: #1a56db; }
+body[data-theme="light"] .status-offline { color: #c1311f; border-color: #c1311f; }
+body[data-theme="light"] .engine-badge {
+  color: #6d28d9;
+  background: rgba(109, 40, 217, 0.08);
+  border-color: rgba(109, 40, 217, 0.4);
+}
+
+/* Agent grid cards keep their per-agent accent (--agent-color) but get a
+   light surface and dark text. */
+body[data-theme="light"] .agent-card {
+  border: 1px solid #d8d6cc;
+  border-top-color: var(--agent-color, #008c2a);
+}
+body[data-theme="light"] .agent-name { color: var(--agent-color, #008c2a); }
+
+/* History rows */
+body[data-theme="light"] .history-item:hover { background: rgba(0, 140, 42, 0.06); }
+body[data-theme="light"] .history-time { color: #6a6a75; }
+
+/* Error banner */
+body[data-theme="light"] .error-banner {
+  background: rgba(193, 49, 31, 0.08);
+  color: #c1311f;
+  border-color: #c1311f;
+}
+
+/* Agent expand modal (pop-out) */
+body[data-theme="light"] .help-overlay { background: rgba(40, 40, 50, 0.45); }
+body[data-theme="light"] .agent-editor-modal {
+  background: #ffffff;
+  border: 1px solid #d8d6cc;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+}
+body[data-theme="light"] .agent-editor-modal-header {
+  background: #ecebe4;
+  border-bottom: 1px solid #d8d6cc;
+}
+body[data-theme="light"] .agent-editor-modal-name { color: var(--agent-color, #008c2a); }
+body[data-theme="light"] .agent-editor-modal-content { background: #ffffff; }
+body[data-theme="light"] .agent-editor-close { color: #6a6a75; }
+body[data-theme="light"] .agent-editor-close:hover { color: #c1311f; }
+
+/* CodeMirror inside the pop-out */
+body[data-theme="light"] .code-display-container {
+  background: #ffffff;
+  border-color: #d8d6cc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+body[data-theme="light"] .code-display-header {
+  background: #ecebe4;
+  border-bottom-color: #d8d6cc;
+}
+body[data-theme="light"] .code-lang-tag { color: #4a4a55; }
+body[data-theme="light"] .toolbar-btn {
+  background: #f6f5f0;
+  color: #1a1a1f;
+  border-color: #d8d6cc;
+}
+body[data-theme="light"] .toolbar-btn:hover {
+  background: #ecebe4;
+  border-color: #008c2a;
+  color: #008c2a;
+}
+body[data-theme="light"] .toolbar-btn.active {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+}
+body[data-theme="light"] .cm-editor { background-color: #ffffff !important; color: #1a1a1f; }
+body[data-theme="light"] .cm-gutters {
+  background-color: #ecebe4 !important;
+  color: #6a6a75 !important;
+  border-right: 1px solid #d8d6cc !important;
+}
+body[data-theme="light"] .cm-activeLine { background-color: rgba(0, 140, 42, 0.06) !important; }
+body[data-theme="light"] .cm-activeLineGutter { background-color: rgba(0, 140, 42, 0.10) !important; }
+body[data-theme="light"] .cm-cursor { border-left-color: #008c2a !important; }
+body[data-theme="light"] .cm-selectionBackground,
+body[data-theme="light"] .cm-content ::selection { background-color: rgba(0, 140, 42, 0.20) !important; }
+
+/* Muted text */
+body[data-theme="light"] .agent-meta,
+body[data-theme="light"] .muted,
+body[data-theme="light"] .help-modal p { color: #4a4a55; }

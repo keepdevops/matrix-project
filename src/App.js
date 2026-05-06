@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
+import './themes/light.css';
 import { useSwarm } from './hooks/useSwarm';
 import { clearCache, fetchAgents, fetchSwarmConfig, fetchModels, fetchModes, setActiveMode } from './api/swarmApi';
 import PromptInput from './components/PromptInput';
@@ -45,6 +46,25 @@ function App() {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [cacheStatus, setCacheStatus] = useState('idle');
+
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('swarm-matrix-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (err) {
+      console.error('Failed to read theme from localStorage:', err);
+    }
+    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('swarm-matrix-theme', theme);
+    } catch (err) {
+      console.error('Failed to persist theme:', err);
+    }
+  }, [theme]);
 
   const [agentMeta, setAgentMeta] = useState({}); // { [name]: { model, backend } }
 
@@ -235,6 +255,14 @@ function App() {
           </button>
           <button className="help-button" onClick={() => setShowHelp(true)}>
             ?
+          </button>
+          <button
+            className="theme-toggle-button"
+            onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+            aria-label="Toggle theme"
+            title="Toggle light/dark mode"
+          >
+            {theme === 'dark' ? '☀ Light' : '☾ Dark'}
           </button>
         </div>
       </header>
