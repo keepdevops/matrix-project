@@ -324,3 +324,18 @@ body[data-theme="light"] .swarm-engine-btn.active.engine-vllm {
 body[data-theme="light"] .swarm-engine-in-use { color: #6d28d9; }
 body[data-theme="light"] .swarm-engine-in-use strong { color: #5b21b6; }
 body[data-theme="light"] .swarm-engine-warn { color: #c1311f; }
+
+/* KV pressure gauge — keep label blue, keep LCD readout dark for that
+   classic backlit-LCD look even in light mode. */
+body[data-theme="light"] .kv-gauge {
+  background: #ffffff;
+  border-color: #c8d4e3;
+}
+body[data-theme="light"] .kv-gauge-label {
+  color: #1a56db;
+  text-shadow: 0 0 4px rgba(26, 86, 219, 0.35);
+}
+body[data-theme="light"] .kv-gauge-track {
+  background: #e6ecf2;
+  border-color: #c8d4e3;
+}

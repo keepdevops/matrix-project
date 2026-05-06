@@ -9,6 +9,7 @@ import SwarmConfig from './components/SwarmConfig';
 import HelpModal from './components/HelpModal';
 import ModeSelector from './components/ModeSelector';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
+import KvPressureGauge from './components/KvPressureGauge';
 import { extractCodeBlock } from './utils/codeExtractor';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode']);
@@ -231,6 +232,7 @@ function App() {
             onChange={handleModeChange}
             disabled={!online}
           />
+          <KvPressureGauge online={online} />
           <button
             className={`cache-button cache-button--${cacheStatus}`}
             onClick={handleClearCache}

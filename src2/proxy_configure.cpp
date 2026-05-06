@@ -302,6 +302,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
                 {"-m",g.model,"-c",std::to_string(ctx),"--port",ps,
                  "--n-gpu-layers",std::to_string(g.gpu_layers),
                  "--parallel",std::to_string(g.names.size()),
+                 "--metrics",
                  "--slot-save-path",g_env.matrix_slots_dir}, log);
             std::cout << "[Configure] LLAMA :" << port << " x" << g.names.size()
                       << " [" << join(g.names) << "]\n";

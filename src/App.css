@@ -202,6 +202,107 @@ h1 {
   color: #ff4b2b;
 }
 
+/* ========== KV Pressure Gauge ========== */
+.kv-gauge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  background: rgba(0, 255, 65, 0.04);
+}
+
+.kv-gauge--err {
+  border-color: rgba(255, 75, 43, 0.4);
+  background: rgba(255, 75, 43, 0.06);
+  color: #ff4b2b;
+}
+
+.kv-gauge-label {
+  color: var(--kv-label, #38bdf8);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.45);
+}
+
+.kv-gauge-track {
+  display: flex;
+  gap: 2px;
+  width: 96px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.kv-gauge-seg {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  position: relative;
+}
+
+.kv-gauge-fill {
+  height: 100%;
+  transition: width 0.4s ease, background 0.2s ease;
+}
+
+.kv-gauge-digital {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  padding: 2px 6px;
+  background: #0a0f0a;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+  font-family: "DSEG7-Classic", "DSEG14-Classic", "Share Tech Mono",
+    "VT323", "Menlo", monospace;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
+}
+
+.kv-gauge-digital .kv-gauge-num,
+.kv-gauge-digital .kv-gauge-ghost {
+  font-size: 0.95rem;
+  grid-area: 1 / 1;
+}
+
+/* Faint "off-segment" placeholder behind the live digits, like an LCD. */
+.kv-gauge-digital .kv-gauge-ghost {
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  color: currentColor;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.kv-gauge-digital .kv-gauge-num {
+  position: relative;
+  z-index: 1;
+  min-width: 3ch;
+  text-align: right;
+}
+
+.kv-gauge-digital .kv-gauge-unit {
+  margin-left: 3px;
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.kv-gauge-digital--err {
+  color: #ff4b2b;
+}
+
 /* ========== History Dropdown ========== */
 .history-dropdown {
   background: #161b22;
