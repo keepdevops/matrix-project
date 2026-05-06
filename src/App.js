@@ -195,7 +195,7 @@ function App() {
   return (
     <div className="matrix-container">
       <header>
-        <h1>Swarm Matrix v1.0</h1>
+        <h1>Swarm Matrix v{process.env.REACT_APP_VERSION || 'dev'}</h1>
         <div className="header-controls">
           <span className={`status-indicator ${online ? 'status-online' : 'status-offline'}`}>
             {online ? 'ONLINE' : 'OFFLINE'}

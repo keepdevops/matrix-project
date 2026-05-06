@@ -1,9 +1,48 @@
 # Matrix Swarm
 
+[![npm version](https://img.shields.io/npm/v/@keepdevops/matrix?style=flat-square&logo=npm&color=00ccff)](https://www.npmjs.com/package/@keepdevops/matrix)
+[![npm downloads](https://img.shields.io/npm/dm/@keepdevops/matrix?style=flat-square&color=8a8a99&label=downloads)](https://www.npmjs.com/package/@keepdevops/matrix)
+[![GitHub stars](https://img.shields.io/github/stars/keepdevops/matrix-project?style=flat-square&logo=github&color=00ff9d)](https://github.com/keepdevops/matrix-project)
+[![License](https://img.shields.io/github/license/keepdevops/matrix-project?style=flat-square&color=8a8a99)](LICENSE)
+
+> **The local-first multi-agent coding swarm.** Privacy-first, no cloud, no API keys —
+> turns your Apple Silicon or NVIDIA box into a 16-agent dev team.
+
 A multi-agent local-LLM workbench. Broadcasts a single prompt to many specialised
 agents (architect, programmer, security, reviewer, …) running in parallel against
 local inference servers (llama.cpp, MLX, vLLM), then collects, displays, and
 extracts code from their responses in a React UI.
+
+## How it compares
+
+### vs. AI coding IDEs
+
+| | Matrix Swarm | Cursor | Aider | Cline |
+|---|---|---|---|---|
+| Runs fully local | **Yes** | No | Optional | Optional |
+| Multi-agent orchestration | **Yes (16+)** | No | No | No |
+| Mix backends per agent | **MLX + llama.cpp + vLLM** | No | No | No |
+| Coordinator modes | **Flat · Pipeline · Router** | — | — | — |
+| Open source | **Yes** | No | Yes | Yes |
+
+### vs. MCP / agent frameworks
+
+| | Matrix Swarm | CrewAI | LangGraph | AutoGen | OpenDevin | MetaGPT |
+|---|---|---|---|---|---|---|
+| Core focus | **Local coding / DevOps swarm** | Role-based crews | Stateful graph workflows | Conversational multi-agent | Autonomous coding agent | Software-company sim |
+| Local-first / air-gapped | **Yes (default)** | Optional | Optional | Optional | Strong | Optional |
+| Backends | **MLX + llama.cpp + vLLM mixable per agent** | Any | LangChain ecosystem | Multiple + local | Ollama / local | Any |
+| Pre-built agents | **16+ specialised** | User-defined | Graph nodes | Dynamic | Single + tools | Fixed dev team |
+| Orchestration | **Flat · Pipeline · Router** | Sequential / hierarchical | Graph (loops, branches) | Message-based | Tool-loop | Pipeline |
+| UI | **Real-time React + code editor** | CLI | Visualisation tools | AutoGen Studio | VS Code-like | CLI |
+| Hardware tuning | **Apple Silicon + CUDA presets** | Neutral | Neutral | Neutral | Good | Neutral |
+| Time to first prompt | **`npm i -g`, then `matrix`** | Python crew kickoff | Graph definition | Convo setup | Docker + web UI | Python setup |
+
+**Pick Matrix Swarm** when you want privacy, multi-backend mixing, and instant
+specialised coding agents on local hardware. **Pick CrewAI / LangGraph / AutoGen**
+when you need a programmable framework for non-coding workflows or custom agent
+logic. **Pick OpenDevin** for deep terminal-driven autonomous coding — or combine
+it with Matrix Swarm for parallel planning + deep execution.
 
 ```
 ┌──────────┐    ┌──────────┐    ┌─────────────────────────┐

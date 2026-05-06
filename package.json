@@ -45,8 +45,8 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "start": "NODE_NO_WARNINGS=1 react-scripts start",
-    "build": "react-scripts build",
+    "start": "NODE_NO_WARNINGS=1 REACT_APP_VERSION=$npm_package_version react-scripts start",
+    "build": "REACT_APP_VERSION=$npm_package_version react-scripts build",
     "test": "react-scripts test --watchAll=false",
     "build:bin": "bash scripts/build_cpp_binaries.sh",
     "stage:dist": "bash scripts/stage-dist.sh",
