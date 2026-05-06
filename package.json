@@ -51,7 +51,7 @@
     "build:bin": "bash scripts/build_cpp_binaries.sh",
     "stage:dist": "bash scripts/stage-dist.sh",
     "prepack": "npm run build && npm run stage:dist",
-    "postinstall": "node scripts/postinstall.mjs"
+    "postinstall": "patch-package && node scripts/postinstall.mjs"
   },
   "devDependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
@@ -70,6 +70,7 @@
     "@codemirror/view": "^6.35.0",
     "@uiw/codemirror-theme-vscode": "^4.25.4",
     "@uiw/react-codemirror": "^4.25.4",
+    "patch-package": "^8.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1"
