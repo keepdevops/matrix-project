@@ -192,6 +192,9 @@
     "port": 8000,
     "default_mode": "flat",
     "modes": {
+      "flat": {
+        "description": "Broadcast prompt to every agent in parallel; no reducer."
+      },
       "pipeline": {
         "order": [
           "architect",
