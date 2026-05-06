@@ -227,37 +227,39 @@
                 <tr><td>Open source</td><td class="us yes">Yes</td><td class="no">No</td><td>Yes</td><td>Yes</td></tr>
             </tbody>
         </table>
+    </section>
 
-        <h2 style="margin-top:3rem;">vs. MCP / agent frameworks</h2>
-        <p class="subhead" style="margin-bottom:1.5rem;">
-            Where Matrix Swarm sits next to general-purpose multi-agent frameworks. Most are flexible Python libraries; Matrix Swarm is a ready-to-run local coding swarm with a React UI.
-        </p>
-        <table class="compare">
+    <section class="section">
+        <h2>30-second take — vs. other agent frameworks</h2>
+        <p class="subhead">Head-to-head against the major multi-agent frameworks. Matrix Swarm's lane: local-first coding swarms with mixable backends per agent.</p>
+        <div class="table-scroll">
+        <table class="compare compare-wide">
             <thead>
                 <tr>
-                    <th></th>
+                    <th>Aspect</th>
                     <th class="us">Matrix Swarm</th>
                     <th>CrewAI</th>
                     <th>LangGraph</th>
-                    <th>AutoGen</th>
+                    <th>AutoGen (MS)</th>
                     <th>OpenDevin</th>
                     <th>MetaGPT</th>
                 </tr>
             </thead>
             <tbody>
-                <tr><td>Core focus</td><td class="us yes">Local coding / DevOps swarm</td><td>Role-based crews</td><td>Stateful graph workflows</td><td>Conversational multi-agent</td><td>Autonomous coding agent</td><td>Software-company sim</td></tr>
-                <tr><td>Local-first / air-gapped</td><td class="us yes">Yes (default)</td><td>Optional</td><td>Optional</td><td>Optional</td><td>Strong</td><td>Optional</td></tr>
-                <tr><td>Backends</td><td class="us yes">MLX + llama.cpp + vLLM mixable per agent</td><td>Any (incl. local)</td><td>LangChain ecosystem</td><td>Multiple + local</td><td>Ollama / local</td><td>Any</td></tr>
-                <tr><td>Pre-built agents</td><td class="us yes">16+ specialised</td><td>User-defined</td><td>Graph nodes</td><td>Dynamic</td><td>Single + tools</td><td>Fixed dev team</td></tr>
-                <tr><td>Orchestration</td><td class="us yes">Flat · Pipeline · Router</td><td>Sequential / hierarchical</td><td>Graph (loops, branches)</td><td>Message-based</td><td>Tool-loop</td><td>Pipeline</td></tr>
-                <tr><td>UI</td><td class="us yes">Real-time React + code editor</td><td class="no">CLI</td><td>Visualisation tools</td><td>AutoGen Studio</td><td>VS Code-like</td><td class="no">CLI</td></tr>
-                <tr><td>Hardware tuning</td><td class="us yes">Apple Silicon + CUDA presets</td><td>Neutral</td><td>Neutral</td><td>Neutral</td><td>Good</td><td>Neutral</td></tr>
-                <tr><td>Time-to-first-prompt</td><td class="us yes">npm i -g, then <code>matrix</code></td><td>Python crew kickoff</td><td>Graph definition</td><td>Convo setup</td><td>Docker + web UI</td><td>Python setup</td></tr>
+                <tr><td>Core focus</td><td class="us">Local coding/DevOps swarms</td><td>Role-based team workflows</td><td>Stateful graph workflows</td><td>Conversational multi-agent</td><td>Autonomous coding agent</td><td>Software company simulation</td></tr>
+                <tr><td>Local-first</td><td class="us yes">Yes (air-gapped)</td><td>Optional (Ollama)</td><td>Optional</td><td>Optional</td><td>Strong (sandboxed terminal)</td><td>Optional</td></tr>
+                <tr><td>Backend support</td><td class="us">MLX + llama.cpp + vLLM, mixable per agent</td><td>Any (incl. local)</td><td>LangChain ecosystem</td><td>Multiple + local</td><td>Ollama / local</td><td>Any</td></tr>
+                <tr><td># of agents</td><td class="us">16+ pre-built</td><td>User-defined roles</td><td>Nodes in graph</td><td>Dynamic conversational</td><td>Single main + tools</td><td>Fixed dev team roles</td></tr>
+                <tr><td>Orchestration</td><td class="us">Flat · Pipeline · Router</td><td>Sequential / hierarchical</td><td>Graph (loops, branches, state)</td><td>Message-based chats</td><td>Loop with tools</td><td>Pipeline (spec → code → test)</td></tr>
+                <tr><td>UI</td><td class="us">Real-time React UI + code editing</td><td>CLI + basic</td><td>Visualization tools</td><td>AutoGen Studio</td><td>VS Code-like interface</td><td>CLI</td></tr>
+                <tr><td>Code execution</td><td class="us">Real-time extraction &amp; editing</td><td>Via tools</td><td>Via tools</td><td>Via tools</td><td>Full terminal sandbox</td><td>Generates artifacts</td></tr>
+                <tr><td>Ease of start</td><td class="us"><code>npm i -g</code> + <code>matrix run</code></td><td>Python crew kickoff</td><td>Graph definition</td><td>Conversational setup</td><td>Docker + web UI</td><td>Python setup</td></tr>
+                <tr><td>Best for</td><td class="us">Solo devs, air-gapped teams, fast local coding</td><td>Content / research pipelines</td><td>Complex logic &amp; production</td><td>Research, dynamic chats</td><td>Autonomous software engineering</td><td>End-to-end code generation</td></tr>
+                <tr><td>Customization</td><td class="us">JSON config for agents/models</td><td>High (Python)</td><td>Very high</td><td>High</td><td>Moderate</td><td>Moderate</td></tr>
+                <tr><td>Hardware optimization</td><td class="us yes">Excellent (Apple Silicon presets)</td><td>Good</td><td>Neutral</td><td>Neutral</td><td>Good</td><td>Neutral</td></tr>
             </tbody>
         </table>
-        <p class="subhead" style="margin-top:1.5rem;">
-            <strong>Pick Matrix Swarm</strong> when you want privacy, multi-backend mixing, and instant specialised coding agents on local hardware. <strong>Pick CrewAI / LangGraph / AutoGen</strong> when you need a programmable framework for non-coding workflows or custom agent logic. <strong>Pick OpenDevin</strong> for deep terminal-driven autonomous coding — or combine it with Matrix Swarm for parallel planning + deep execution.
-        </p>
+        </div>
     </section>
 
     <section id="faq" class="section faq">

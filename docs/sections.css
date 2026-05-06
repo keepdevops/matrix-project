@@ -120,6 +120,9 @@
 .compare td.no { color: #c0392b; }
 .compare tr:last-child td { border-bottom: none; }
 .compare th.us, .compare td.us { background: rgba(0, 255, 157, 0.06); }
+.table-scroll { overflow-x: auto; border-radius: 12px; }
+.compare-wide { min-width: 880px; }
+.compare-wide th, .compare-wide td { padding: 12px 14px; font-size: 0.88rem; vertical-align: top; }
 
 /* FAQ */
 .faq details {
