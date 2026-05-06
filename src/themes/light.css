@@ -156,3 +156,171 @@ body[data-theme="light"] .cm-content ::selection { background-color: rgba(0, 140
 body[data-theme="light"] .agent-meta,
 body[data-theme="light"] .muted,
 body[data-theme="light"] .help-modal p { color: #4a4a55; }
+
+/* ========== Configure (SwarmConfig) panel ========== */
+body[data-theme="light"] .swarm-config {
+  background: #ffffff;
+  border-color: #d8d6cc;
+}
+
+body[data-theme="light"] .swarm-config-title {
+  color: #008c2a;
+  border-bottom-color: #d8d6cc;
+}
+
+body[data-theme="light"] .swarm-role-row.active {
+  background: rgba(0, 140, 42, 0.06);
+  border-color: #d8d6cc;
+}
+body[data-theme="light"] .swarm-role-name { color: #1a1a1f; }
+body[data-theme="light"] .swarm-role-row.active .swarm-role-name { color: #008c2a; }
+body[data-theme="light"] .swarm-role-check input[type="checkbox"] { accent-color: #008c2a; }
+
+body[data-theme="light"] .swarm-model-select {
+  background: #ecebe4;
+  border-color: #d8d6cc;
+  color: #4a4a55;
+}
+body[data-theme="light"] .swarm-model-select:focus {
+  border-color: #008c2a;
+  color: #1a1a1f;
+}
+
+body[data-theme="light"] .swarm-profile-label { color: #4a4a55; }
+body[data-theme="light"] .swarm-profile-btn {
+  background: #ecebe4;
+  border-color: #d8d6cc;
+  color: #4a4a55;
+}
+body[data-theme="light"] .swarm-profile-btn:hover {
+  border-color: #1a56db;
+  color: #1a1a1f;
+}
+body[data-theme="light"] .swarm-profile-btn.active {
+  color: #008c2a;
+  border-color: #008c2a;
+  background: rgba(0, 140, 42, 0.1);
+}
+body[data-theme="light"] .swarm-profile-note { color: #6a6a75; }
+
+/* Layout preview */
+body[data-theme="light"] .swarm-layout-row {
+  background: #ecebe4;
+  border-color: #d8d6cc;
+}
+body[data-theme="light"] .layout-port { color: #1a56db; }
+body[data-theme="light"] .layout-agents { color: #1a1a1f; }
+body[data-theme="light"] .layout-model { color: #6a6a75; }
+body[data-theme="light"] .layout-empty { color: #6a6a75; }
+body[data-theme="light"] .layout-engine-llama { color: #b45309; }
+body[data-theme="light"] .layout-engine-mlx   { color: #008c2a; }
+body[data-theme="light"] .layout-engine-vllm  { color: #c2410c; }
+
+/* Risk card */
+body[data-theme="light"] .swarm-risk-card {
+  background: #ecebe4;
+  border-color: #d8d6cc;
+  border-left-color: #d8d6cc;
+}
+body[data-theme="light"] .swarm-risk-card.risk-low { border-left-color: #008c2a; }
+body[data-theme="light"] .swarm-risk-card.risk-medium { border-left-color: #b45309; }
+body[data-theme="light"] .swarm-risk-card.risk-high { border-left-color: #c1311f; }
+body[data-theme="light"] .swarm-risk-header { color: #4a4a55; }
+body[data-theme="light"] .swarm-risk-badge.risk-low { color: #008c2a; }
+body[data-theme="light"] .swarm-risk-badge.risk-medium { color: #b45309; }
+body[data-theme="light"] .swarm-risk-badge.risk-high { color: #c1311f; }
+body[data-theme="light"] .swarm-risk-score { color: #1a1a1f; }
+body[data-theme="light"] .swarm-risk-mixed {
+  color: #1a56db;
+  border-color: rgba(26, 86, 219, 0.4);
+  background: rgba(26, 86, 219, 0.08);
+}
+body[data-theme="light"] .swarm-risk-hint { color: #6a6a75; }
+body[data-theme="light"] .swarm-risk-block {
+  color: #c1311f;
+  border-color: rgba(193, 49, 31, 0.4);
+  background: rgba(193, 49, 31, 0.08);
+}
+body[data-theme="light"] .swarm-risk-row {
+  background: #ffffff;
+  border-color: #d8d6cc;
+}
+body[data-theme="light"] .swarm-risk-model { color: #1a1a1f; }
+body[data-theme="light"] .swarm-risk-engine,
+body[data-theme="light"] .swarm-risk-math { color: #6a6a75; }
+body[data-theme="light"] .swarm-risk-warn { color: #b45309; }
+
+/* Offline / errors / logs */
+body[data-theme="light"] .swarm-config-offline {
+  background: rgba(193, 49, 31, 0.06);
+  border-color: rgba(193, 49, 31, 0.4);
+}
+body[data-theme="light"] .swarm-offline-title { color: #c1311f; }
+body[data-theme="light"] .swarm-offline-msg { color: #1a1a1f; }
+body[data-theme="light"] .swarm-offline-cmd {
+  color: #008c2a;
+  background: #ecebe4;
+  border-color: #d8d6cc;
+}
+body[data-theme="light"] .swarm-offline-detail { color: #6a6a75; }
+
+body[data-theme="light"] .swarm-config-error {
+  background: rgba(193, 49, 31, 0.08);
+  border-color: #c1311f;
+  color: #c1311f;
+}
+body[data-theme="light"] .swarm-config-deploying { color: #b45309; }
+body[data-theme="light"] .swarm-config-logs-title { color: #4a4a55; }
+body[data-theme="light"] .swarm-config-log-block { border-color: #d8d6cc; }
+body[data-theme="light"] .swarm-config-log-port {
+  color: #1a56db;
+  background: #ecebe4;
+}
+body[data-theme="light"] .swarm-config-log-pre {
+  background: #ffffff;
+  color: #1a1a1f;
+}
+
+/* Deploy button */
+body[data-theme="light"] .swarm-deploy-btn {
+  background: #008c2a;
+  color: #ffffff;
+}
+body[data-theme="light"] .swarm-deploy-btn:hover:not(:disabled) {
+  background: #00a832;
+  box-shadow: 0 0 12px rgba(0, 140, 42, 0.3);
+}
+body[data-theme="light"] .swarm-deploy-btn:disabled {
+  background: #c4c2b8;
+  color: #6a6a75;
+}
+body[data-theme="light"] .swarm-deploy-btn.deploying {
+  background: #b45309;
+  color: #ffffff;
+}
+
+/* Engine selector */
+body[data-theme="light"] .swarm-engine-row { border-bottom-color: #d8d6cc; }
+body[data-theme="light"] .swarm-engine-label { color: #4a4a55; }
+body[data-theme="light"] .swarm-engine-toggle { border-color: #d8d6cc; }
+body[data-theme="light"] .swarm-engine-btn { color: #6a6a75; }
+body[data-theme="light"] .swarm-engine-btn + .swarm-engine-btn { border-left-color: #d8d6cc; }
+body[data-theme="light"] .swarm-engine-btn:hover:not(.disabled) {
+  color: #1a1a1f;
+  background: rgba(0, 0, 0, 0.04);
+}
+body[data-theme="light"] .swarm-engine-btn.active.engine-llama {
+  background: rgba(26, 86, 219, 0.1);
+  color: #1a56db;
+}
+body[data-theme="light"] .swarm-engine-btn.active.engine-mlx {
+  background: rgba(0, 140, 42, 0.1);
+  color: #008c2a;
+}
+body[data-theme="light"] .swarm-engine-btn.active.engine-vllm {
+  background: rgba(194, 65, 12, 0.12);
+  color: #c2410c;
+}
+body[data-theme="light"] .swarm-engine-in-use { color: #6d28d9; }
+body[data-theme="light"] .swarm-engine-in-use strong { color: #5b21b6; }
+body[data-theme="light"] .swarm-engine-warn { color: #c1311f; }
