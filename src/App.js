@@ -10,6 +10,7 @@ import HelpModal from './components/HelpModal';
 import ModeSelector from './components/ModeSelector';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
 import KvPressureGauge from './components/KvPressureGauge';
+import PressureCluster from './components/PressureCluster';
 import { extractCodeBlock } from './utils/codeExtractor';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode']);
@@ -289,6 +290,7 @@ function App() {
 
       {!showConfigPanel && (
         <>
+          <PressureCluster online={online} />
           <PromptInput
             onSubmit={handleSubmit}
             loading={loading}

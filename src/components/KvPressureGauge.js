@@ -61,7 +61,9 @@ export default function KvPressureGauge({ online }) {
         const data = await fetchKvPressure();
         if (cancelled) return;
         setReadings(data);
-        const live = data.filter(r => r.ok && Number.isFinite(r.usage));
+        // MLX entries are owned by PressureCluster (richer per-port view).
+        // This gauge shows only llama-server KV-cache occupancy from /metrics.
+        const live = data.filter(r => r.ok && r.backend !== 'mlx' && Number.isFinite(r.usage));
         setErrored(live.length === 0 && data.length > 0);
         if (live.length > 0) {
           const target = Math.max(...live.map(r => r.usage)) * 100;
@@ -83,7 +85,7 @@ export default function KvPressureGauge({ online }) {
 
   if (!online) return null;
 
-  const live = readings.filter(r => r.ok);
+  const live = readings.filter(r => r.ok && r.backend !== 'mlx');
   if (live.length === 0) {
     if (errored) {
       return (

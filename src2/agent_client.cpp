@@ -65,13 +65,22 @@ static std::string call_agent_impl(const Agent& agent,
             body["model"] = agent.model;
         }
 
+        auto t_start = std::chrono::steady_clock::now();
         auto res = cli.Post("/v1/chat/completions", body.dump(), "application/json");
+        auto t_end = std::chrono::steady_clock::now();
 
         std::string result;
         if (res && res->status == 200) {
             auto j = json::parse(res->body);
             if (j.contains("choices") && !j["choices"].empty()) {
                 result = j["choices"][0]["message"]["content"];
+            }
+            if (agent.engine == "mlx" && j.contains("usage") && j["usage"].is_object()) {
+                long ctoks = j["usage"].value("completion_tokens", -1L);
+                if (ctoks >= 0) {
+                    double secs = std::chrono::duration<double>(t_end - t_start).count();
+                    mlx_inflight::record_completion(agent.port, secs, ctoks);
+                }
             }
         } else if (res) {
             try {

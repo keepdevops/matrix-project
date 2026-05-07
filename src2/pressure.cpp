@@ -181,8 +181,24 @@ constexpr int MLX_QUEUE_FULL = 4;
 json mlx_entry(const PortInfo& info) {
     int pending = mlx_inflight::get(info.port);
     int busy = pending > 0 ? 1 : 0;
-    double usage = std::min(1.0,
-        static_cast<double>(pending) / static_cast<double>(MLX_QUEUE_FULL));
+    int queue_depth = std::max(0, pending - 1);
+
+    double avg_secs = mlx_inflight::avg_decode_secs(info.port);
+    double avg_tps  = mlx_inflight::avg_decode_tps(info.port);
+
+    // Asymptotic, never-saturating fallback usage so the legacy single-bar
+    // gauge keeps moving as the queue drains. Real signal lives in the four
+    // fields below — UI should prefer those for the cluster-of-gauges view.
+    double usage = static_cast<double>(pending) /
+                   static_cast<double>(pending + MLX_QUEUE_FULL);
+
+    // Estimated wait until a freshly arriving request begins decode.
+    // Uses measured EMA when available; null when no samples yet.
+    json expected_wait = nullptr;
+    if (avg_secs > 0.0) {
+        expected_wait = queue_depth * avg_secs;
+    }
+
     return json{
         {"port", info.port},
         {"names", info.names},
@@ -193,7 +209,11 @@ json mlx_entry(const PortInfo& info) {
         {"kv_total", nullptr},
         {"slots_busy", busy},
         {"slots_total", 1},
-        {"queue_depth", std::max(0, pending - 1)},
+        {"queue_depth", queue_depth},
+        {"pending", pending},
+        {"decode_rate_tps", avg_tps > 0.0 ? json(avg_tps) : json(nullptr)},
+        {"avg_request_secs", avg_secs > 0.0 ? json(avg_secs) : json(nullptr)},
+        {"expected_wait_secs", expected_wait},
     };
 }
 
