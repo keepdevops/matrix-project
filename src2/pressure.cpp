@@ -1,0 +1,207 @@
+#include "pressure.h"
+#include "json.hpp"
+
+#include <algorithm>
+#include <future>
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+
+using json = nlohmann::json;
+
+namespace {
+
+struct PortInfo {
+    int port;
+    std::vector<std::string> names;
+};
+
+// Parse a Prometheus-format value for the given metric name. Returns -1 if
+// the metric is absent or unparseable. Handles "<key> <value>" and
+// "<key>{labels} <value>".
+double parse_metric(const std::string& body, const std::string& key) {
+    size_t pos = 0;
+    while (pos < body.size()) {
+        size_t end = body.find('\n', pos);
+        std::string line = body.substr(pos, (end == std::string::npos) ? body.size() - pos : end - pos);
+        pos = (end == std::string::npos) ? body.size() : end + 1;
+        if (line.empty() || line[0] == '#') continue;
+        if (line.compare(0, key.size(), key) != 0) continue;
+        char nxt = line.size() > key.size() ? line[key.size()] : '\0';
+        if (nxt != ' ' && nxt != '\t' && nxt != '{') continue;
+        size_t sp = line.find(' ', key.size());
+        if (sp == std::string::npos) continue;
+        try {
+            return std::stod(line.substr(sp + 1));
+        } catch (const std::exception& e) {
+            std::cerr << "⚠️  [pressure] parse_metric(" << key << "): " << e.what() << std::endl;
+            return -1.0;
+        }
+    }
+    return -1.0;
+}
+
+json query_port(const PortInfo& info) {
+    json out = {
+        {"port", info.port},
+        {"names", info.names},
+        {"backend", "llama"},
+        {"ok", false},
+        {"usage", nullptr},
+        {"kv_used", nullptr},
+        {"kv_total", nullptr},
+        {"slots_busy", 0},
+        {"slots_total", 0},
+    };
+
+    httplib::Client cli("127.0.0.1", info.port);
+    cli.set_connection_timeout(2);
+    cli.set_read_timeout(3);
+
+    long n_ctx = 0;
+    int total_slots = 0;
+
+    // /props — context size and slot count
+    if (auto r = cli.Get("/props"); r && r->status == 200) {
+        try {
+            auto j = json::parse(r->body);
+            total_slots = j.value("total_slots", 0);
+            if (j.contains("default_generation_settings") &&
+                j["default_generation_settings"].is_object()) {
+                n_ctx = j["default_generation_settings"].value("n_ctx", 0);
+            }
+            if (n_ctx == 0) n_ctx = j.value("n_ctx", 0);
+        } catch (const std::exception& e) {
+            std::cerr << "⚠️  [pressure:" << info.port << "] /props parse: " << e.what() << std::endl;
+        }
+    }
+
+    // /slots — authoritative live KV occupancy per slot
+    long kv_used = 0;
+    int busy = 0;
+    int slot_count = 0;
+    bool slots_ok = false;
+    bool kv_field_seen = false;
+    if (auto r = cli.Get("/slots"); r && r->status == 200) {
+        try {
+            auto j = json::parse(r->body);
+            if (j.is_array()) {
+                slots_ok = true;
+                for (const auto& s : j) {
+                    ++slot_count;
+                    bool processing = s.value("is_processing", false);
+                    long c = s.value("cache_tokens", -1L);
+                    if (c < 0) c = s.value("n_past", -1L);
+                    if (c >= 0) kv_field_seen = true;
+                    if (c < 0 && processing
+                        && s.contains("next_token") && s["next_token"].is_array()) {
+                        kv_field_seen = true;
+                        // Newer llama-server: per-turn decode count under next_token[0].n_decoded.
+                        // This field is cumulative for the slot's last task and is NOT cleared
+                        // by ?action=erase, so only trust it while the slot is actively decoding.
+                        long acc = 0;
+                        for (const auto& nt : s["next_token"]) {
+                            acc += nt.value("n_decoded", 0L);
+                        }
+                        c = acc;
+                    }
+                    if (c > 0) kv_used += c;
+                    if (processing) ++busy;
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "⚠️  [pressure:" << info.port << "] /slots parse: " << e.what() << std::endl;
+        }
+    }
+    if (slot_count > 0) total_slots = slot_count;
+
+    // /metrics — fallback for KV when /slots is disabled, plus throughput
+    double metric_ratio = -1.0;
+    long metric_tokens = -1;
+    if (auto r = cli.Get("/metrics"); r && r->status == 200) {
+        metric_ratio = parse_metric(r->body, "llamacpp:kv_cache_usage_ratio");
+        double t = parse_metric(r->body, "llamacpp:kv_cache_tokens");
+        if (t >= 0) metric_tokens = static_cast<long>(t);
+        if (!slots_ok) {
+            double rp = parse_metric(r->body, "llamacpp:requests_processing");
+            if (rp >= 0) busy = static_cast<int>(rp);
+        }
+        double dec = parse_metric(r->body, "llamacpp:n_decode_total");
+        if (dec >= 0) out["n_decode_total"] = dec;
+        double pp = parse_metric(r->body, "llamacpp:prompt_tokens_total");
+        if (pp >= 0) out["prompt_tokens_total"] = pp;
+        double tp = parse_metric(r->body, "llamacpp:tokens_predicted_total");
+        if (tp >= 0) out["tokens_predicted_total"] = tp;
+    }
+
+    long kv_total = n_ctx * std::max(total_slots, 1);
+    if (!slots_ok && metric_tokens >= 0) kv_used = metric_tokens;
+
+    double usage = -1.0;
+    if (slots_ok && kv_total > 0) {
+        usage = static_cast<double>(kv_used) / static_cast<double>(kv_total);
+    } else if (metric_ratio >= 0) {
+        usage = metric_ratio;
+        if (kv_total > 0 && metric_tokens < 0) {
+            kv_used = static_cast<long>(metric_ratio * kv_total);
+        }
+    }
+
+    // When the server build doesn't expose KV occupancy at all (no cache_tokens,
+    // n_past, next_token, or kv_cache_usage_ratio anywhere), fall back to the
+    // slot-concurrency ratio so the gauge still reflects live compute pressure.
+    // Don't apply this when we have a real KV signal — otherwise a single busy
+    // slot would peg single-slot ports to 100% regardless of actual occupancy.
+    if (slots_ok && total_slots > 0 && !kv_field_seen && metric_ratio < 0) {
+        double busy_ratio = static_cast<double>(busy) / static_cast<double>(total_slots);
+        if (busy_ratio > usage) usage = busy_ratio;
+    }
+
+    if (usage >= 0) {
+        out["ok"] = true;
+        out["usage"] = usage;
+        out["kv_used"] = kv_used;
+        out["kv_total"] = kv_total;
+        out["slots_busy"] = busy;
+        out["slots_total"] = total_slots;
+    } else {
+        out["error"] = "no /slots and no /metrics available; restart llama-server with --metrics --slots";
+    }
+    return out;
+}
+
+}  // namespace
+
+void register_pressure_routes(httplib::Server& svr,
+                              const std::vector<Agent>& agents) {
+    svr.Get("/api/pressure", [&agents](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+
+        std::map<int, PortInfo> by_port;
+        for (const auto& a : agents) {
+            if (a.engine != "llama") continue;
+            auto& p = by_port[a.port];
+            p.port = a.port;
+            p.names.push_back(a.name);
+        }
+
+        std::vector<std::future<json>> futs;
+        futs.reserve(by_port.size());
+        for (const auto& kv : by_port) {
+            const PortInfo info = kv.second;
+            futs.push_back(std::async(std::launch::async,
+                [info]() { return query_port(info); }));
+        }
+
+        json arr = json::array();
+        for (auto& f : futs) {
+            try {
+                arr.push_back(f.get());
+            } catch (const std::exception& e) {
+                std::cerr << "❌ [pressure] worker failed: " << e.what() << std::endl;
+            }
+        }
+        res.set_content(arr.dump(), "application/json");
+    });
+}
