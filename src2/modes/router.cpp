@@ -240,6 +240,16 @@ json run_router(const ModeContext& ctx) {
         for (const auto& a : ctx.agents) {
             if (a.name != classifier_name) choices.push_back(a.name);
         }
+    } else {
+        // Prune configured choices to agents that are actually active in the
+        // swarm. Without this, the classifier is offered dead names (e.g.
+        // architect/reviewer in a 7-agent swarm) and returns a SELECTED line
+        // that filters down to nothing, forcing a silent fallback.
+        std::vector<std::string> active_choices;
+        for (const auto& n : choices) {
+            if (by_name.count(n)) active_choices.push_back(n);
+        }
+        choices.swap(active_choices);
     }
     if (mlx_centric && !choices.empty()) {
         // Reorder with strict MLX-centric priority (tier1 before architect/programmer).
@@ -284,7 +294,30 @@ json run_router(const ModeContext& ctx) {
               << " choices=" << choices.size()
               << " max_select=" << max_select << std::endl;
 
-    const std::string raw = call_agent(*by_name[classifier_name], ctx.user_prompt);
+    // Build a classifier prompt that overrides the agent's normal role and
+    // forces a strict SELECTED-line response. Without this, the classifier
+    // just answers the user's prompt literally (e.g. asked to "list sorts",
+    // it lists sort algorithms instead of picking agents).
+    std::string choices_csv;
+    for (size_t i = 0; i < choices.size(); ++i) {
+        if (i) choices_csv += ", ";
+        choices_csv += choices[i];
+    }
+    const std::string classifier_system =
+        "You are a routing classifier. Your ONLY job is to choose which "
+        "specialist agents should handle a user request. Do NOT answer the "
+        "request itself. Respond with exactly one line in this format and "
+        "nothing else:\n"
+        "SELECTED: <agent1>, <agent2>, ...\n"
+        "Pick between 1 and " + std::to_string(max_select) + " agents from the "
+        "allowed list. Use only names from the allowed list, separated by "
+        "commas. No prose, no explanations, no other lines.";
+    const std::string classifier_user =
+        "Allowed agents: " + choices_csv + "\n\n"
+        "User request:\n" + ctx.user_prompt + "\n\n"
+        "Respond with the SELECTED line only.";
+    const std::string raw = call_agent_with_system(
+        *by_name[classifier_name], classifier_system, classifier_user);
 
     std::vector<std::string> parsed = extract_names_from_plan(raw, choice_set);
 

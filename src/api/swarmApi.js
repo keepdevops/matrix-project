@@ -200,39 +200,25 @@ export async function configureSwarm(agents) {
 export const VLLM_METRIC_PORTS = [8080, 8081, 8082, 8083];
 
 /**
- * Fetch KV-cache pressure (0..1) from each port's Prometheus /metrics endpoint.
- * Supports both vLLM (`vllm:gpu_cache_usage_perc`) and llama.cpp servers
- * launched with `--metrics` (`llamacpp:kv_cache_usage_ratio`).
- * Returns one entry per port; entries with ok:false mean "no data".
+ * Fetch KV-cache pressure from the coordinator's /api/pressure aggregator,
+ * which combines llama.cpp /slots, /props, and /metrics per port.
+ * Returns one entry per unique llama-server port:
+ *   { port, names, usage (0..1), kv_used, kv_total, slots_busy, slots_total,
+ *     backend, ok, error? }
+ * Going through the coordinator avoids browser CORS blocks against
+ * llama-server and works whether or not --metrics was passed.
  */
-const KV_METRIC_PATTERNS = [
-  /^vllm:gpu_cache_usage_perc(?:\{[^}]*\})?\s+([\d.eE+-]+)/m,
-  /^llamacpp:kv_cache_usage_ratio(?:\{[^}]*\})?\s+([\d.eE+-]+)/m,
-];
-
-export async function fetchKvPressure(ports = VLLM_METRIC_PORTS) {
-  return Promise.all(ports.map(async (port) => {
-    try {
-      const res = await fetch(`http://localhost:${port}/metrics`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const text = await res.text();
-      let usage = null;
-      let backend = null;
-      for (const re of KV_METRIC_PATTERNS) {
-        const m = text.match(re);
-        if (m) {
-          usage = Number(m[1]);
-          backend = re === KV_METRIC_PATTERNS[0] ? 'vllm' : 'llama';
-          break;
-        }
-      }
-      const ok = usage !== null && Number.isFinite(usage);
-      return { port, usage: ok ? usage : null, backend, ok };
-    } catch (e) {
-      console.error(`KV pressure fetch failed for :${port}:`, e);
-      return { port, usage: null, backend: null, ok: false, error: e.message };
-    }
-  }));
+export async function fetchKvPressure() {
+  try {
+    const res = await fetch(`${API_BASE}/pressure`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error('expected array from /api/pressure');
+    return data;
+  } catch (e) {
+    console.error('KV pressure fetch failed:', e);
+    return [];
+  }
 }
 
 /**

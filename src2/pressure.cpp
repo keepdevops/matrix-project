@@ -1,5 +1,6 @@
 #include "pressure.h"
 #include "json.hpp"
+#include "mlx_inflight.h"
 
 #include <algorithm>
 #include <future>
@@ -171,6 +172,31 @@ json query_port(const PortInfo& info) {
     return out;
 }
 
+// MLX has no /metrics or /slots. Treat it as a serialized backend with one
+// effective slot, and use the coordinator-side inflight counter (queued +
+// active) as the pressure proxy. QUEUE_FULL is the queue depth at which the
+// gauge reads 100%.
+constexpr int MLX_QUEUE_FULL = 4;
+
+json mlx_entry(const PortInfo& info) {
+    int pending = mlx_inflight::get(info.port);
+    int busy = pending > 0 ? 1 : 0;
+    double usage = std::min(1.0,
+        static_cast<double>(pending) / static_cast<double>(MLX_QUEUE_FULL));
+    return json{
+        {"port", info.port},
+        {"names", info.names},
+        {"backend", "mlx"},
+        {"ok", true},
+        {"usage", usage},
+        {"kv_used", nullptr},
+        {"kv_total", nullptr},
+        {"slots_busy", busy},
+        {"slots_total", 1},
+        {"queue_depth", std::max(0, pending - 1)},
+    };
+}
+
 }  // namespace
 
 void register_pressure_routes(httplib::Server& svr,
@@ -178,17 +204,23 @@ void register_pressure_routes(httplib::Server& svr,
     svr.Get("/api/pressure", [&agents](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
 
-        std::map<int, PortInfo> by_port;
+        std::map<int, PortInfo> llama_by_port;
+        std::map<int, PortInfo> mlx_by_port;
         for (const auto& a : agents) {
-            if (a.engine != "llama") continue;
-            auto& p = by_port[a.port];
-            p.port = a.port;
-            p.names.push_back(a.name);
+            if (a.engine == "llama") {
+                auto& p = llama_by_port[a.port];
+                p.port = a.port;
+                p.names.push_back(a.name);
+            } else if (a.engine == "mlx") {
+                auto& p = mlx_by_port[a.port];
+                p.port = a.port;
+                p.names.push_back(a.name);
+            }
         }
 
         std::vector<std::future<json>> futs;
-        futs.reserve(by_port.size());
-        for (const auto& kv : by_port) {
+        futs.reserve(llama_by_port.size());
+        for (const auto& kv : llama_by_port) {
             const PortInfo info = kv.second;
             futs.push_back(std::async(std::launch::async,
                 [info]() { return query_port(info); }));
@@ -201,6 +233,10 @@ void register_pressure_routes(httplib::Server& svr,
             } catch (const std::exception& e) {
                 std::cerr << "❌ [pressure] worker failed: " << e.what() << std::endl;
             }
+        }
+        // MLX entries are read from an in-process counter — no HTTP, no async needed.
+        for (const auto& kv : mlx_by_port) {
+            arr.push_back(mlx_entry(kv.second));
         }
         res.set_content(arr.dump(), "application/json");
     });

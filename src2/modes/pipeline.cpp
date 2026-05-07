@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 using json = nlohmann::json;
@@ -45,12 +47,26 @@ std::vector<std::string> default_pipeline_order(const std::vector<Agent>& agents
         if (!mlx_pref.empty()) return mlx_pref;
     }
 
-    // Prefer classic coding chain if available.
-    auto classic = preferred_names(agents, {"architect", "programmer"});
-    if (!classic.empty()) return classic;
+    // Build a coding pipeline from whatever planner/coder/reviewer roles are
+    // active. Architect is the preferred planner, but foreman serves the same
+    // function in swarms that omit architect. Fall through tiers so we always
+    // produce a multi-stage chain when the active agents allow it.
+    auto planners = preferred_names(agents, {"architect", "foreman"});
+    auto coders   = preferred_names(agents, {"programmer", "mlx-coder", "specialist"});
+    auto checkers = preferred_names(agents, {"reviewer", "tester", "security", "documenter"});
 
-    // Fallback: first two active agents in config order (or one if only one active).
-    std::vector<std::string> out{agents.front().name};
+    std::vector<std::string> out;
+    auto push_first = [&](const std::vector<std::string>& xs) {
+        if (!xs.empty()) out.push_back(xs.front());
+    };
+    push_first(planners);
+    push_first(coders);
+    push_first(checkers);
+
+    if (!out.empty()) return out;
+
+    // Final fallback: first two active agents in config order.
+    out.push_back(agents.front().name);
     if (agents.size() > 1) out.push_back(agents[1].name);
     return out;
 }
@@ -116,6 +132,49 @@ json run_pipeline(const ModeContext& ctx) {
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : ctx.agents) by_name[a.name] = &a;
 
+    // Role-equivalent substitutions: when a configured order references an
+    // agent that isn't active, try a substitute that fills the same role
+    // before silently skipping. Without this, a config that names "architect"
+    // in a swarm without one collapses to a single-agent "pipeline".
+    const std::vector<std::pair<std::string, std::vector<std::string>>> role_substitutes = {
+        {"architect",  {"foreman"}},
+        {"foreman",    {"architect"}},
+        {"programmer", {"mlx-coder", "specialist"}},
+        {"mlx-coder",  {"programmer", "specialist"}},
+        {"reviewer",   {"tester", "security"}},
+        {"tester",     {"reviewer"}},
+    };
+    std::unordered_map<std::string, std::string> substituted;
+    std::vector<std::string> resolved_order;
+    std::unordered_set<std::string> already_in_order(effective_order.begin(),
+                                                     effective_order.end());
+    std::unordered_set<std::string> seen_resolved;
+    for (const auto& name : effective_order) {
+        if (by_name.count(name)) {
+            if (seen_resolved.insert(name).second) resolved_order.push_back(name);
+            continue;
+        }
+        std::string sub;
+        for (const auto& kv : role_substitutes) {
+            if (kv.first != name) continue;
+            for (const auto& cand : kv.second) {
+                if (by_name.count(cand) && !already_in_order.count(cand)) {
+                    sub = cand;
+                    break;
+                }
+            }
+            break;
+        }
+        if (!sub.empty()) {
+            substituted[name] = sub;
+            already_in_order.insert(sub);
+            if (seen_resolved.insert(sub).second) resolved_order.push_back(sub);
+            std::cerr << "⚠️  [pipeline] substituting missing '" << name
+                      << "' with active '" << sub << "'" << std::endl;
+        }
+    }
+    effective_order.swap(resolved_order);
+
     std::vector<std::string> executed;
     std::vector<std::string> missing;
 
@@ -180,6 +239,7 @@ json run_pipeline(const ModeContext& ctx) {
     meta["order"] = executed;
     meta["missing"] = missing;
     meta["fallback_order_used"] = fallback_order_used;
+    if (!substituted.empty()) meta["substitutions"] = substituted;
     return json{
         {"mode", "pipeline"},
         {"agents", agent_outputs},

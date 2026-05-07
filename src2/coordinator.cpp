@@ -3,6 +3,7 @@
 #include "agent.h"
 #include "agent_client.h"
 #include "modes/mode.h"
+#include "pressure.h"
 
 #include <chrono>
 #include <fstream>
@@ -292,7 +293,10 @@ int main(int argc, char* argv[]) {
         std::cout << "✅ [Swarm Matrix] KV cache clear complete" << std::endl;
     });
 
-    // 7. CORS preflight
+    // 7. KV pressure aggregator (slots + props + metrics per llama-server)
+    register_pressure_routes(svr, agents);
+
+    // 8. CORS preflight
     svr.Options(R"(/api/.*)", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");

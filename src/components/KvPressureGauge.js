@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fetchKvPressure } from '../api/swarmApi';
 
-const POLL_MS = 5000;
+const POLL_MS = 250;
+const TWEEN_MS = 200; // settle before the next sample arrives
 
 function colorFor(pct) {
   if (pct >= 90) return 'var(--kv-crit, #ff4136)';
@@ -12,10 +13,45 @@ function colorFor(pct) {
 export default function KvPressureGauge({ online }) {
   const [readings, setReadings] = useState([]);
   const [errored, setErrored] = useState(false);
+  const [displayPct, setDisplayPct] = useState(0);
+  // current = last value actually painted; used as the "from" anchor so a new
+  // sample arriving mid-tween picks up where we are, not where we started.
+  const tweenRef = useRef({ current: 0, from: 0, to: 0, start: 0, raf: 0 });
+
+  useEffect(() => {
+    const t = tweenRef.current;
+    return () => { if (t.raf) cancelAnimationFrame(t.raf); };
+  }, []);
+
+  const tweenTo = (target) => {
+    const t = tweenRef.current;
+    // Guard against non-finite samples (e.g. transient 0/0 from a freshly
+    // cleared KV cache). Without this, NaN/Infinity poisons t.current and
+    // every subsequent tween stays NaN forever.
+    const safeTarget = Number.isFinite(target)
+      ? Math.max(0, Math.min(100, target))
+      : 0;
+    if (!Number.isFinite(t.current)) t.current = 0;
+    if (t.raf) cancelAnimationFrame(t.raf);
+    t.from = t.current;
+    t.to = safeTarget;
+    t.start = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t.start) / TWEEN_MS);
+      const eased = 1 - Math.pow(1 - k, 2); // ease-out quad — quicker initial jump
+      t.current = t.from + (t.to - t.from) * eased;
+      setDisplayPct(t.current);
+      if (k < 1) t.raf = requestAnimationFrame(step);
+      else t.raf = 0;
+    };
+    t.raf = requestAnimationFrame(step);
+  };
 
   useEffect(() => {
     if (!online) {
       setReadings([]);
+      tweenRef.current.current = 0;
+      setDisplayPct(0);
       return undefined;
     }
     let cancelled = false;
@@ -25,7 +61,12 @@ export default function KvPressureGauge({ online }) {
         const data = await fetchKvPressure();
         if (cancelled) return;
         setReadings(data);
-        setErrored(data.every(r => !r.ok));
+        const live = data.filter(r => r.ok && Number.isFinite(r.usage));
+        setErrored(live.length === 0 && data.length > 0);
+        if (live.length > 0) {
+          const target = Math.max(...live.map(r => r.usage)) * 100;
+          tweenTo(target);
+        }
       } catch (err) {
         console.error('KV pressure poll failed:', err);
         if (!cancelled) setErrored(true);
@@ -59,9 +100,16 @@ export default function KvPressureGauge({ online }) {
     return null;
   }
 
-  const maxPct = Math.round(Math.max(...live.map(r => r.usage)) * 100);
+  const maxPct = Math.round(displayPct);
   const tooltip = live
-    .map(r => `:${r.port}${r.backend ? ` (${r.backend})` : ''} ${(r.usage * 100).toFixed(0)}%`)
+    .map(r => {
+      const pct = (r.usage * 100).toFixed(0);
+      const tokens = (r.kv_used != null && r.kv_total != null)
+        ? ` ${r.kv_used}/${r.kv_total}` : '';
+      const slots = (r.slots_total)
+        ? ` busy ${r.slots_busy ?? 0}/${r.slots_total}` : '';
+      return `:${r.port}${r.backend ? ` (${r.backend})` : ''} ${pct}%${tokens}${slots}`;
+    })
     .join(' · ');
 
   return (

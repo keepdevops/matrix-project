@@ -1,6 +1,7 @@
 #include "agent_client.h"
 #include "httplib.h"
 #include "json.hpp"
+#include "mlx_inflight.h"
 
 #include <chrono>
 #include <iostream>
@@ -26,9 +27,13 @@ void init_mlx_port_locks(const std::vector<Agent>& agents) {
 static std::string call_agent_impl(const Agent& agent,
                                    const std::string& system_prompt,
                                    const std::string& prompt) {
-    // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts
+    // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts.
+    // Count inflight (queued + active) BEFORE the mutex so the pressure gauge
+    // reflects waiters too, not just the one slot currently decoding.
+    std::unique_ptr<mlx_inflight::Scope> mlx_pressure;
     std::unique_lock<std::mutex> mlx_lock;
     if (agent.engine == "mlx") {
+        mlx_pressure = std::make_unique<mlx_inflight::Scope>(agent.port);
         auto it = mlx_port_locks.find(agent.port);
         if (it != mlx_port_locks.end()) {
             mlx_lock = std::unique_lock<std::mutex>(*it->second);

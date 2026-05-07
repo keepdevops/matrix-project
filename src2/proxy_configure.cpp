@@ -220,7 +220,10 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     system("pkill -f 'mlx_lm.server' 2>/dev/null");
     system("pkill -f 'vllm.entrypoints' 2>/dev/null");
     system("pkill -f 'docker model run' 2>/dev/null");
-    system(("pkill -f '" + proj + "/coordinator' 2>/dev/null").c_str());
+    // Match by argv suffix, not absolute path — old instances launched as
+    // `./coordinator --config …` from the project dir won't match a pkill
+    // pattern containing the full project path.
+    system("pkill -f 'coordinator --config' 2>/dev/null");
     system("lsof -ti:8080,8081,8082,8083,8084,8085,8086,8087,8088,8089,8090 | xargs kill -9 2>/dev/null");
     std::this_thread::sleep_for(std::chrono::seconds(5));
     mkdir(g_env.matrix_slots_dir.c_str(), 0755);
