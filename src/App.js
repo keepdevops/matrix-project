@@ -5,6 +5,7 @@ import { useSwarm } from './hooks/useSwarm';
 import { clearCache, fetchAgents, fetchSwarmConfig, fetchModels, fetchModes, setActiveMode } from './api/swarmApi';
 import PromptInput from './components/PromptInput';
 import AgentGrid from './components/AgentGrid';
+import MetricsStrip from './components/MetricsStrip';
 import SwarmConfig from './components/SwarmConfig';
 import HelpModal from './components/HelpModal';
 import ModeSelector from './components/ModeSelector';
@@ -38,6 +39,8 @@ function App() {
     checkStatus,
     setResponses,
     setFinalAnswer,
+    lastMeta,
+    setLastMeta,
   } = useSwarm();
 
   const [activeAgents, setActiveAgents] = useState([]);
@@ -168,6 +171,7 @@ function App() {
     });
     setResponses(resps);
     setFinalAnswer(entry._final || null);
+    setLastMeta(null);  // history entries don't carry per-run timings (yet)
     setSelectedPrompt(entry.prompt || '');
     setSelectedTemperature(entry.temperature ?? 0.7);
     setShowHistory(false);
@@ -307,6 +311,7 @@ function App() {
             </div>
           )}
           <FinalAnswerPanel text={finalAnswer} />
+          <MetricsStrip envelope={{ meta: lastMeta }} />
           <AgentGrid
             activeAgents={activeAgents}
             responses={responses}

@@ -1,9 +1,11 @@
 #include "agent_stream.h"
+#include "agent_metrics.h"
 #include "agent_client.h"
 #include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
 
+#include <chrono>
 #include <iostream>
 #include <string>
 
@@ -95,9 +97,14 @@ std::string stream_llama(const Agent& agent,
         if (cancel && cancel->load()) return false;
         buf.append(data, n);
         drain_frames(buf, on_chunk, accumulated, done);
-        return !done;
+        // Returning false here cancels the httplib request and produces a
+        // null response, which we'd then treat as "stream connect failed"
+        // and skip metric recording. Real servers close the socket after
+        // [DONE] so reading until EOF is the right thing.
+        return true;
     };
 
+    auto t_start = std::chrono::steady_clock::now();
     auto res = cli.Post("/v1/chat/completions",
                         httplib::Headers{{"Accept", "text/event-stream"}},
                         body.dump(), "application/json",
@@ -116,8 +123,15 @@ std::string stream_llama(const Agent& agent,
         buf += "\n\n";
         drain_frames(buf, on_chunk, accumulated, done);
     }
+    auto t_end = std::chrono::steady_clock::now();
     if (!accumulated.empty()) {
         kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
+        // Approximate token count from word count — llama-server's SSE chunks
+        // don't carry usage metadata. Good enough for a UX-grade dashboard.
+        double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+        long words = 1;
+        for (char c : accumulated) if (c == ' ') ++words;
+        agent_metrics::record(agent.name, ms, words, -1);
     }
     return accumulated;
 }

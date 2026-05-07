@@ -28,10 +28,14 @@ function HelpModal({ onClose }) {
             <dl>
               <dt>ONLINE / OFFLINE</dt>
               <dd>Coordinator status. When ONLINE, the header shows which inference engine(s) are in use (e.g. MLX). OFFLINE (red, blinking) means the backend is unreachable — open CONFIGURE and deploy a swarm first. The UI polls every 10 s and updates automatically.</dd>
-              <dt>MODE: FLAT / PIPELINE / ROUTER</dt>
-              <dd>Orchestration strategy. <strong>flat</strong> broadcasts the prompt to every active agent in parallel (no reducer). <strong>pipeline</strong> chains agents sequentially — each receives the previous agent's output. <strong>router</strong> uses a classifier agent to pick a subset of agents that are best for the prompt and only sends to those. Switch any time; the active mode is persisted on the coordinator.</dd>
+              <dt>MODE: FLAT / PIPELINE / CASCADE / ROUTER</dt>
+              <dd>Orchestration strategy. <strong>flat</strong> broadcasts to every active agent in parallel (no reducer). <strong>pipeline</strong> chains agents sequentially — each receives the previous agent's output; an optional <em>synthesizer</em> agent runs last and consolidates all stage outputs into one final answer. <strong>cascade</strong> is mixture-of-agents: parallel broadcast plus a synthesizer that reduces every response into one consolidated answer. <strong>router</strong> uses a classifier agent (foreman by default) to pick up to <em>max_select</em> agents from the per-mode roster, with a live load hint built from KV pressure. Switch any time; the active mode is persisted.</dd>
               <dt>CONFIGURE</dt>
-              <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX / vLLM); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
+              <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX / vLLM); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, click <strong>✏️</strong> next to any agent to edit its system prompt live, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
+              <dt>PER-MODE ROSTER</dt>
+              <dd>Inside CONFIGURE. Tabs for each mode (flat / pipeline / cascade / router) let you pick which agents participate. Pipeline order matters — use ↑/↓ to reorder. Pipeline + cascade get a <em>synthesizer</em> dropdown (an agent that consolidates outputs into one final answer). Router gets a <em>max responders</em> input. Empty roster ⇒ mode uses the full deployed swarm. A red <strong>🔴 circuit breaker</strong> banner shows here when an agent has tripped.</dd>
+              <dt>PRESETS</dt>
+              <dd>Save the active mode's current settings (mode + roster + synthesizer + max_select) under a name like <em>design-review</em> or <em>router-fast</em>. <strong>Apply</strong> swaps modes and loads the bundle in one click; ✕ deletes. Survives restart and (with <code>MATRIX_SOURCE_CONFIG</code> set) UI redeploy.</dd>
               <dt>CLEAR KV</dt>
               <dd>Clears state on all agents: erases the KV cache on llama-server agents and restarts MLX servers to clear conversation history. Useful when agents seem stuck, produce repetitive output, or after switching to a completely different task.</dd>
               <dt>HISTORY (N)</dt>
@@ -132,9 +136,40 @@ function HelpModal({ onClose }) {
               <dt>flat</dt>
               <dd>Default. Broadcast the prompt to every selected agent in parallel; no reducer. Best for cross-referencing answers from different roles on the same question.</dd>
               <dt>pipeline</dt>
-              <dd>Sequential chain. Each agent receives the previous agent's output as additional context. Pairs naturally with role orderings like architect → programmer → reviewer, or scout → synthesis → programmer.</dd>
+              <dd>Sequential chain. Each agent receives the previous agent's output as additional context. Pairs naturally with role orderings like architect → programmer → reviewer. If you set a <em>synthesizer</em>, it runs once at the end with all stage outputs and produces the consolidated final answer (otherwise the last stage's output is final). Failed stages are recorded in <code>meta.errors[]</code> and downstream stages continue from the last good output instead of getting poisoned.</dd>
+              <dt>cascade</dt>
+              <dd>Mixture-of-agents. Broadcasts the prompt to every roster agent in parallel (like flat), then a designated <em>synthesizer</em> agent reduces all responses into one consolidated answer. Best of flat (parallelism) plus a single coherent final answer. Failed agents are excluded from the synthesizer's input.</dd>
               <dt>router</dt>
-              <dd>A classifier agent inspects the prompt and selects a subset of agents to engage. Saves tokens and time when only a few roles are relevant. Falls back to a default agent if classification fails.</dd>
+              <dd>A classifier agent (foreman by default) inspects the prompt and selects up to <em>max_select</em> agents from the per-mode roster. The classifier prompt is enriched with a live <code>Current load: …</code> hint built from KV-cache pressure, so the foreman can prefer less-loaded roles. Falls back to a default agent if classification fails.</dd>
+            </dl>
+          </div>
+
+          <div className="help-section">
+            <h3>Resilience &amp; Observability</h3>
+            <dl>
+              <dt>Circuit breaker</dt>
+              <dd>Each agent has its own breaker. After 3 failures within a 60 s window the breaker opens, and that agent is excluded from dispatch (and streaming) for a 30 s cooldown. Then it goes half-open and the next call re-probes; success closes the breaker, failure re-opens it. Tripped agents appear in a red banner inside PER-MODE ROSTER and are listed in <code>meta.excluded_unhealthy[]</code>. Snapshot at <code>GET /api/health/agents</code>.</dd>
+              <dt>Retry &amp; skip-with-warning</dt>
+              <dd>One automatic retry (250 ms backoff) on transient HTTP failures (5xx / empty 200 / connect error). 4xx errors don't retry. In pipeline mode a failed stage is recorded in <code>meta.errors[]</code> and the chain continues from the last good output rather than passing the error message downstream. Cascade filters failed agents out of the synthesizer's input.</dd>
+              <dt>Per-run metrics</dt>
+              <dd>Every dispatch envelope carries <code>meta.timings {`{ agent: { calls, total_ms, completion_tokens } }`}</code> plus <code>meta.wall_ms</code>. The <strong>RUN METRICS</strong> strip below FINAL ANSWER renders this as a per-agent bar chart so you can see who's hot, slow, or idle. The streaming endpoint emits a final <code>metrics</code> SSE event with the same shape.</dd>
+            </dl>
+          </div>
+
+          <div className="help-section">
+            <h3>Streaming SSE</h3>
+            <p><code>POST /api/architect/stream</code> dispatches under the active mode and emits Server-Sent Events as work progresses:</p>
+            <dl>
+              <dt>token / agent_done</dt>
+              <dd>One <code>token</code> event per delta from each agent; one <code>agent_done</code> per agent on completion.</dd>
+              <dt>stage (pipeline)</dt>
+              <dd><code>{`{ step, total, agent }`}</code> fires at the start of each pipeline stage so the UI can show progress.</dd>
+              <dt>selected (router)</dt>
+              <dd><code>{`{ classifier, agents }`}</code> fires once after classification, before the chosen agents start streaming.</dd>
+              <dt>synthesis_start (cascade / pipeline)</dt>
+              <dd>Fires when the synthesizer kicks in to reduce responses. Subsequent <code>token</code> events for that agent are the consolidated final answer.</dd>
+              <dt>metrics + done</dt>
+              <dd>A final <code>metrics</code> event carries per-agent timings; <code>done</code> with payload <code>[DONE]</code> closes the stream.</dd>
             </dl>
           </div>
 

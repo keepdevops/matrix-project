@@ -120,26 +120,15 @@ export default function PresetsPanel() {
       </div>
 
       {presetEntries.length === 0 && (
-        <div style={{ opacity: 0.6, fontSize: '0.85rem' }}>
-          — no presets yet —
-        </div>
+        <div className="presets-empty">— no presets yet —</div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+      <div className="presets-list">
         {presetEntries.map(([name, bundle]) => (
-          <div key={name}
-               style={{
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '0.4rem',
-                 padding: '0.3rem 0.4rem',
-                 background: '#1a1a1a',
-                 border: '1px solid #333',
-                 borderRadius: '3px',
-               }}>
-            <div style={{ flex: 1, fontSize: '0.85rem' }}>
-              <div style={{ fontWeight: 600 }}>{name}</div>
-              <div style={{ opacity: 0.65, fontSize: '0.75rem' }}>
+          <div key={name} className="preset-row">
+            <div className="preset-row-info">
+              <div className="preset-row-name">{name}</div>
+              <div className="preset-row-meta">
                 mode={bundle.mode}
                 {Array.isArray(bundle.agents) && ` · ${bundle.agents.length} agent${bundle.agents.length === 1 ? '' : 's'}`}
                 {bundle.synthesizer && ` · synth=${bundle.synthesizer}`}
@@ -149,15 +138,14 @@ export default function PresetsPanel() {
             <button
               onClick={() => handleApply(name)}
               disabled={busy}
-              className="swarm-deploy-btn"
-              style={{ padding: '0.2rem 0.6rem', fontSize: '0.8rem' }}
+              className="swarm-deploy-btn preset-row-apply"
             >
               Apply
             </button>
             <button
               onClick={() => handleDelete(name)}
               disabled={busy}
-              style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+              className="preset-row-delete"
             >
               ✕
             </button>

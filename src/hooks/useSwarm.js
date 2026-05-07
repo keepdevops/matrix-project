@@ -4,6 +4,7 @@ import { submitPrompt, fetchHistory, checkHealth } from '../api/swarmApi';
 export function useSwarm() {
   const [responses, setResponses] = useState({});
   const [finalAnswer, setFinalAnswer] = useState(null);
+  const [lastMeta, setLastMeta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
@@ -14,6 +15,7 @@ export function useSwarm() {
     setError(null);
     setResponses({});
     setFinalAnswer(null);
+    setLastMeta(null);
     try {
       const result = await submitPrompt(prompt, temperature);
       // submitPrompt returns { mode, agents, final, meta }; store the flat
@@ -31,6 +33,7 @@ export function useSwarm() {
       }
       setResponses(merged);
       setFinalAnswer(result.final || null);
+      setLastMeta(result.meta || null);
       return result;
     } catch (err) {
       setError(err.message);
@@ -62,6 +65,7 @@ export function useSwarm() {
   return {
     responses,
     finalAnswer,
+    lastMeta,
     loading,
     error,
     history,
@@ -71,6 +75,7 @@ export function useSwarm() {
     checkStatus,
     setResponses,
     setFinalAnswer,
+    setLastMeta,
   };
 }
 

@@ -4,8 +4,8 @@ import React from 'react';
 // Drop in next to any AgentResponse rendering — accepts the full envelope
 // and pulls `meta.timings` + `meta.wall_ms`. No-op if the envelope lacks them.
 //
-// Shape of meta.timings:
-//   { agent_name: { calls, total_ms, avg_ms?, completion_tokens, prompt_tokens? } }
+// Styling is class-based (.metrics-strip*) so it picks up light/dark theme
+// rules from src/themes/light.css without needing inline branching.
 export default function MetricsStrip({ envelope }) {
   const meta = envelope?.meta || {};
   const timings = meta.timings;
@@ -22,51 +22,31 @@ export default function MetricsStrip({ envelope }) {
   const totalTokens  = rows.reduce((s, r) => s + (r.completion_tokens || 0), 0);
 
   return (
-    <div style={{
-      fontSize: '0.78rem',
-      padding: '0.4rem 0.6rem',
-      background: '#0c0c0c',
-      border: '1px solid #2a2a2a',
-      borderRadius: '4px',
-      marginTop: '0.5rem',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        marginBottom: '0.25rem',
-      }}>
-        <span style={{ opacity: 0.7 }}>RUN METRICS</span>
-        <span style={{ opacity: 0.55 }}>
+    <div className="metrics-strip">
+      <div className="metrics-strip-header">
+        <span className="metrics-strip-title">RUN METRICS</span>
+        <span className="metrics-strip-totals">
           {wallMs != null && `wall ${(wallMs / 1000).toFixed(2)}s · `}
           agent ms {(totalAgentMs / 1000).toFixed(2)}s · {totalTokens} tok
         </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+      <div className="metrics-strip-rows">
         {rows.map(r => {
           const pct = totalAgentMs > 0 ? (r.total_ms / totalAgentMs) * 100 : 0;
           return (
-            <div key={r.name}
-                 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '7rem', opacity: 0.85 }}>{r.name}</span>
-              <span style={{ width: '4.5rem', textAlign: 'right', opacity: 0.75 }}>
+            <div key={r.name} className="metrics-strip-row">
+              <span className="metrics-strip-name">{r.name}</span>
+              <span className="metrics-strip-ms">
                 {(r.total_ms / 1000).toFixed(2)}s
               </span>
-              <span style={{ width: '4.5rem', textAlign: 'right', opacity: 0.75 }}>
+              <span className="metrics-strip-tokens">
                 {r.completion_tokens || 0} tok
               </span>
-              <div style={{
-                flex: 1, height: '0.5rem', background: '#1a1a1a',
-                borderRadius: '2px', overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${pct.toFixed(1)}%`,
-                  height: '100%',
-                  background: '#3a82ff',
-                }} />
+              <div className="metrics-strip-bar">
+                <div className="metrics-strip-bar-fill"
+                     style={{ width: `${pct.toFixed(1)}%` }} />
               </div>
-              <span style={{ width: '3rem', textAlign: 'right',
-                             opacity: 0.55, fontSize: '0.7rem' }}>
-                {pct.toFixed(0)}%
-              </span>
+              <span className="metrics-strip-pct">{pct.toFixed(0)}%</span>
             </div>
           );
         })}

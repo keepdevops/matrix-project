@@ -339,3 +339,39 @@ body[data-theme="light"] .kv-gauge-track {
   background: #e6ecf2;
   border-color: #c8d4e3;
 }
+
+/* MetricsStrip — light theme. Mirrors the surface used by FinalAnswerPanel. */
+body[data-theme="light"] .metrics-strip {
+  background: #f3f4f6;
+  border-color: #c8d4e3;
+  color: #1f2937;
+}
+body[data-theme="light"] .metrics-strip-title { color: #475569; }
+body[data-theme="light"] .metrics-strip-totals { color: #64748b; opacity: 1; }
+body[data-theme="light"] .metrics-strip-name { color: #1f2937; opacity: 1; }
+body[data-theme="light"] .metrics-strip-ms,
+body[data-theme="light"] .metrics-strip-tokens {
+  color: #334155;
+  opacity: 1;
+}
+body[data-theme="light"] .metrics-strip-bar { background: #d8e0e8; }
+body[data-theme="light"] .metrics-strip-bar-fill { background: #1a56db; }
+body[data-theme="light"] .metrics-strip-pct { color: #64748b; opacity: 1; }
+
+/* PresetsPanel — light theme. White-on-cream rows with subtle borders. */
+body[data-theme="light"] .presets-empty { color: #475569; opacity: 1; }
+body[data-theme="light"] .preset-row {
+  background: #ffffff;
+  border-color: #c8d4e3;
+  color: #1f2937;
+}
+body[data-theme="light"] .preset-row-name { color: #1f2937; }
+body[data-theme="light"] .preset-row-meta { color: #475569; opacity: 1; }
+body[data-theme="light"] .preset-row-delete {
+  border-color: #c8d4e3;
+  color: #1f2937;
+}
+body[data-theme="light"] .preset-row-delete:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}

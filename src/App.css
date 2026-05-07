@@ -1827,3 +1827,98 @@ h1 {
   flex-shrink: 0;
   min-width: 22px;
 }
+
+/* MetricsStrip — per-run agent timings/tokens. Themeable via the same
+   --panel-* tokens used by FinalAnswerPanel et al. */
+.metrics-strip {
+  font-size: 0.78rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--panel-bg, #0c0c0c);
+  border: 1px solid var(--panel-border, #2a2a2a);
+  color: var(--panel-fg, #c9d1d9);
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+.metrics-strip-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+.metrics-strip-title { opacity: 0.7; letter-spacing: 0.04em; }
+.metrics-strip-totals { opacity: 0.55; font-variant-numeric: tabular-nums; }
+.metrics-strip-rows { display: flex; flex-direction: column; gap: 0.15rem; }
+.metrics-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.metrics-strip-name { width: 7rem; opacity: 0.85; }
+.metrics-strip-ms,
+.metrics-strip-tokens {
+  width: 4.5rem;
+  text-align: right;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.metrics-strip-bar {
+  flex: 1;
+  height: 0.5rem;
+  background: var(--metrics-bar-bg, #1a1a1a);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.metrics-strip-bar-fill {
+  height: 100%;
+  background: var(--metrics-bar-fill, #3a82ff);
+  transition: width 200ms linear;
+}
+.metrics-strip-pct {
+  width: 3rem;
+  text-align: right;
+  opacity: 0.55;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* PresetsPanel — preset rows with name + summary + Apply/✕. */
+.presets-empty {
+  opacity: 0.6;
+  font-size: 0.85rem;
+  color: var(--panel-fg, #c9d1d9);
+}
+.presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  background: var(--preset-row-bg, #1a1a1a);
+  border: 1px solid var(--preset-row-border, #333);
+  color: var(--panel-fg, #c9d1d9);
+  border-radius: 3px;
+}
+.preset-row-info { flex: 1; font-size: 0.85rem; }
+.preset-row-name { font-weight: 600; }
+.preset-row-meta {
+  opacity: 0.65;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.preset-row-apply { padding: 0.2rem 0.6rem; font-size: 0.8rem; }
+.preset-row-delete {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid var(--preset-row-border, #333);
+  color: var(--panel-fg, #c9d1d9);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.preset-row-delete:hover:not(:disabled) {
+  background: var(--preset-row-delete-hover, rgba(255, 80, 80, 0.15));
+}
