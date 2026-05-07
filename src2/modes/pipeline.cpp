@@ -123,10 +123,45 @@ json run_pipeline(const ModeContext& ctx) {
             std::cerr << "⚠️  [pipeline] reordered static order for MLX-centric run (mlx-coder first)" << std::endl;
         }
     }
+    // If a synthesizer is configured, it runs as a final reducer — exclude it
+    // from chain construction so it doesn't double-execute as a regular stage.
+    std::string synth_name_for_filter;
+    if (ctx.mode_config.contains("synthesizer")
+        && ctx.mode_config["synthesizer"].is_string()) {
+        synth_name_for_filter = ctx.mode_config["synthesizer"].get<std::string>();
+    }
     if (effective_order.empty()) {
-        effective_order = default_pipeline_order(ctx.agents);
+        // Roster-driven fallback: run EVERY active agent, with planners first,
+        // then coders, then checkers, then any remaining roles. This honors the
+        // configured roster instead of capping at the 3-stage representative chain.
+        const std::vector<std::string> planner_pref  = {"architect", "foreman"};
+        const std::vector<std::string> coder_pref    = {"programmer", "mlx-coder", "specialist"};
+        const std::vector<std::string> checker_pref  = {"reviewer", "tester", "security", "optimizer", "debugger", "documenter"};
+        std::unordered_set<std::string> emitted;
+        auto push_if_active = [&](const std::string& name) {
+            if (name == synth_name_for_filter) return;
+            for (const auto& a : ctx.agents) {
+                if (a.name == name && !emitted.count(name)) {
+                    effective_order.push_back(name);
+                    emitted.insert(name);
+                    return;
+                }
+            }
+        };
+        for (const auto& n : planner_pref)  push_if_active(n);
+        for (const auto& n : coder_pref)    push_if_active(n);
+        for (const auto& n : checker_pref)  push_if_active(n);
+        // Append any remaining active agents in config order (roster tail).
+        for (const auto& a : ctx.agents) {
+            if (a.name == synth_name_for_filter) continue;
+            if (!emitted.count(a.name)) {
+                effective_order.push_back(a.name);
+                emitted.insert(a.name);
+            }
+        }
         fallback_order_used = true;
-        std::cerr << "⚠️  [pipeline] using fallback order from active agents" << std::endl;
+        std::cerr << "⚠️  [pipeline] roster-driven fallback: " << effective_order.size()
+                  << " active agent(s) chained" << std::endl;
     }
 
     std::unordered_map<std::string, const Agent*> by_name;
@@ -235,6 +270,46 @@ json run_pipeline(const ModeContext& ctx) {
     }
 
     std::cout << "✅ [pipeline] final from " << prev_agent << std::endl;
+
+    // Optional synthesis stage: if mode_config["synthesizer"] names an active
+    // agent, run it as a reducer over ALL stage outputs and use its result as
+    // the canonical final answer. Without this, only the last agent's output
+    // becomes `final` and earlier work is invisible to downstream callers.
+    std::string synthesizer_name;
+    if (ctx.mode_config.contains("synthesizer")
+        && ctx.mode_config["synthesizer"].is_string()) {
+        synthesizer_name = ctx.mode_config["synthesizer"].get<std::string>();
+    }
+    if (!synthesizer_name.empty() && by_name.count(synthesizer_name)
+        && executed.size() >= 1) {
+        std::string synth_prompt;
+        synth_prompt.reserve(ctx.user_prompt.size() + 256 * executed.size());
+        synth_prompt += "Original user request:\n<<<\n";
+        synth_prompt += ctx.user_prompt;
+        synth_prompt += "\n>>>\n\nThe following agents produced staged outputs:\n";
+        int n = 0;
+        for (const auto& name : executed) {
+            ++n;
+            synth_prompt += "\n--- Stage ";
+            synth_prompt += std::to_string(n);
+            synth_prompt += " (";
+            synth_prompt += name;
+            synth_prompt += ") ---\n";
+            synth_prompt += agent_outputs.value(name, std::string{});
+        }
+        synth_prompt += "\n\nProduce ONE consolidated answer that integrates the "
+                        "above contributions. Resolve contradictions, drop redundancy, "
+                        "and keep only the strongest material. Do not enumerate the "
+                        "stages — write the final answer directly.";
+
+        std::cout << "🧪 [pipeline] synthesis → " << synthesizer_name
+                  << " (reducing " << executed.size() << " stage(s))" << std::endl;
+        std::string synth_out = call_agent(*by_name[synthesizer_name], synth_prompt);
+        agent_outputs[synthesizer_name] = synth_out;
+        final_output = synth_out;
+        meta["synthesizer"] = synthesizer_name;
+        std::cout << "✅ [pipeline] final from synthesizer " << synthesizer_name << std::endl;
+    }
 
     meta["order"] = executed;
     meta["missing"] = missing;

@@ -31,6 +31,76 @@ static std::string history_path;
 // Per-mode config map from swarm-config.json (coordinator.modes), passed to
 // each mode invocation so mode-specific options live with the mode.
 static json modes_config = json::object();
+static std::mutex modes_config_mutex;
+static std::string config_path_global;
+
+// Filter the global agents vector to those listed in modes_config[mode]["agents"].
+// Empty/missing list => return all agents (preserve config order).
+// Order of returned vector matches the order of names in the configured list.
+static std::vector<Agent> filter_agents_for_mode(const std::string& mode_name) {
+    std::lock_guard<std::mutex> lock(modes_config_mutex);
+    if (!modes_config.contains(mode_name)) return agents;
+    const auto& cfg = modes_config[mode_name];
+    if (!cfg.contains("agents") || !cfg["agents"].is_array() || cfg["agents"].empty()) {
+        return agents;
+    }
+    std::map<std::string, const Agent*> by_name;
+    for (const auto& a : agents) by_name[a.name] = &a;
+    std::vector<Agent> filtered;
+    std::set<std::string> picked;
+    for (const auto& item : cfg["agents"]) {
+        if (!item.is_string()) continue;
+        const std::string n = item.get<std::string>();
+        auto it = by_name.find(n);
+        if (it != by_name.end() && picked.insert(n).second) {
+            filtered.push_back(*it->second);
+        }
+    }
+    // Ensure auxiliary agents referenced by mode config (e.g. pipeline.synthesizer)
+    // are reachable inside the mode even if they're not part of the chain roster.
+    // Without this, the mode's by_name lookup misses them and the feature silently
+    // no-ops.
+    for (const auto& key : {"synthesizer"}) {
+        if (cfg.contains(key) && cfg[key].is_string()) {
+            const std::string n = cfg[key].get<std::string>();
+            auto it = by_name.find(n);
+            if (it != by_name.end() && picked.insert(n).second) {
+                filtered.push_back(*it->second);
+            }
+        }
+    }
+    return filtered.empty() ? agents : filtered;
+}
+
+// Persist current modes_config back to the active config file (the one the
+// coordinator was launched with). Source swarm-config.json is NOT touched —
+// the deploy flow owns that. Caller must hold modes_config_mutex.
+static bool persist_modes_config_locked() {
+    if (config_path_global.empty()) return false;
+    std::ifstream in(config_path_global);
+    if (!in.is_open()) {
+        std::cerr << "❌ [persist] cannot read " << config_path_global << std::endl;
+        return false;
+    }
+    json doc;
+    try { doc = json::parse(in); }
+    catch (const std::exception& e) {
+        std::cerr << "❌ [persist] parse failed: " << e.what() << std::endl;
+        return false;
+    }
+    in.close();
+    if (!doc.contains("coordinator") || !doc["coordinator"].is_object()) {
+        doc["coordinator"] = json::object();
+    }
+    doc["coordinator"]["modes"] = modes_config;
+    std::ofstream out(config_path_global);
+    if (!out.is_open()) {
+        std::cerr << "❌ [persist] cannot write " << config_path_global << std::endl;
+        return false;
+    }
+    out << doc.dump(2);
+    return true;
+}
 
 static void load_history() {
     std::ifstream f(history_path);
@@ -61,6 +131,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    config_path_global = config_path;
     history_path = config_path.substr(0, config_path.rfind('/') + 1) + "history.json";
     if (history_path == "history.json") history_path = "history.json";
 
@@ -185,6 +256,135 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    // 4b. Per-mode roster — read & write the agent subset that participates in a mode
+    svr.Get(R"(/api/modes/([A-Za-z0-9_-]+)/agents)",
+            [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string mode_name = req.matches[1];
+        if (!modes::get(mode_name)) {
+            res.status = 404;
+            res.set_content(json({{"error","unknown mode"},{"mode",mode_name}}).dump(),
+                            "application/json");
+            return;
+        }
+        json configured = json::array();
+        bool explicit_set = false;
+        {
+            std::lock_guard<std::mutex> lock(modes_config_mutex);
+            if (modes_config.contains(mode_name)
+                && modes_config[mode_name].contains("agents")
+                && modes_config[mode_name]["agents"].is_array()
+                && !modes_config[mode_name]["agents"].empty()) {
+                configured = modes_config[mode_name]["agents"];
+                explicit_set = true;
+            }
+        }
+        json all = json::array();
+        for (const auto& a : agents) all.push_back(a.name);
+        json effective = explicit_set ? configured : all;
+        json out = {
+            {"mode", mode_name},
+            {"agents", effective},
+            {"explicit", explicit_set},
+            {"available", all}
+        };
+        {
+            std::lock_guard<std::mutex> lock(modes_config_mutex);
+            if (modes_config.contains(mode_name)
+                && modes_config[mode_name].contains("max_select")
+                && modes_config[mode_name]["max_select"].is_number_integer()) {
+                out["max_select"] = modes_config[mode_name]["max_select"];
+            }
+            if (modes_config.contains(mode_name)
+                && modes_config[mode_name].contains("synthesizer")
+                && modes_config[mode_name]["synthesizer"].is_string()) {
+                out["synthesizer"] = modes_config[mode_name]["synthesizer"];
+            }
+        }
+        res.set_content(out.dump(), "application/json");
+    });
+
+    svr.Put(R"(/api/modes/([A-Za-z0-9_-]+)/agents)",
+            [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string mode_name = req.matches[1];
+        if (!modes::get(mode_name)) {
+            res.status = 404;
+            res.set_content(json({{"error","unknown mode"},{"mode",mode_name}}).dump(),
+                            "application/json");
+            return;
+        }
+        try {
+            auto body = json::parse(req.body);
+            const bool has_agents = body.contains("agents") && body["agents"].is_array();
+            const bool has_max    = body.contains("max_select") && body["max_select"].is_number_integer();
+            const bool has_synth  = body.contains("synthesizer")
+                                    && (body["synthesizer"].is_string() || body["synthesizer"].is_null());
+            if (!has_agents && !has_max && !has_synth) {
+                res.status = 400;
+                res.set_content(json({{"error","provide 'agents', 'max_select', or 'synthesizer'"}}).dump(),
+                                "application/json");
+                return;
+            }
+            std::set<std::string> active_names;
+            for (const auto& a : agents) active_names.insert(a.name);
+            json normalized = json::array();
+            json unknown = json::array();
+            if (has_agents) {
+                for (const auto& item : body["agents"]) {
+                    if (!item.is_string()) continue;
+                    const std::string n = item.get<std::string>();
+                    if (active_names.count(n)) normalized.push_back(n);
+                    else unknown.push_back(n);
+                }
+            }
+            int max_select_val = 0;
+            if (has_max) {
+                max_select_val = body["max_select"].get<int>();
+                if (max_select_val < 1) max_select_val = 1;
+            }
+            bool persisted = false;
+            {
+                std::lock_guard<std::mutex> lock(modes_config_mutex);
+                if (!modes_config.contains(mode_name) || !modes_config[mode_name].is_object()) {
+                    modes_config[mode_name] = json::object();
+                }
+                if (has_agents) modes_config[mode_name]["agents"] = normalized;
+                if (has_max)    modes_config[mode_name]["max_select"] = max_select_val;
+                if (has_synth) {
+                    if (body["synthesizer"].is_null()
+                        || body["synthesizer"].get<std::string>().empty()) {
+                        modes_config[mode_name].erase("synthesizer");
+                    } else {
+                        const std::string sn = body["synthesizer"].get<std::string>();
+                        if (active_names.count(sn)) {
+                            modes_config[mode_name]["synthesizer"] = sn;
+                        } else {
+                            unknown.push_back(sn);
+                        }
+                    }
+                }
+                persisted = persist_modes_config_locked();
+            }
+            std::cout << "🧩 [modes/" << mode_name << "/agents] "
+                      << (has_agents ? std::to_string(normalized.size()) + " agent(s) " : "")
+                      << (has_max ? "max_select=" + std::to_string(max_select_val) : "")
+                      << (persisted ? "" : " (persistence FAILED)") << std::endl;
+            json out = {
+                {"mode", mode_name},
+                {"agents", normalized},
+                {"unknown", unknown},
+                {"persisted", persisted}
+            };
+            if (has_max) out["max_select"] = max_select_val;
+            res.set_content(out.dump(), "application/json");
+        } catch (const std::exception& e) {
+            std::cerr << "❌ [modes/agents PUT] " << e.what() << std::endl;
+            res.status = 400;
+            res.set_content(json({{"error", e.what()}}).dump(), "application/json");
+        }
+    });
+
     // 5. Swarm dispatch — delegate to active mode
     svr.Post("/api/architect", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -209,9 +409,14 @@ int main(int argc, char* argv[]) {
                 return;
             }
 
-            const json& cfg_for_mode = modes_config.contains(mode_name)
-                ? modes_config[mode_name] : json::object();
-            ModeContext ctx{agents, user_prompt, temperature, cfg_for_mode};
+            json cfg_for_mode;
+            {
+                std::lock_guard<std::mutex> lock(modes_config_mutex);
+                cfg_for_mode = modes_config.contains(mode_name)
+                    ? modes_config[mode_name] : json::object();
+            }
+            std::vector<Agent> mode_agents = filter_agents_for_mode(mode_name);
+            ModeContext ctx{mode_agents, user_prompt, temperature, cfg_for_mode};
 
             json envelope;
             try { envelope = mode->run(ctx); }
@@ -275,7 +480,8 @@ int main(int argc, char* argv[]) {
 
         // Snapshot agents into a shared_ptr so the chunked provider (which may
         // outlive this lambda's stack frame) keeps them alive.
-        auto agents_snap = std::make_shared<std::vector<Agent>>(agents);
+        auto agents_snap = std::make_shared<std::vector<Agent>>(
+            filter_agents_for_mode(modes::active()));
         auto prompt_snap = std::make_shared<std::string>(user_prompt);
         auto cancel = std::make_shared<std::atomic<bool>>(false);
 

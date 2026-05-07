@@ -92,6 +92,39 @@ export async function setActiveMode(name) {
 }
 
 /**
+ * Get the per-mode agent roster.
+ * Returns { mode, agents: string[], explicit: bool, available: string[] }.
+ * `agents` is the effective list (falls back to all available when not explicitly set).
+ */
+export async function fetchModeAgents(name) {
+  const response = await fetch(`${API_BASE}/modes/${encodeURIComponent(name)}/agents`);
+  if (!response.ok) throw new Error(`Failed to fetch mode agents: ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Set the per-mode agent roster. Order matters for pipeline mode.
+ * Pass `agents: []` to clear the override (mode falls back to full active roster).
+ */
+export async function setModeAgents(name, agentNames, opts = {}) {
+  const body = { agents: agentNames };
+  if (Number.isInteger(opts.maxSelect)) body.max_select = opts.maxSelect;
+  if (opts.synthesizer !== undefined) {
+    body.synthesizer = opts.synthesizer || null; // null/empty clears it
+  }
+  const response = await fetch(`${API_BASE}/modes/${encodeURIComponent(name)}/agents`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to set mode agents: ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
  * Fetch history of previous prompts and responses
  */
 export async function fetchHistory() {

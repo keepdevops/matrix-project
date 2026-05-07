@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs, fetchAgents } from '../api/swarmApi';
 import VllmPanel from './VllmPanel';
+import ModeRosterPanel from './ModeRosterPanel';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
 
@@ -638,6 +639,9 @@ export default function SwarmConfig({ onDeployed }) {
           </div>
 
           {engine === 'vllm' && <VllmPanel />}
+
+          <ModeRosterPanel />
+
 
           {status === 'error' && (
             <>

@@ -196,36 +196,12 @@
         "description": "Broadcast prompt to every agent in parallel; no reducer."
       },
       "pipeline": {
-        "order": [
-          "architect",
-          "programmer"
-        ]
+        "_comment": "No 'order' key => coordinator runs the full active roster (requires pipeline.cpp roster-fallback patch)."
       },
       "router": {
         "classifier": "foreman",
         "max_select": 3,
-        "fallback": [
-          "architect",
-          "programmer"
-        ],
-        "choices": [
-          "architect",
-          "debugger",
-          "programmer",
-          "specialist",
-          "security",
-          "optimizer",
-          "reviewer",
-          "tester",
-          "devops",
-          "scout",
-          "api",
-          "database",
-          "frontend",
-          "synthesis",
-          "documenter",
-          "mlx-coder"
-        ]
+        "_comment": "No 'choices' or 'fallback' => router auto-populates from active roster (router.cpp:240)."
       }
     }
   },
