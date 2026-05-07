@@ -65,17 +65,24 @@ class MockAgent:
 
                 # Streaming mode mirrors llama-server's OpenAI-compatible
                 # SSE: one `data: {choices:[{delta:{content:...}}]}` chunk per
-                # token, terminated by `data: [DONE]`.
+                # token, terminated by `data: [DONE]`. We buffer the full
+                # response and send Content-Length up front because httplib's
+                # receiver-mode client expects the framing — Python's stdlib
+                # http.server doesn't speak chunked transfer-encoding by
+                # default, and an open-ended HTTP/1.0 close gets treated as a
+                # connect failure on the C++ side.
                 if payload.get('stream'):
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'text/event-stream')
-                    self.end_headers()
+                    parts = []
                     for tok in content.split(' '):
                         chunk = {'choices': [{'delta': {'content': tok + ' '}}]}
-                        frame = f'data: {json.dumps(chunk)}\n\n'.encode('utf-8')
-                        self.wfile.write(frame)
-                        self.wfile.flush()
-                    self.wfile.write(b'data: [DONE]\n\n')
+                        parts.append(f'data: {json.dumps(chunk)}\n\n'.encode('utf-8'))
+                    parts.append(b'data: [DONE]\n\n')
+                    full = b''.join(parts)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/event-stream')
+                    self.send_header('Content-Length', str(len(full)))
+                    self.end_headers()
+                    self.wfile.write(full)
                     self.wfile.flush()
                     return
 

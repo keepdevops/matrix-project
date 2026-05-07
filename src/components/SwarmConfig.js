@@ -7,6 +7,7 @@ import {
 import VllmPanel from './VllmPanel';
 import ModeRosterPanel from './ModeRosterPanel';
 import PresetsPanel from './PresetsPanel';
+import AgentPromptModal from './AgentPromptModal';
 import {
   ENGINES,
   PROFILE_SAFE,
@@ -42,6 +43,7 @@ export default function SwarmConfig({ onDeployed }) {
   const [loadError, setLoadError] = useState('');
   const [loadRetries, setLoadRetries] = useState(0);
   const [activeProfile, setActiveProfile] = useState(PROFILE_SAFE);
+  const [editingAgent, setEditingAgent] = useState(null);
 
   const { status, statusMsg, logTail, deploy, reset } = useDeploy({ onDeployed });
 
@@ -242,6 +244,14 @@ export default function SwarmConfig({ onDeployed }) {
                   />
                   <span className="swarm-role-name">{role.name}</span>
                 </label>
+                <button
+                  type="button"
+                  title={`Edit ${role.name}'s system prompt`}
+                  onClick={() => setEditingAgent(role)}
+                  style={{ padding: '0 0.4rem', fontSize: '0.85rem' }}
+                >
+                  ✏️
+                </button>
                 {selected.has(role.name) && models.length > 0 && (
                   <select
                     className="swarm-model-select"
@@ -334,6 +344,18 @@ export default function SwarmConfig({ onDeployed }) {
         </div>
 
       </div>
+
+      {editingAgent && (
+        <AgentPromptModal
+          agent={editingAgent}
+          defaultPrompt={editingAgent.system_prompt}
+          onClose={() => setEditingAgent(null)}
+          onSaved={(text) => {
+            setRoles(prev => prev.map(r =>
+              r.name === editingAgent.name ? { ...r, system_prompt: text } : r));
+          }}
+        />
+      )}
     </div>
   );
 }

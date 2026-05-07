@@ -73,15 +73,19 @@ static AttemptResult call_agent_once(const Agent& agent,
             if (agent.engine == "llama") {
                 kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
             }
-            if (agent.engine == "mlx" && j.contains("usage") && j["usage"].is_object()) {
-                long ctoks = j["usage"].value("completion_tokens", -1L);
-                if (ctoks >= 0) {
-                    double secs = std::chrono::duration<double>(t_end - t_start).count();
-                    mlx_inflight::record_completion(agent.port, secs, ctoks);
-                }
+            long ctoks = -1, ptoks = -1;
+            if (j.contains("usage") && j["usage"].is_object()) {
+                ctoks = j["usage"].value("completion_tokens", -1L);
+                ptoks = j["usage"].value("prompt_tokens", -1L);
+            }
+            if (agent.engine == "mlx" && ctoks >= 0) {
+                double secs = std::chrono::duration<double>(t_end - t_start).count();
+                mlx_inflight::record_completion(agent.port, secs, ctoks);
             }
             if (!out.text.empty()) {
                 out.ok = true;
+                double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+                agent_metrics::record(agent.name, ms, ctoks, ptoks);
             } else {
                 // 200 with no content — treat as transient (server hiccup).
                 out.retryable = true;

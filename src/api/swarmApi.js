@@ -92,6 +92,23 @@ export async function setActiveMode(name) {
 }
 
 /**
+ * Update an agent's system prompt. Persists to active + source config and
+ * clears the response cache (old cached answers came from the old prompt).
+ */
+export async function setAgentSystemPrompt(name, systemPrompt) {
+  const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/prompt`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system_prompt: systemPrompt }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update agent prompt: ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
  * Mode presets — named bundles of (mode, agents, synthesizer, max_select).
  */
 export async function fetchPresets() {

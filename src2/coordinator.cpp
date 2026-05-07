@@ -3,6 +3,7 @@
 #include "agent.h"
 #include "agent_client.h"
 #include "agent_health.h"
+#include "agent_metrics.h"
 #include "agent_stream.h"
 #include "modes/mode.h"
 #include "pressure.h"
@@ -449,6 +450,73 @@ int main(int argc, char* argv[]) {
         res.set_content(agent_health::snapshot().dump(), "application/json");
     });
 
+    // 4c2. Agent prompt editing — change an agent's system_prompt at runtime.
+    // Persists to active config + mirror; survives restart and redeploy.
+    // PUT /api/agents/<name>/prompt {"system_prompt": "..."}
+    svr.Put(R"(/api/agents/([A-Za-z0-9_\-]+)/prompt)",
+            [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string name = req.matches[1];
+        Agent* target = nullptr;
+        for (auto& a : agents) if (a.name == name) { target = &a; break; }
+        if (!target) {
+            res.status = 404;
+            res.set_content(json({{"error","unknown agent"},{"name",name}}).dump(),
+                            "application/json");
+            return;
+        }
+        try {
+            auto body = json::parse(req.body);
+            if (!body.contains("system_prompt") || !body["system_prompt"].is_string()) {
+                res.status = 400;
+                res.set_content(json({{"error","missing 'system_prompt' string"}}).dump(),
+                                "application/json");
+                return;
+            }
+            const std::string new_prompt = body["system_prompt"].get<std::string>();
+            target->system_prompt = new_prompt;
+
+            // Persist by rewriting the agents block in both config files.
+            auto rewrite = [&](const std::string& path) -> bool {
+                if (path.empty()) return false;
+                json doc;
+                if (!read_config_doc(path, doc)) return false;
+                if (!doc.contains("agents") || !doc["agents"].is_array()) return false;
+                bool found = false;
+                for (auto& a : doc["agents"]) {
+                    if (a.is_object() && a.value("name", std::string()) == name) {
+                        a["system_prompt"] = new_prompt;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+                std::ofstream out(path);
+                if (!out.is_open()) return false;
+                out << doc.dump(2);
+                return true;
+            };
+            bool active_ok = rewrite(config_path_global);
+            bool source_ok = source_config_path_global.empty() ? true
+                : rewrite(source_config_path_global);
+            std::cout << "✏️  [agents/" << name << "/prompt] updated ("
+                      << new_prompt.size() << " chars)";
+            if (!active_ok) std::cout << " — active write FAILED";
+            if (!source_ok) std::cout << " — source write FAILED";
+            std::cout << std::endl;
+            response_cache::clear();  // old cached responses came from old prompt
+            res.set_content(json({
+                {"name", name},
+                {"system_prompt", new_prompt},
+                {"persisted", active_ok && source_ok}
+            }).dump(), "application/json");
+        } catch (const std::exception& e) {
+            std::cerr << "❌ [agents prompt PUT] " << e.what() << std::endl;
+            res.status = 400;
+            res.set_content(json({{"error", e.what()}}).dump(), "application/json");
+        }
+    });
+
     // 4d. Mode presets — named bundles of (mode, agents, synthesizer, max_select).
     // Saved to coordinator.presets in the config file; survive restart + redeploy.
     svr.Get("/api/presets", [](const httplib::Request&, httplib::Response& res) {
@@ -645,6 +713,8 @@ int main(int argc, char* argv[]) {
                 for (const auto& n : excluded_unhealthy) std::cerr << ' ' << n;
                 std::cerr << std::endl;
             }
+            agent_metrics::reset();
+            auto dispatch_t0 = std::chrono::steady_clock::now();
             json envelope;
             try { envelope = mode->run(ctx); }
             catch (const std::exception& e) {
@@ -664,6 +734,17 @@ int main(int argc, char* argv[]) {
                     envelope["meta"] = json::object();
                 }
                 envelope["meta"]["excluded_unhealthy"] = excluded_unhealthy;
+            }
+            // Per-agent timings + grand total wall clock for the whole run.
+            {
+                auto dispatch_t1 = std::chrono::steady_clock::now();
+                double total_ms = std::chrono::duration<double, std::milli>(
+                    dispatch_t1 - dispatch_t0).count();
+                if (!envelope.contains("meta") || !envelope["meta"].is_object()) {
+                    envelope["meta"] = json::object();
+                }
+                envelope["meta"]["timings"] = agent_metrics::snapshot();
+                envelope["meta"]["wall_ms"] = total_ms;
             }
 
             // History entry preserves the legacy flat shape (agent_name → text +
@@ -729,6 +810,7 @@ int main(int argc, char* argv[]) {
         auto cfg_snap    = std::make_shared<json>(std::move(cfg_for_mode));
         auto mode_snap   = std::make_shared<std::string>(mode_name);
         auto cancel      = std::make_shared<std::atomic<bool>>(false);
+        agent_metrics::reset();
 
         res.set_chunked_content_provider("text/event-stream",
             [agents_snap, prompt_snap, cfg_snap, mode_snap, cancel]
@@ -963,6 +1045,12 @@ int main(int argc, char* argv[]) {
                         run_synthesis(participants, outputs);
                     }
                 }
+
+                // Emit a final `metrics` event with per-agent timings collected
+                // during the streaming dispatch. Clients can ignore it; UI
+                // dashboards can render it.
+                json metrics = agent_metrics::snapshot();
+                write_event("metrics", metrics.dump());
 
                 {
                     std::lock_guard<std::mutex> lock(sink_mu);

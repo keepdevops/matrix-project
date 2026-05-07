@@ -13,6 +13,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$ROOT/src2/coordinator.cpp" \
    "$ROOT/src2/agent_client.cpp" \
    "$ROOT/src2/agent_health.cpp" \
+   "$ROOT/src2/agent_metrics.cpp" \
    "$ROOT/src2/agent_stream.cpp" \
    "$ROOT/src2/pressure.cpp" \
    "$ROOT/src2/pressure_evict.cpp" \
