@@ -212,6 +212,7 @@ json run_pipeline(const ModeContext& ctx) {
 
     std::vector<std::string> executed;
     std::vector<std::string> missing;
+    json errors = json::array();
 
     std::string prev_agent;
     std::string prev_output;
@@ -237,9 +238,22 @@ json run_pipeline(const ModeContext& ctx) {
         std::string result = call_agent(*it->second, staged);
         agent_outputs[name] = result;
         executed.push_back(name);
-        prev_agent = name;
-        prev_output = result;
-        final_output = result;
+
+        // Skip-with-warning: a failed stage is recorded in meta.errors[] but
+        // does NOT poison downstream stages — they continue from the last
+        // successful output. Without this, one transient timeout cascades
+        // garbage through the rest of the chain.
+        if (modes::is_error_response(result, name)) {
+            std::cerr << "❌ [pipeline] step " << step << " (" << name
+                      << ") failed; downstream stages will use the last good output" << std::endl;
+            errors.push_back({{"step", (int)step}, {"agent", name},
+                              {"detail", result.substr(0, 200)}});
+            // Leave prev_agent/prev_output/final_output unchanged.
+        } else {
+            prev_agent = name;
+            prev_output = result;
+            final_output = result;
+        }
     }
 
     if (executed.empty()) {
@@ -314,6 +328,7 @@ json run_pipeline(const ModeContext& ctx) {
     meta["order"] = executed;
     meta["missing"] = missing;
     meta["fallback_order_used"] = fallback_order_used;
+    if (!errors.empty()) meta["errors"] = errors;
     if (!substituted.empty()) meta["substitutions"] = substituted;
     return json{
         {"mode", "pipeline"},

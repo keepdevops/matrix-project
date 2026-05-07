@@ -47,11 +47,22 @@ json run_cascade(const ModeContext& ctx) {
             return std::make_pair(agent.name, call_agent(agent, prompt));
         }));
     }
+    json errors = json::array();
+    std::vector<std::string> healthy_participants;
     for (auto& fut : futures) {
         auto pair = fut.get();
         agent_outputs[pair.first] = pair.second;
+        if (modes::is_error_response(pair.second, pair.first)) {
+            std::cerr << "❌ [cascade] " << pair.first
+                      << " failed; excluded from synthesis input" << std::endl;
+            errors.push_back({{"agent", pair.first},
+                              {"detail", pair.second.substr(0, 200)}});
+        } else {
+            healthy_participants.push_back(pair.first);
+        }
     }
     meta["participants"] = participants;
+    if (!errors.empty()) meta["errors"] = errors;
 
     // Synthesis reducer: identical prompt shape to pipeline's synthesis stage
     // so users get consistent behavior across modes. The reducer must be in
@@ -64,14 +75,14 @@ json run_cascade(const ModeContext& ctx) {
         for (const auto& a : ctx.agents) {
             if (a.name == synthesizer_name) { synth = &a; break; }
         }
-        if (synth && !participants.empty()) {
+        if (synth && !healthy_participants.empty()) {
             std::string synth_prompt;
-            synth_prompt.reserve(ctx.user_prompt.size() + 256 * participants.size());
+            synth_prompt.reserve(ctx.user_prompt.size() + 256 * healthy_participants.size());
             synth_prompt += "Original user request:\n<<<\n";
             synth_prompt += ctx.user_prompt;
             synth_prompt += "\n>>>\n\nThe following agents responded in parallel:\n";
             int n = 0;
-            for (const auto& name : participants) {
+            for (const auto& name : healthy_participants) {
                 ++n;
                 synth_prompt += "\n--- Response ";
                 synth_prompt += std::to_string(n);
@@ -86,8 +97,13 @@ json run_cascade(const ModeContext& ctx) {
                             "responders — write the final answer directly.";
 
             std::cout << "🧪 [cascade] synthesis → " << synthesizer_name
-                      << " (reducing " << participants.size() << " response(s))"
-                      << std::endl;
+                      << " (reducing " << healthy_participants.size()
+                      << " healthy response(s)";
+            if (healthy_participants.size() != participants.size()) {
+                std::cout << "; " << (participants.size() - healthy_participants.size())
+                          << " excluded due to errors";
+            }
+            std::cout << ")" << std::endl;
             std::string out = call_agent(*synth, synth_prompt);
             agent_outputs[synthesizer_name] = out;
             final_output = out;

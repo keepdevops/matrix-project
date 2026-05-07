@@ -28,6 +28,22 @@ struct Mode {
 
 namespace modes {
 
+// Detect call_agent error markers. call_agent returns the response text on
+// success and one of three sentinel strings on failure:
+//   "[<name> error] ..."
+//   "Agent <name> (Port N) is not responding."
+//   "Connection Error (<name>): ..."
+// Modes use this to record per-stage failures in meta.errors[] without having
+// to introspect the message format at call sites.
+inline bool is_error_response(const std::string& text, const std::string& agent_name) {
+    if (text.empty()) return true;
+    if (text.rfind("[" + agent_name + " error]", 0) == 0) return true;
+    if (text.rfind("Connection Error (" + agent_name + ")", 0) == 0) return true;
+    if (text.find(" is not responding.") != std::string::npos
+        && text.rfind("Agent " + agent_name, 0) == 0) return true;
+    return false;
+}
+
 // Register a mode. Safe to call from static initializers before main().
 void register_mode(const Mode& m);
 

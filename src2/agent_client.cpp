@@ -1,5 +1,6 @@
 #include "agent_client.h"
 #include "agent_health.h"
+#include "agent_metrics.h"
 #include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
@@ -27,33 +28,25 @@ void init_mlx_port_locks(const std::vector<Agent>& agents) {
     }
 }
 
-static std::string call_agent_impl(const Agent& agent,
-                                   const std::string& system_prompt,
-                                   const std::string& prompt) {
-    // Exact-prompt cache: short-circuit before any HTTP / inflight tracking.
-    if (auto cached = response_cache::lookup(agent, system_prompt, prompt)) {
-        return *cached;
-    }
-    // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts.
-    // Count inflight (queued + active) BEFORE the mutex so the pressure gauge
-    // reflects waiters too, not just the one slot currently decoding.
-    std::unique_ptr<mlx_inflight::Scope> mlx_pressure;
-    std::unique_lock<std::mutex> mlx_lock;
-    if (agent.engine == "mlx") {
-        mlx_pressure = std::make_unique<mlx_inflight::Scope>(agent.port);
-        auto it = mlx_port_locks.find(agent.port);
-        if (it != mlx_port_locks.end()) {
-            mlx_lock = std::unique_lock<std::mutex>(*it->second);
-        }
-    }
+// Return shape of one HTTP attempt. `retryable` distinguishes transient
+// failures (worth a second try) from deterministic ones (4xx — bad request,
+// model not loaded — retrying just wastes time).
+struct AttemptResult {
+    std::string text;        // either the model's response, or an error marker string
+    bool ok = false;         // true iff a non-empty response from a 200 came back
+    bool retryable = false;  // 5xx, empty body, or exception
+};
 
+static AttemptResult call_agent_once(const Agent& agent,
+                                     const std::string& system_prompt,
+                                     const std::string& prompt) {
+    AttemptResult out;
     try {
         httplib::Client cli("127.0.0.1", agent.port);
         cli.set_connection_timeout(5);
         cli.set_read_timeout(agent.read_timeout_secs);
 
         json messages = json::array();
-        // mlx-lm often rejects "system" role — merge into first user message instead.
         if (agent.engine == "mlx" && !system_prompt.empty()) {
             messages.push_back({{"role", "user"}, {"content", system_prompt + "\n\n" + prompt}});
         } else {
@@ -61,35 +54,22 @@ static std::string call_agent_impl(const Agent& agent,
                 messages.push_back({{"role", "system"}, {"content", system_prompt}});
             messages.push_back({{"role", "user"}, {"content", prompt}});
         }
-
-        json body = {
-            {"messages", messages},
-            {"max_tokens", agent.max_tokens}
-        };
-        // Docker Model Runner, docker-vllm, and vLLM require the model name in the request body
+        json body = {{"messages", messages}, {"max_tokens", agent.max_tokens}};
         if (!agent.model.empty() && (agent.backend == "docker" || agent.backend == "vllm"
                                      || agent.backend == "docker-vllm")) {
             body["model"] = agent.model;
         }
-        // llama.cpp server: reuse KV cache across requests sharing a prefix
-        // (system prompt, repeated context). Massive speedup on follow-ups.
-        if (agent.engine == "llama") {
-            body["cache_prompt"] = true;
-        }
+        if (agent.engine == "llama") body["cache_prompt"] = true;
 
         auto t_start = std::chrono::steady_clock::now();
         auto res = cli.Post("/v1/chat/completions", body.dump(), "application/json");
         auto t_end = std::chrono::steady_clock::now();
 
-        std::string result;
-        bool ok = false;
         if (res && res->status == 200) {
             auto j = json::parse(res->body);
             if (j.contains("choices") && !j["choices"].empty()) {
-                result = j["choices"][0]["message"]["content"];
+                out.text = j["choices"][0]["message"]["content"];
             }
-            // Record prompt for KV-affinity routing (llama-server only — its
-            // KV cache is what we're trying to reuse via cache_prompt).
             if (agent.engine == "llama") {
                 kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
             }
@@ -100,37 +80,85 @@ static std::string call_agent_impl(const Agent& agent,
                     mlx_inflight::record_completion(agent.port, secs, ctoks);
                 }
             }
+            if (!out.text.empty()) {
+                out.ok = true;
+            } else {
+                // 200 with no content — treat as transient (server hiccup).
+                out.retryable = true;
+            }
         } else if (res) {
+            // Server reachable. 5xx is transient, 4xx is deterministic.
+            out.retryable = (res->status >= 500 && res->status < 600);
             try {
                 auto err = json::parse(res->body);
                 if (err.contains("error") && err["error"].contains("message")) {
-                    result = "[" + agent.name + " error] " + err["error"]["message"].get<std::string>();
+                    out.text = "[" + agent.name + " error] "
+                             + err["error"]["message"].get<std::string>();
                 }
             } catch (...) {
                 std::cerr << "[coordinator] Non-JSON error body from " << agent.name
                           << " (status " << res->status << ")" << std::endl;
             }
+        } else {
+            // Connect/read timeout or refused connection.
+            out.retryable = true;
         }
-        if (result.empty()) {
-            result = "Agent " + agent.name + " (Port " + std::to_string(agent.port) + ") is not responding.";
-        } else if (res && res->status == 200) {
-            // Only cache successful, non-empty responses (not error fallbacks).
-            response_cache::store(agent, system_prompt, prompt, result);
-            ok = true;
-        }
-        // Drain delay: let mlx-lm's KV cache reset before next serialized request.
-        if (agent.engine == "mlx") {
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        }
-        agent_health::record(agent.name, ok);
-        return result;
-
+        return out;
     } catch (const std::exception& e) {
         std::cerr << "[coordinator] call_agent exception for " << agent.name
                   << ": " << e.what() << std::endl;
-        agent_health::record(agent.name, false);
-        return "Connection Error (" + agent.name + "): " + std::string(e.what());
+        out.text = "Connection Error (" + agent.name + "): " + std::string(e.what());
+        out.retryable = true;
+        return out;
     }
+}
+
+// One retry on transient failure (5xx / empty body / network error). 4xx and
+// successful responses return immediately. Backoff is short — the breaker
+// owns the longer-term unhealthy-agent story.
+static constexpr int RETRY_ATTEMPTS = 2;
+static constexpr int RETRY_BACKOFF_MS = 250;
+
+static std::string call_agent_impl(const Agent& agent,
+                                   const std::string& system_prompt,
+                                   const std::string& prompt) {
+    // Exact-prompt cache short-circuits both retries and inflight tracking.
+    if (auto cached = response_cache::lookup(agent, system_prompt, prompt)) {
+        return *cached;
+    }
+    std::unique_ptr<mlx_inflight::Scope> mlx_pressure;
+    std::unique_lock<std::mutex> mlx_lock;
+    if (agent.engine == "mlx") {
+        mlx_pressure = std::make_unique<mlx_inflight::Scope>(agent.port);
+        auto it = mlx_port_locks.find(agent.port);
+        if (it != mlx_port_locks.end()) {
+            mlx_lock = std::unique_lock<std::mutex>(*it->second);
+        }
+    }
+
+    AttemptResult attempt;
+    for (int i = 0; i < RETRY_ATTEMPTS; ++i) {
+        attempt = call_agent_once(agent, system_prompt, prompt);
+        if (attempt.ok || !attempt.retryable) break;
+        if (i + 1 < RETRY_ATTEMPTS) {
+            std::cerr << "🔁 [retry] " << agent.name << " transient failure; "
+                      << "retrying in " << RETRY_BACKOFF_MS << "ms" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(RETRY_BACKOFF_MS));
+        }
+    }
+
+    std::string result = attempt.text;
+    if (result.empty()) {
+        result = "Agent " + agent.name + " (Port "
+               + std::to_string(agent.port) + ") is not responding.";
+    } else if (attempt.ok) {
+        response_cache::store(agent, system_prompt, prompt, result);
+    }
+    if (agent.engine == "mlx") {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+    agent_health::record(agent.name, attempt.ok);
+    return result;
 }
 
 std::string call_agent(const Agent& agent, const std::string& prompt) {

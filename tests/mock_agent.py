@@ -21,6 +21,10 @@ class MockAgent:
         self.fail = fail
         self.reply_template = reply_template
         self.prompts_received: list[str] = []
+        # `fail_first_n`: fail the next N requests, then succeed. Resets to 0
+        # when consumed. Used to test retry-on-transient-failure: e.g. set to
+        # 1 and verify the second attempt succeeds without surfacing an error.
+        self.fail_first_n: int = 0
         self._server: HTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -46,7 +50,10 @@ class MockAgent:
                         break
                 agent.prompts_received.append(user_msg)
 
-                if agent.fail:
+                should_fail = agent.fail or agent.fail_first_n > 0
+                if agent.fail_first_n > 0:
+                    agent.fail_first_n -= 1
+                if should_fail:
                     self.send_response(500)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()

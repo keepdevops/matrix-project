@@ -214,8 +214,7 @@
           "foreman",
           "architect",
           "programmer",
-          "tester",
-          "documenter"
+          "tester"
         ],
         "classifier": "foreman",
         "max_select": 2
