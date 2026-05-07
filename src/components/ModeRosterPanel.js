@@ -4,6 +4,7 @@ import {
   fetchModeAgents,
   setModeAgents,
   fetchAgents,
+  fetchAgentHealth,
 } from '../api/swarmApi';
 
 // Per-mode agent roster editor. Lets the user pick which agents participate
@@ -20,6 +21,30 @@ export default function ModeRosterPanel() {
   const [explicit, setExplicit] = useState(false);
   const [maxSelect, setMaxSelect] = useState('');
   const [synthesizer, setSynthesizer] = useState('');
+  const [health, setHealth] = useState({}); // { name: { tripped, cooldown_remaining_ms } }
+
+  // Poll agent health every 5s. Light enough to be safe; the snapshot is in-memory.
+  useEffect(() => {
+    let cancelled = false;
+    const tick = () => {
+      fetchAgentHealth().then(snap => {
+        if (cancelled) return;
+        const out = {};
+        Object.entries(snap || {}).forEach(([k, v]) => {
+          if (k === '__config') return;
+          out[k] = v;
+        });
+        setHealth(out);
+      }).catch(() => {});
+    };
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const tripped = Object.entries(health)
+    .filter(([, v]) => v && v.tripped)
+    .map(([name, v]) => ({ name, cooldown_s: Math.ceil((v.cooldown_remaining_ms || 0) / 1000) }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [savedAt, setSavedAt] = useState(null);
@@ -38,6 +63,17 @@ export default function ModeRosterPanel() {
   }, [activeTab]);
 
   useEffect(() => { loadModes(); }, [loadModes]);
+
+  // React when a preset is applied elsewhere in the UI: refetch modes (so the
+  // active-mode dot moves) and re-load the active tab's config.
+  useEffect(() => {
+    const onChange = (e) => {
+      loadModes();
+      if (e?.detail?.mode) setActiveTab(e.detail.mode);
+    };
+    window.addEventListener('mode-roster-changed', onChange);
+    return () => window.removeEventListener('mode-roster-changed', onChange);
+  }, [loadModes]);
 
   useEffect(() => {
     if (!activeTab) return;
@@ -88,7 +124,7 @@ export default function ModeRosterPanel() {
       if (activeTab === 'router' && Number.isInteger(parsed) && parsed >= 1) {
         opts.maxSelect = parsed;
       }
-      if (activeTab === 'pipeline') {
+      if (activeTab === 'pipeline' || activeTab === 'cascade') {
         opts.synthesizer = synthesizer || '';
       }
       const res = await setModeAgents(activeTab, selected, opts);
@@ -138,6 +174,22 @@ export default function ModeRosterPanel() {
         Pick which agents answer in each mode. Order matters for pipeline.
         Empty list ⇒ mode uses the full deployed roster.
       </div>
+
+      {tripped.length > 0 && (
+        <div style={{
+          fontSize: '0.78rem',
+          background: '#3a1010',
+          border: '1px solid #ff4444',
+          padding: '0.3rem 0.5rem',
+          marginBottom: '0.5rem',
+          borderRadius: '3px',
+        }}>
+          🔴 circuit breaker open: {tripped.map(t => `${t.name} (${t.cooldown_s}s)`).join(', ')}
+          <span style={{ opacity: 0.7, marginLeft: '0.4rem' }}>
+            — these agents are skipped on dispatch until cooldown elapses.
+          </span>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
         {modes.map(m => (
@@ -219,7 +271,7 @@ export default function ModeRosterPanel() {
         </div>
       </div>
 
-      {activeTab === 'pipeline' && (
+      {(activeTab === 'pipeline' || activeTab === 'cascade') && (
         <div style={{ marginTop: '0.5rem', fontSize: '0.85rem',
                       display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
           <label>synthesizer</label>
@@ -234,7 +286,9 @@ export default function ModeRosterPanel() {
             ))}
           </select>
           <span style={{ opacity: 0.6, fontSize: '0.75rem' }}>
-            (reduces all stage outputs into one final answer)
+            ({activeTab === 'cascade'
+              ? 'reduces parallel responses into one final answer'
+              : 'reduces all stage outputs into one final answer'})
           </span>
         </div>
       )}

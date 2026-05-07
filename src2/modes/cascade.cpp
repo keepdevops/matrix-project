@@ -1,0 +1,125 @@
+#include "mode.h"
+#include "../agent_client.h"
+
+#include <future>
+#include <iostream>
+#include <string>
+#include <utility>
+
+using json = nlohmann::json;
+
+namespace {
+
+// Cascade: parallel broadcast (like flat) followed by an optional synthesis
+// reducer (like the pipeline synthesizer). The result is a "mixture-of-agents"
+// pattern — every roster member contributes in parallel, then a designated
+// reducer agent merges their answers into one consolidated final response.
+//
+// mode_config schema:
+//   { "synthesizer": "<agent name>" }   // optional; required for `final` to be non-null
+//
+// If no synthesizer is set OR it isn't active, cascade degrades to flat-mode
+// semantics (per-agent outputs, final=null) rather than failing — so the mode
+// is always usable even before a reducer is configured.
+json run_cascade(const ModeContext& ctx) {
+    std::cout << "🌊 [cascade] broadcasting to " << ctx.agents.size()
+              << " agent(s) in parallel..." << std::endl;
+
+    std::string synthesizer_name;
+    if (ctx.mode_config.contains("synthesizer")
+        && ctx.mode_config["synthesizer"].is_string()) {
+        synthesizer_name = ctx.mode_config["synthesizer"].get<std::string>();
+    }
+
+    // Broadcast to every agent except the synthesizer (the synthesizer is the
+    // reducer, not a parallel responder — having it answer twice would
+    // contaminate its own input on the second pass).
+    json agent_outputs = json::object();
+    json meta = json::object();
+    std::vector<std::future<std::pair<std::string, std::string>>> futures;
+    std::vector<std::string> participants;
+    for (const auto& a : ctx.agents) {
+        if (a.name == synthesizer_name) continue;
+        participants.push_back(a.name);
+        const std::string prompt = ctx.user_prompt;
+        const Agent agent = a;
+        futures.push_back(std::async(std::launch::async, [prompt, agent]() {
+            return std::make_pair(agent.name, call_agent(agent, prompt));
+        }));
+    }
+    for (auto& fut : futures) {
+        auto pair = fut.get();
+        agent_outputs[pair.first] = pair.second;
+    }
+    meta["participants"] = participants;
+
+    // Synthesis reducer: identical prompt shape to pipeline's synthesis stage
+    // so users get consistent behavior across modes. The reducer must be in
+    // ctx.agents (filter_agents_for_mode in coordinator.cpp ensures this even
+    // if the synthesizer isn't part of the cascade roster).
+    std::string final_output;
+    bool synthesized = false;
+    if (!synthesizer_name.empty()) {
+        const Agent* synth = nullptr;
+        for (const auto& a : ctx.agents) {
+            if (a.name == synthesizer_name) { synth = &a; break; }
+        }
+        if (synth && !participants.empty()) {
+            std::string synth_prompt;
+            synth_prompt.reserve(ctx.user_prompt.size() + 256 * participants.size());
+            synth_prompt += "Original user request:\n<<<\n";
+            synth_prompt += ctx.user_prompt;
+            synth_prompt += "\n>>>\n\nThe following agents responded in parallel:\n";
+            int n = 0;
+            for (const auto& name : participants) {
+                ++n;
+                synth_prompt += "\n--- Response ";
+                synth_prompt += std::to_string(n);
+                synth_prompt += " (";
+                synth_prompt += name;
+                synth_prompt += ") ---\n";
+                synth_prompt += agent_outputs.value(name, std::string{});
+            }
+            synth_prompt += "\n\nProduce ONE consolidated answer that integrates the "
+                            "above contributions. Resolve contradictions, drop redundancy, "
+                            "and keep only the strongest material. Do not enumerate the "
+                            "responders — write the final answer directly.";
+
+            std::cout << "🧪 [cascade] synthesis → " << synthesizer_name
+                      << " (reducing " << participants.size() << " response(s))"
+                      << std::endl;
+            std::string out = call_agent(*synth, synth_prompt);
+            agent_outputs[synthesizer_name] = out;
+            final_output = out;
+            synthesized = true;
+            meta["synthesizer"] = synthesizer_name;
+            std::cout << "✅ [cascade] final from " << synthesizer_name << std::endl;
+        } else if (!synth) {
+            std::cerr << "⚠️  [cascade] configured synthesizer '" << synthesizer_name
+                      << "' is not active; degrading to flat-mode output" << std::endl;
+            meta["synthesizer_missing"] = synthesizer_name;
+        }
+    } else {
+        std::cout << "ℹ️  [cascade] no synthesizer configured; emitting parallel outputs only"
+                  << std::endl;
+    }
+
+    return json{
+        {"mode", "cascade"},
+        {"agents", agent_outputs},
+        {"final", synthesized ? json(final_output) : json(nullptr)},
+        {"meta", meta}
+    };
+}
+
+struct Register {
+    Register() {
+        modes::register_mode({
+            "cascade",
+            "Mixture-of-agents — parallel broadcast then a synthesizer reduces all responses into one final answer.",
+            run_cascade
+        });
+    }
+} _reg;
+
+} // namespace

@@ -41,6 +41,25 @@ static bool is_gguf_name(const std::string& n) {
     return n.size() > 5 && n.compare(n.size() - 5, 5, ".gguf") == 0;
 }
 
+// Minimum size for a file to count as a real GGUF. The smallest practical
+// quantized models are ~500 MB; failed downloads (e.g. HuggingFace
+// "Access restricted" HTML stubs) end up as ~100-byte files with a .gguf
+// extension and crash llama-server with a confusing "not GGUF" error.
+// 1 MiB is well above any error stub and well below any real model.
+static constexpr off_t MIN_GGUF_BYTES = 1 * 1024 * 1024;
+
+static bool is_real_gguf(const std::string& path) {
+    struct stat st{};
+    if (stat(path.c_str(), &st) != 0) return false;
+    if (!S_ISREG(st.st_mode)) return false;
+    if (st.st_size < MIN_GGUF_BYTES) {
+        std::cerr << "⚠️  [scan] skipping stub GGUF (" << st.st_size
+                  << " bytes): " << path << std::endl;
+        return false;
+    }
+    return true;
+}
+
 // Scan a directory for .gguf files and MLX model dirs (dirs with config.json).
 // Recurses into plain subdirectories up to max_depth levels.
 static void scan_dir(const std::string& dir, json& result, int max_depth = 1) {
@@ -56,6 +75,7 @@ static void scan_dir(const std::string& dir, json& result, int max_depth = 1) {
     for (const auto& name : entries) {
         std::string p = dir + "/" + name;
         if (is_gguf_name(name)) {
+            if (!is_real_gguf(p)) continue;
             result.push_back({{"name", name.substr(0, name.size()-5)},
                               {"path", p}, {"backend", "llama"}});
         } else {
@@ -100,6 +120,7 @@ static json scan_models() {
     for (const auto& name : entries) {
         std::string p = g_env.model_dir + "/" + name;
         if (is_gguf_name(name)) {
+            if (!is_real_gguf(p)) continue;
             result.push_back({{"name", name.substr(0, name.size()-5)},
                               {"path", p}, {"backend", "llama"}});
         } else {

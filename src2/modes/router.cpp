@@ -1,6 +1,7 @@
 #include "mode.h"
 #include "../agent_client.h"
 #include "../kv_router.h"
+#include "../pressure.h"
 
 #include <algorithm>
 #include <cctype>
@@ -313,8 +314,42 @@ json run_router(const ModeContext& ctx) {
         "Pick between 1 and " + std::to_string(max_select) + " agents from the "
         "allowed list. Use only names from the allowed list, separated by "
         "commas. No prose, no explanations, no other lines.";
+    // Pressure-aware classifier hint: list current load per allowed agent so
+    // the foreman can avoid hammering already-busy roles. Best-effort — if the
+    // pressure snapshot fails or returns nothing, we just skip the banner.
+    std::string load_banner;
+    try {
+        nlohmann::json snap = snapshot_pressure(ctx.agents);
+        std::map<std::string, int> agent_pct; // name -> 0..100
+        for (const auto& entry : snap) {
+            if (!entry.is_object()) continue;
+            double usage = entry.value("usage", 0.0);
+            int pct = (int)std::round(usage * 100.0);
+            if (entry.contains("names") && entry["names"].is_array()) {
+                for (const auto& n : entry["names"]) {
+                    if (n.is_string()) agent_pct[n.get<std::string>()] = pct;
+                }
+            }
+        }
+        std::string load_csv;
+        for (const auto& name : choices) {
+            auto it = agent_pct.find(name);
+            int pct = (it != agent_pct.end()) ? it->second : 0;
+            if (!load_csv.empty()) load_csv += ", ";
+            load_csv += name + " " + std::to_string(pct) + "%";
+        }
+        if (!load_csv.empty()) {
+            load_banner = "Current load: " + load_csv +
+                          ". Prefer less-loaded agents when multiple fit the task.\n\n";
+            std::cout << "📊 [router] load hint sent to classifier: "
+                      << load_csv << std::endl;
+            meta["load_hint"] = load_csv;
+        }
+    } catch (...) { /* skip banner on error */ }
+
     const std::string classifier_user =
         "Allowed agents: " + choices_csv + "\n\n"
+        + load_banner +
         "User request:\n" + ctx.user_prompt + "\n\n"
         "Respond with the SELECTED line only.";
     const std::string raw = call_agent_with_system(

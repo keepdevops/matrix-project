@@ -1,4 +1,5 @@
 #include "agent_client.h"
+#include "agent_health.h"
 #include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
@@ -81,6 +82,7 @@ static std::string call_agent_impl(const Agent& agent,
         auto t_end = std::chrono::steady_clock::now();
 
         std::string result;
+        bool ok = false;
         if (res && res->status == 200) {
             auto j = json::parse(res->body);
             if (j.contains("choices") && !j["choices"].empty()) {
@@ -114,16 +116,19 @@ static std::string call_agent_impl(const Agent& agent,
         } else if (res && res->status == 200) {
             // Only cache successful, non-empty responses (not error fallbacks).
             response_cache::store(agent, system_prompt, prompt, result);
+            ok = true;
         }
         // Drain delay: let mlx-lm's KV cache reset before next serialized request.
         if (agent.engine == "mlx") {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
+        agent_health::record(agent.name, ok);
         return result;
 
     } catch (const std::exception& e) {
         std::cerr << "[coordinator] call_agent exception for " << agent.name
                   << ": " << e.what() << std::endl;
+        agent_health::record(agent.name, false);
         return "Connection Error (" + agent.name + "): " + std::string(e.what());
     }
 }

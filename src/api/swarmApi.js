@@ -92,6 +92,57 @@ export async function setActiveMode(name) {
 }
 
 /**
+ * Mode presets — named bundles of (mode, agents, synthesizer, max_select).
+ */
+export async function fetchPresets() {
+  const response = await fetch(`${API_BASE}/presets`);
+  if (!response.ok) throw new Error(`Failed to fetch presets: ${response.status}`);
+  return response.json();
+}
+
+export async function savePreset(name, bundle) {
+  const response = await fetch(`${API_BASE}/presets/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(bundle),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to save preset: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function deletePreset(name) {
+  const response = await fetch(`${API_BASE}/presets/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error(`Failed to delete preset: ${response.status}`);
+  return response.json();
+}
+
+export async function applyPreset(name) {
+  const response = await fetch(`${API_BASE}/presets/${encodeURIComponent(name)}/apply`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to apply preset: ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
+ * Per-agent circuit-breaker snapshot.
+ * Shape: { agent_name: { recent_failures, tripped, cooldown_remaining_ms }, __config: {...} }
+ */
+export async function fetchAgentHealth() {
+  const response = await fetch(`${API_BASE}/health/agents`);
+  if (!response.ok) throw new Error(`Failed to fetch agent health: ${response.status}`);
+  return response.json();
+}
+
+/**
  * Get the per-mode agent roster.
  * Returns { mode, agents: string[], explicit: bool, available: string[] }.
  * `agents` is the effective list (falls back to all available when not explicitly set).
