@@ -85,6 +85,11 @@ struct PortGroup {
     int context = 0, gpu_layers = 0;
     float gpu_mem_util = 0.75f;
     std::vector<std::string> names;
+    // Speculative decoding (llama backend only). All agents on a port share
+    // one llama-server process, so the first non-empty draft_model wins and
+    // any later mismatched value is ignored with a warning.
+    std::string draft_model;
+    int draft_max = 0;
 };
 
 static std::vector<int> wait_for_health(
@@ -197,9 +202,27 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         // Default to 99 (all layers on GPU) for llama backend — CPU-only (0) causes
         // inference to exceed read_timeout on large models like Codestral-22B.
         int default_gpu_layers = (bk == "llama") ? 99 : 0;
-        if (g.model.empty()) g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}};
+        if (g.model.empty()) g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}, "", 0};
         else g.context = std::max(g.context, a["context"].get<int>());
         g.names.push_back(a["name"].get<std::string>());
+        // Capture draft-model config (llama only). First non-empty wins; later
+        // agents on the same port must agree or are ignored.
+        if (bk == "llama") {
+            std::string dm = a.value("draft_model", std::string(""));
+            int dmax = a.value("draft_max", 0);
+            if (!dm.empty()) {
+                if (g.draft_model.empty()) {
+                    g.draft_model = dm;
+                    g.draft_max = dmax;
+                } else if (g.draft_model != dm) {
+                    std::cerr << "[Configure] WARNING: agent '"
+                              << a["name"].get<std::string>()
+                              << "' on port " << port << " requested draft_model='"
+                              << dm << "' but port already uses '"
+                              << g.draft_model << "'; ignoring." << std::endl;
+                }
+            }
+        }
     }
 
     // Write active config
@@ -301,14 +324,28 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
                           << "to avoid Metal OOM." << std::endl;
                 ctx = ctx_cap;
             }
-            spawn_detached(g_env.llama_server_bin,
-                {"-m",g.model,"-c",std::to_string(ctx),"--port",ps,
-                 "--n-gpu-layers",std::to_string(g.gpu_layers),
-                 "--parallel",std::to_string(g.names.size()),
-                 "--metrics",
-                 "--slot-save-path",g_env.matrix_slots_dir}, log);
+            std::vector<std::string> args = {
+                "-m", g.model, "-c", std::to_string(ctx), "--port", ps,
+                "--n-gpu-layers", std::to_string(g.gpu_layers),
+                "--parallel", std::to_string(g.names.size()),
+                "--metrics",
+                "--slot-save-path", g_env.matrix_slots_dir
+            };
+            if (!g.draft_model.empty()) {
+                args.push_back("--model-draft");
+                args.push_back(g.draft_model);
+                if (g.draft_max > 0) {
+                    args.push_back("--draft-max");
+                    args.push_back(std::to_string(g.draft_max));
+                }
+            }
+            spawn_detached(g_env.llama_server_bin, args, log);
             std::cout << "[Configure] LLAMA :" << port << " x" << g.names.size()
-                      << " [" << join(g.names) << "]\n";
+                      << " [" << join(g.names) << "]"
+                      << (g.draft_model.empty() ? ""
+                          : " spec=" + g.draft_model
+                            + (g.draft_max > 0 ? "/" + std::to_string(g.draft_max) : ""))
+                      << "\n";
         }
     }
 

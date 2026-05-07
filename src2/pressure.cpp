@@ -16,6 +16,7 @@ namespace {
 struct PortInfo {
     int port;
     std::vector<std::string> names;
+    int draft_max = 0;  // 0 = no speculative decoding configured for this port
 };
 
 // Parse a Prometheus-format value for the given metric name. Returns -1 if
@@ -134,6 +135,38 @@ json query_port(const PortInfo& info) {
         if (pp >= 0) out["prompt_tokens_total"] = pp;
         double tp = parse_metric(r->body, "llamacpp:tokens_predicted_total");
         if (tp >= 0) out["tokens_predicted_total"] = tp;
+        // Speculative decoding metrics — only present when llama-server was
+        // launched with --model-draft. n_accepted / n_drafted is the win
+        // ratio: <=1.0; >0.5 typically means the draft model is helping.
+        double drafted = parse_metric(r->body, "llamacpp:n_drafted_total");
+        double accepted = parse_metric(r->body, "llamacpp:n_drafted_accepted_total");
+        if (accepted < 0) accepted = parse_metric(r->body, "llamacpp:n_accepted_total");
+        if (drafted >= 0)  out["n_drafted_total"]  = drafted;
+        if (accepted >= 0) out["n_accepted_total"] = accepted;
+        if (drafted > 0 && accepted >= 0) {
+            out["draft_acceptance_rate"] = accepted / drafted;
+        }
+    }
+
+    // Build-portable fallback: when n_drafted/n_accepted aren't exposed
+    // (older llama.cpp builds — most do not emit these), derive an
+    // effective signal from the always-present tokens_predicted_total /
+    // n_decode_total ratio. With speculative decoding off, each decode call
+    // emits exactly 1 token (tokens_per_decode == 1.0). With spec on and
+    // perfect acceptance it emits draft_max+1. draft_efficiency normalizes
+    // to [0, 1]: ~0 = draft contributing nothing, ~1 = perfect acceptance.
+    double tp = out.value("tokens_predicted_total", -1.0);
+    double nd = out.value("n_decode_total", -1.0);
+    if (tp > 0 && nd > 0) {
+        double tokens_per_decode = tp / nd;
+        out["tokens_per_decode"] = tokens_per_decode;
+        if (info.draft_max > 0 && !out.contains("draft_acceptance_rate")) {
+            double eff = (tokens_per_decode - 1.0)
+                         / static_cast<double>(info.draft_max);
+            if (eff < 0.0) eff = 0.0;
+            if (eff > 1.0) eff = 1.0;
+            out["draft_efficiency"] = eff;
+        }
     }
 
     long kv_total = n_ctx * std::max(total_slots, 1);
@@ -231,6 +264,8 @@ void register_pressure_routes(httplib::Server& svr,
                 auto& p = llama_by_port[a.port];
                 p.port = a.port;
                 p.names.push_back(a.name);
+                // First non-zero draft_max wins (port shares one server).
+                if (p.draft_max == 0 && a.draft_max > 0) p.draft_max = a.draft_max;
             } else if (a.engine == "mlx") {
                 auto& p = mlx_by_port[a.port];
                 p.port = a.port;

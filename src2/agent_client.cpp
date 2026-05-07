@@ -1,7 +1,9 @@
 #include "agent_client.h"
 #include "httplib.h"
 #include "json.hpp"
+#include "kv_router.h"
 #include "mlx_inflight.h"
+#include "response_cache.h"
 
 #include <chrono>
 #include <iostream>
@@ -27,6 +29,10 @@ void init_mlx_port_locks(const std::vector<Agent>& agents) {
 static std::string call_agent_impl(const Agent& agent,
                                    const std::string& system_prompt,
                                    const std::string& prompt) {
+    // Exact-prompt cache: short-circuit before any HTTP / inflight tracking.
+    if (auto cached = response_cache::lookup(agent, system_prompt, prompt)) {
+        return *cached;
+    }
     // Serialize requests to mlx-lm servers — they crash on concurrent batch prompts.
     // Count inflight (queued + active) BEFORE the mutex so the pressure gauge
     // reflects waiters too, not just the one slot currently decoding.
@@ -64,6 +70,11 @@ static std::string call_agent_impl(const Agent& agent,
                                      || agent.backend == "docker-vllm")) {
             body["model"] = agent.model;
         }
+        // llama.cpp server: reuse KV cache across requests sharing a prefix
+        // (system prompt, repeated context). Massive speedup on follow-ups.
+        if (agent.engine == "llama") {
+            body["cache_prompt"] = true;
+        }
 
         auto t_start = std::chrono::steady_clock::now();
         auto res = cli.Post("/v1/chat/completions", body.dump(), "application/json");
@@ -74,6 +85,11 @@ static std::string call_agent_impl(const Agent& agent,
             auto j = json::parse(res->body);
             if (j.contains("choices") && !j["choices"].empty()) {
                 result = j["choices"][0]["message"]["content"];
+            }
+            // Record prompt for KV-affinity routing (llama-server only — its
+            // KV cache is what we're trying to reuse via cache_prompt).
+            if (agent.engine == "llama") {
+                kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
             }
             if (agent.engine == "mlx" && j.contains("usage") && j["usage"].is_object()) {
                 long ctoks = j["usage"].value("completion_tokens", -1L);
@@ -95,6 +111,9 @@ static std::string call_agent_impl(const Agent& agent,
         }
         if (result.empty()) {
             result = "Agent " + agent.name + " (Port " + std::to_string(agent.port) + ") is not responding.";
+        } else if (res && res->status == 200) {
+            // Only cache successful, non-empty responses (not error fallbacks).
+            response_cache::store(agent, system_prompt, prompt, result);
         }
         // Drain delay: let mlx-lm's KV cache reset before next serialized request.
         if (agent.engine == "mlx") {

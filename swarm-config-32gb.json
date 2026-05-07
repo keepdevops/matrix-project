@@ -1,11 +1,14 @@
 {
   "_ram_tier": "32GB \u2014 M2 Max 32GB, M3 Max 32GB, M4 Max 36GB, M4 Pro 48GB (use 36GB config), M2 Pro 32GB. No MLX engine. ~20 GB total, ~7.7 GB headroom on 32 GB.",
+  "_speculative_decoding": "Llama-3.1-8B agents on port 8080 use Llama-3.2-1B as a draft model (compatible vocab). Adds ~1.5 GB resident for the draft, gives ~1.5-2x faster decode on accepted tokens. Acceptance rate visible at /api/pressure -> draft_acceptance_rate.",
   "agents": [
     {
       "name": "architect",
       "port": 8080,
       "server_group": "llama8b",
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "draft_model": "/Users/Shared/llama/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "draft_max": 8,
       "context": 4096,
       "gpu_layers": 99,
       "read_timeout_secs": 180,
@@ -17,6 +20,8 @@
       "port": 8080,
       "server_group": "llama8b",
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "draft_model": "/Users/Shared/llama/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "draft_max": 8,
       "context": 4096,
       "gpu_layers": 99,
       "read_timeout_secs": 180,
@@ -28,6 +33,8 @@
       "port": 8080,
       "server_group": "llama8b",
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "draft_model": "/Users/Shared/llama/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "draft_max": 8,
       "context": 4096,
       "gpu_layers": 99,
       "read_timeout_secs": 240,

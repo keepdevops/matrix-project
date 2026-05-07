@@ -2,16 +2,21 @@
 #include "json.hpp"
 #include "agent.h"
 #include "agent_client.h"
+#include "agent_stream.h"
 #include "modes/mode.h"
 #include "pressure.h"
+#include "response_cache.h"
 
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <future>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -78,7 +83,9 @@ int main(int argc, char* argv[]) {
             a["system_prompt"].get<std::string>(),
             backend_val,
             engine,
-            a.value("model", "")
+            a.value("model", ""),
+            a.value("draft_model", ""),
+            a.value("draft_max", 0)
         });
     }
     init_mlx_port_locks(agents);
@@ -117,8 +124,10 @@ int main(int argc, char* argv[]) {
         json list = json::array();
         for (const auto& a : agents) {
             json obj = {{"name", a.name}, {"port", a.port}, {"engine", a.engine}};
-            if (!a.backend.empty()) obj["backend"] = a.backend;
-            if (!a.model.empty())   obj["model"]   = a.model;
+            if (!a.backend.empty())     obj["backend"]     = a.backend;
+            if (!a.model.empty())       obj["model"]       = a.model;
+            if (!a.draft_model.empty()) obj["draft_model"] = a.draft_model;
+            if (a.draft_max > 0)        obj["draft_max"]   = a.draft_max;
             list.push_back(obj);
         }
         res.set_content(list.dump(), "application/json");
@@ -246,6 +255,77 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    // 5b. Streaming flat-mode dispatch (SSE). MVP: fans out to every agent in
+    // parallel, multiplexes their token deltas as SSE events tagged by agent.
+    // Llama agents stream live; MLX agents emit one chunk on completion.
+    svr.Post("/api/architect/stream", [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        std::string user_prompt;
+        try {
+            auto j = json::parse(req.body);
+            user_prompt = j.value("prompt", "");
+        } catch (...) {
+            user_prompt = req.body;  // accept raw body too
+        }
+        if (user_prompt.empty()) {
+            res.status = 400;
+            res.set_content("{\"error\":\"empty prompt\"}", "application/json");
+            return;
+        }
+
+        // Snapshot agents into a shared_ptr so the chunked provider (which may
+        // outlive this lambda's stack frame) keeps them alive.
+        auto agents_snap = std::make_shared<std::vector<Agent>>(agents);
+        auto prompt_snap = std::make_shared<std::string>(user_prompt);
+        auto cancel = std::make_shared<std::atomic<bool>>(false);
+
+        res.set_chunked_content_provider("text/event-stream",
+            [agents_snap, prompt_snap, cancel]
+            (size_t /*offset*/, httplib::DataSink& sink) -> bool {
+                std::mutex sink_mu;
+                auto write_event = [&](const std::string& event,
+                                       const std::string& data_json) {
+                    std::lock_guard<std::mutex> lock(sink_mu);
+                    if (!sink.is_writable()) { cancel->store(true); return; }
+                    std::string frame = "event: " + event + "\ndata: "
+                                        + data_json + "\n\n";
+                    sink.write(frame.data(), frame.size());
+                };
+
+                std::vector<std::thread> threads;
+                threads.reserve(agents_snap->size());
+                for (const auto& a : *agents_snap) {
+                    threads.emplace_back([&a, prompt_snap, cancel, &write_event]() {
+                        auto on_chunk = [&](const std::string& delta) {
+                            json payload = {{"agent", a.name}, {"delta", delta}};
+                            write_event("token", payload.dump());
+                        };
+                        try {
+                            agent_stream::stream_agent(a, a.system_prompt,
+                                                       *prompt_snap, on_chunk,
+                                                       cancel.get());
+                        } catch (const std::exception& e) {
+                            json err = {{"agent", a.name}, {"error", e.what()}};
+                            write_event("error", err.dump());
+                        }
+                        json done = {{"agent", a.name}};
+                        write_event("agent_done", done.dump());
+                    });
+                }
+                for (auto& t : threads) t.join();
+
+                {
+                    std::lock_guard<std::mutex> lock(sink_mu);
+                    if (sink.is_writable()) {
+                        std::string fin = "event: done\ndata: [DONE]\n\n";
+                        sink.write(fin.data(), fin.size());
+                    }
+                    sink.done();
+                }
+                return true;
+            });
+    });
+
     // 6. Clear KV cache on all llama-server slots
     svr.Post("/api/clear-cache", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -295,6 +375,67 @@ int main(int argc, char* argv[]) {
 
     // 7. KV pressure aggregator (slots + props + metrics per llama-server)
     register_pressure_routes(svr, agents);
+    // 7b. Targeted per-slot eviction for over-pressure llama-servers
+    register_eviction_routes(svr, agents);
+
+    // 7c. Exact-prompt response cache (off by default).
+    auto cache_stats_json = []() {
+        auto s = response_cache::stats();
+        return json{
+            {"enabled", s.enabled},
+            {"size", s.size},
+            {"max_entries", s.max_entries},
+            {"ttl_secs", s.ttl_secs},
+            {"hits", s.hits},
+            {"misses", s.misses},
+            {"inserts", s.inserts},
+            {"evictions", s.evictions},
+        };
+    };
+    svr.Get("/api/cache", [cache_stats_json](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(cache_stats_json().dump(), "application/json");
+    });
+    svr.Post("/api/cache/config", [cache_stats_json](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        try {
+            auto j = json::parse(req.body);
+            if (j.contains("enabled") && j["enabled"].is_boolean()) {
+                response_cache::set_enabled(j["enabled"].get<bool>());
+            }
+            int ttl = j.value("ttl_secs", 0);
+            int max_entries = j.value("max_entries", 0);
+            if (ttl > 0 || max_entries > 0) {
+                response_cache::configure(ttl, (size_t)std::max(0, max_entries));
+            }
+        } catch (const std::exception& e) {
+            res.status = 400;
+            res.set_content(json({{"error", e.what()}}).dump(), "application/json");
+            return;
+        }
+        res.set_content(cache_stats_json().dump(), "application/json");
+    });
+    svr.Post("/api/cache/clear", [cache_stats_json](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        response_cache::clear();
+        res.set_content(cache_stats_json().dump(), "application/json");
+    });
+
+    // Optional: enable cache from swarm-config.json coordinator.cache block.
+    if (config.contains("coordinator") && config["coordinator"].contains("cache")) {
+        const auto& c = config["coordinator"]["cache"];
+        int ttl = c.value("ttl_secs", 0);
+        int max_entries = c.value("max_entries", 0);
+        if (ttl > 0 || max_entries > 0) {
+            response_cache::configure(ttl, (size_t)std::max(0, max_entries));
+        }
+        if (c.value("enabled", false)) {
+            response_cache::set_enabled(true);
+            std::cout << "💾 response cache enabled (ttl="
+                      << response_cache::stats().ttl_secs << "s, max="
+                      << response_cache::stats().max_entries << ")" << std::endl;
+        }
+    }
 
     // 8. CORS preflight
     svr.Options(R"(/api/.*)", [](const httplib::Request&, httplib::Response& res) {

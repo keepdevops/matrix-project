@@ -11,4 +11,11 @@ struct Agent {
     std::string backend;
     std::string engine; // "llama" (default), "mlx", or "docker"
     std::string model;  // model ID — sent in request body for docker/vllm
+
+    // Speculative decoding config (llama-server only). The coordinator does
+    // not act on these directly — they are recorded so the launch script can
+    // pass --model-draft / --draft-max when starting the agent's server, and
+    // so /api/agents reports them. Empty draft_model = no speculative decode.
+    std::string draft_model;
+    int draft_max = 0;
 };

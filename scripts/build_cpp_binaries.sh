@@ -12,8 +12,12 @@ echo "Building coordinator..."
 c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$ROOT/src2/coordinator.cpp" \
    "$ROOT/src2/agent_client.cpp" \
+   "$ROOT/src2/agent_stream.cpp" \
    "$ROOT/src2/pressure.cpp" \
+   "$ROOT/src2/pressure_evict.cpp" \
+   "$ROOT/src2/response_cache.cpp" \
    "$ROOT/src2/mlx_inflight.cpp" \
+   "$ROOT/src2/kv_router.cpp" \
    $ROOT/src2/modes/*.cpp \
    -pthread
 

@@ -1,5 +1,6 @@
 #include "mode.h"
 #include "../agent_client.h"
+#include "../kv_router.h"
 
 #include <algorithm>
 #include <cctype>
@@ -321,6 +322,22 @@ json run_router(const ModeContext& ctx) {
 
     std::vector<std::string> parsed = extract_names_from_plan(raw, choice_set);
 
+    // KV-affinity bias: when the classifier returns more candidates than we
+    // can use (or the order doesn't match warm KV caches), reorder so agents
+    // with the longest prefix overlap come first. Threshold avoids reordering
+    // on trivial overlaps (boilerplate role headers etc.). MLX-centric runs
+    // already get a hard reorder later, so this only really affects llama.
+    json affinity_meta = json::object();
+    if (parsed.size() > 1) {
+        for (const auto& n : parsed) {
+            affinity_meta[n] = (uint64_t)kv_router::affinity(n, ctx.user_prompt);
+        }
+        kv_router::rank_by_affinity(parsed, ctx.user_prompt, /*min_bytes=*/64);
+    }
+    if (fallback.size() > 1) {
+        kv_router::rank_by_affinity(fallback, ctx.user_prompt, /*min_bytes=*/64);
+    }
+
     std::vector<std::string> selected;
     std::unordered_set<std::string> seen;
     for (const auto& name : parsed) {
@@ -392,6 +409,7 @@ json run_router(const ModeContext& ctx) {
     meta["fallback_classifier_used"] = fallback_classifier_used;
     meta["mlx_classifier_override_used"] = mlx_classifier_override_used;
     meta["mlx_centric"] = mlx_centric;
+    if (!affinity_meta.empty()) meta["kv_affinity"] = affinity_meta;
 
     return json{
         {"mode", "router"},
