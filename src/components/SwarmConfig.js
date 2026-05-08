@@ -7,6 +7,7 @@ import {
 import VllmPanel from './VllmPanel';
 import ModeRosterPanel from './ModeRosterPanel';
 import PresetsPanel from './PresetsPanel';
+import TokenBudgetPanel from './TokenBudgetPanel';
 import AgentPromptModal from './AgentPromptModal';
 import {
   ENGINES,
@@ -271,6 +272,7 @@ export default function SwarmConfig({ onDeployed }) {
               </div>
             ))}
           </div>
+          <TokenBudgetPanel roles={roles} onRolesChange={setRoles} selected={selected} />
         </div>
 
         {/* Right: server layout preview */}

@@ -109,6 +109,28 @@ export async function setAgentSystemPrompt(name, systemPrompt) {
 }
 
 /**
+ * Update an agent's token budget. max_tokens takes effect immediately;
+ * context is persisted but only applies on next deploy (server restart).
+ * Pass either field independently — omitted fields are unchanged.
+ */
+export async function setAgentTokens(name, { max_tokens, context, read_timeout_secs } = {}) {
+  const body = {};
+  if (Number.isFinite(max_tokens)) body.max_tokens = max_tokens;
+  if (Number.isFinite(context)) body.context = context;
+  if (Number.isFinite(read_timeout_secs)) body.read_timeout_secs = read_timeout_secs;
+  const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/tokens`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update agent tokens: ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
  * Mode presets — named bundles of (mode, agents, synthesizer, max_select).
  */
 export async function fetchPresets() {

@@ -517,6 +517,123 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    // 4c3. Agent token budgets — change an agent's max_tokens (runtime) and
+    // context (next-deploy) without editing JSON by hand. Persists to active
+    // config + mirror; survives restart and redeploy.
+    // PUT /api/agents/<name>/tokens {"max_tokens": int, "context"?: int}
+    svr.Put(R"(/api/agents/([A-Za-z0-9_\-]+)/tokens)",
+            [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string name = req.matches[1];
+        Agent* target = nullptr;
+        for (auto& a : agents) if (a.name == name) { target = &a; break; }
+        if (!target) {
+            res.status = 404;
+            res.set_content(json({{"error","unknown agent"},{"name",name}}).dump(),
+                            "application/json");
+            return;
+        }
+        try {
+            auto body = json::parse(req.body);
+            const bool has_max = body.contains("max_tokens") && body["max_tokens"].is_number_integer();
+            const bool has_ctx = body.contains("context") && body["context"].is_number_integer();
+            const bool has_to  = body.contains("read_timeout_secs") && body["read_timeout_secs"].is_number_integer();
+            if (!has_max && !has_ctx && !has_to) {
+                res.status = 400;
+                res.set_content(json({{"error","need integer 'max_tokens', 'context', or 'read_timeout_secs'"}}).dump(),
+                                "application/json");
+                return;
+            }
+            int new_max = has_max ? body["max_tokens"].get<int>() : -1;
+            int new_ctx = has_ctx ? body["context"].get<int>() : -1;
+            int new_to  = has_to  ? body["read_timeout_secs"].get<int>() : -1;
+            if (has_max && (new_max < 64 || new_max > 131072)) {
+                res.status = 400;
+                res.set_content(json({{"error","max_tokens out of range [64,131072]"}}).dump(),
+                                "application/json");
+                return;
+            }
+            if (has_ctx && (new_ctx < 512 || new_ctx > 262144)) {
+                res.status = 400;
+                res.set_content(json({{"error","context out of range [512,262144]"}}).dump(),
+                                "application/json");
+                return;
+            }
+            if (has_to && (new_to < 30 || new_to > 7200)) {
+                res.status = 400;
+                res.set_content(json({{"error","read_timeout_secs out of range [30,7200]"}}).dump(),
+                                "application/json");
+                return;
+            }
+
+            // Auto-bump timeout when max_tokens is raised past 4096 without an
+            // explicit timeout: heuristic min = max_tokens/20 + 30s (assumes
+            // ~20 tok/s sustained throughput plus a 30s buffer). Only raises,
+            // never lowers — respects manual values above the heuristic.
+            bool auto_bumped_timeout = false;
+            if (has_max && !has_to && new_max > 4096) {
+                int min_to = new_max / 20 + 30;
+                if (target->read_timeout_secs < min_to) {
+                    new_to = min_to;
+                    auto_bumped_timeout = true;
+                }
+            }
+            const bool apply_to = has_to || auto_bumped_timeout;
+
+            if (has_max) target->max_tokens = new_max;
+            if (apply_to) target->read_timeout_secs = new_to;
+            // context has no runtime field — only persisted; takes effect on next deploy.
+
+            auto rewrite = [&](const std::string& path) -> bool {
+                if (path.empty()) return false;
+                json doc;
+                if (!read_config_doc(path, doc)) return false;
+                if (!doc.contains("agents") || !doc["agents"].is_array()) return false;
+                bool found = false;
+                for (auto& a : doc["agents"]) {
+                    if (a.is_object() && a.value("name", std::string()) == name) {
+                        if (has_max) a["max_tokens"] = new_max;
+                        if (has_ctx) a["context"] = new_ctx;
+                        if (apply_to) a["read_timeout_secs"] = new_to;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+                std::ofstream out(path);
+                if (!out.is_open()) return false;
+                out << doc.dump(2);
+                return true;
+            };
+            bool active_ok = rewrite(config_path_global);
+            bool source_ok = source_config_path_global.empty() ? true
+                : rewrite(source_config_path_global);
+            std::cout << "🔢 [agents/" << name << "/tokens] ";
+            if (has_max) std::cout << "max_tokens=" << new_max << " ";
+            if (has_ctx) std::cout << "context=" << new_ctx << " (next deploy) ";
+            if (apply_to) std::cout << "read_timeout_secs=" << new_to
+                                    << (auto_bumped_timeout ? " (auto)" : "") << " ";
+            if (!active_ok) std::cout << " — active write FAILED";
+            if (!source_ok) std::cout << " — source write FAILED";
+            std::cout << std::endl;
+            json resp = {{"name", name}, {"persisted", active_ok && source_ok}};
+            if (has_max) resp["max_tokens"] = new_max;
+            if (has_ctx) {
+                resp["context"] = new_ctx;
+                resp["context_pending_redeploy"] = true;
+            }
+            if (apply_to) {
+                resp["read_timeout_secs"] = new_to;
+                if (auto_bumped_timeout) resp["read_timeout_auto_bumped"] = true;
+            }
+            res.set_content(resp.dump(), "application/json");
+        } catch (const std::exception& e) {
+            std::cerr << "❌ [agents tokens PUT] " << e.what() << std::endl;
+            res.status = 400;
+            res.set_content(json({{"error", e.what()}}).dump(), "application/json");
+        }
+    });
+
     // 4d. Mode presets — named bundles of (mode, agents, synthesizer, max_select).
     // Saved to coordinator.presets in the config file; survive restart + redeploy.
     svr.Get("/api/presets", [](const httplib::Request&, httplib::Response& res) {
