@@ -1,7 +1,10 @@
 #include "proxy_configure.h"
+#include "proxy_configure_internal.h"
+#include "proxy_configure_health.h"
+#include "proxy_configure_kill_prepare.h"
+#include "proxy_configure_coordinator_startup.h"
 #include "proxy_validate.h"
 #include "matrix_env.h"
-#include "httplib.h"
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -10,7 +13,6 @@
 #include <spawn.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <cstring>
 #include <cerrno>
 #include <cstdlib>
@@ -77,96 +79,6 @@ void spawn_detached(const std::string& bin,
     close(fd);
 }
 
-static const int DOCKER_PORT = 12434;
-
-// ── wait_for_health ──────────────────────────────────────────────────────────
-
-struct PortGroup {
-    std::string model, backend;
-    int context = 0, gpu_layers = 0;
-    float gpu_mem_util = 0.75f;
-    std::vector<std::string> names;
-    // Speculative decoding (llama backend only). All agents on a port share
-    // one llama-server process, so the first non-empty draft_model wins and
-    // any later mismatched value is ignored with a warning.
-    std::string draft_model;
-    int draft_max = 0;
-};
-
-static std::vector<int> wait_for_health(
-    const std::map<int, PortGroup>& pgs,
-    int timeout_secs)
-{
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeout_secs);
-    auto check = [&]() -> std::vector<int> {
-        std::vector<int> failed;
-        for (const auto& [port, g] : pgs) {
-            const char* path = (g.backend == "mlx" || g.backend == "docker"
-                            || g.backend == "vllm" || g.backend == "docker-vllm")
-                           ? "/v1/models" : "/health";
-            try {
-                httplib::Client cli("127.0.0.1", port);
-                cli.set_connection_timeout(5);
-                cli.set_read_timeout(30);
-                auto r = cli.Get(path);
-                if (!r || r->status != 200) failed.push_back(port);
-            } catch (...) { failed.push_back(port); }
-        }
-        return failed;
-    };
-    while (std::chrono::steady_clock::now() < deadline) {
-        if (check().empty()) return {};
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-    }
-    return check();
-}
-
-// ── check_docker_model_runner ─────────────────────────────────────────────────
-
-// Pre-flight check for the "docker" backend (Docker Desktop Model Runner).
-// Probes port 12434 with a short timeout and verifies the model is already loaded.
-// Returns "" on success, error string on failure.
-static std::string check_docker_model_runner(const std::string& model) {
-    if (model.empty())
-        return "docker agent requires a non-empty model field"
-               "\n  (e.g. ai/meta-llama-3.2-3b-instruct:Q8_0-F32)";
-
-    httplib::Client cli("127.0.0.1", DOCKER_PORT);
-    cli.set_connection_timeout(3);
-    cli.set_read_timeout(3);
-    auto r = cli.Get("/v1/models");
-    if (!r || r->status != 200)
-        return "Docker Model Runner is not running on port "
-             + std::to_string(DOCKER_PORT)
-             + ".\n  Start it with: docker model run " + model
-             + "\n  Then relaunch the swarm.";
-
-    // Check if the requested model appears in the loaded model list.
-    // Use substring match to handle tag variants (e.g. ":Q8_0-F32" suffixes).
-    const std::string& body = r->body;
-    if (body.find(model) != std::string::npos) return "";
-
-    // Model not found — collect loaded model IDs for a helpful error.
-    std::string loaded;
-    try {
-        json j = json::parse(body);
-        if (j.contains("data") && j["data"].is_array()) {
-            for (const auto& m : j["data"]) {
-                if (m.contains("id") && m["id"].is_string()) {
-                    if (!loaded.empty()) loaded += ", ";
-                    loaded += m["id"].get<std::string>();
-                }
-            }
-        }
-    } catch (...) {}
-
-    return "Model '" + model + "' is not loaded in Docker Model Runner."
-         + "\n  Run: docker model run " + model
-         + (loaded.empty() ? "" : "\n  Currently loaded: " + loaded);
-}
-
-// ── handle_configure ─────────────────────────────────────────────────────────
-
 ConfigureResult handle_configure(const json& request_body, const std::string& proj) {
     if (!request_body.contains("agents") || !request_body["agents"].is_array()
         || request_body["agents"].empty())
@@ -192,7 +104,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         else if ((bk == "mlx" || bk == "vllm") && fixed_port > 0) key = bk + ":" + std::to_string(fixed_port);
         else key = bk + ":" + model + ":" + sg;
         if (!key_to_port.count(key)) {
-            if (bk == "docker") key_to_port[key] = DOCKER_PORT;
+            if (bk == "docker") key_to_port[key] = PROXY_CONFIGURE_DOCKER_PORT;
             else if ((bk == "docker-vllm" || bk == "mlx" || bk == "vllm") && fixed_port > 0) key_to_port[key] = fixed_port;
             else key_to_port[key] = next_port++;
         }
@@ -239,22 +151,9 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     }
 
     // Kill old processes, free ports (never touch Docker Desktop / port 12434)
-    system("pkill -f llama-server 2>/dev/null");
-    system("pkill -f 'llama_cpp.server' 2>/dev/null");
-    system("pkill -f 'mlx_lm.server' 2>/dev/null");
-    system("pkill -f 'vllm.entrypoints' 2>/dev/null");
-    system("pkill -f 'docker model run' 2>/dev/null");
-    // Match by argv suffix, not absolute path — old instances launched as
-    // `./coordinator --config …` from the project dir won't match a pkill
-    // pattern containing the full project path.
-    system("pkill -f 'coordinator --config' 2>/dev/null");
-    system("lsof -ti:8080,8081,8082,8083,8084,8085,8086,8087,8088,8089,8090 | xargs kill -9 2>/dev/null");
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    mkdir(g_env.matrix_slots_dir.c_str(), 0755);
-    mkdir((proj + "/logs").c_str(), 0755);
-    mkdir((proj + "/agent_logs").c_str(), 0755);
+    proxy_configure_kill_old_and_prepare_dirs(proj);
 
-    // Pre-flight: validate all models before killing existing processes
+    // Pre-flight: validate deployed models against local/Docker backends
     for (const auto& [port, g] : pgs) {
         std::string err;
         if (g.backend == "llama")
@@ -266,7 +165,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         else if (g.backend == "docker-vllm")
             err = validate_docker_vllm_model(g.model);
         else if (g.backend == "docker")
-            err = check_docker_model_runner(g.model);
+            err = proxy_configure_check_docker_model_runner(g.model);
         if (!err.empty()) {
             std::cerr << "[Configure] Pre-flight failed port " << port << ": " << err << "\n";
             return {false, 400, {{"error", err}, {"port", port}, {"model", g.model}}};
@@ -355,7 +254,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     for (const auto& kv : pgs) {
         if (kv.second.backend == "docker-vllm") { health_timeout = 600; break; }
     }
-    auto failed = wait_for_health(pgs, health_timeout);
+    auto failed = proxy_configure_wait_for_health(pgs, health_timeout);
     if (!failed.empty()) {
         json fa = json::array();
         std::string fl;
@@ -369,35 +268,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         }};
     }
 
-    // Start coordinator. Export MATRIX_SOURCE_CONFIG so the coordinator can
-    // mirror runtime edits (system prompt, description, tokens) back to the
-    // project's swarm-config.json. The /prompt, /description, and /tokens
-    // handlers all upsert, so edits for agents outside the deployed subset
-    // still persist for the next deploy — this env var just makes sure those
-    // writes land in the source config and not only the active one.
-    setenv("MATRIX_SOURCE_CONFIG", (proj + "/swarm-config.json").c_str(), 1);
-    spawn_detached(proj + "/coordinator", {"--config", g_env.active_config_path},
-                   proj + "/agent_logs/coordinator.log");
-
-    // Poll until coordinator is actually listening (up to 8 s) instead of a blind sleep
-    {
-        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
-        bool coord_ready = false;
-        while (std::chrono::steady_clock::now() < deadline) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
-            try {
-                httplib::Client cli("127.0.0.1", g_env.coordinator_port);
-                cli.set_connection_timeout(1);
-                cli.set_read_timeout(2);
-                auto r = cli.Get("/api/health");
-                if (r && r->status == 200) { coord_ready = true; break; }
-            } catch (...) {}
-        }
-        if (!coord_ready) {
-            std::cerr << "[Configure] Warning: coordinator did not respond within 8 s — "
-                         "UI health poll may show offline briefly.\n";
-        }
-    }
+    proxy_configure_spawn_coordinator(proj);
 
     json servers = json::array();
     for (const auto& [port, g] : pgs) {

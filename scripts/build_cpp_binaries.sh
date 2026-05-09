@@ -27,6 +27,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$ROOT/src2/agent_health.cpp" \
    "$ROOT/src2/agent_metrics.cpp" \
    "$ROOT/src2/agent_stream.cpp" \
+   "$ROOT/src2/pressure_snapshot.cpp" \
    "$ROOT/src2/pressure.cpp" \
    "$ROOT/src2/pressure_evict.cpp" \
    "$ROOT/src2/response_cache.cpp" \
@@ -44,6 +45,9 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$ROOT/src2/proxy_file_io.cpp" \
   "$ROOT/src2/proxy_models_scan.cpp" \
   "$ROOT/src2/proxy_configure.cpp" \
+  "$ROOT/src2/proxy_configure_health.cpp" \
+  "$ROOT/src2/proxy_configure_kill_prepare.cpp" \
+  "$ROOT/src2/proxy_configure_coordinator_startup.cpp" \
   "$ROOT/src2/proxy_validate.cpp" \
   "$ROOT/src2/matrix_env.cpp" \
   -pthread

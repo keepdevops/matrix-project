@@ -1,4 +1,5 @@
 #include "mode.h"
+#include "router_plan_parse.h"
 #include "../agent_client.h"
 #include "../kv_router.h"
 #include "../pressure.h"
@@ -7,7 +8,6 @@
 #include <cctype>
 #include <future>
 #include <iostream>
-#include <regex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -122,91 +122,6 @@ std::string choose_classifier(const std::vector<Agent>& agents, bool mlx_centric
     return agents.empty() ? std::string() : agents.front().name;
 }
 
-std::vector<std::string> as_string_vec(const json& j) {
-    std::vector<std::string> out;
-    if (!j.is_array()) return out;
-    for (const auto& x : j) {
-        if (x.is_string()) out.push_back(x.get<std::string>());
-    }
-    return out;
-}
-
-// Parse "SELECTED: a, b, c" line if present. Returns ordered, deduped names
-// drawn from `choice_set`. Case-insensitive on names; tolerant of whitespace
-// and surrounding markdown (e.g. "**SELECTED:** a, b").
-std::vector<std::string> parse_selected_line(
-    const std::string& raw,
-    const std::unordered_set<std::string>& choice_set) {
-    std::vector<std::string> out;
-    std::regex line_re(R"((?:^|\n)[^\n]*\bSELECTED\s*:\s*([^\n]+))",
-                       std::regex::icase);
-    std::smatch m;
-    if (!std::regex_search(raw, m, line_re)) return out;
-
-    std::string list = m[1].str();
-    std::unordered_set<std::string> choice_lower;
-    std::unordered_map<std::string, std::string> lower_to_canonical;
-    for (const auto& n : choice_set) {
-        std::string l = n;
-        std::transform(l.begin(), l.end(), l.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        choice_lower.insert(l);
-        lower_to_canonical[l] = n;
-    }
-
-    std::unordered_set<std::string> seen;
-    std::regex tok_re(R"([A-Za-z][A-Za-z0-9_-]*)");
-    auto begin = std::sregex_iterator(list.begin(), list.end(), tok_re);
-    auto end = std::sregex_iterator();
-    for (auto it = begin; it != end; ++it) {
-        std::string tok = it->str();
-        std::transform(tok.begin(), tok.end(), tok.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        if (!choice_lower.count(tok)) continue;
-        if (seen.insert(tok).second) out.push_back(lower_to_canonical[tok]);
-    }
-    return out;
-}
-
-// Fallback: ordered, deduped agent names mentioned anywhere in `raw`, drawn
-// from `choice_set`. Word-boundary match avoids substring false positives
-// (e.g. "programmer" inside "reprogrammer").
-std::vector<std::string> extract_names_from_plan(
-    const std::string& raw,
-    const std::unordered_set<std::string>& choice_set) {
-    auto selected = parse_selected_line(raw, choice_set);
-    if (!selected.empty()) return selected;
-
-    std::string lower = raw;
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-
-    std::vector<std::pair<size_t, std::string>> hits;
-    hits.reserve(choice_set.size());
-    for (const auto& name : choice_set) {
-        std::string pat = name;
-        std::transform(pat.begin(), pat.end(), pat.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        try {
-            std::regex re("\\b" + pat + "\\b");
-            std::smatch m;
-            if (std::regex_search(lower, m, re)) {
-                hits.emplace_back((size_t)m.position(0), name);
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "⚠️  [router] regex error for '" << name << "': "
-                      << e.what() << std::endl;
-        }
-    }
-    std::sort(hits.begin(), hits.end(),
-              [](const auto& a, const auto& b) { return a.first < b.first; });
-
-    std::vector<std::string> out;
-    out.reserve(hits.size());
-    for (const auto& h : hits) out.push_back(h.second);
-    return out;
-}
-
 json run_router(const ModeContext& ctx) {
     const auto& cfg = ctx.mode_config;
     json meta = json::object();
@@ -219,7 +134,7 @@ json run_router(const ModeContext& ctx) {
     const std::string configured_classifier = classifier_name;
     int max_select = cfg.value("max_select", 3);
     std::vector<std::string> fallback = cfg.contains("fallback")
-        ? as_string_vec(cfg["fallback"]) : std::vector<std::string>{};
+        ? router_plan::as_string_vec(cfg["fallback"]) : std::vector<std::string>{};
 
     bool fallback_classifier_used = false;
     bool mlx_classifier_override_used = false;
@@ -237,7 +152,7 @@ json run_router(const ModeContext& ctx) {
     }
 
     std::vector<std::string> choices = cfg.contains("choices")
-        ? as_string_vec(cfg["choices"]) : std::vector<std::string>{};
+        ? router_plan::as_string_vec(cfg["choices"]) : std::vector<std::string>{};
     if (choices.empty()) {
         for (const auto& a : ctx.agents) {
             if (a.name != classifier_name) choices.push_back(a.name);
@@ -355,7 +270,8 @@ json run_router(const ModeContext& ctx) {
     const std::string raw = call_agent_with_system(
         *by_name[classifier_name], classifier_system, classifier_user);
 
-    std::vector<std::string> parsed = extract_names_from_plan(raw, choice_set);
+    std::vector<std::string> parsed =
+        router_plan::extract_names_from_plan(raw, choice_set);
 
     // KV-affinity bias: when the classifier returns more candidates than we
     // can use (or the order doesn't match warm KV caches), reorder so agents
