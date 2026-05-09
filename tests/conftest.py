@@ -35,6 +35,32 @@ DEFAULT_AGENTS = [
 ]
 
 
+def _agent_entry(a: dict) -> dict:
+    return {
+        'name': a['name'],
+        'port': a['port'],
+        'read_timeout_secs': 5,
+        'max_tokens': 256,
+        'system_prompt': f"You are {a['name']}.",
+        'engine': 'llama',
+        'backend': 'llama',
+        'model': '',
+        'draft_model': '',
+        'draft_max': 0,
+    }
+
+
+def _swarm_config(agent_specs: list) -> dict:
+    return {
+        'agents': [_agent_entry(a) for a in agent_specs],
+        'coordinator': {
+            'default_mode': 'flat',
+            'modes': {},
+            'port': COORD_PORT,
+        },
+    }
+
+
 def _wait_port(port: int, timeout: float = 5.0) -> bool:
     end = time.time() + timeout
     while time.time() < end:
@@ -103,28 +129,7 @@ def matrix(tmp_path, monkeypatch):
         m.start()
 
     # Synthesize a coordinator config that points at the mocks.
-    config = {
-        'agents': [
-            {
-                'name': a['name'],
-                'port': a['port'],
-                'read_timeout_secs': 5,
-                'max_tokens': 256,
-                'system_prompt': f"You are {a['name']}.",
-                'engine': 'llama',
-                'backend': 'llama',
-                'model': '',
-                'draft_model': '',
-                'draft_max': 0,
-            }
-            for a in DEFAULT_AGENTS
-        ],
-        'coordinator': {
-            'default_mode': 'flat',
-            'modes': {},
-            'port': COORD_PORT,
-        },
-    }
+    config = _swarm_config(DEFAULT_AGENTS)
     cfg_path = tmp_path / 'test-config.json'
     cfg_path.write_text(json.dumps(config, indent=2))
 
@@ -155,6 +160,60 @@ def matrix(tmp_path, monkeypatch):
         except Exception:
             try: proc.kill()
             except Exception: pass
+        log_fp.close()
+        for m in mocks.values():
+            m.stop()
+
+
+@pytest.fixture
+def matrix_subset_with_source(tmp_path):
+    """Active config lists one agent; MATRIX_SOURCE_CONFIG points at full roster.
+
+    Exercises metadata PUTs for agents present in the project file but not in
+    the deployed in-memory subset (regression for 'unknown agent')."""
+    if not COORD_BIN.exists():
+        pytest.skip(f"coordinator binary not found at {COORD_BIN}; run `npm run build:bin`")
+
+    mocks = {a['name']: MockAgent(a['name'], a['port']) for a in DEFAULT_AGENTS}
+    for m in mocks.values():
+        m.start()
+
+    source_path = tmp_path / 'swarm-source.json'
+    active_path = tmp_path / 'matrix-active.json'
+    source_path.write_text(json.dumps(_swarm_config(DEFAULT_AGENTS), indent=2))
+    active_path.write_text(json.dumps(_swarm_config([DEFAULT_AGENTS[0]]), indent=2))
+
+    env = os.environ.copy()
+    env['MATRIX_COORDINATOR_PORT'] = str(COORD_PORT)
+    env['MATRIX_SOURCE_CONFIG'] = str(source_path)
+
+    log_path = tmp_path / 'coordinator-subset.log'
+    log_fp = open(log_path, 'wb')
+    proc = subprocess.Popen(
+        [str(COORD_BIN), '--config', str(active_path)],
+        env=env, stdout=log_fp, stderr=subprocess.STDOUT,
+        preexec_fn=os.setsid,
+    )
+    if not _wait_port(COORD_PORT, timeout=8):
+        log_fp.close()
+        proc.kill()
+        log_text = log_path.read_text(errors='replace')
+        for m in mocks.values():
+            m.stop()
+        pytest.fail(f"coordinator didn't bind {COORD_PORT}\n--- log ---\n{log_text}")
+
+    harness = MatrixHarness(mocks, proc)
+    try:
+        yield harness
+    finally:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.wait(timeout=3)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
         log_fp.close()
         for m in mocks.values():
             m.stop()

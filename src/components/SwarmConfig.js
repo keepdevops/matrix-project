@@ -237,13 +237,22 @@ export default function SwarmConfig({ onDeployed }) {
               <div key={role.name}
                    className={`swarm-role-row ${selected.has(role.name) ? 'active' : ''}`}>
                 <label className="swarm-role-check"
-                       title={role.name === 'mlx-coder' ? 'Apple Silicon optimized coding agent — pairs well with standard LLAMA agents for mixed swarms' : ''}>
+                       title={role.description
+                         || (role.name === 'mlx-coder' ? 'Apple Silicon optimized coding agent — pairs well with standard LLAMA agents for mixed swarms' : '')}>
                   <input
                     type="checkbox"
                     checked={selected.has(role.name)}
                     onChange={() => toggleRole(role.name)}
                   />
                   <span className="swarm-role-name">{role.name}</span>
+                  {role.description && (
+                    <span className="swarm-role-desc"
+                          style={{ marginLeft: '0.5rem', opacity: 0.65, fontSize: '0.78rem' }}>
+                      — {role.description.length > 64
+                          ? role.description.slice(0, 64) + '…'
+                          : role.description}
+                    </span>
+                  )}
                 </label>
                 <button
                   type="button"
@@ -352,9 +361,12 @@ export default function SwarmConfig({ onDeployed }) {
           agent={editingAgent}
           defaultPrompt={editingAgent.system_prompt}
           onClose={() => setEditingAgent(null)}
-          onSaved={(text) => {
+          onSaved={(saved) => {
+            const next = typeof saved === 'string'
+              ? { system_prompt: saved }
+              : (saved || {});
             setRoles(prev => prev.map(r =>
-              r.name === editingAgent.name ? { ...r, system_prompt: text } : r));
+              r.name === editingAgent.name ? { ...r, ...next } : r));
           }}
         />
       )}

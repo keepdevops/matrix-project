@@ -83,11 +83,17 @@ export default function ModeRosterPanel() {
         setError(null);
         const data = await fetchModeAgents(activeTab);
         if (cancelled) return;
-        setSelected(data.explicit ? data.agents : []);
+        // `agents` is now intersected with deployed; `stale` lists names the
+        // operator configured but that are no longer deployed. Surface stale
+        // explicitly instead of silently dropping or round-tripping it.
+        setSelected(data.explicit ? (data.agents || []) : []);
         setExplicit(!!data.explicit);
         if (data.available) setAvailable(data.available);
         setMaxSelect(Number.isInteger(data.max_select) ? String(data.max_select) : '');
         setSynthesizer(typeof data.synthesizer === 'string' ? data.synthesizer : '');
+        if (Array.isArray(data.stale) && data.stale.length) {
+          setError(`Configured but not deployed: ${data.stale.join(', ')} — save to drop, or redeploy.`);
+        }
       } catch (e) {
         if (!cancelled) setError(e.message);
       }
@@ -128,11 +134,20 @@ export default function ModeRosterPanel() {
         opts.synthesizer = synthesizer || '';
       }
       const res = await setModeAgents(activeTab, selected, opts);
+      // Trust server-normalized roster: it reflects what was actually persisted
+      // after filtering ghost names. Avoids UI/disk divergence until next refetch.
+      const savedAgents = Array.isArray(res?.agents) ? res.agents : [];
+      setSelected(savedAgents);
+      setExplicit(savedAgents.length > 0);
       setSavedAt(Date.now());
-      setExplicit(selected.length > 0);
-      if (res && Array.isArray(res.unknown) && res.unknown.length) {
-        setError(`Skipped unknown agents: ${res.unknown.join(', ')}`);
+      const skipped = [];
+      if (Array.isArray(res?.unknown) && res.unknown.length) {
+        skipped.push(`agents: ${res.unknown.join(', ')}`);
       }
+      if (res?.unknown_synthesizer) {
+        skipped.push(`synthesizer: ${res.unknown_synthesizer}`);
+      }
+      setError(skipped.length ? `Skipped (not deployed) — ${skipped.join('; ')}` : null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -143,9 +158,10 @@ export default function ModeRosterPanel() {
   const clearOverride = async () => {
     setBusy(true); setError(null);
     try {
-      await setModeAgents(activeTab, []);
-      setSelected([]);
-      setExplicit(false);
+      const res = await setModeAgents(activeTab, []);
+      const savedAgents = Array.isArray(res?.agents) ? res.agents : [];
+      setSelected(savedAgents);
+      setExplicit(savedAgents.length > 0);
       setSavedAt(Date.now());
     } catch (e) {
       setError(e.message);

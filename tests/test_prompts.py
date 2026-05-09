@@ -33,6 +33,32 @@ def test_set_unknown_agent_returns_404(matrix):
     assert j['error'] == 'unknown agent'
 
 
+def test_set_unknown_agent_tokens_returns_404(matrix):
+    s, j = matrix.put('/api/agents/ghost/tokens', {'max_tokens': 128})
+    assert s == 404
+    assert j['error'] == 'unknown agent'
+
+
+def test_prompt_edit_for_role_in_source_roster_not_deployed(matrix_subset_with_source):
+    """Project swarm-config lists the role; active deploy subset does not — still OK."""
+    new_prompt = 'Edited prompt for a role not in the running subset.'
+    s, j = matrix_subset_with_source.put('/api/agents/reviewer/prompt',
+                                         {'system_prompt': new_prompt})
+    assert s == 200, j
+    assert j['persisted'] is True
+    assert j['system_prompt'] == new_prompt
+    assert j['live'] is False
+
+
+def test_description_edit_for_role_in_source_roster_not_deployed(matrix_subset_with_source):
+    s, j = matrix_subset_with_source.put('/api/agents/reviewer/description',
+                                         {'description': 'Short role blurb'})
+    assert s == 200, j
+    assert j['persisted'] is True
+    assert j['description'] == 'Short role blurb'
+    assert j['live'] is False
+
+
 def test_missing_body_returns_400(matrix):
     s, j = matrix.put('/api/agents/reviewer/prompt', {'wrong_field': 'x'})
     assert s == 400

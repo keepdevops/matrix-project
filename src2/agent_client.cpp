@@ -124,8 +124,14 @@ static constexpr int RETRY_ATTEMPTS = 2;
 static constexpr int RETRY_BACKOFF_MS = 250;
 
 static std::string call_agent_impl(const Agent& agent,
-                                   const std::string& system_prompt,
+                                   const std::string& system_prompt_in,
                                    const std::string& prompt) {
+    // Prepend the agent's short description (role tag) when present so it
+    // applies uniformly across flat / pipeline / router / cascade modes.
+    std::string system_prompt = system_prompt_in;
+    if (!agent.description.empty()) {
+        system_prompt = "# Role\n" + agent.description + "\n\n" + system_prompt_in;
+    }
     // Exact-prompt cache short-circuits both retries and inflight tracking.
     if (auto cached = response_cache::lookup(agent, system_prompt, prompt)) {
         return *cached;

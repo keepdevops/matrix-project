@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     // OPTIONS preflight
     svr.Options(R"(/.*)", [&cors](const httplib::Request&, httplib::Response& res) {
         cors(res);
-        res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
         res.status = 204;
     });
@@ -300,10 +300,14 @@ int main(int argc, char* argv[]) {
         coord.set_connection_timeout(5);
         coord.set_read_timeout(300);
         httplib::Result r;
-        if (req.method == "POST") {
+        if (req.method == "POST" || req.method == "PUT") {
             std::string ct = req.get_header_value("Content-Type");
-            r = coord.Post(req.path.c_str(), req.body,
-                           ct.empty() ? "application/json" : ct.c_str());
+            const char* mime = ct.empty() ? "application/json" : ct.c_str();
+            r = (req.method == "POST")
+                ? coord.Post(req.path.c_str(), req.body, mime)
+                : coord.Put (req.path.c_str(), req.body, mime);
+        } else if (req.method == "DELETE") {
+            r = coord.Delete(req.path.c_str());
         } else {
             r = coord.Get(req.path.c_str());
         }
@@ -318,8 +322,10 @@ int main(int argc, char* argv[]) {
                 "application/json");
         }
     };
-    svr.Get(R"(.*)", fwd);
-    svr.Post(R"(.*)", fwd);
+    svr.Get   (R"(.*)", fwd);
+    svr.Post  (R"(.*)", fwd);
+    svr.Put   (R"(.*)", fwd);
+    svr.Delete(R"(.*)", fwd);
 
     std::cout << "Matrix Proxy active on http://0.0.0.0:" << g_env.proxy_port << "\n";
     std::cout << "  MATRIX_MODEL_DIR=" << g_env.model_dir << "\n";

@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <cstring>
 #include <cerrno>
+#include <cstdlib>
 #if defined(__APPLE__)
 #include <crt_externs.h>
 #endif
@@ -368,7 +369,13 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         }};
     }
 
-    // Start coordinator
+    // Start coordinator. Export MATRIX_SOURCE_CONFIG so the coordinator can
+    // mirror runtime edits (system prompt, description, tokens) back to the
+    // project's swarm-config.json. The /prompt, /description, and /tokens
+    // handlers all upsert, so edits for agents outside the deployed subset
+    // still persist for the next deploy — this env var just makes sure those
+    // writes land in the source config and not only the active one.
+    setenv("MATRIX_SOURCE_CONFIG", (proj + "/swarm-config.json").c_str(), 1);
     spawn_detached(proj + "/coordinator", {"--config", g_env.active_config_path},
                    proj + "/agent_logs/coordinator.log");
 

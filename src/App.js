@@ -45,7 +45,7 @@ function App() {
 
   const [activeAgents, setActiveAgents] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
+  const [showConfig, setShowConfig] = useState(true);
   const [deployPending, setDeployPending] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState(null);

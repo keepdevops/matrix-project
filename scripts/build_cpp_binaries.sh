@@ -11,6 +11,9 @@ echo "Building coordinator..."
 # modes drop in without editing this script.
 c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$ROOT/src2/coordinator.cpp" \
+   "$ROOT/src2/coordinator_context.cpp" \
+   "$ROOT/src2/coordinator_routes.cpp" \
+   "$ROOT/src2/swarm_config_store.cpp" \
    "$ROOT/src2/agent_client.cpp" \
    "$ROOT/src2/agent_health.cpp" \
    "$ROOT/src2/agent_metrics.cpp" \

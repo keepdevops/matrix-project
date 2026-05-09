@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { setAgentSystemPrompt } from '../api/swarmApi';
+import { setAgentSystemPrompt, setAgentDescription } from '../api/swarmApi';
 
 // Edits an agent's system prompt at runtime. Persists to active + source
 // config so changes survive coordinator restart and UI redeploy.
@@ -10,26 +10,41 @@ import { setAgentSystemPrompt } from '../api/swarmApi';
 // definitions without redeploying.
 export default function AgentPromptModal({ agent, defaultPrompt, onClose, onSaved }) {
   const [text, setText] = useState(agent?.system_prompt || '');
+  const [desc, setDesc] = useState(agent?.description || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setText(agent?.system_prompt || '');
+    setDesc(agent?.description || '');
     setError(null);
   }, [agent]);
 
   if (!agent) return null;
 
-  const dirty = text !== (agent.system_prompt || '');
+  const promptDirty = text !== (agent.system_prompt || '');
+  const descDirty = desc !== (agent.description || '');
+  const dirty = promptDirty || descDirty;
   const canResetDefault = defaultPrompt && defaultPrompt !== text;
 
   const save = async () => {
     setBusy(true); setError(null);
+    // Track partial success: if description saves but prompt fails, the parent
+    // still needs the description update so its row doesn't show stale text.
+    const patch = {};
     try {
-      await setAgentSystemPrompt(agent.name, text);
-      if (onSaved) onSaved(text);
+      if (descDirty) {
+        const r = await setAgentDescription(agent.name, desc);
+        patch.description = (r && typeof r.description === 'string') ? r.description : desc;
+      }
+      if (promptDirty) {
+        const r = await setAgentSystemPrompt(agent.name, text);
+        patch.system_prompt = (r && typeof r.system_prompt === 'string') ? r.system_prompt : text;
+      }
+      if (onSaved && Object.keys(patch).length) onSaved(patch);
       onClose();
     } catch (e) {
+      if (onSaved && Object.keys(patch).length) onSaved(patch);
       setError(e.message);
     } finally {
       setBusy(false);
@@ -65,6 +80,27 @@ export default function AgentPromptModal({ agent, defaultPrompt, onClose, onSave
             </span>
           </div>
           <button onClick={onClose} style={{ padding: '0.2rem 0.5rem' }}>✕</button>
+        </div>
+
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: '0.25rem',
+          padding: '0.5rem 0.75rem', borderBottom: '1px solid #222',
+        }}>
+          <label style={{ fontSize: '0.72rem', opacity: 0.7, textTransform: 'uppercase' }}>
+            Description (short role tag, prepended to system prompt at runtime)
+          </label>
+          <input
+            type="text"
+            value={desc}
+            onChange={e => setDesc(e.target.value)}
+            placeholder="e.g. Performance Optimizer focused on CPU/memory hotspots"
+            spellCheck={false}
+            style={{
+              padding: '0.4rem 0.5rem', background: '#000', color: '#dde',
+              border: '1px solid #333', borderRadius: '3px',
+              fontFamily: 'monospace', fontSize: '0.85rem',
+            }}
+          />
         </div>
 
         <textarea
