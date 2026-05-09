@@ -1,4 +1,5 @@
 #pragma once
+// Persistence / JSON helpers only — do not include httplib here (HTTP binds in coordinator_routes_*).
 
 #include "json.hpp"
 #include <mutex>
