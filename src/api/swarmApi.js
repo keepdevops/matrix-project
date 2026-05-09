@@ -109,6 +109,24 @@ export async function setAgentSystemPrompt(name, systemPrompt) {
 }
 
 /**
+ * Update an agent's short description. Persisted to swarm-config.json so the
+ * value survives restart and applies on the next deploy. Description is
+ * prepended to system_prompt when the agent runs in any mode.
+ */
+export async function setAgentDescription(name, description) {
+  const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/description`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ description }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update agent description: ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
  * Update an agent's token budget. max_tokens takes effect immediately;
  * context is persisted but only applies on next deploy (server restart).
  * Pass either field independently — omitted fields are unchanged.

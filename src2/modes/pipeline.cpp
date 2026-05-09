@@ -1,4 +1,5 @@
 #include "mode.h"
+#include "pipeline_prompts.h"
 #include "../agent_client.h"
 
 #include <algorithm>
@@ -68,22 +69,6 @@ std::vector<std::string> default_pipeline_order(const std::vector<Agent>& agents
     // Final fallback: first two active agents in config order.
     out.push_back(agents.front().name);
     if (agents.size() > 1) out.push_back(agents[1].name);
-    return out;
-}
-
-// Build the staged prompt fed to stage N>1: original request + previous output.
-std::string build_staged_prompt(const std::string& user_prompt,
-                                const std::string& prev_agent,
-                                const std::string& prev_output) {
-    std::string out;
-    out.reserve(user_prompt.size() + prev_output.size() + 160);
-    out += "Original user request:\n<<<\n";
-    out += user_prompt;
-    out += "\n>>>\n\nPrevious step (";
-    out += prev_agent;
-    out += ") produced:\n<<<\n";
-    out += prev_output;
-    out += "\n>>>\n\nContinue the pipeline.";
     return out;
 }
 
@@ -233,7 +218,7 @@ json run_pipeline(const ModeContext& ctx) {
 
         const std::string staged = prev_agent.empty()
             ? ctx.user_prompt
-            : build_staged_prompt(ctx.user_prompt, prev_agent, prev_output);
+            : build_pipeline_staged_user_prompt(ctx.user_prompt, prev_agent, prev_output);
 
         std::string result = call_agent(*it->second, staged);
         agent_outputs[name] = result;
