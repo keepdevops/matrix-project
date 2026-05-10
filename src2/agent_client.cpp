@@ -6,6 +6,7 @@
 #include "kv_router.h"
 #include "mlx_inflight.h"
 #include "response_cache.h"
+#include "utf8_sanitize.h"
 
 #include <chrono>
 #include <iostream>
@@ -66,9 +67,9 @@ static AttemptResult call_agent_once(const Agent& agent,
         auto t_end = std::chrono::steady_clock::now();
 
         if (res && res->status == 200) {
-            auto j = json::parse(res->body);
+            auto j = json::parse(sanitize_invalid_utf8(res->body));
             if (j.contains("choices") && !j["choices"].empty()) {
-                out.text = j["choices"][0]["message"]["content"];
+                out.text = sanitize_invalid_utf8(j["choices"][0]["message"]["content"].get<std::string>());
             }
             if (agent.engine == "llama") {
                 kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
@@ -94,10 +95,10 @@ static AttemptResult call_agent_once(const Agent& agent,
             // Server reachable. 5xx is transient, 4xx is deterministic.
             out.retryable = (res->status >= 500 && res->status < 600);
             try {
-                auto err = json::parse(res->body);
+                auto err = json::parse(sanitize_invalid_utf8(res->body));
                 if (err.contains("error") && err["error"].contains("message")) {
                     out.text = "[" + agent.name + " error] "
-                             + err["error"]["message"].get<std::string>();
+                             + sanitize_invalid_utf8(err["error"]["message"].get<std::string>());
                 }
             } catch (...) {
                 std::cerr << "[coordinator] Non-JSON error body from " << agent.name
@@ -125,13 +126,15 @@ static constexpr int RETRY_BACKOFF_MS = 250;
 
 static std::string call_agent_impl(const Agent& agent,
                                    const std::string& system_prompt_in,
-                                   const std::string& prompt) {
+                                   const std::string& prompt_in) {
     // Prepend the agent's short description (role tag) when present so it
     // applies uniformly across flat / pipeline / router / cascade modes.
     std::string system_prompt = system_prompt_in;
     if (!agent.description.empty()) {
         system_prompt = "# Role\n" + agent.description + "\n\n" + system_prompt_in;
     }
+    system_prompt = sanitize_invalid_utf8(system_prompt);
+    std::string prompt = sanitize_invalid_utf8(prompt_in);
     // Exact-prompt cache short-circuits both retries and inflight tracking.
     if (auto cached = response_cache::lookup(agent, system_prompt, prompt)) {
         return *cached;

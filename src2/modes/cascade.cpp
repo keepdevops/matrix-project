@@ -1,5 +1,8 @@
 #include "mode.h"
 #include "../agent_client.h"
+#include "../mode_module.h"
+#include "../synthesis_budget.h"
+#include "../synthesis_tiered.h"
 
 #include <future>
 #include <iostream>
@@ -35,7 +38,10 @@ json run_cascade(const ModeContext& ctx) {
     // reducer, not a parallel responder — having it answer twice would
     // contaminate its own input on the second pass).
     json agent_outputs = json::object();
-    json meta = json::object();
+    json meta = mode_module::module_meta("cascade", ctx.mode_config);
+    const std::string synthesis_policy = mode_module::option_string(
+        ctx.mode_config, "synthesis_policy", "summary");
+    meta["synthesis_policy"] = synthesis_policy;
     std::vector<std::future<std::pair<std::string, std::string>>> futures;
     std::vector<std::string> participants;
     for (const auto& a : ctx.agents) {
@@ -63,6 +69,18 @@ json run_cascade(const ModeContext& ctx) {
     }
     meta["participants"] = participants;
     if (!errors.empty()) meta["errors"] = errors;
+    json excluded = json::array();
+    for (const auto& name : participants) {
+        bool ok = false;
+        for (const auto& h : healthy_participants) {
+            if (h == name) {
+                ok = true;
+                break;
+            }
+        }
+        if (!ok) excluded.push_back(name);
+    }
+    if (!excluded.empty()) meta["excluded"] = excluded;
 
     // Synthesis reducer: identical prompt shape to pipeline's synthesis stage
     // so users get consistent behavior across modes. The reducer must be in
@@ -76,26 +94,11 @@ json run_cascade(const ModeContext& ctx) {
             if (a.name == synthesizer_name) { synth = &a; break; }
         }
         if (synth && !healthy_participants.empty()) {
-            std::string synth_prompt;
-            synth_prompt.reserve(ctx.user_prompt.size() + 256 * healthy_participants.size());
-            synth_prompt += "Original user request:\n<<<\n";
-            synth_prompt += ctx.user_prompt;
-            synth_prompt += "\n>>>\n\nThe following agents responded in parallel:\n";
-            int n = 0;
+            std::vector<std::pair<std::string, std::string>> synth_blocks;
+            synth_blocks.reserve(healthy_participants.size());
             for (const auto& name : healthy_participants) {
-                ++n;
-                synth_prompt += "\n--- Response ";
-                synth_prompt += std::to_string(n);
-                synth_prompt += " (";
-                synth_prompt += name;
-                synth_prompt += ") ---\n";
-                synth_prompt += agent_outputs.value(name, std::string{});
+                synth_blocks.push_back({name, agent_outputs.value(name, std::string{})});
             }
-            synth_prompt += "\n\nProduce ONE consolidated answer that integrates the "
-                            "above contributions. Resolve contradictions, drop redundancy, "
-                            "and keep only the strongest material. Do not enumerate the "
-                            "responders — write the final answer directly.";
-
             std::cout << "🧪 [cascade] synthesis → " << synthesizer_name
                       << " (reducing " << healthy_participants.size()
                       << " healthy response(s)";
@@ -104,7 +107,14 @@ json run_cascade(const ModeContext& ctx) {
                           << " excluded due to errors";
             }
             std::cout << ")" << std::endl;
-            std::string out = call_agent(*synth, synth_prompt);
+            const std::string synth_user_prompt =
+                mode_module::cascade_synthesis_instruction(synthesis_policy)
+                + ctx.user_prompt;
+            std::string out = synthesis_tiered::enabled_via_env()
+                ? synthesis_tiered::reduce_pairwise(*synth, synth_user_prompt,
+                                                    std::move(synth_blocks), false)
+                : call_agent(*synth, synthesis_budget::build_cascade_synthesis_prompt(
+                                          synth_user_prompt, synth_blocks, synth));
             agent_outputs[synthesizer_name] = out;
             final_output = out;
             synthesized = true;

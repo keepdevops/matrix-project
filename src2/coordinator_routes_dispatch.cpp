@@ -1,5 +1,6 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "session_store.h"
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
     // 5. Swarm dispatch — delegate to active mode
@@ -15,7 +16,25 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             auto j_body = json::parse(req.body);
             std::string user_prompt = j_body.value("prompt", "");
             double temperature = j_body.value("temperature", 0.7);
-            std::cout << "📝 Prompt: " << user_prompt << std::endl;
+            const bool followup = j_body.value("followup", false);
+            const bool quality_pass = j_body.value("quality_pass", false);
+            std::string session_id = j_body.value("session_id", std::string(""));
+            const std::string parent_run_id = j_body.value("parent_run_id", std::string(""));
+            json context_policy = j_body.value("context_policy", json::object());
+            if (session_id.empty()) session_id = session_new_id("sess");
+            const std::string run_id = session_new_id("run");
+
+            std::string effective_prompt = user_prompt;
+            json compaction = json::object();
+            if (followup) {
+                std::lock_guard<std::mutex> lock(st.sessions_mutex);
+                SessionContinuation cont = session_build_continuation(
+                    st.sessions, session_id, user_prompt, context_policy);
+                effective_prompt = cont.prompt;
+                compaction = cont.compaction;
+            }
+            std::cout << "📝 Prompt: " << user_prompt
+                      << (followup ? " (follow-up)" : "") << std::endl;
 
             const std::string mode_name = modes::active();
             const Mode* mode = modes::get(mode_name);
@@ -43,7 +62,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     }
                     return false;
                 }), mode_agents.end());
-            ModeContext ctx{mode_agents, user_prompt, temperature, cfg_for_mode};
+            ModeContext ctx{mode_agents, effective_prompt, temperature, cfg_for_mode};
 
             if (!excluded_unhealthy.empty()) {
                 std::cerr << "🔴 [dispatch] excluding " << excluded_unhealthy.size()
@@ -73,6 +92,20 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 }
                 envelope["meta"]["excluded_unhealthy"] = excluded_unhealthy;
             }
+            if (!envelope.contains("meta") || !envelope["meta"].is_object()) {
+                envelope["meta"] = json::object();
+            }
+            envelope["meta"]["session_id"] = session_id;
+            envelope["meta"]["run_id"] = run_id;
+            envelope["meta"]["followup"] = followup;
+            if (quality_pass) {
+                envelope["meta"]["quality_pass"] = {
+                    {"used", true},
+                    {"instruction", "review previous output and produce corrected final answer"}
+                };
+            }
+            if (!parent_run_id.empty()) envelope["meta"]["parent_run_id"] = parent_run_id;
+            if (followup) envelope["meta"]["compaction"] = compaction;
             // Per-agent timings + grand total wall clock for the whole run.
             {
                 auto dispatch_t1 = std::chrono::steady_clock::now();
@@ -96,11 +129,31 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 entry["_final"] = envelope["final"];
             }
             if (envelope.contains("mode")) entry["_mode"] = envelope["mode"];
+            entry["_session_id"] = session_id;
+            entry["_run_id"] = run_id;
 
             {
                 std::lock_guard<std::mutex> lock(st.history_mutex);
                 st.history.push_back(entry);
                 coordinator_save_history(st);
+            }
+            {
+                std::lock_guard<std::mutex> lock(st.sessions_mutex);
+                json run = {
+                    {"run_id", run_id},
+                    {"parent_run_id", parent_run_id},
+                    {"prompt", user_prompt},
+                    {"effective_prompt", effective_prompt},
+                    {"followup", followup},
+                    {"quality_pass", quality_pass},
+                    {"mode", mode_name},
+                    {"agents", envelope.value("agents", json::object())},
+                    {"final", envelope.value("final", json(nullptr))},
+                    {"timestamp", ms}
+                };
+                if (followup) run["compaction"] = compaction;
+                session_append_run(st.sessions, session_id, run);
+                coordinator_save_sessions(st);
             }
 
             res.set_content(envelope.dump(), "application/json");

@@ -1,5 +1,8 @@
 #pragma once
 
+// Coordinator process state and persistence paths. HTTP: coordinator_routes_*.cpp.
+// JSON shape checks at startup: config/coordinator_config_validate.h
+
 #include "agent.h"
 #include "json.hpp"
 #include "swarm_config_store.h"
@@ -16,6 +19,10 @@ struct CoordinatorState {
     std::vector<json> history;
     std::mutex history_mutex;
     std::string history_path;
+
+    json sessions = json::object();
+    std::mutex sessions_mutex;
+    std::string sessions_path;
 
     json modes_config = json::object();
     std::mutex modes_config_mutex;
@@ -36,6 +43,8 @@ struct CoordinatorState {
 
 void coordinator_load_history(CoordinatorState& st);
 void coordinator_save_history(CoordinatorState& st);
+void coordinator_load_sessions(CoordinatorState& st);
+void coordinator_save_sessions(CoordinatorState& st);
 
 /// Caller must hold `st.modes_config_mutex` (same contract as legacy persist).
 bool coordinator_persist_modes_locked(CoordinatorState& st);

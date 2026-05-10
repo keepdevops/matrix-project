@@ -19,4 +19,7 @@ struct Agent {
     // so /api/agents reports them. Empty draft_model = no speculative decode.
     std::string draft_model;
     int draft_max = 0;
+
+    /// Deployed model context length from swarm-config `context` (inference window).
+    int context_window = 8192;
 };

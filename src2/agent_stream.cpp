@@ -4,6 +4,7 @@
 #include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
+#include "utf8_sanitize.h"
 
 #include <chrono>
 #include <iostream>
@@ -22,13 +23,13 @@ bool parse_sse_frame(const std::string& payload,
                      std::string& accumulated) {
     if (payload == "[DONE]") return true;
     try {
-        auto j = json::parse(payload);
+        auto j = json::parse(sanitize_invalid_utf8(payload));
         if (!j.contains("choices") || !j["choices"].is_array()) return false;
         for (const auto& c : j["choices"]) {
             if (!c.contains("delta")) continue;
             const auto& d = c["delta"];
             if (!d.contains("content") || !d["content"].is_string()) continue;
-            std::string delta = d["content"].get<std::string>();
+            std::string delta = sanitize_invalid_utf8(d["content"].get<std::string>());
             if (delta.empty()) continue;
             accumulated += delta;
             on_chunk(delta);
@@ -69,14 +70,16 @@ void drain_frames(std::string& buf, OnChunk& on_chunk,
 }
 
 std::string stream_llama(const Agent& agent,
-                         const std::string& system_prompt,
-                         const std::string& prompt,
+                         const std::string& system_prompt_in,
+                         const std::string& prompt_in,
                          OnChunk on_chunk,
                          std::atomic<bool>* cancel) {
     httplib::Client cli("127.0.0.1", agent.port);
     cli.set_connection_timeout(5);
     cli.set_read_timeout(agent.read_timeout_secs);
 
+    const std::string system_prompt = sanitize_invalid_utf8(system_prompt_in);
+    const std::string prompt = sanitize_invalid_utf8(prompt_in);
     json messages = json::array();
     if (!system_prompt.empty())
         messages.push_back({{"role", "system"}, {"content", system_prompt}});
@@ -141,7 +144,7 @@ std::string stream_mlx_oneshot(const Agent& agent,
                                const std::string& prompt,
                                OnChunk on_chunk) {
     // MLX path: reuse the existing blocking caller, emit one chunk.
-    std::string full = call_agent_with_system(agent, system_prompt, prompt);
+    std::string full = sanitize_invalid_utf8(call_agent_with_system(agent, system_prompt, prompt));
     if (!full.empty()) on_chunk(full);
     return full;
 }

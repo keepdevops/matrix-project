@@ -1,6 +1,8 @@
 #include "coordinator_context.h"
 #include "coordinator_routes.h"
 #include "agent_client.h"
+#include "config/coordinator_config_validate.h"
+#include "config/http_url_parse.h"
 #include "modes/mode.h"
 
 #include "httplib.h"
@@ -38,14 +40,47 @@ int main(int argc, char* argv[]) {
 
     state.history_path = config_path.substr(0, config_path.rfind('/') + 1) + "history.json";
     if (state.history_path == "history.json") state.history_path = "history.json";
+    state.sessions_path = config_path.substr(0, config_path.rfind('/') + 1) + "sessions.json";
+    if (state.sessions_path == "sessions.json") state.sessions_path = "sessions.json";
 
-    std::ifstream config_file(config_path);
-    if (!config_file.is_open()) {
-        std::cerr << "❌ Could not open " << config_path << std::endl;
+    json config;
+    const char* cfg_svc = std::getenv("MATRIX_SWARM_CONFIG_SERVICE");
+    if (cfg_svc && cfg_svc[0]) {
+        std::string host;
+        int port = 0;
+        if (!matrix_http::parse_http_host_port(std::string(cfg_svc), host, port)) {
+            std::cerr << "❌ MATRIX_SWARM_CONFIG_SERVICE must be http://host:port\n";
+            return 1;
+        }
+        httplib::Client cli(host, port);
+        cli.set_connection_timeout(5);
+        cli.set_read_timeout(60);
+        auto res = cli.Get("/api/v1/config");
+        if (!res || res->status != 200) {
+            std::cerr << "❌ MATRIX_SWARM_CONFIG_SERVICE GET /api/v1/config failed\n";
+            return 1;
+        }
+        try {
+            config = json::parse(res->body);
+        } catch (...) {
+            std::cerr << "❌ config JSON parse failed\n";
+            return 1;
+        }
+        std::cout << "✅ Loaded swarm config from MATRIX_SWARM_CONFIG_SERVICE\n";
+    } else {
+        std::ifstream config_file(config_path);
+        if (!config_file.is_open()) {
+            std::cerr << "❌ Could not open " << config_path << std::endl;
+            return 1;
+        }
+        config = json::parse(config_file);
+    }
+    state.startup_config = config;
+
+    if (!coordinator_config::validate_swarm_config_document(config, true).ok) {
+        std::cerr << "❌ swarm config validation failed\n";
         return 1;
     }
-    json config = json::parse(config_file);
-    state.startup_config = config;
 
     for (auto& a : config["agents"]) {
         std::string backend_val = a.contains("backend") ? a["backend"].get<std::string>() : "";
@@ -63,11 +98,14 @@ int main(int argc, char* argv[]) {
             engine,
             a.value("model", ""),
             a.value("draft_model", ""),
-            a.value("draft_max", 0)
+            a.value("draft_max", 0),
+            a.value("context", 8192)
         });
     }
     init_mlx_port_locks(state.agents);
-    std::cout << "✅ Loaded " << state.agents.size() << " agents from " << config_path << std::endl;
+    std::cout << "✅ Loaded " << state.agents.size() << " agents from "
+              << ((cfg_svc && cfg_svc[0]) ? std::string("MATRIX_SWARM_CONFIG_SERVICE") : config_path)
+              << std::endl;
 
     if (config.contains("coordinator")) {
         const auto& coord = config["coordinator"];
@@ -91,6 +129,9 @@ int main(int argc, char* argv[]) {
     coordinator_load_history(state);
     std::cout << "📜 Loaded " << state.history.size() << " history entries from "
               << state.history_path << std::endl;
+    coordinator_load_sessions(state);
+    std::cout << "🧵 Loaded " << state.sessions.size() << " session(s) from "
+              << state.sessions_path << std::endl;
 
     httplib::Server svr;
     register_coordinator_routes(svr, state);

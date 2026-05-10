@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <set>
 #include <thread>
 #include <chrono>
 #include <spawn.h>
@@ -89,6 +90,13 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     std::map<std::string, int> key_to_port;
     int next_port = 8080;
     std::map<int, PortGroup> pgs;
+    std::set<int> fixed_ports;
+    for (const auto& a : agents) {
+        if (a.contains("port") && a["port"].is_number_integer()) {
+            int p = a["port"].get<int>();
+            if (p > 0) fixed_ports.insert(p);
+        }
+    }
 
     for (auto& a : agents) {
         std::string model = a["model"].get<std::string>();
@@ -106,7 +114,10 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         if (!key_to_port.count(key)) {
             if (bk == "docker") key_to_port[key] = PROXY_CONFIGURE_DOCKER_PORT;
             else if ((bk == "docker-vllm" || bk == "mlx" || bk == "vllm") && fixed_port > 0) key_to_port[key] = fixed_port;
-            else key_to_port[key] = next_port++;
+            else {
+                while (fixed_ports.count(next_port)) ++next_port;
+                key_to_port[key] = next_port++;
+            }
         }
         int port = key_to_port[key];
         a["port"] = port;
@@ -115,8 +126,23 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         // Default to 99 (all layers on GPU) for llama backend — CPU-only (0) causes
         // inference to exceed read_timeout on large models like Codestral-22B.
         int default_gpu_layers = (bk == "llama") ? 99 : 0;
-        if (g.model.empty()) g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}, "", 0};
-        else g.context = std::max(g.context, a["context"].get<int>());
+        if (g.model.empty()) {
+            g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}, "", 0};
+        } else {
+            if (g.backend != bk || g.model != model) {
+                return {false, 400, {
+                    {"error", "Port " + std::to_string(port)
+                        + " is assigned to incompatible servers. Put agents that use different backends or models on different ports."},
+                    {"port", port},
+                    {"existing_backend", g.backend},
+                    {"existing_model", g.model},
+                    {"agent", a["name"].get<std::string>()},
+                    {"agent_backend", bk},
+                    {"agent_model", model}
+                }};
+            }
+            g.context = std::max(g.context, a["context"].get<int>());
+        }
         g.names.push_back(a["name"].get<std::string>());
         // Capture draft-model config (llama only). First non-empty wins; later
         // agents on the same port must agree or are ignored.

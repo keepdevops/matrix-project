@@ -1,7 +1,10 @@
 #include "mode.h"
 #include "router_plan_parse.h"
 #include "../agent_client.h"
+#include "../agent_health.h"
+#include "../httplib.h"
 #include "../kv_router.h"
+#include "../mode_module.h"
 #include "../pressure.h"
 
 #include <algorithm>
@@ -20,6 +23,25 @@ namespace {
 
 bool is_mlx_agent(const Agent& a) {
     return a.engine == "mlx" || a.backend == "mlx";
+}
+
+bool endpoint_ready(const Agent& a) {
+    const bool openai_backend = a.engine == "mlx" || a.backend == "mlx"
+        || a.backend == "vllm" || a.backend == "docker-vllm"
+        || a.backend == "docker";
+    const char* path = openai_backend ? "/v1/models" : "/health";
+    try {
+        httplib::Client cli("127.0.0.1", a.port);
+        cli.set_connection_timeout(1);
+        cli.set_read_timeout(1);
+        auto r = cli.Get(path);
+        // This is a liveness precheck, not a full backend health check. Some
+        // test doubles and OpenAI-compatible servers may not implement the
+        // exact probe path, but any HTTP response proves the port is alive.
+        return static_cast<bool>(r);
+    } catch (...) {
+        return false;
+    }
 }
 
 bool is_mlx_centric_run(const std::vector<Agent>& agents) {
@@ -124,11 +146,40 @@ std::string choose_classifier(const std::vector<Agent>& agents, bool mlx_centric
 
 json run_router(const ModeContext& ctx) {
     const auto& cfg = ctx.mode_config;
-    json meta = json::object();
-    const bool mlx_centric = is_mlx_centric_run(ctx.agents);
+    json meta = mode_module::module_meta("router", cfg);
+    const std::string classifier_policy = mode_module::option_string(
+        cfg, "classifier_policy", "standard");
+    meta["classifier_policy"] = classifier_policy;
+    std::vector<Agent> reachable_agents;
+    json excluded_unreachable = json::array();
+    reachable_agents.reserve(ctx.agents.size());
+    for (const auto& a : ctx.agents) {
+        if (endpoint_ready(a)) {
+            reachable_agents.push_back(a);
+        } else {
+            excluded_unreachable.push_back(a.name);
+            agent_health::record(a.name, false);
+            std::cerr << "🔌 [router] excluding unreachable agent '" << a.name
+                      << "' on port " << a.port << std::endl;
+        }
+    }
+    if (!excluded_unreachable.empty()) {
+        meta["excluded_unreachable"] = excluded_unreachable;
+    }
+    if (reachable_agents.empty()) {
+        meta["error"] = "no reachable agents";
+        return json{
+            {"mode", "router"},
+            {"agents", json::object()},
+            {"final", nullptr},
+            {"meta", meta}
+        };
+    }
+    const auto& agents = reachable_agents;
+    const bool mlx_centric = is_mlx_centric_run(agents);
 
     std::unordered_map<std::string, const Agent*> by_name;
-    for (const auto& a : ctx.agents) by_name[a.name] = &a;
+    for (const auto& a : agents) by_name[a.name] = &a;
 
     std::string classifier_name = cfg.value("classifier", std::string(""));
     const std::string configured_classifier = classifier_name;
@@ -147,14 +198,14 @@ json run_router(const ModeContext& ctx) {
                   << std::endl;
     }
     if (classifier_name.empty() || by_name.find(classifier_name) == by_name.end()) {
-        classifier_name = choose_classifier(ctx.agents, mlx_centric);
+        classifier_name = choose_classifier(agents, mlx_centric);
         fallback_classifier_used = true;
     }
 
     std::vector<std::string> choices = cfg.contains("choices")
         ? router_plan::as_string_vec(cfg["choices"]) : std::vector<std::string>{};
     if (choices.empty()) {
-        for (const auto& a : ctx.agents) {
+        for (const auto& a : agents) {
             if (a.name != classifier_name) choices.push_back(a.name);
         }
     } else {
@@ -170,7 +221,7 @@ json run_router(const ModeContext& ctx) {
     }
     if (mlx_centric && !choices.empty()) {
         // Reorder with strict MLX-centric priority (tier1 before architect/programmer).
-        std::vector<std::string> preferred = mlx_strict_fallback_order(ctx.agents, classifier_name);
+        std::vector<std::string> preferred = mlx_strict_fallback_order(agents, classifier_name);
         std::unordered_set<std::string> allowed(choices.begin(), choices.end());
         std::vector<std::string> reordered;
         for (const auto& n : preferred) if (allowed.count(n)) reordered.push_back(n);
@@ -193,14 +244,14 @@ json run_router(const ModeContext& ctx) {
     if (mlx_centric) {
         // Strict MLX policy: ignore configured fallback and enforce tiered MLX-priority.
         fallback.clear();
-        const auto candidates = mlx_strict_fallback_order(ctx.agents, classifier_name);
+        const auto candidates = mlx_strict_fallback_order(agents, classifier_name);
         for (const auto& n : candidates) {
             fallback.push_back(n);
             if ((int)fallback.size() >= max_select) break;
         }
     } else if (fallback.empty()) {
         // Non-MLX: keep existing behavior.
-        for (const auto& a : ctx.agents) {
+        for (const auto& a : agents) {
             if (a.name == classifier_name) continue;
             fallback.push_back(a.name);
             if ((int)fallback.size() >= max_select) break;
@@ -228,13 +279,14 @@ json run_router(const ModeContext& ctx) {
         "SELECTED: <agent1>, <agent2>, ...\n"
         "Pick between 1 and " + std::to_string(max_select) + " agents from the "
         "allowed list. Use only names from the allowed list, separated by "
-        "commas. No prose, no explanations, no other lines.";
+        "commas. No prose, no explanations, no other lines.\n"
+        + mode_module::router_policy_instruction(classifier_policy);
     // Pressure-aware classifier hint: list current load per allowed agent so
     // the foreman can avoid hammering already-busy roles. Best-effort — if the
     // pressure snapshot fails or returns nothing, we just skip the banner.
     std::string load_banner;
     try {
-        nlohmann::json snap = snapshot_pressure(ctx.agents);
+        nlohmann::json snap = snapshot_pressure(agents);
         std::map<std::string, int> agent_pct; // name -> 0..100
         for (const auto& entry : snap) {
             if (!entry.is_object()) continue;
@@ -318,8 +370,8 @@ json run_router(const ModeContext& ctx) {
         if (selected.empty()) {
             // Final safety net: pick first active non-classifier agents.
             const auto final_candidates = mlx_centric
-                ? mlx_strict_fallback_order(ctx.agents, classifier_name)
-                : mlx_first_agents(ctx.agents, classifier_name);
+                ? mlx_strict_fallback_order(agents, classifier_name)
+                : mlx_first_agents(agents, classifier_name);
             for (const auto& n : final_candidates) {
                 if (seen.insert(n).second) selected.push_back(n);
                 if ((int)selected.size() >= max_select) break;
