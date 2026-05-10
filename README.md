@@ -139,7 +139,7 @@ it with Matrix Swarm for parallel planning + deep execution.
 ## Quick start
 
 ```bash
-# 1. Build the C++ binaries (coordinator + proxy)
+# 1. Build the C++ binaries (coordinator + proxy; modes → build/libmatrix_modes.a; matrix_config_service optional)
 bash scripts/build_cpp_binaries.sh
 
 # 2. (optional) load env defaults
@@ -162,6 +162,38 @@ bash scripts/matrix-3-shutdown.sh
 The coordinator listens on `:8000` once **LAUNCH SWARM** has been clicked in
 the UI. The proxy on `:3002` fronts both the coordinator API and the
 inference servers.
+
+## Standalone swarm-config editor
+
+Use the standalone guardrailed editor when you want to edit `swarm-config.json`
+outside the main React UI:
+
+```bash
+open tools/swarmconfig-editor.html
+# or
+bash scripts/open-swarmconfig-editor.sh
+```
+
+What it enforces before export:
+- strict JSON + schema checks (`root.agents[]`, required agent fields, numeric ranges)
+- unique/safe agent names and duplicate backend+port collision checks
+- model/path guardrails (blocks unsafe sequences like `..`, shell metacharacters)
+
+Export is disabled until all blocking errors are fixed. The downloaded file is
+normalized and saved as `swarm-config.validated.json`.
+
+Editor UX includes format/minify, copy all / copy validated, drag-and-drop JSON,
+find/replace, word wrap, font size, light/dark theme, session restore via
+`localStorage`, a toolbar validation chip, and shortcuts: **⌘/Ctrl+Enter** validate,
+**⌘/Ctrl+S** download when valid (otherwise re-validate), **⌘/Ctrl+G** go-to-line,
+**⌘/Ctrl+F** find.
+
+Additional tools: **undo/redo** for programmatic edits (toolbar + **⌘/Ctrl+Z** /
+**⌘/Ctrl+Shift+Z** when the stack has entries); **merge JSON** (agents merge by
+name, coordinator/ui deep-merge); **rename agent** across roster + router/pipeline
+lists; **presets** stored in the browser; **path check** after picking a models
+folder (basename match via File System Access API); **agent sidebar** jump links;
+and a collapsible **schema cheat sheet**.
 
 ## NPM scripts
 

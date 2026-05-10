@@ -33,7 +33,7 @@ function HelpModal({ onClose }) {
               <dt>CONFIGURE</dt>
               <dd>Opens the swarm panel. Choose inference engine (LLAMA / MLX / vLLM); the panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT includes the engine name. Select agents, optionally override models per agent, click <strong>✏️</strong> next to any agent to edit its system prompt live, then click LAUNCH SWARM. The proxy starts one model server per unique model, groups same-model agents together, then boots the coordinator. Takes up to 120 s on first load.</dd>
               <dt>PER-MODE ROSTER</dt>
-              <dd>Inside CONFIGURE. Tabs for each mode (flat / pipeline / cascade / router) let you pick which agents participate. Pipeline order matters — use ↑/↓ to reorder. Pipeline + cascade get a <em>synthesizer</em> dropdown (an agent that consolidates outputs into one final answer). Router gets a <em>max responders</em> input. Empty roster ⇒ mode uses the full deployed swarm. A red <strong>🔴 circuit breaker</strong> banner shows here when an agent has tripped.</dd>
+              <dd>Inside CONFIGURE. Tabs for pipeline / cascade / router control who participates (flat mode ignores this — it always broadcasts to <strong>every</strong> deployed agent). Pipeline order matters — use ↑/↓ to reorder. Pipeline + cascade get a <em>synthesizer</em> dropdown (an agent that consolidates outputs into one final answer). Router gets a <em>max responders</em> input. Empty roster ⇒ non-flat modes use the full deployed swarm. A red <strong>🔴 circuit breaker</strong> banner shows here when an agent has tripped.</dd>
               <dt>PRESETS</dt>
               <dd>Save the active mode's current settings (mode + roster + synthesizer + max_select) under a name like <em>design-review</em> or <em>router-fast</em>. <strong>Apply</strong> swaps modes and loads the bundle in one click; ✕ deletes. Survives restart and (with <code>MATRIX_SOURCE_CONFIG</code> set) UI redeploy.</dd>
               <dt>CLEAR KV</dt>
@@ -49,7 +49,7 @@ function HelpModal({ onClose }) {
             <h3>Submitting a Prompt</h3>
             <dl>
               <dt>Prompt box</dt>
-              <dd>The prompt is dispatched according to the active <strong>MODE</strong>. In <em>flat</em> every selected agent receives the same prompt in parallel and responses are independent. In <em>pipeline</em> the prompt flows through the agents in order, each consuming the previous output. In <em>router</em> a classifier agent first selects which agents to engage.</dd>
+              <dd>The prompt is dispatched according to the active <strong>MODE</strong>. In <em>flat</em> every <strong>deployed</strong> agent receives the same prompt in parallel and responses are independent. In <em>pipeline</em> the prompt flows through the agents in order, each consuming the previous output. In <em>router</em> a classifier agent first selects which agents to engage.</dd>
               <dt>Temperature</dt>
               <dd>Default is <code>0.20</code>. For engineering swarms stay in the <code>0.10–0.25</code> range — higher values cause agents to hallucinate roles, invent classes, or contradict each other across 10+ parallel responses. Use <code>0.40–0.70</code> only for architecture brainstorming or open-ended exploration.</dd>
               <dt>BROADCAST / Cmd+Enter</dt>
@@ -134,7 +134,7 @@ function HelpModal({ onClose }) {
             <h3>Orchestration Modes</h3>
             <dl>
               <dt>flat</dt>
-              <dd>Default. Broadcast the prompt to every selected agent in parallel; no reducer. Best for cross-referencing answers from different roles on the same question.</dd>
+              <dd>Default. Broadcast the prompt to every <strong>deployed</strong> agent in parallel (per-mode roster does not apply); no reducer. Best for cross-referencing answers from different roles on the same question.</dd>
               <dt>pipeline</dt>
               <dd>Sequential chain. Each agent receives the previous agent's output as additional context. Pairs naturally with role orderings like architect → programmer → reviewer. If you set a <em>synthesizer</em>, it runs once at the end with all stage outputs and produces the consolidated final answer (otherwise the last stage's output is final). Failed stages are recorded in <code>meta.errors[]</code> and downstream stages continue from the last good output instead of getting poisoned.</dd>
               <dt>cascade</dt>

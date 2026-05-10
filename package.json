@@ -1,7 +1,7 @@
 {
   "name": "@keepdevops/matrix",
   "version": "2.0.6",
-  "description": "Matrix UI + proxy + coordinator stack — npx-installable on macOS and Linux.",
+  "description": "Matrix UI + proxy + coordinator stack \u2014 npx-installable on macOS and Linux.",
   "license": "AGPL-3.0-only",
   "author": "Bret Kuhne <keepdevops@gmail.com> (Coficube)",
   "repository": {
@@ -45,6 +45,7 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
+    "prestart": "node scripts/ensure-react-scripts-patch.mjs",
     "start": "NODE_NO_WARNINGS=1 REACT_APP_VERSION=$npm_package_version react-scripts start",
     "build": "REACT_APP_VERSION=$npm_package_version react-scripts build",
     "test": "react-scripts test --watchAll=false",

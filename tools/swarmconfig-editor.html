@@ -1,0 +1,1998 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Swarm Config Editor</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #171b24;
+      --border: #2a3140;
+      --text: #e7ebf3;
+      --muted: #95a0b5;
+      --good: #18b56a;
+      --warn: #d59f1a;
+      --bad: #e55555;
+      --btn: #24324a;
+      --btn-hover: #2d3f5d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1.3rem;
+    }
+    .header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .tools-row {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .goto-input {
+      width: 120px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0d1017;
+      color: var(--text);
+      padding: 7px 9px;
+      font-size: 0.85rem;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: var(--btn);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button:hover { background: var(--btn-hover); }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .grid-main {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: minmax(148px, 200px) minmax(0, 1fr) minmax(260px, 380px);
+      gap: 14px;
+      align-items: start;
+    }
+    .editor-column { min-width: 0; }
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+    .agent-sidebar h2,
+    .agent-sidebar h3 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+    }
+    .agent-sidebar h3 { margin-top: 12px; }
+    .agent-nav {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 38vh;
+      overflow: auto;
+      font-size: 0.82rem;
+    }
+    .agent-nav li { margin-bottom: 4px; }
+    .agent-nav button {
+      width: 100%;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 0.82rem;
+    }
+    .preset-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .preset-row select {
+      width: 100%;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d1017;
+      color: var(--text);
+      font-size: 0.8rem;
+    }
+    [data-theme="light"] .preset-row select {
+      background: #fff;
+      color: #1a1d26;
+    }
+    .cheat-sheet summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .cheat-sheet .cheat-inner {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    .cheat-sheet .cheat-inner strong { color: var(--text); }
+    .grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 14px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    textarea {
+      width: 100%;
+      height: 72vh;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0d1017;
+      color: var(--text);
+      resize: vertical;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+    .editor-shell {
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0d1017;
+    }
+    .line-gutter {
+      height: 72vh;
+      overflow: hidden;
+      border-right: 1px solid var(--border);
+      background: #101726;
+      color: #7f8aa3;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      padding: 12px 8px 12px 0;
+      text-align: right;
+      user-select: none;
+      white-space: pre;
+    }
+    .line-gutter .line-no {
+      display: block;
+      padding-right: 8px;
+    }
+    .line-gutter .line-no.error-line {
+      color: #00c8ff;
+      text-shadow: 0 0 8px rgba(0, 200, 255, 0.95), 0 0 16px rgba(0, 200, 255, 0.7);
+      font-weight: 700;
+      background: rgba(0, 120, 255, 0.1);
+      border-right: 2px solid #00c8ff;
+    }
+    .editor-shell textarea {
+      border: 0;
+      border-radius: 0;
+      height: 72vh;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+    .summary {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.85rem;
+    }
+    .pill.error { color: var(--bad); }
+    .pill.warn { color: var(--warn); }
+    .pill.valid { color: var(--good); }
+    ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      word-break: break-word;
+    }
+    .err { color: #ffb3b3; }
+    .warn { color: #f4d285; }
+    .issue-btn {
+      background: transparent;
+      border: 0;
+      color: inherit;
+      text-align: left;
+      padding: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+    .issue-btn:hover {
+      text-decoration: underline;
+    }
+    code {
+      background: #111622;
+      border: 1px solid #262f44;
+      border-radius: 5px;
+      padding: 1px 4px;
+    }
+    .quick-status {
+      font-weight: 600;
+      border-width: 2px;
+    }
+    .quick-status.ok { color: var(--good); border-color: rgba(24, 181, 106, 0.5); }
+    .quick-status.warn { color: var(--warn); border-color: rgba(213, 159, 26, 0.5); }
+    .quick-status.bad { color: var(--bad); border-color: rgba(229, 85, 85, 0.5); }
+    .quick-status.idle { color: var(--muted); }
+    .font-tool {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 4px;
+    }
+    .font-tool input[type="range"] {
+      width: 88px;
+      vertical-align: middle;
+    }
+    .find-bar {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .find-bar.open { display: flex; }
+    .find-bar input[type="text"] {
+      flex: 1;
+      min-width: 120px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0d1017;
+      color: var(--text);
+      padding: 7px 9px;
+      font-size: 0.85rem;
+    }
+    .find-bar label { font-size: 0.85rem; cursor: pointer; }
+    .editor-shell.drop-target {
+      outline: 2px dashed var(--good);
+      outline-offset: 2px;
+    }
+    .editor-shell.wrap-on textarea {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    [data-theme="light"] textarea,
+    [data-theme="light"] .find-bar input[type="text"],
+    [data-theme="light"] .goto-input {
+      background: #fff;
+      color: #1a1d26;
+    }
+    [data-theme="light"] .editor-shell {
+      background: #fff;
+    }
+    [data-theme="light"] .line-gutter {
+      background: #e8ecf4;
+      color: #5c6578;
+    }
+    [data-theme="light"] code {
+      background: #e8ecf4;
+      border-color: #c9d1e0;
+    }
+    [data-theme="light"] {
+      --bg: #eef1f6;
+      --panel: #ffffff;
+      --border: #c9d1e0;
+      --text: #1a1d26;
+      --muted: #5c6578;
+      --btn: #dce3ef;
+      --btn-hover: #cdd6e8;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      max-width: 640px;
+      width: 100%;
+      max-height: 85vh;
+      overflow: auto;
+    }
+    .modal-box h3 { margin: 0 0 10px; font-size: 1rem; }
+    .modal-box textarea {
+      width: 100%;
+      height: 180px;
+      margin-top: 8px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.82rem;
+    }
+    .merge-preview {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin: 8px 0;
+      white-space: pre-wrap;
+    }
+    .path-audit {
+      margin-top: 10px;
+      font-size: 0.82rem;
+    }
+    .path-audit.ok { color: var(--good); }
+    .path-audit.bad { color: var(--bad); }
+    .path-audit .warn { color: var(--warn); }
+    @media (max-width: 1100px) {
+      .grid-main { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .line-gutter,
+      .editor-shell textarea { height: 52vh; }
+      .status { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>Standalone `swarm-config.json` Editor</h1>
+      <p>Load, edit, validate, and export with guardrails. Export is blocked until errors are fixed.</p>
+    </div>
+
+    <div class="actions">
+      <input id="fileInput" type="file" accept=".json,application/json" hidden />
+      <button id="loadBtn" type="button">Load JSON File</button>
+      <button id="validateBtn" type="button">Validate</button>
+      <button id="downloadBtn" type="button" disabled>Download Sanitized JSON</button>
+      <span id="status" class="status">Ready</span>
+    </div>
+    <div class="tools-row">
+      <button id="firstIssueBtn" type="button">Go to First Issue</button>
+      <button id="nextIssueBtn" type="button">Next Issue</button>
+      <input id="gotoInput" class="goto-input" type="text" placeholder="line[:col]" aria-label="Go to line" />
+      <button id="gotoBtn" type="button">Go</button>
+      <button id="escapeSelectionBtn" type="button" title="Replace selection with JSON-escaped string (quoted)">Escape selection → JSON string</button>
+      <label class="font-tool" title="Editor font size">
+        <button id="fontMinusBtn" type="button" aria-label="Smaller font">A−</button>
+        <input id="fontSizeRange" type="range" min="11" max="22" value="14" />
+        <button id="fontPlusBtn" type="button" aria-label="Larger font">A+</button>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input id="wrapToggle" type="checkbox" />
+        Wrap lines
+      </label>
+      <button id="findToggleBtn" type="button" title="Ctrl/Cmd+F">Find…</button>
+      <button id="undoBtn" type="button" title="Undo (⌘/Ctrl+Z)">Undo</button>
+      <button id="redoBtn" type="button" title="Redo (⌘/Ctrl+Shift+Z)">Redo</button>
+      <button id="mergeBtn" type="button" title="Merge another JSON into this document">Merge JSON…</button>
+      <button id="pathCheckBtn" type="button" title="Pick models folder — basename presence check">Check paths…</button>
+      <button id="renameAgentBtn" type="button" title="Rename agent in roster + mode references">Rename agent…</button>
+      <span id="cursorInfo">Line 1, Col 1</span>
+    </div>
+
+    <div id="findBar" class="find-bar" aria-label="Find and replace">
+      <input id="findInput" type="text" placeholder="Find" autocomplete="off" />
+      <input id="findReplaceInput" type="text" placeholder="Replace" autocomplete="off" />
+      <label><input id="findCase" type="checkbox" /> Match case</label>
+      <button id="findPrevBtn" type="button">Previous</button>
+      <button id="findNextBtn" type="button">Next</button>
+      <button id="replaceOneBtn" type="button">Replace</button>
+      <button id="replaceAllBtn" type="button">Replace all</button>
+      <span id="findMeta" style="color:var(--muted);font-size:0.85rem;"></span>
+    </div>
+
+    <div class="grid-main">
+      <aside class="panel agent-sidebar">
+        <h2>Agents</h2>
+        <ul id="agentNav" class="agent-nav"></ul>
+        <h3>Presets</h3>
+        <div class="preset-row">
+          <select id="presetSelect" aria-label="Saved preset">
+            <option value="">— select preset —</option>
+          </select>
+          <button id="presetLoadBtn" type="button">Load preset</button>
+          <button id="presetSaveBtn" type="button">Save current as…</button>
+          <button id="presetDeleteBtn" type="button">Delete selected</button>
+        </div>
+      </aside>
+
+      <div class="editor-column panel" id="editorPanel">
+        <h2>JSON Editor</h2>
+        <p style="margin:0 0 8px;font-size:0.8rem;color:var(--muted);">Drop a <code>.json</code> file here to load. Session auto-saves in this browser.</p>
+        <div id="editorShell" class="editor-shell">
+          <div id="lineGutter" class="line-gutter"></div>
+          <textarea id="editor" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <div class="right-column">
+        <div class="panel">
+          <h2>Validation Results</h2>
+          <div class="summary">
+            <span id="errorCount" class="pill error">Errors: 0</span>
+            <span id="warningCount" class="pill warn">Warnings: 0</span>
+            <span id="validState" class="pill">Not validated</span>
+          </div>
+          <div>
+            <strong>Errors (blocking)</strong>
+            <ul id="errorList"></ul>
+          </div>
+          <div style="margin-top: 12px;">
+            <strong>Warnings (non-blocking)</strong>
+            <ul id="warningList"></ul>
+          </div>
+          <div id="pathAuditSection" style="margin-top:12px;display:none;">
+            <strong>Path check (disk)</strong>
+            <div id="pathAuditBody" class="path-audit"></div>
+          </div>
+        </div>
+
+        <details class="panel cheat-sheet" open>
+          <summary>Schema cheat sheet</summary>
+          <div class="cheat-inner">
+            <p><strong>Root</strong>: object with <code>agents</code> (array). Optional <code>coordinator</code>, <code>ui</code>, comments keys like <code>_ram_tier</code> ignored by runtime.</p>
+            <p><strong>Each agent</strong>: <code>name</code>, <code>model</code> (file or MLX dir), <code>context</code>, <code>read_timeout_secs</code>, <code>max_tokens</code>, <code>system_prompt</code>; optional <code>port</code>, <code>server_group</code>, <code>gpu_layers</code>, <code>backend</code>/<code>engine</code>. Backend defaults: <code>.gguf</code> → llama inference stack.</p>
+            <p><strong>Shared port</strong>: same <code>backend</code>/<code>engine</code> + <code>port</code> allowed when <code>server_group</code> and <code>model</code> match (llama-server grouping).</p>
+            <p><strong><code>coordinator.modes.pipeline</code></strong>: <code>order</code>: string[] agent names; optional <code>synthesizer</code> string.</p>
+            <p><strong><code>coordinator.modes.router</code></strong>: <code>classifier</code>, <code>choices</code>, <code>fallback</code> (string arrays/names), <code>max_select</code> number.</p>
+            <p><strong>Deploy</strong>: proxy reads config for launch grouping — see <code>src2/proxy_configure.cpp</code>. Coordinator loads agents from JSON — see <code>src2/coordinator.cpp</code>.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div id="mergeModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="mergeModalTitle">
+      <div class="modal-box">
+        <h3 id="mergeModalTitle">Merge JSON</h3>
+        <p style="margin:0;font-size:0.85rem;color:var(--muted);">Paste a full or partial swarm JSON. Agents merge by <code>name</code> (incoming fields overlay existing). <code>coordinator</code> and <code>ui</code> are deep-merged; other top-level keys prefer incoming.</p>
+        <textarea id="mergePaste" placeholder='{ "agents": [ … ], "coordinator": { … } }' spellcheck="false"></textarea>
+        <input id="mergeFileInput" type="file" accept=".json,application/json" hidden />
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button id="mergePickFileBtn" type="button">Choose file…</button>
+          <button id="mergeDoBtn" type="button">Merge into editor</button>
+          <button id="mergeCancelBtn" type="button">Cancel</button>
+        </div>
+        <div id="mergePreview" class="merge-preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const editor = document.getElementById("editor");
+    const lineGutter = document.getElementById("lineGutter");
+    const fileInput = document.getElementById("fileInput");
+    const loadBtn = document.getElementById("loadBtn");
+    const validateBtn = document.getElementById("validateBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const firstIssueBtn = document.getElementById("firstIssueBtn");
+    const nextIssueBtn = document.getElementById("nextIssueBtn");
+    const gotoInput = document.getElementById("gotoInput");
+    const gotoBtn = document.getElementById("gotoBtn");
+    const escapeSelectionBtn = document.getElementById("escapeSelectionBtn");
+    const cursorInfo = document.getElementById("cursorInfo");
+    const statusEl = document.getElementById("status");
+    const errorList = document.getElementById("errorList");
+    const warningList = document.getElementById("warningList");
+    const errorCount = document.getElementById("errorCount");
+    const warningCount = document.getElementById("warningCount");
+    const validState = document.getElementById("validState");
+    const quickStatus = document.getElementById("quickStatus");
+    const formatBtn = document.getElementById("formatBtn");
+    const minifyBtn = document.getElementById("minifyBtn");
+    const copyEditorBtn = document.getElementById("copyEditorBtn");
+    const copyValidBtn = document.getElementById("copyValidBtn");
+    const themeToggleBtn = document.getElementById("themeToggleBtn");
+    const fontMinusBtn = document.getElementById("fontMinusBtn");
+    const fontPlusBtn = document.getElementById("fontPlusBtn");
+    const fontSizeRange = document.getElementById("fontSizeRange");
+    const wrapToggle = document.getElementById("wrapToggle");
+    const findToggleBtn = document.getElementById("findToggleBtn");
+    const findBar = document.getElementById("findBar");
+    const findInput = document.getElementById("findInput");
+    const findReplaceInput = document.getElementById("findReplaceInput");
+    const findCase = document.getElementById("findCase");
+    const findPrevBtn = document.getElementById("findPrevBtn");
+    const findNextBtn = document.getElementById("findNextBtn");
+    const replaceOneBtn = document.getElementById("replaceOneBtn");
+    const replaceAllBtn = document.getElementById("replaceAllBtn");
+    const findMeta = document.getElementById("findMeta");
+    const editorShell = document.getElementById("editorShell");
+    const agentNav = document.getElementById("agentNav");
+    const presetSelect = document.getElementById("presetSelect");
+    const presetLoadBtn = document.getElementById("presetLoadBtn");
+    const presetSaveBtn = document.getElementById("presetSaveBtn");
+    const presetDeleteBtn = document.getElementById("presetDeleteBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    const mergeBtn = document.getElementById("mergeBtn");
+    const mergeModal = document.getElementById("mergeModal");
+    const mergePaste = document.getElementById("mergePaste");
+    const mergeFileInput = document.getElementById("mergeFileInput");
+    const mergePickFileBtn = document.getElementById("mergePickFileBtn");
+    const mergeDoBtn = document.getElementById("mergeDoBtn");
+    const mergeCancelBtn = document.getElementById("mergeCancelBtn");
+    const mergePreview = document.getElementById("mergePreview");
+    const pathCheckBtn = document.getElementById("pathCheckBtn");
+    const pathAuditSection = document.getElementById("pathAuditSection");
+    const pathAuditBody = document.getElementById("pathAuditBody");
+    const renameAgentBtn = document.getElementById("renameAgentBtn");
+
+    const STORAGE_KEY = "swarmconfig-editor-v1";
+    const PRESETS_KEY = "swarmconfig-editor-presets-v1";
+    const MAX_UNDO = 50;
+    let saveSessionTimer = null;
+    let undoStack = [];
+    let redoStack = [];
+
+    const SAMPLE = {
+      agents: [
+        {
+          name: "foreman",
+          backend: "llama",
+          engine: "llama",
+          model: "/Users/Shared/llama/models/meta-llama-3.2-3b-instruct.gguf",
+          port: 8080,
+          read_timeout_secs: 60,
+          max_tokens: 1024,
+          system_prompt: "Coordinate specialist agents and return concise synthesis."
+        }
+      ],
+      coordinator: {}
+    };
+
+    const PATH_FIELDS = ["model", "path", "model_path"];
+    const SAFE_AGENT_NAME = /^[a-z0-9][a-z0-9-]{0,62}$/;
+    const SAFE_PATH = /^(\/|[A-Za-z0-9_.-])[A-Za-z0-9_./-]*$/;
+    const BANNED_PATH_SEQ = /(\.\.|[\0;&|`$<>])/;
+    const REQUIRED_AGENT_FIELDS = ["name", "model", "context", "read_timeout_secs", "max_tokens", "system_prompt"];
+
+    let latestValidation = { errors: [], warnings: [], normalized: null };
+    let debounceTimer = null;
+    let issueCursor = 0;
+
+    function setEditorValue(next, opts = {}) {
+      const recordUndo = opts.recordUndo !== false;
+      const runVal = opts.validate !== false;
+      if (recordUndo && editor.value !== next) {
+        undoStack.push(editor.value);
+        if (undoStack.length > MAX_UNDO) undoStack.shift();
+        redoStack.length = 0;
+      }
+      editor.value = next;
+      if (runVal) {
+        runValidation();
+        scheduleSaveSession();
+        updateLineNumbers();
+        updateCursorInfo();
+      } else {
+        updateLineNumbers();
+        refreshAgentNav();
+      }
+    }
+
+    function undoEdit() {
+      if (!undoStack.length) return;
+      redoStack.push(editor.value);
+      editor.value = undoStack.pop();
+      runValidation();
+      scheduleSaveSession();
+      updateLineNumbers();
+      statusEl.textContent = "Undo.";
+    }
+
+    function redoEdit() {
+      if (!redoStack.length) return;
+      undoStack.push(editor.value);
+      editor.value = redoStack.pop();
+      runValidation();
+      scheduleSaveSession();
+      updateLineNumbers();
+      statusEl.textContent = "Redo.";
+    }
+
+    function deepMerge(a, b) {
+      if (b === undefined || b === null) return a;
+      if (Array.isArray(a) && Array.isArray(b)) return b.slice();
+      if (
+        a && typeof a === "object" && !Array.isArray(a)
+        && b && typeof b === "object" && !Array.isArray(b)
+      ) {
+        const o = { ...a };
+        for (const k of Object.keys(b)) {
+          o[k] = deepMerge(a[k], b[k]);
+        }
+        return o;
+      }
+      return b;
+    }
+
+    function mergeAgentArrays(baseAgents, overlayAgents) {
+      const byName = new Map();
+      for (const a of baseAgents || []) {
+        if (a && typeof a.name === "string") byName.set(a.name, { ...a });
+      }
+      let added = 0;
+      let updated = 0;
+      for (const a of overlayAgents || []) {
+        if (!a || typeof a.name !== "string") continue;
+        if (byName.has(a.name)) {
+          byName.set(a.name, deepMerge(byName.get(a.name), a));
+          updated += 1;
+        } else {
+          byName.set(a.name, { ...a });
+          added += 1;
+        }
+      }
+      return { agents: Array.from(byName.values()), added, updated };
+    }
+
+    function mergeConfigs(base, overlay) {
+      let added = 0;
+      let updated = 0;
+      let agents = base.agents || [];
+      if (overlay.agents && Array.isArray(overlay.agents)) {
+        const agentOut = mergeAgentArrays(agents, overlay.agents);
+        agents = agentOut.agents;
+        added = agentOut.added;
+        updated = agentOut.updated;
+      }
+      const out = { ...base, agents };
+      out.coordinator = deepMerge(base.coordinator || {}, overlay.coordinator || {});
+      out.ui = deepMerge(base.ui || {}, overlay.ui || {});
+      for (const k of Object.keys(overlay)) {
+        if (["agents", "coordinator", "ui"].includes(k)) continue;
+        out[k] = overlay[k];
+      }
+      return {
+        doc: sortJson(out),
+        added,
+        updated,
+      };
+    }
+
+    function refreshAgentNav() {
+      let cfg = null;
+      try {
+        cfg = latestValidation.normalized || JSON.parse(editor.value);
+      } catch {
+        agentNav.innerHTML = "<li style=\"color:var(--muted)\">Fix JSON to list agents</li>";
+        return;
+      }
+      const agents = cfg.agents || [];
+      agentNav.innerHTML = "";
+      agents.forEach((a, i) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = a.name || `(${i})`;
+        btn.addEventListener("click", () => jumpToAgentIndex(i));
+        li.appendChild(btn);
+        agentNav.appendChild(li);
+      });
+    }
+
+    function jumpToAgentIndex(index) {
+      const line = findLineForPath(`agents[${index}]`);
+      if (!line) {
+        statusEl.textContent = "Could not locate agent block.";
+        return;
+      }
+      const offset = getOffsetFromLineCol(editor.value, line, 1);
+      editor.focus();
+      editor.setSelectionRange(offset, offset);
+      statusEl.textContent = `Jumped to ${line}`;
+      updateCursorInfo();
+    }
+
+    function getPresets() {
+      try {
+        const r = localStorage.getItem(PRESETS_KEY);
+        const arr = r ? JSON.parse(r) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function savePresets(arr) {
+      localStorage.setItem(PRESETS_KEY, JSON.stringify(arr));
+    }
+
+    function refreshPresetSelect() {
+      const presets = getPresets();
+      presetSelect.innerHTML = "<option value=\"\">— select preset —</option>";
+      presets.forEach((p, i) => {
+        const o = document.createElement("option");
+        o.value = String(i);
+        o.textContent = p.name || `preset-${i}`;
+        presetSelect.appendChild(o);
+      });
+    }
+
+    async function walkDirectoryInventory(dirHandle, prefix = "") {
+      const byBasename = new Map();
+      const rels = [];
+
+      async function walk(handle, relPrefix) {
+        for await (const e of handle.values()) {
+          const rel = relPrefix ? `${relPrefix}/${e.name}` : e.name;
+          if (e.kind === "file") {
+            rels.push(rel);
+            const bn = e.name;
+            if (!byBasename.has(bn)) byBasename.set(bn, []);
+            byBasename.get(bn).push(rel);
+          } else if (e.kind === "directory") {
+            rels.push(rel);
+            const bn = e.name;
+            if (!byBasename.has(bn)) byBasename.set(bn, []);
+            byBasename.get(bn).push(rel);
+            await walk(e, rel);
+          }
+        }
+      }
+
+      await walk(dirHandle, prefix);
+      return { byBasename, rels };
+    }
+
+    function auditModelPath(modelPath, inventory) {
+      const norm = String(modelPath || "").trim().replace(/\/+$/, "");
+      const bn = norm.split("/").pop() || norm;
+      const entries = inventory.byBasename.get(bn);
+      if (!entries || entries.length === 0) {
+        return { level: "bad", text: `missing: ${bn}` };
+      }
+      if (entries.length > 1) {
+        return { level: "warn", text: `ambiguous basename (${entries.length} matches): ${bn}` };
+      }
+      return { level: "ok", text: `ok: ${bn}` };
+    }
+
+    async function runPathCheck() {
+      pathAuditSection.style.display = "block";
+      if (!window.showDirectoryPicker) {
+        pathAuditBody.innerHTML = "<span class=\"bad\">Directory picker unavailable in this browser. Use Safari or Chrome, or run: </span><code>test -e /path/to/model</code> in Terminal.";
+        pathAuditBody.className = "path-audit bad";
+        return;
+      }
+      pathAuditBody.textContent = "Pick your models folder (e.g. …/llama/models)…";
+      pathAuditBody.className = "path-audit";
+      let dirHandle;
+      try {
+        dirHandle = await window.showDirectoryPicker();
+      } catch (e) {
+        if (e.name === "AbortError") {
+          pathAuditBody.textContent = "Cancelled.";
+          return;
+        }
+        pathAuditBody.textContent = String(e.message || e);
+        pathAuditBody.className = "path-audit bad";
+        return;
+      }
+      pathAuditBody.textContent = "Scanning folder…";
+      const inv = await walkDirectoryInventory(dirHandle);
+      let cfg;
+      try {
+        cfg = JSON.parse(editor.value);
+      } catch (e) {
+        pathAuditBody.innerHTML = `<span class="bad">Fix JSON first: ${escapeHtml(e.message)}</span>`;
+        pathAuditBody.className = "path-audit bad";
+        return;
+      }
+      const agents = cfg.agents || [];
+      const lines = [];
+      let bad = 0;
+      let warn = 0;
+      for (const a of agents) {
+        const name = a.name || "?";
+        const m = a.model || a.path || a.model_path;
+        if (!m) {
+          lines.push(`<div class="bad">${escapeHtml(name)}: no model path</div>`);
+          bad += 1;
+          continue;
+        }
+        const r = auditModelPath(m, inv);
+        if (r.level === "bad") bad += 1;
+        if (r.level === "warn") warn += 1;
+        const cls = r.level === "bad" ? "bad" : r.level === "warn" ? "warn" : "ok";
+        lines.push(`<div class="${cls}">${escapeHtml(name)}: ${escapeHtml(r.text)}</div>`);
+      }
+      pathAuditBody.innerHTML = lines.join("") || "<span class=\"ok\">No agents.</span>";
+      pathAuditBody.className = `path-audit ${bad ? "bad" : "ok"}`;
+      statusEl.textContent = `Path check: ${bad} missing, ${warn} ambiguous (basename match).`;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renameAgentEverywhere(oldName, newName) {
+      const o = String(oldName || "").trim();
+      const n = String(newName || "").trim();
+      if (!o || !n || o === n) {
+        statusEl.textContent = "Rename: need two different non-empty names.";
+        return;
+      }
+      let cfg;
+      try {
+        cfg = JSON.parse(editor.value);
+      } catch (e) {
+        statusEl.textContent = "Rename: invalid JSON — " + e.message;
+        return;
+      }
+      let rosterHits = 0;
+      for (const a of cfg.agents || []) {
+        if (a.name === o) {
+          a.name = n;
+          rosterHits += 1;
+        }
+      }
+      const modes = cfg.coordinator && cfg.coordinator.modes;
+      if (modes && typeof modes === "object") {
+        const pipe = modes.pipeline;
+        if (pipe && typeof pipe === "object") {
+          if (Array.isArray(pipe.order)) {
+            pipe.order = pipe.order.map(x => (x === o ? n : x));
+          }
+          if (pipe.synthesizer === o) pipe.synthesizer = n;
+        }
+        const rt = modes.router;
+        if (rt && typeof rt === "object") {
+          if (rt.classifier === o) rt.classifier = n;
+          if (Array.isArray(rt.choices)) rt.choices = rt.choices.map(x => (x === o ? n : x));
+          if (Array.isArray(rt.fallback)) rt.fallback = rt.fallback.map(x => (x === o ? n : x));
+        }
+      }
+      setEditorValue(JSON.stringify(sortJson(cfg), null, 2) + "\n");
+      statusEl.textContent = `Renamed '${o}' → '${n}' (${rosterHits} roster row(s)); check modes above.`;
+    }
+
+    function sortedKeys(obj) {
+      const pref = ["name", "description", "system_prompt", "backend", "engine", "model", "path", "port", "read_timeout_secs", "context", "max_tokens"];
+      const keys = Object.keys(obj);
+      return keys.sort((a, b) => {
+        const ai = pref.indexOf(a);
+        const bi = pref.indexOf(b);
+        if (ai !== -1 || bi !== -1) {
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        }
+        return a.localeCompare(b);
+      });
+    }
+
+    function sortJson(value) {
+      if (Array.isArray(value)) {
+        return value.map(sortJson);
+      }
+      if (value && typeof value === "object") {
+        const out = {};
+        for (const k of sortedKeys(value)) {
+          out[k] = sortJson(value[k]);
+        }
+        return out;
+      }
+      return value;
+    }
+
+    function asInt(v) {
+      return Number.isInteger(v) ? v : null;
+    }
+
+    function makeIssue(message, kind, line, col, path) {
+      return { message, kind, line: line || null, col: col || null, path: path || null };
+    }
+
+    function addIssue(list, message, kind, line, col, path) {
+      list.push(makeIssue(message, kind, line, col, path));
+    }
+
+    function getLineColFromOffset(text, offset) {
+      const safeOffset = Math.max(0, Math.min(offset, text.length));
+      let line = 1;
+      let col = 1;
+      for (let i = 0; i < safeOffset; i += 1) {
+        if (text[i] === "\n") {
+          line += 1;
+          col = 1;
+        } else {
+          col += 1;
+        }
+      }
+      return { line, col };
+    }
+
+    function getOffsetFromLineCol(text, line, col) {
+      const lines = text.split("\n");
+      const safeLine = Math.max(1, Math.min(line, lines.length));
+      const target = lines[safeLine - 1] || "";
+      const safeCol = Math.max(1, Math.min(col, target.length + 1));
+      let offset = 0;
+      for (let i = 0; i < safeLine - 1; i += 1) {
+        offset += lines[i].length + 1;
+      }
+      return offset + (safeCol - 1);
+    }
+
+    function extractJsonParsePosition(message) {
+      const lineCol = /line\s+(\d+)\s+column\s+(\d+)/i.exec(message);
+      if (lineCol) {
+        return { line: Number(lineCol[1]), col: Number(lineCol[2]) };
+      }
+      const pos = /position\s+(\d+)/i.exec(message);
+      if (pos) {
+        return getLineColFromOffset(editor.value, Number(pos[1]));
+      }
+      return null;
+    }
+
+    /**
+     * JSON does not allow raw line breaks inside string literals.
+     * Detect first illegal newline while inside a double-quoted string.
+     */
+    function findIllegalNewlineInJsonString(text) {
+      let i = 0;
+      let inString = false;
+      while (i < text.length) {
+        const c = text[i];
+        if (!inString) {
+          if (c === "\"") inString = true;
+          i += 1;
+          continue;
+        }
+        if (c === "\\") {
+          i += 1;
+          if (i >= text.length) break;
+          const esc = text[i];
+          if (esc === "u") {
+            i += 5;
+            continue;
+          }
+          i += 1;
+          continue;
+        }
+        if (c === "\"") {
+          inString = false;
+          i += 1;
+          continue;
+        }
+        if (c === "\n" || c === "\r") {
+          const lc = getLineColFromOffset(text, i);
+          return { offset: i, line: lc.line, col: lc.col };
+        }
+        i += 1;
+      }
+      return null;
+    }
+
+    function escapeJsonStringContent(s) {
+      let out = "";
+      for (let j = 0; j < s.length; j += 1) {
+        const ch = s[j];
+        const code = ch.charCodeAt(0);
+        if (ch === "\\") out += "\\\\";
+        else if (ch === "\"") out += "\\\"";
+        else if (ch === "\n") out += "\\n";
+        else if (ch === "\r") out += "\\r";
+        else if (ch === "\t") out += "\\t";
+        else if (code < 0x20) out += "\\u" + ("0000" + code.toString(16)).slice(-4);
+        else out += ch;
+      }
+      return out;
+    }
+
+    function escapeSelectionToJsonString() {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      if (start === undefined || end === undefined || start === end) {
+        statusEl.textContent = "Select text first, then click Escape selection.";
+        return;
+      }
+      const selected = editor.value.slice(start, end);
+      const escaped = "\"" + escapeJsonStringContent(selected) + "\"";
+      const next = editor.value.slice(0, start) + escaped + editor.value.slice(end);
+      setEditorValue(next);
+      const caret = start + escaped.length;
+      editor.focus();
+      editor.setSelectionRange(caret, caret);
+      statusEl.textContent = "Replaced selection with JSON-escaped string.";
+    }
+
+    function inferBackend(agent) {
+      if (typeof agent.backend === "string" && agent.backend.trim()) return agent.backend.trim();
+      const model = typeof agent.model === "string" ? agent.model : "";
+      return model.endsWith(".gguf") ? "llama" : "mlx";
+    }
+
+    function validateNameArray(fieldPath, value, errors, warnings, activeNames) {
+      if (value === undefined) return [];
+      if (!Array.isArray(value)) {
+        addIssue(errors, `${fieldPath} must be an array of agent names.`, "error", null, null, fieldPath);
+        return [];
+      }
+      const out = [];
+      value.forEach((item, idx) => {
+        if (typeof item !== "string" || !item.trim()) {
+          addIssue(errors, `${fieldPath}[${idx}] must be a non-empty string.`, "error", null, null, `${fieldPath}[${idx}]`);
+          return;
+        }
+        const n = item.trim();
+        out.push(n);
+        if (!activeNames.has(n)) {
+          addIssue(warnings, `${fieldPath}[${idx}] references unknown agent '${n}'.`, "warning", null, null, `${fieldPath}[${idx}]`);
+        }
+      });
+      return out;
+    }
+
+    function validateCoordinatorModes(parsed, errors, warnings) {
+      if (parsed.coordinator === undefined) return;
+      const cptr = "coordinator";
+      if (typeof parsed.coordinator !== "object" || parsed.coordinator === null || Array.isArray(parsed.coordinator)) {
+        addIssue(errors, "`coordinator` must be an object when present.", "error", null, null, cptr);
+        return;
+      }
+      const modes = parsed.coordinator.modes;
+      if (modes === undefined) return;
+      if (typeof modes !== "object" || modes === null || Array.isArray(modes)) {
+        addIssue(errors, "coordinator.modes must be an object.", "error", null, null, "coordinator.modes");
+        return;
+      }
+
+      const activeNames = new Set((parsed.agents || []).map(a => typeof a.name === "string" ? a.name.trim() : "").filter(Boolean));
+
+      if (modes.pipeline !== undefined) {
+        const p = modes.pipeline;
+        const pptr = "coordinator.modes.pipeline";
+        if (typeof p !== "object" || p === null || Array.isArray(p)) {
+          addIssue(errors, `${pptr} must be an object.`, "error", null, null, pptr);
+        } else {
+          const order = validateNameArray(`${pptr}.order`, p.order, errors, warnings, activeNames);
+          if (p.synthesizer !== undefined) {
+            if (typeof p.synthesizer !== "string" || !p.synthesizer.trim()) {
+              addIssue(errors, `${pptr}.synthesizer must be a non-empty string when present.`, "error", null, null, `${pptr}.synthesizer`);
+            } else if (!activeNames.has(p.synthesizer.trim())) {
+              addIssue(warnings, `${pptr}.synthesizer references unknown agent '${p.synthesizer.trim()}'.`, "warning", null, null, `${pptr}.synthesizer`);
+            }
+          }
+          if (order.length === 0) {
+            addIssue(warnings, `${pptr}.order is empty/missing; runtime fallback order will be used.`, "warning", null, null, `${pptr}.order`);
+          }
+        }
+      }
+
+      if (modes.router !== undefined) {
+        const r = modes.router;
+        const rptr = "coordinator.modes.router";
+        if (typeof r !== "object" || r === null || Array.isArray(r)) {
+          addIssue(errors, `${rptr} must be an object.`, "error", null, null, rptr);
+        } else {
+          if (r.classifier !== undefined) {
+            if (typeof r.classifier !== "string" || !r.classifier.trim()) {
+              addIssue(errors, `${rptr}.classifier must be a non-empty string when present.`, "error", null, null, `${rptr}.classifier`);
+            } else if (!activeNames.has(r.classifier.trim())) {
+              addIssue(warnings, `${rptr}.classifier references unknown agent '${r.classifier.trim()}'.`, "warning", null, null, `${rptr}.classifier`);
+            }
+          }
+          const choices = validateNameArray(`${rptr}.choices`, r.choices, errors, warnings, activeNames);
+          const fallback = validateNameArray(`${rptr}.fallback`, r.fallback, errors, warnings, activeNames);
+
+          if (r.max_select !== undefined) {
+            if (!Number.isInteger(r.max_select) || r.max_select < 1) {
+              addIssue(errors, `${rptr}.max_select must be an integer >= 1.`, "error", null, null, `${rptr}.max_select`);
+            } else if (choices.length > 0 && r.max_select > choices.length) {
+              addIssue(warnings, `${rptr}.max_select (${r.max_select}) is greater than choices count (${choices.length}); runtime will cap effectively by available choices.`, "warning", null, null, `${rptr}.max_select`);
+            }
+          }
+          if (choices.length === 0) {
+            addIssue(warnings, `${rptr}.choices is empty/missing; runtime derives choices from active roster.`, "warning", null, null, `${rptr}.choices`);
+          }
+          if (fallback.length === 0) {
+            addIssue(warnings, `${rptr}.fallback is empty/missing; runtime fallback picks active agents.`, "warning", null, null, `${rptr}.fallback`);
+          }
+        }
+      }
+    }
+
+    function findLineForPath(path) {
+      if (!path) return null;
+      const m = /^agents\[(\d+)\](?:\.(.+))?$/.exec(path);
+      if (!m) return null;
+      const idx = Number(m[1]);
+      const key = m[2] || null;
+      const lines = editor.value.split("\n");
+      let agentSeen = -1;
+      let inTarget = false;
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i];
+        if (line.includes("{") && i > 0 && lines[i - 1].includes("agents")) {
+          // no-op, keep scanning
+        }
+        if (/^\s*\{/.test(line)) {
+          // best-effort: count object starts inside agents array
+          const prev = lines.slice(Math.max(0, i - 2), i + 1).join(" ");
+          if (prev.includes("agents")) {
+            continue;
+          }
+        }
+        if (/^\s*"name"\s*:/.test(line)) {
+          agentSeen += 1;
+          inTarget = agentSeen === idx;
+        }
+        if (inTarget && key && new RegExp(`^\\s*"${key}"\\s*:`).test(line)) return i + 1;
+        if (inTarget && !key) return i + 1;
+      }
+      return null;
+    }
+
+    function validateRange(agent, key, min, max, errors, i) {
+      if (agent[key] === undefined) return;
+      const n = asInt(agent[key]);
+      if (n === null) {
+        addIssue(errors, `agents[${i}].${key} must be an integer.`, "error", null, null, `agents[${i}].${key}`);
+        return;
+      }
+      if (n < min || n > max) {
+        addIssue(errors, `agents[${i}].${key} must be between ${min} and ${max}.`, "error", null, null, `agents[${i}].${key}`);
+      }
+    }
+
+    function validatePath(pathValue, ptr, errors, warnings) {
+      if (typeof pathValue !== "string" || pathValue.trim() === "") {
+        addIssue(errors, `${ptr} must be a non-empty string path.`, "error", null, null, ptr);
+        return;
+      }
+      const v = pathValue.trim();
+      if (BANNED_PATH_SEQ.test(v)) {
+        addIssue(errors, `${ptr} contains unsafe characters or sequences.`, "error", null, null, ptr);
+      }
+      if (!SAFE_PATH.test(v)) {
+        addIssue(errors, `${ptr} has unsupported path shape.`, "error", null, null, ptr);
+      }
+      if (!v.startsWith("/")) {
+        addIssue(warnings, `${ptr} is not absolute; verify this path resolves at runtime.`, "warning", null, null, ptr);
+      }
+    }
+
+    function validateConfig(rawText) {
+      const errors = [];
+      const warnings = [];
+      let parsed = null;
+
+      if (!rawText || rawText.trim() === "") {
+        addIssue(errors, "JSON content is empty.", "error");
+        return { errors, warnings, normalized: null };
+      }
+
+      try {
+        parsed = JSON.parse(rawText);
+      } catch (err) {
+        const illegalNl = findIllegalNewlineInJsonString(rawText);
+        if (illegalNl) {
+          addIssue(
+            errors,
+            `JSON string contains a raw line break at line ${illegalNl.line}, column ${illegalNl.col}. JSON requires one line per string value unless you use \\n escapes. Fix: select the multiline text and click \"Escape selection → JSON string\", or paste the prompt on one line.`,
+            "error",
+            illegalNl.line,
+            illegalNl.col
+          );
+        }
+        const parsedPos = extractJsonParsePosition(String(err.message || ""));
+        const details = parsedPos ? ` (line ${parsedPos.line}, col ${parsedPos.col})` : "";
+        addIssue(
+          errors,
+          illegalNl
+            ? `Parser detail: ${err.message}${details}`
+            : `Invalid JSON syntax: ${err.message}${details}`,
+          "error",
+          parsedPos ? parsedPos.line : null,
+          parsedPos ? parsedPos.col : null
+        );
+        return { errors, warnings, normalized: null };
+      }
+
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        addIssue(errors, "Root must be a JSON object.", "error");
+        return { errors, warnings, normalized: null };
+      }
+
+      if (!Array.isArray(parsed.agents)) {
+        addIssue(errors, "Root field `agents` must be an array.", "error");
+        return { errors, warnings, normalized: null };
+      }
+
+      const nameSet = new Set();
+      const portMap = new Map();
+
+      parsed.agents.forEach((agent, i) => {
+        const ptr = `agents[${i}]`;
+        if (!agent || typeof agent !== "object" || Array.isArray(agent)) {
+          addIssue(errors, `${ptr} must be an object.`, "error", null, null, ptr);
+          return;
+        }
+
+        if (typeof agent.name !== "string" || agent.name.trim() === "") {
+          addIssue(errors, `${ptr}.name is required and must be a non-empty string.`, "error", null, null, `${ptr}.name`);
+        } else {
+          const n = agent.name.trim();
+          if (!SAFE_AGENT_NAME.test(n)) {
+            addIssue(warnings, `${ptr}.name should usually match ${SAFE_AGENT_NAME.toString()}.`, "warning", null, null, `${ptr}.name`);
+          }
+          if (nameSet.has(n)) {
+            addIssue(errors, `Duplicate agent name: ${n}.`, "error", null, null, `${ptr}.name`);
+          }
+          nameSet.add(n);
+        }
+
+        if (typeof agent.system_prompt !== "string" || agent.system_prompt.trim() === "") {
+          addIssue(errors, `${ptr}.system_prompt is required and must be a non-empty string.`, "error", null, null, `${ptr}.system_prompt`);
+        }
+
+        for (const req of REQUIRED_AGENT_FIELDS) {
+          if (agent[req] === undefined || agent[req] === null || agent[req] === "") {
+            addIssue(errors, `${ptr}.${req} is required.`, "error", null, null, `${ptr}.${req}`);
+          }
+        }
+
+        let hasPathField = false;
+        for (const key of PATH_FIELDS) {
+          if (agent[key] !== undefined) {
+            hasPathField = true;
+            validatePath(agent[key], `${ptr}.${key}`, errors, warnings);
+          }
+        }
+        if (!hasPathField) {
+          addIssue(errors, `${ptr} must include one model path field: ${PATH_FIELDS.join(", ")}.`, "error", null, null, ptr);
+        }
+
+        const backend = inferBackend(agent);
+        const engineStr = typeof agent.engine === "string" ? agent.engine.trim() : "";
+        validateRange(agent, "port", 1, 65535, errors, i);
+        validateRange(agent, "read_timeout_secs", 1, 600, errors, i);
+        validateRange(agent, "max_tokens", 1, 131072, errors, i);
+        validateRange(agent, "context", 256, 1048576, errors, i);
+
+        if (Number.isInteger(agent.port)) {
+          const runtime = backend || engineStr;
+          const key = `${runtime}:${agent.port}`;
+          const modelKey = PATH_FIELDS.map(k => agent[k]).find(Boolean) || "";
+          const groupKey = typeof agent.server_group === "string" ? agent.server_group.trim() : "";
+          const signature = `${groupKey}::${modelKey}`;
+          const seen = portMap.get(key);
+          if (!seen) {
+            portMap.set(key, {
+              signature,
+              samplePath: `${ptr}.port`,
+            });
+          } else if (seen.signature !== signature) {
+            addIssue(
+              errors,
+              `Conflicting backend+port allocation: ${key}. Shared port is allowed only when server_group and model/path match.`,
+              "error",
+              null,
+              null,
+              `${ptr}.port`
+            );
+            addIssue(
+              errors,
+              `Original conflicting allocation was near ${seen.samplePath}.`,
+              "error",
+              null,
+              null,
+              seen.samplePath
+            );
+          }
+        }
+      });
+
+      if (parsed.agents.length === 0) {
+        addIssue(warnings, "No agents configured. This file is valid JSON but not deployable.", "warning");
+      }
+
+      validateCoordinatorModes(parsed, errors, warnings);
+
+      return { errors, warnings, normalized: sortJson(parsed) };
+    }
+
+    function renderList(el, messages, cls, emptyMsg) {
+      el.innerHTML = "";
+      if (!messages.length) {
+        const li = document.createElement("li");
+        li.textContent = emptyMsg;
+        li.style.color = "var(--muted)";
+        el.appendChild(li);
+        return;
+      }
+      messages.forEach((msg, index) => {
+        const li = document.createElement("li");
+        li.className = cls;
+        const jumpLabel = msg.line ? ` [line ${msg.line}${msg.col ? `, col ${msg.col}` : ""}]` : "";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "issue-btn";
+        btn.textContent = `${msg.message}${jumpLabel}`;
+        btn.addEventListener("click", () => jumpToIssue(msg, index));
+        li.appendChild(btn);
+        el.appendChild(li);
+      });
+    }
+
+    function jumpToIssue(issue, index) {
+      let line = issue.line;
+      let col = issue.col || 1;
+      if (!line && issue.path) {
+        line = findLineForPath(issue.path);
+      }
+      if (!line) {
+        statusEl.textContent = "No concrete line found for this issue.";
+        return;
+      }
+      const offset = getOffsetFromLineCol(editor.value, line, col);
+      editor.focus();
+      editor.setSelectionRange(offset, offset);
+      const startOfLine = getOffsetFromLineCol(editor.value, line, 1);
+      const endOfLine = getOffsetFromLineCol(editor.value, line + 1, 1) - 1;
+      editor.setSelectionRange(startOfLine, Math.max(startOfLine, endOfLine));
+      issueCursor = index;
+      statusEl.textContent = `Jumped to line ${line}, col ${col}`;
+      updateCursorInfo();
+    }
+
+    function updateCursorInfo() {
+      const pos = editor.selectionStart || 0;
+      const lc = getLineColFromOffset(editor.value, pos);
+      cursorInfo.textContent = `Line ${lc.line}, Col ${lc.col}`;
+    }
+
+    function goToLineInput() {
+      const raw = (gotoInput.value || "").trim();
+      if (!raw) {
+        statusEl.textContent = "Enter a line number like 14 or 14:7.";
+        return;
+      }
+      const m = /^(\d+)(?::(\d+))?$/.exec(raw);
+      if (!m) {
+        statusEl.textContent = "Invalid format. Use line or line:col.";
+        return;
+      }
+      const line = Number(m[1]);
+      const col = m[2] ? Number(m[2]) : 1;
+      if (!Number.isInteger(line) || line < 1 || !Number.isInteger(col) || col < 1) {
+        statusEl.textContent = "Line and column must be positive integers.";
+        return;
+      }
+      const offset = getOffsetFromLineCol(editor.value, line, col);
+      editor.focus();
+      editor.setSelectionRange(offset, offset);
+      const safeLine = getLineColFromOffset(editor.value, offset).line;
+      const safeCol = getLineColFromOffset(editor.value, offset).col;
+      statusEl.textContent = `Jumped to line ${safeLine}, col ${safeCol}`;
+      updateCursorInfo();
+    }
+
+    function collectErrorLines() {
+      const lines = new Set();
+      latestValidation.errors.forEach(issue => {
+        if (issue.line) {
+          lines.add(issue.line);
+          return;
+        }
+        if (issue.path) {
+          const mapped = findLineForPath(issue.path);
+          if (mapped) lines.add(mapped);
+        }
+      });
+      return lines;
+    }
+
+    function updateLineNumbers() {
+      const totalLines = Math.max(1, editor.value.split("\n").length);
+      const errorLines = collectErrorLines();
+      const frag = document.createDocumentFragment();
+      for (let i = 1; i <= totalLines; i += 1) {
+        const line = document.createElement("span");
+        line.className = `line-no${errorLines.has(i) ? " error-line" : ""}`;
+        line.textContent = String(i);
+        frag.appendChild(line);
+      }
+      lineGutter.innerHTML = "";
+      lineGutter.appendChild(frag);
+      lineGutter.scrollTop = editor.scrollTop;
+    }
+
+    function renderValidation(state) {
+      latestValidation = state;
+      errorCount.textContent = `Errors: ${state.errors.length}`;
+      warningCount.textContent = `Warnings: ${state.warnings.length}`;
+      const ok = state.errors.length === 0;
+      validState.textContent = ok ? "Valid for export" : "Fix blocking errors";
+      validState.className = `pill ${ok ? "valid" : "error"}`;
+      downloadBtn.disabled = !ok;
+      copyValidBtn.disabled = !ok || !state.normalized;
+      renderList(errorList, state.errors, "err", "No blocking errors.");
+      renderList(warningList, state.warnings, "warn", "No warnings.");
+      statusEl.textContent = ok ? "Validation passed" : "Validation failed";
+      if (state.errors.length > 0) {
+        quickStatus.textContent = `${state.errors.length} blocking error${state.errors.length === 1 ? "" : "s"}`;
+        quickStatus.className = "pill quick-status bad";
+      } else if (state.warnings.length > 0) {
+        quickStatus.textContent = `Valid JSON · ${state.warnings.length} warning${state.warnings.length === 1 ? "" : "s"}`;
+        quickStatus.className = "pill quick-status warn";
+      } else {
+        quickStatus.textContent = "Valid JSON";
+        quickStatus.className = "pill quick-status ok";
+      }
+      quickStatus.title = ok ? "Ready to export" : "Fix errors before export";
+      issueCursor = 0;
+      updateLineNumbers();
+      refreshAgentNav();
+    }
+
+    function runValidation() {
+      renderValidation(validateConfig(editor.value));
+    }
+
+    function scheduleValidation() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(runValidation, 350);
+    }
+
+    function copyToClipboard(text, okMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          () => { statusEl.textContent = okMsg; },
+          () => { statusEl.textContent = "Copy failed (clipboard blocked)."; }
+        );
+      } else {
+        try {
+          editor.focus();
+          const t = document.createElement("textarea");
+          t.value = text;
+          document.body.appendChild(t);
+          t.select();
+          document.execCommand("copy");
+          t.remove();
+          statusEl.textContent = okMsg;
+        } catch {
+          statusEl.textContent = "Copy failed.";
+        }
+      }
+    }
+
+    function applyFontSize(px) {
+      const n = Math.min(22, Math.max(11, px));
+      editor.style.fontSize = `${n}px`;
+      lineGutter.style.fontSize = `${Math.max(10, n - 1)}px`;
+      fontSizeRange.value = String(n);
+    }
+
+    function applyWrap() {
+      if (wrapToggle.checked) editorShell.classList.add("wrap-on");
+      else editorShell.classList.remove("wrap-on");
+    }
+
+    function scheduleSaveSession() {
+      clearTimeout(saveSessionTimer);
+      saveSessionTimer = setTimeout(() => {
+        try {
+          const payload = {
+            v: 1,
+            text: editor.value,
+            fontSize: Number(fontSizeRange.value),
+            theme: document.documentElement.getAttribute("data-theme") || "dark",
+            wrap: wrapToggle.checked,
+            findOpen: findBar.classList.contains("open"),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (e) {
+          console.warn("session save failed", e);
+        }
+      }, 450);
+    }
+
+    function escapeRegExp(s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function countMatches(haystack, needle, caseSensitive) {
+      if (!needle) return 0;
+      let n = 0;
+      let pos = 0;
+      const h = caseSensitive ? haystack : haystack.toLowerCase();
+      const nd = caseSensitive ? needle : needle.toLowerCase();
+      while (pos <= h.length) {
+        const idx = h.indexOf(nd, pos);
+        if (idx === -1) break;
+        n += 1;
+        pos = idx + nd.length;
+      }
+      return n;
+    }
+
+    function updateFindMeta() {
+      const q = findInput.value;
+      if (!q) {
+        findMeta.textContent = "";
+        return;
+      }
+      const n = countMatches(editor.value, q, findCase.checked);
+      findMeta.textContent = n ? `${n} match${n === 1 ? "" : "es"}` : "No matches";
+    }
+
+    function findNext(wrap) {
+      const q = findInput.value;
+      if (!q) return;
+      const text = editor.value;
+      const ci = !findCase.checked;
+      const hay = ci ? text.toLowerCase() : text;
+      const nd = ci ? q.toLowerCase() : q;
+      let from = editor.selectionEnd;
+      let idx = hay.indexOf(nd, from);
+      if (idx === -1 && wrap) idx = hay.indexOf(nd, 0);
+      if (idx === -1) {
+        statusEl.textContent = "Find: no more matches.";
+        return;
+      }
+      editor.focus();
+      editor.setSelectionRange(idx, idx + q.length);
+      updateCursorInfo();
+      statusEl.textContent = `Find: match at ${idx}`;
+    }
+
+    function findPrev(wrap) {
+      const q = findInput.value;
+      if (!q) return;
+      const text = editor.value;
+      const ci = !findCase.checked;
+      const hay = ci ? text.toLowerCase() : text;
+      const nd = ci ? q.toLowerCase() : q;
+      const end = editor.selectionStart;
+      const slice = hay.slice(0, end);
+      let idx = slice.lastIndexOf(nd);
+      if (idx === -1 && wrap) idx = hay.lastIndexOf(nd);
+      if (idx === -1) {
+        statusEl.textContent = "Find: no previous match.";
+        return;
+      }
+      editor.focus();
+      editor.setSelectionRange(idx, idx + q.length);
+      updateCursorInfo();
+    }
+
+    function replaceOne() {
+      const q = findInput.value;
+      if (!q) return;
+      const rep = findReplaceInput.value;
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const sel = editor.value.slice(start, end);
+      const ci = !findCase.checked;
+      const ok = ci ? sel.toLowerCase() === q.toLowerCase() : sel === q;
+      if (!ok) {
+        findNext(true);
+        return;
+      }
+      const next = editor.value.slice(0, start) + rep + editor.value.slice(end);
+      setEditorValue(next);
+      editor.focus();
+      editor.setSelectionRange(start, start + rep.length);
+      updateFindMeta();
+      statusEl.textContent = "Replaced one occurrence.";
+    }
+
+    function replaceAll() {
+      const q = findInput.value;
+      if (!q) return;
+      const rep = findReplaceInput.value;
+      const ci = !findCase.checked;
+      let text = editor.value;
+      if (!ci) {
+        text = text.split(q).join(rep);
+      } else {
+        text = text.replace(new RegExp(escapeRegExp(q), "gi"), rep);
+      }
+      setEditorValue(text);
+      updateFindMeta();
+      statusEl.textContent = "Replace all done.";
+    }
+
+    function toggleFindBar(forceOpen) {
+      const open = typeof forceOpen === "boolean" ? forceOpen : !findBar.classList.contains("open");
+      findBar.classList.toggle("open", open);
+      if (open) {
+        findInput.focus();
+        findInput.select();
+      }
+      scheduleSaveSession();
+    }
+
+    function formatOrMinify(pretty) {
+      try {
+        const o = JSON.parse(editor.value);
+        const sorted = sortJson(o);
+        const text = pretty
+          ? JSON.stringify(sorted, null, 2) + "\n"
+          : JSON.stringify(sorted);
+        setEditorValue(text);
+        statusEl.textContent = pretty ? "Formatted." : "Minified.";
+      } catch (e) {
+        statusEl.textContent = (pretty ? "Format" : "Minify") + " failed: " + e.message;
+      }
+    }
+
+    function loadSessionAndEditor() {
+      let saved = null;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) saved = JSON.parse(raw);
+      } catch (_) {}
+      if (saved && saved.v === 1 && typeof saved.text === "string") {
+        editor.value = saved.text;
+      } else {
+        editor.value = JSON.stringify(sortJson(SAMPLE), null, 2) + "\n";
+      }
+      const theme = saved && (saved.theme === "light" || saved.theme === "dark") ? saved.theme : "dark";
+      document.documentElement.setAttribute("data-theme", theme);
+      themeToggleBtn.textContent = theme === "dark" ? "Light theme" : "Dark theme";
+
+      const fs = saved && Number.isFinite(Number(saved.fontSize)) ? Number(saved.fontSize) : 14;
+      applyFontSize(fs);
+
+      wrapToggle.checked = !!(saved && saved.wrap);
+      applyWrap();
+
+      if (saved && saved.findOpen) findBar.classList.add("open");
+      refreshPresetSelect();
+    }
+
+    function downloadNormalized() {
+      if (latestValidation.errors.length > 0 || !latestValidation.normalized) {
+        return;
+      }
+      const payload = JSON.stringify(latestValidation.normalized, null, 2) + "\n";
+      const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "swarm-config.validated.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      statusEl.textContent = "Downloaded swarm-config.validated.json";
+    }
+
+    loadBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEditorValue(String(reader.result || ""));
+        statusEl.textContent = `Loaded ${file.name}`;
+      };
+      reader.onerror = () => {
+        statusEl.textContent = "Failed to read selected file";
+      };
+      reader.readAsText(file);
+    });
+    function handleDroppedFile(file) {
+      if (!file) return;
+      const okJson = /\.json$/i.test(file.name) || (file.type && file.type.includes("json"));
+      if (!okJson) {
+        statusEl.textContent = "Drop a .json file.";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEditorValue(String(reader.result || ""));
+        statusEl.textContent = `Loaded ${file.name} (drop)`;
+      };
+      reader.readAsText(file);
+    }
+    editorShell.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      editorShell.classList.add("drop-target");
+    });
+    editorShell.addEventListener("dragleave", () => editorShell.classList.remove("drop-target"));
+    editorShell.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      editorShell.classList.remove("drop-target");
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleDroppedFile(f);
+    });
+    editor.addEventListener("input", () => {
+      scheduleValidation();
+      scheduleSaveSession();
+    });
+    editor.addEventListener("input", updateLineNumbers);
+    editor.addEventListener("click", updateCursorInfo);
+    editor.addEventListener("keyup", updateCursorInfo);
+    editor.addEventListener("scroll", () => {
+      lineGutter.scrollTop = editor.scrollTop;
+    });
+    validateBtn.addEventListener("click", runValidation);
+    downloadBtn.addEventListener("click", downloadNormalized);
+    firstIssueBtn.addEventListener("click", () => {
+      const issues = latestValidation.errors.length ? latestValidation.errors : latestValidation.warnings;
+      if (!issues.length) {
+        statusEl.textContent = "No issues to navigate.";
+        return;
+      }
+      jumpToIssue(issues[0], 0);
+    });
+    nextIssueBtn.addEventListener("click", () => {
+      const issues = latestValidation.errors.length ? latestValidation.errors : latestValidation.warnings;
+      if (!issues.length) {
+        statusEl.textContent = "No issues to navigate.";
+        return;
+      }
+      issueCursor = (issueCursor + 1) % issues.length;
+      jumpToIssue(issues[issueCursor], issueCursor);
+    });
+    gotoBtn.addEventListener("click", goToLineInput);
+    gotoInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        goToLineInput();
+      }
+    });
+    escapeSelectionBtn.addEventListener("click", escapeSelectionToJsonString);
+
+    formatBtn.addEventListener("click", () => formatOrMinify(true));
+    minifyBtn.addEventListener("click", () => formatOrMinify(false));
+    copyEditorBtn.addEventListener("click", () => {
+      copyToClipboard(editor.value, "Copied entire editor to clipboard.");
+    });
+    copyValidBtn.addEventListener("click", () => {
+      if (latestValidation.errors.length > 0 || !latestValidation.normalized) return;
+      const payload = JSON.stringify(latestValidation.normalized, null, 2) + "\n";
+      copyToClipboard(payload, "Copied validated JSON to clipboard.");
+    });
+
+    themeToggleBtn.addEventListener("click", () => {
+      const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+      const next = cur === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      themeToggleBtn.textContent = next === "dark" ? "Light theme" : "Dark theme";
+      scheduleSaveSession();
+    });
+
+    fontMinusBtn.addEventListener("click", () => applyFontSize(Number(fontSizeRange.value) - 1));
+    fontPlusBtn.addEventListener("click", () => applyFontSize(Number(fontSizeRange.value) + 1));
+    fontSizeRange.addEventListener("input", () => applyFontSize(Number(fontSizeRange.value)));
+    fontSizeRange.addEventListener("change", () => {
+      applyFontSize(Number(fontSizeRange.value));
+      scheduleSaveSession();
+    });
+
+    wrapToggle.addEventListener("change", () => {
+      applyWrap();
+      scheduleSaveSession();
+    });
+
+    findToggleBtn.addEventListener("click", () => toggleFindBar());
+    findNextBtn.addEventListener("click", () => findNext(true));
+    findPrevBtn.addEventListener("click", () => findPrev(true));
+    replaceOneBtn.addEventListener("click", replaceOne);
+    replaceAllBtn.addEventListener("click", replaceAll);
+    findInput.addEventListener("input", updateFindMeta);
+    findCase.addEventListener("change", updateFindMeta);
+
+    document.addEventListener("keydown", (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const el = e.target;
+      const tag = el && el.tagName;
+
+      if (e.key === "Enter") {
+        if (tag !== "TEXTAREA" || el !== editor) return;
+        e.preventDefault();
+        runValidation();
+        return;
+      }
+      if (e.key === "s") {
+        e.preventDefault();
+        if (latestValidation.errors.length === 0 && latestValidation.normalized) {
+          downloadNormalized();
+          statusEl.textContent = "Downloaded (⌘/Ctrl+S).";
+        } else {
+          runValidation();
+          statusEl.textContent = "Fix validation errors before export (⌘/Ctrl+S).";
+        }
+        return;
+      }
+      if (e.key === "g") {
+        e.preventDefault();
+        gotoInput.focus();
+        gotoInput.select();
+        return;
+      }
+      if (e.key === "f") {
+        e.preventDefault();
+        toggleFindBar(true);
+      }
+    });
+
+    findInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        findNext(true);
+      }
+      if (e.key === "Escape") {
+        toggleFindBar(false);
+      }
+    });
+
+    editor.addEventListener("keydown", (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== "z") return;
+      if (e.shiftKey) {
+        if (redoStack.length) {
+          e.preventDefault();
+          redoEdit();
+        }
+      } else if (undoStack.length) {
+        e.preventDefault();
+        undoEdit();
+      }
+    });
+
+    undoBtn.addEventListener("click", undoEdit);
+    redoBtn.addEventListener("click", redoEdit);
+
+    mergeBtn.addEventListener("click", () => {
+      mergePaste.value = "";
+      mergePreview.textContent = "";
+      mergeModal.classList.add("open");
+    });
+    mergeCancelBtn.addEventListener("click", () => mergeModal.classList.remove("open"));
+    mergeModal.addEventListener("click", (e) => {
+      if (e.target === mergeModal) mergeModal.classList.remove("open");
+    });
+    mergePickFileBtn.addEventListener("click", () => mergeFileInput.click());
+    mergeFileInput.addEventListener("change", () => {
+      const file = mergeFileInput.files && mergeFileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        mergePaste.value = String(reader.result || "");
+        mergePreview.textContent = `Loaded file into merge box (${file.name}).`;
+      };
+      reader.readAsText(file);
+      mergeFileInput.value = "";
+    });
+    mergeDoBtn.addEventListener("click", () => {
+      let overlay;
+      try {
+        overlay = JSON.parse(mergePaste.value.trim());
+      } catch (err) {
+        mergePreview.textContent = "Parse error: " + err.message;
+        return;
+      }
+      let base;
+      try {
+        base = JSON.parse(editor.value);
+      } catch (err) {
+        mergePreview.textContent = "Fix editor JSON first: " + err.message;
+        return;
+      }
+      const { doc, added, updated } = mergeConfigs(base, overlay);
+      mergePreview.textContent = `Merged: ${updated} agent row(s) updated, ${added} new agent(s). coordinator/ui deep-merged.`;
+      setEditorValue(JSON.stringify(doc, null, 2) + "\n");
+      mergeModal.classList.remove("open");
+      mergePaste.value = "";
+      statusEl.textContent = "Merge applied.";
+    });
+
+    pathCheckBtn.addEventListener("click", () => runPathCheck());
+
+    renameAgentBtn.addEventListener("click", () => {
+      const oldN = window.prompt("Current agent name (exact):");
+      if (oldN === null || !String(oldN).trim()) return;
+      const newN = window.prompt("New agent name:");
+      if (newN === null || !String(newN).trim()) return;
+      renameAgentEverywhere(oldN, newN);
+    });
+
+    presetSaveBtn.addEventListener("click", () => {
+      const name = window.prompt("Preset name:");
+      if (!name || !String(name).trim()) return;
+      const presets = getPresets();
+      presets.push({ name: name.trim(), text: editor.value });
+      savePresets(presets);
+      refreshPresetSelect();
+      statusEl.textContent = `Preset saved: ${name.trim()}`;
+    });
+    presetLoadBtn.addEventListener("click", () => {
+      const ix = presetSelect.value;
+      if (ix === "") {
+        statusEl.textContent = "Select a preset first.";
+        return;
+      }
+      const presets = getPresets();
+      const p = presets[Number(ix)];
+      if (!p || typeof p.text !== "string") return;
+      setEditorValue(p.text);
+      statusEl.textContent = `Loaded preset: ${p.name}`;
+    });
+    presetDeleteBtn.addEventListener("click", () => {
+      const ix = presetSelect.value;
+      if (ix === "") return;
+      if (!window.confirm("Delete this preset from browser storage?")) return;
+      const presets = getPresets();
+      presets.splice(Number(ix), 1);
+      savePresets(presets);
+      refreshPresetSelect();
+      statusEl.textContent = "Preset deleted.";
+    });
+
+    loadSessionAndEditor();
+    runValidation();
+    updateCursorInfo();
+    updateLineNumbers();
+    updateFindMeta();
+  </script>
+</body>
+</html>

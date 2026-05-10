@@ -22,6 +22,32 @@ function normalizeApiBase() {
 
 const API_BASE = normalizeApiBase();
 
+/** Concurrent callers await one in-flight request (App + CONFIGURE + panels). */
+const inflight = new Map();
+function coalesce(key, fn) {
+  const existing = inflight.get(key);
+  if (existing) return existing;
+  const p = (async () => {
+    try {
+      return await fn();
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+  inflight.set(key, p);
+  return p;
+}
+
+/** Models list changes rarely; short TTL avoids duplicate scans after shared mounts. */
+const MODELS_CACHE_TTL_MS = 20000;
+let modelsCacheValue = null;
+let modelsCacheAt = 0;
+
+export function invalidateModelsCache() {
+  modelsCacheValue = null;
+  modelsCacheAt = 0;
+}
+
 /**
  * Normalize a coordinator /api/architect response into { mode, agents, final, meta }.
  * Accepts both the envelope shape (new) and the legacy flat-map shape.
@@ -43,13 +69,19 @@ function normalizeArchitectResponse(raw) {
 /**
  * Submit a prompt to all agents via the coordinator
  */
-export async function submitPrompt(prompt, temperature = 0.2) {
+export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
+  const body = { prompt, temperature };
+  if (opts.sessionId) body.session_id = opts.sessionId;
+  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
+  if (opts.followup) body.followup = true;
+  if (opts.qualityPass) body.quality_pass = true;
+  if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ prompt, temperature }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -66,9 +98,11 @@ export async function submitPrompt(prompt, temperature = 0.2) {
  * Returns [{ name, description, active }].
  */
 export async function fetchModes() {
-  const response = await fetch(`${API_BASE}/modes`);
-  if (!response.ok) throw new Error(`Failed to fetch modes: ${response.status}`);
-  return response.json();
+  return coalesce('modes', async () => {
+    const response = await fetch(`${API_BASE}/modes`);
+    if (!response.ok) throw new Error(`Failed to fetch modes: ${response.status}`);
+    return response.json();
+  });
 }
 
 export async function fetchActiveMode() {
@@ -220,6 +254,14 @@ export async function setModeAgents(name, agentNames, opts = {}) {
   if (opts.synthesizer !== undefined) {
     body.synthesizer = opts.synthesizer || null; // null/empty clears it
   }
+  ['variant_policy', 'preset', 'synthesis_policy', 'classifier_policy'].forEach(key => {
+    if (opts[key] !== undefined) body[key] = opts[key] || null;
+  });
+  if (Number.isInteger(opts.stage_context_chars)) {
+    body.stage_context_chars = opts.stage_context_chars;
+  }
+  if (Array.isArray(opts.order)) body.order = opts.order;
+  else if (opts.order === null) body.order = null;
   const response = await fetch(`${API_BASE}/modes/${encodeURIComponent(name)}/agents`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -249,9 +291,11 @@ export async function fetchHistory() {
  * Fetch the list of active agents from the coordinator
  */
 export async function fetchAgents() {
-  const response = await fetch(`${API_BASE}/agents`);
-  if (!response.ok) throw new Error(`Failed to fetch agents: ${response.status}`);
-  return response.json();
+  return coalesce('agents', async () => {
+    const response = await fetch(`${API_BASE}/agents`);
+    if (!response.ok) throw new Error(`Failed to fetch agents: ${response.status}`);
+    return response.json();
+  });
 }
 
 /**
@@ -262,29 +306,42 @@ export async function fetchAgents() {
  * Falls back entirely to /models.json when the proxy is unreachable.
  */
 export async function fetchModels() {
-  let liveModels = null;
-  try {
-    const response = await fetch(`${API_BASE}/models`);
-    if (response.ok) liveModels = await response.json();
-  } catch {
-    // proxy not running — fall through to static fallback
+  const now = Date.now();
+  if (modelsCacheValue != null && (now - modelsCacheAt) < MODELS_CACHE_TTL_MS) {
+    return modelsCacheValue;
   }
 
-  const staticRes = await fetch('/models.json');
-  const staticModels = staticRes.ok ? await staticRes.json() : [];
+  return coalesce('models', async () => {
+    let liveModels = null;
+    try {
+      const response = await fetch(`${API_BASE}/models`);
+      if (response.ok) liveModels = await response.json();
+    } catch {
+      // proxy not running — fall through to static fallback
+    }
 
-  if (!liveModels) {
-    if (!staticModels.length) throw new Error('Failed to fetch models (proxy and static fallback both unavailable)');
-    return staticModels;
-  }
+    const staticRes = await fetch('/models.json');
+    const staticModels = staticRes.ok ? await staticRes.json() : [];
 
-  // Merge: add static entries whose path isn't already in the live list
-  const livePaths = new Set(liveModels.map(m => m.path));
-  const merged = [...liveModels];
-  for (const m of staticModels) {
-    if (!livePaths.has(m.path)) merged.push(m);
-  }
-  return merged;
+    if (!liveModels) {
+      if (!staticModels.length) {
+        throw new Error('Failed to fetch models (proxy and static fallback both unavailable)');
+      }
+      modelsCacheValue = staticModels;
+      modelsCacheAt = Date.now();
+      return staticModels;
+    }
+
+    // Merge: add static entries whose path isn't already in the live list
+    const livePaths = new Set(liveModels.map(m => m.path));
+    const merged = [...liveModels];
+    for (const m of staticModels) {
+      if (!livePaths.has(m.path)) merged.push(m);
+    }
+    modelsCacheValue = merged;
+    modelsCacheAt = Date.now();
+    return merged;
+  });
 }
 
 /**
@@ -292,15 +349,17 @@ export async function fetchModels() {
  * Falls back to /swarm-config.json (public static) when the proxy is unreachable.
  */
 export async function fetchSwarmConfig() {
-  try {
-    const response = await fetch(`${API_BASE}/swarm-config`);
-    if (response.ok) return response.json();
-  } catch {
-    // proxy not running — fall through to static fallback
-  }
-  const fallback = await fetch('/swarm-config.json');
-  if (!fallback.ok) throw new Error('Failed to fetch swarm config (proxy and static fallback both unavailable)');
-  return fallback.json();
+  return coalesce('swarm-config', async () => {
+    try {
+      const response = await fetch(`${API_BASE}/swarm-config`);
+      if (response.ok) return response.json();
+    } catch {
+      // proxy not running — fall through to static fallback
+    }
+    const fallback = await fetch('/swarm-config.json');
+    if (!fallback.ok) throw new Error('Failed to fetch swarm config (proxy and static fallback both unavailable)');
+    return fallback.json();
+  });
 }
 
 /** Timeout for configure (server waits up to 240s; allow a bit more for slow responses) */
@@ -326,7 +385,9 @@ export async function configureSwarm(agents) {
       if (err.failedPorts?.length) ex.failedPorts = err.failedPorts;
       throw ex;
     }
-    return response.json();
+    const data = await response.json();
+    invalidateModelsCache();
+    return data;
   } catch (e) {
     if (e.name === 'AbortError') {
       throw new Error('Launch timed out (4.5 min). Check logs in CONFIGURE or project logs/ and try again.');

@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { fetchKvPressure } from '../api/swarmApi';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-const POLL_MS = 250;
 const TWEEN_MS = 200; // settle before the next sample arrives
 
 function colorFor(pct) {
@@ -10,9 +8,7 @@ function colorFor(pct) {
   return 'var(--kv-ok, #00ff41)';
 }
 
-export default function KvPressureGauge({ online }) {
-  const [readings, setReadings] = useState([]);
-  const [errored, setErrored] = useState(false);
+export default function KvPressureGauge({ online, readings = [], fetchFailed = false }) {
   const [displayPct, setDisplayPct] = useState(0);
   // current = last value actually painted; used as the "from" anchor so a new
   // sample arriving mid-tween picks up where we are, not where we started.
@@ -23,7 +19,7 @@ export default function KvPressureGauge({ online }) {
     return () => { if (t.raf) cancelAnimationFrame(t.raf); };
   }, []);
 
-  const tweenTo = (target) => {
+  const tweenTo = useCallback((target) => {
     const t = tweenRef.current;
     // Guard against non-finite samples (e.g. transient 0/0 from a freshly
     // cleared KV cache). Without this, NaN/Infinity poisons t.current and
@@ -45,49 +41,28 @@ export default function KvPressureGauge({ online }) {
       else t.raf = 0;
     };
     t.raf = requestAnimationFrame(step);
-  };
+  }, []);
 
   useEffect(() => {
     if (!online) {
-      setReadings([]);
       tweenRef.current.current = 0;
       setDisplayPct(0);
-      return undefined;
+      return;
     }
-    let cancelled = false;
-
-    const tick = async () => {
-      try {
-        const data = await fetchKvPressure();
-        if (cancelled) return;
-        setReadings(data);
-        // MLX entries are owned by PressureCluster (richer per-port view).
-        // This gauge shows only llama-server KV-cache occupancy from /metrics.
-        const live = data.filter(r => r.ok && r.backend !== 'mlx' && Number.isFinite(r.usage));
-        setErrored(live.length === 0 && data.length > 0);
-        if (live.length > 0) {
-          const target = Math.max(...live.map(r => r.usage)) * 100;
-          tweenTo(target);
-        }
-      } catch (err) {
-        console.error('KV pressure poll failed:', err);
-        if (!cancelled) setErrored(true);
-      }
-    };
-
-    tick();
-    const id = setInterval(tick, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [online]);
+    const liveFinite = readings.filter(r => r.ok && r.backend !== 'mlx' && Number.isFinite(r.usage));
+    if (liveFinite.length > 0) {
+      const target = Math.max(...liveFinite.map(r => r.usage)) * 100;
+      tweenTo(target);
+    }
+  }, [online, readings, tweenTo]);
 
   if (!online) return null;
 
   const live = readings.filter(r => r.ok && r.backend !== 'mlx');
+  const showErr =
+    live.length === 0 && (fetchFailed || readings.length > 0);
   if (live.length === 0) {
-    if (errored) {
+    if (showErr) {
       return (
         <div className="kv-gauge kv-gauge--err" title="vLLM /metrics unreachable">
           <span className="kv-gauge-label">KV</span>

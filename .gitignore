@@ -18,6 +18,7 @@ archive
 # Runtime / binaries (build locally)
 coordinator
 proxy
+matrix_config_service
 *.o
 
 # Logs

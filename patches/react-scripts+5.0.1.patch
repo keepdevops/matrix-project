@@ -45,3 +45,42 @@ index 522a81b..fcf68f2 100644
      },
    };
  };
+diff --git a/node_modules/react-scripts/scripts/start.js b/node_modules/react-scripts/scripts/start.js
+index 522a81b..fcf68f2 100644
+--- a/node_modules/react-scripts/scripts/start.js
++++ b/node_modules/react-scripts/scripts/start.js
+@@ -139,19 +139,27 @@
+       openBrowser(urls.localUrlForBrowser);
+     });
+ 
+-    ['SIGINT', 'SIGTERM'].forEach(function (sig) {
+-      process.on(sig, function () {
++    // webpack-dev-server v5 removed `close()`; use `stopCallback` (CRA still calls close).
++    function shutdownDevServer() {
++      if (typeof devServer.stopCallback === 'function') {
++        devServer.stopCallback(function () {
++          process.exit();
++        });
++      } else if (typeof devServer.close === 'function') {
+         devServer.close();
+         process.exit();
+-      });
++      } else {
++        process.exit();
++      }
++    }
++
++    ['SIGINT', 'SIGTERM'].forEach(function (sig) {
++      process.on(sig, shutdownDevServer);
+     });
+ 
+     if (process.env.CI !== 'true') {
+       // Gracefully exit when stdin ends
+-      process.stdin.on('end', function () {
+-        devServer.close();
+-        process.exit();
+-      });
++      process.stdin.on('end', shutdownDevServer);
+     }
+   })
+   .catch(err => {

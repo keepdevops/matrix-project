@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-function PromptInput({ onSubmit, loading = false, disabled = false, externalPrompt, externalTemperature, onPromptConsumed }) {
+function PromptInput({
+  onSubmit,
+  loading = false,
+  disabled = false,
+  externalPrompt,
+  externalTemperature,
+  onPromptConsumed,
+  canContinue = false,
+  onQualityPass,
+}) {
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.2);
   const onPromptConsumedRef = useRef(onPromptConsumed);
@@ -20,11 +29,15 @@ function PromptInput({ onSubmit, loading = false, disabled = false, externalProm
     }
   }, [externalTemperature]);
 
+  const submitPrompt = (opts = {}) => {
+    if (prompt.trim() && !loading && !disabled) {
+      onSubmit(prompt.trim(), temperature, opts);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (prompt.trim() && !loading && !disabled) {
-      onSubmit(prompt.trim(), temperature);
-    }
+    submitPrompt();
   };
 
   const handleKeyDown = (e) => {
@@ -70,6 +83,31 @@ function PromptInput({ onSubmit, loading = false, disabled = false, externalProm
           disabled={loading || disabled || !prompt.trim()}
         >
           {loading ? 'BROADCASTING...' : 'BROADCAST'}
+        </button>
+        <button
+          type="button"
+          className="submit-button continue-button"
+          disabled={loading || disabled || !prompt.trim() || !canContinue}
+          onClick={() => submitPrompt({
+            followup: true,
+            contextPolicy: {
+              include: ['original_prompt', 'final', 'programmer'],
+              target_agent: 'programmer',
+              max_context_chars: 24000,
+            },
+          })}
+          title={canContinue ? 'Append this prompt to the current session' : 'Run a broadcast first to start a session'}
+        >
+          CONTINUE
+        </button>
+        <button
+          type="button"
+          className="submit-button continue-button"
+          disabled={loading || disabled || !canContinue}
+          onClick={() => onQualityPass?.(temperature)}
+          title={canContinue ? 'Review and correct the previous output in this session' : 'Run a broadcast first to start a session'}
+        >
+          QUALITY PASS
         </button>
       </div>
     </form>

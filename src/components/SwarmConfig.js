@@ -3,6 +3,7 @@ import {
   fetchSwarmConfig,
   fetchModels,
   fetchAgents,
+  invalidateModelsCache,
 } from '../api/swarmApi';
 import VllmPanel from './VllmPanel';
 import ModeRosterPanel from './ModeRosterPanel';
@@ -158,7 +159,10 @@ export default function SwarmConfig({ onDeployed }) {
           <button
             className="swarm-deploy-btn"
             style={{ marginTop: '1rem' }}
-            onClick={() => setLoadRetries(r => r + 1)}
+            onClick={() => {
+              invalidateModelsCache();
+              setLoadRetries(r => r + 1);
+            }}
           >
             RETRY
           </button>

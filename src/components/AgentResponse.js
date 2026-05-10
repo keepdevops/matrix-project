@@ -28,7 +28,10 @@ function AgentResponse({ name, response, color = '#00ff41', loading = false, por
           {response && (
             <button
               className="agent-expand-btn"
-              onClick={() => setShowModal(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowModal(true);
+              }}
               title="Open in editor"
             >
               ⤢

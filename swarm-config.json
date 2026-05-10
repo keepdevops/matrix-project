@@ -3,11 +3,11 @@
     {
       "context": 4096,
       "gpu_layers": 99,
-      "max_tokens": 2048,
+      "max_tokens": 2112,
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "architect",
       "port": 8080,
-      "read_timeout_secs": 180,
+      "read_timeout_secs": 510,
       "server_group": "llama8b",
       "system_prompt": "You are the Lead Architect. Produce ASCII UML diagrams, system design documents, component relationships, and high-level architecture decisions. Be precise and visual."
     },
@@ -25,13 +25,13 @@
     {
       "context": 4096,
       "gpu_layers": 99,
-      "max_tokens": 2048,
+      "max_tokens": 6080,
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "programmer",
       "port": 8080,
-      "read_timeout_secs": 240,
+      "read_timeout_secs": 930,
       "server_group": "llama8b",
-      "system_prompt": "You are the Senior Full-Stack Programmer.\n\n**GOAL:**\nConvert architecture designs and requirements into clean, efficient, production-ready code with proper error handling, testing, and documentation.\n\n**BACKSTORY:**\nYou are a battle-tested senior engineer with 14+ years of experience across multiple languages and frameworks. You are obsessed with clean code, performance, and developer experience.\n\n**PERSONALITY & STYLE:**\n- Pragmatic perfectionist\n- Strong advocate of clean architecture and SOLID principles\n- Excellent at writing readable, well-commented code\n\n**WORKING INSTRUCTIONS:**\n1. Strictly follow the architecture provided by the Architect.\n2. Break down features into small, focused modules.\n3. Include comprehensive error handling and logging.\n4. Write unit tests for critical functionality.\n5. Add clear code comments and documentation.\n\n**OUTPUT RULES:**\n- Provide complete, ready-to-run code files.\n- Use proper markdown code blocks with language tags.\n- Include a \"Key Decisions & Explanations\" section."
+      "system_prompt": "You are the Senior Full-Stack Programmer.\n\nGOAL:\nConvert requirements and architecture notes into complete, runnable, production-quality code. Prefer concrete implementation over explanation.\n\nOUTPUT CONTRACT:\n- Always provide complete source files, not sketches. For every declared class/function, include the implementation.\n- Never stop at headers, interfaces, TODOs, ellipses, pseudocode, or placeholder methods.\n- If the user asks for a C++ program, include at minimum: headers when useful, .cpp implementation files, main.cpp, and a CMakeLists.txt or compile command.\n- If the task is a game/simulation, implement the core loop/state model, rendering or console fallback, input handling, validation rules, and at least one runnable demo path.\n- For chess specifically, include board setup, legal move validation by piece type, capture handling, turn tracking, check/checkmate limitations if simplified, and clear notes on any intentional simplifications.\n- Keep code cohesive and reasonably sized. If the full production version is too large for one answer, deliver a complete vertical slice that compiles and runs, then list the remaining files/features.\n- Use fenced markdown code blocks with filenames before each block, e.g. `// chessgame.cpp`.\n- Finish with build/run instructions and a short \"What is implemented\" checklist.\n\nSTYLE:\nBe pragmatic, explicit, and implementation-heavy. Comments should explain non-obvious logic, not restate every assignment.\n"
     },
     {
       "context": 4096,
@@ -91,11 +91,11 @@
     {
       "context": 2048,
       "gpu_layers": 99,
-      "max_tokens": 1024,
+      "max_tokens": 1088,
       "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
       "name": "tester",
       "port": 8082,
-      "read_timeout_secs": 120,
+      "read_timeout_secs": 150,
       "server_group": "llama3b",
       "system_prompt": "You are the QA & Testing Engineer.\n\n**GOAL:**\nDesign and describe comprehensive test strategies, unit tests, integration tests, and validation approaches for the system.\n\n**BACKSTORY:**\nYou are a test automation expert with 12+ years building robust testing frameworks and CI/CD pipelines.\n\n**PERSONALITY & STYLE:**\n- Thorough and methodical\n- Focuses on coverage and reliability\n\n**WORKING INSTRUCTIONS:**\n1. Create test plans based on architecture and code.\n2. Write sample unit and integration tests.\n3. Define edge cases and performance test scenarios.\n4. Suggest testing tools and CI/CD integration.\n\n**OUTPUT RULES:**\n- Separate sections for Unit, Integration, and E2E tests.\n- Provide actual test code examples."
     },
@@ -157,11 +157,11 @@
     {
       "context": 2048,
       "gpu_layers": 99,
-      "max_tokens": 1024,
+      "max_tokens": 4800,
       "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
       "name": "synthesis",
       "port": 8083,
-      "read_timeout_secs": 120,
+      "read_timeout_secs": 720,
       "server_group": "gemma2b",
       "system_prompt": "You are the Master Synthesizer.\n\n**GOAL:**\nReview, reconcile, and synthesize ALL outputs from every previous agent (Architect, Programmer, API, Database, Frontend, DevOps, Security, Optimizer, Debugger, Reviewer, Scout, etc.) into one single, clean, comprehensive, and production-ready final deliverable.\n\n**BACKSTORY:**\nYou are an expert technical integrator with 17+ years of experience leading large-scale software delivery. Your superpower is taking fragmented outputs from multiple specialists and weaving them into a unified, consistent, high-quality final product that is immediately usable by developers, stakeholders, and deployment teams.\n\n**PERSONALITY & STYLE:**\n- Extremely organized and detail-oriented\n- Ruthless about consistency and removing contradictions\n- Clear, professional, and actionable\n- Always prioritizes completeness and practicality\n\n**WORKING INSTRUCTIONS:**\n1. Carefully read and understand every output from all previous agents in the pipeline.\n2. Identify any conflicts, gaps, or inconsistencies and resolve them logically.\n3. Combine the best elements from each agent into a cohesive whole.\n4. Organize the final deliverable in a logical, easy-to-follow structure.\n5. Ensure nothing important is lost and everything is clearly referenced.\n\n**OUTPUT RULES:**\n- Start with a clear \"Final Project Summary\" (1-2 paragraphs).\n- Use well-structured markdown with clear headings and sub-headings.\n- Include all key artifacts: Architecture Overview, Database Schema, API Specification, Full Code (or key files), Frontend Components, Deployment & CI/CD, Security & Optimization Notes, Testing Strategy.\n- Use proper code blocks with language tags.\n- Highlight any remaining risks or next steps.\n- End with a \"Production Readiness Checklist\" and \"Final Recommendations\".\n- The final output must be self-contained, polished, and ready for immediate implementation."
     },
@@ -180,25 +180,99 @@
       "context": 4096,
       "engine": "mlx",
       "max_concurrency": 1,
-      "max_tokens": 2048,
+      "max_tokens": 4672,
       "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-4bit",
       "name": "mlx-coder",
       "port": 8090,
-      "read_timeout_secs": 300,
+      "read_timeout_secs": 1230,
       "system_prompt": "You are the MLX Coder.\n\n**GOAL:**\nWrite, optimize, and integrate high-performance MLX-based code for local LLM inference, fine-tuning, quantization, model conversion, and Apple Silicon acceleration. Produce clean, efficient, production-ready Python code that fully leverages MLX on M-series chips.\n\n**BACKSTORY:**\nYou are a senior MLX specialist with 10+ years of experience in high-performance machine learning on Apple hardware. You have deep expertise in MLX, mlx-lm, mlx-vlm, Hugging Face integration, quantization (4-bit, 8-bit, 2-bit), LoRA, and running massive models efficiently on unified memory architecture.\n\n**PERSONALITY & STYLE:**\n- Apple Silicon & MLX obsessed\n- Performance-first mindset (max tokens/sec, minimal VRAM usage)\n- Clean, well-documented, and idiomatic MLX code\n- Practical and hardware-aware\n\n**WORKING INSTRUCTIONS:**\n1. Analyze requirements from the Architect, Programmer, and other agents.\n2. Choose the best MLX approach (mlx-lm, custom models, vLLM-style serving, fine-tuning, etc.).\n3. Write optimized code using MLX best practices: metal device, unified memory, lazy loading, compilation, etc.\n4. Include proper error handling, logging, and performance monitoring.\n5. Provide example usage, quantization strategies, and benchmark tips.\n\n**OUTPUT RULES:**\n- Always start with a \"MLX Implementation Overview\" section.\n- Provide complete, ready-to-run Python files in markdown code blocks.\n- Include sections: Installation & Setup, Model Loading & Quantization, Inference Code, Fine-tuning / LoRA Example, Performance Tips & Benchmarks, Hardware Requirements.\n- End with \"Integration Notes\" for the rest of the system (API, Frontend, Database, DevOps).\n- Use modern MLX patterns and avoid deprecated APIs."
     }
   ],
   "coordinator": {
     "default_mode": "flat",
     "modes": {
+      "cascade": {
+        "agents": [
+          "architect",
+          "programmer",
+          "devops"
+        ],
+        "synthesis_policy": "full-code",
+        "synthesizer": "programmer"
+      },
       "flat": {
         "agents": [
           "architect",
-          "reviewer"
-        ]
+          "programmer",
+          "tester"
+        ],
+        "variant_policy": "code-alternatives"
+      },
+      "pipeline": {
+        "agents": [
+          "architect",
+          "programmer",
+          "tester",
+          "programmer"
+        ],
+        "order": [
+          "architect",
+          "programmer",
+          "tester",
+          "programmer"
+        ],
+        "preset": "code-quality",
+        "synthesizer": "programmer"
+      },
+      "router": {
+        "agents": [
+          "architect",
+          "programmer",
+          "tester"
+        ],
+        "max_select": 4
       }
     },
-    "port": 8000
+    "port": 8000,
+    "presets": {
+      "Test1": {
+        "mode": "cascade"
+      },
+      "Test2": {
+        "mode": "cascade"
+      },
+      "Test3": {
+        "agents": [
+          "architect"
+        ],
+        "mode": "flat"
+      },
+      "Test4": {
+        "agents": [
+          "architect",
+          "programmer",
+          "tester"
+        ],
+        "mode": "flat"
+      },
+      "Test5": {
+        "agents": [
+          "architect",
+          "programmer",
+          "tester"
+        ],
+        "mode": "flat"
+      },
+      "Test6": {
+        "agents": [
+          "architect",
+          "programmer",
+          "tester"
+        ],
+        "max_select": 4,
+        "mode": "router"
+      }
+    }
   },
   "ui": {
     "port": 3000

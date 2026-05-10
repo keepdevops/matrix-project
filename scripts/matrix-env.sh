@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Print suggested Matrix environment exports (defaults by OS / layout).
-# Usage:
+# Safe to `source` from other scripts — strict mode only applies when run directly.
 echo "---------------------------------------------"
 echo "${BASH_SOURCE[0]}"
 
-set -euo pipefail
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
+  set -euo pipefail
+fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 OS="$(uname -s)"
@@ -14,6 +16,8 @@ if [[ -n "${MATRIX_MODEL_DIR:-}" ]]; then
   MODEL_DIR="$MATRIX_MODEL_DIR"
 elif [[ "$OS" == "Darwin" ]]; then
   MODEL_DIR="/Users/Shared/llama/models"
+else
+  MODEL_DIR="${MATRIX_MODEL_DIR:-}"
 fi
 
 
@@ -68,7 +72,7 @@ if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
   echo "export MATRIX_MLX_PYTHON=$MLX_PY"
 fi
 
-echo "MODELS:     =${MODEL_DIR}"
+echo "MODELS:     =${MODEL_DIR:-}"
 echo "LLAMA_SERVER=${MATRIX_LLAMA_SERVER}"
 
 # EOF

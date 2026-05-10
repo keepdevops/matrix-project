@@ -2,7 +2,15 @@ import React, { useEffect, useState } from 'react';
 import './App.css';
 import './themes/light.css';
 import { useSwarm } from './hooks/useSwarm';
-import { clearCache, fetchAgents, fetchSwarmConfig, fetchModels, fetchModes, setActiveMode } from './api/swarmApi';
+import {
+  clearCache,
+  fetchAgents,
+  fetchKvPressure,
+  fetchSwarmConfig,
+  fetchModels,
+  fetchModes,
+  setActiveMode,
+} from './api/swarmApi';
 import PromptInput from './components/PromptInput';
 import AgentGrid from './components/AgentGrid';
 import MetricsStrip from './components/MetricsStrip';
@@ -13,8 +21,9 @@ import FinalAnswerPanel from './components/FinalAnswerPanel';
 import KvPressureGauge from './components/KvPressureGauge';
 import PressureCluster from './components/PressureCluster';
 import { extractCodeBlock } from './utils/codeExtractor';
+import { qualityPassContextPolicy } from './utils/qualityPassContext';
 
-const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode']);
+const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode', '_session_id', '_run_id']);
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 function getEngineLabel(backend) {
@@ -41,6 +50,8 @@ function App() {
     setFinalAnswer,
     lastMeta,
     setLastMeta,
+    currentSession,
+    setCurrentSession,
   } = useSwarm();
 
   const [activeAgents, setActiveAgents] = useState([]);
@@ -76,6 +87,15 @@ function App() {
   const [modes, setModes] = useState([]);
   const [activeMode, setActiveModeState] = useState(null);
 
+  const [kvReadings, setKvReadings] = useState([]);
+  const [kvFetchFailed, setKvFetchFailed] = useState(false);
+
+  const [flatPickAgent, setFlatPickAgent] = useState(null);
+
+  useEffect(() => {
+    if (activeMode !== 'flat') setFlatPickAgent(null);
+  }, [activeMode]);
+
   const refreshModes = () =>
     fetchModes()
       .then(list => {
@@ -105,6 +125,33 @@ function App() {
         })));
       })
       .catch(() => {});
+
+  useEffect(() => {
+    const pollMs = 250;
+    if (!online) {
+      setKvReadings([]);
+      setKvFetchFailed(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const data = await fetchKvPressure();
+        if (cancelled) return;
+        setKvReadings(Array.isArray(data) ? data : []);
+        setKvFetchFailed(false);
+      } catch (err) {
+        console.error('KV pressure poll failed:', err);
+        if (!cancelled) setKvFetchFailed(true);
+      }
+    };
+    tick();
+    const id = setInterval(tick, pollMs);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [online]);
 
   useEffect(() => {
     Promise.all([fetchSwarmConfig().catch(() => null), fetchModels().catch(() => [])])
@@ -172,6 +219,9 @@ function App() {
     setResponses(resps);
     setFinalAnswer(entry._final || null);
     setLastMeta(null);  // history entries don't carry per-run timings (yet)
+    if (entry._session_id && entry._run_id) {
+      setCurrentSession({ sessionId: entry._session_id, runId: entry._run_id });
+    }
     setSelectedPrompt(entry.prompt || '');
     setSelectedTemperature(entry.temperature ?? 0.7);
     setShowHistory(false);
@@ -209,13 +259,45 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSubmit = async (prompt, temperature) => {
+  const handleSubmit = async (prompt, temperature, opts = {}) => {
     try {
-      await submit(prompt, temperature);
+      await submit(prompt, temperature, opts);
       loadHistory();
     } catch (err) {
       console.error('Submission failed:', err);
     }
+  };
+
+  const handleQualityPass = async (temperature = 0.2) => {
+    const instruction = [
+      'Review the previous output for compile errors, duplicate files/functions,',
+      'missing implementation, unsafe numeric types, and mismatch with the original prompt.',
+      'Produce a corrected final answer.',
+    ].join(' ');
+    await handleSubmit(instruction, temperature, {
+      followup: true,
+      qualityPass: true,
+      contextPolicy: qualityPassContextPolicy(activeMode || 'pipeline'),
+    });
+  };
+
+  const excludedBreaker = lastMeta?.excluded_unhealthy || [];
+  const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
+
+  const handleSendBestContinue = async (temperature = 0.2) => {
+    if (!flatPickAgent || !responses[flatPickAgent]) return;
+    await handleSubmit(
+      'Refine and finalize the selected variant. Address gaps, risks, and production readiness.',
+      temperature,
+      {
+        followup: true,
+        contextPolicy: {
+          include: ['original_prompt', 'final', flatPickAgent],
+          target_agent: flatPickAgent,
+          max_context_chars: 30000,
+        },
+      },
+    );
   };
 
   return (
@@ -237,7 +319,7 @@ function App() {
             onChange={handleModeChange}
             disabled={!online}
           />
-          <KvPressureGauge online={online} />
+          <KvPressureGauge online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
           <button
             className={`cache-button cache-button--${cacheStatus}`}
             onClick={handleClearCache}
@@ -294,7 +376,7 @@ function App() {
 
       {!showConfigPanel && (
         <>
-          <PressureCluster online={online} />
+          <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
           <PromptInput
             onSubmit={handleSubmit}
             loading={loading}
@@ -302,7 +384,15 @@ function App() {
             externalPrompt={selectedPrompt}
             externalTemperature={selectedTemperature}
             onPromptConsumed={() => setSelectedPrompt(null)}
+            canContinue={Boolean(currentSession?.sessionId)}
+            onQualityPass={handleQualityPass}
           />
+          {excludedBreaker.length > 0 && (
+            <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">
+              Skipped (circuit breaker open):{' '}
+              <strong>{excludedBreaker.join(', ')}</strong>. Cooldown ~30s after failures — see PER-MODE ROSTER health or coordinator logs.
+            </div>
+          )}
           {error && (
             <div className="error-banner">
               {error.includes('Coordinator offline')
@@ -312,12 +402,87 @@ function App() {
           )}
           <FinalAnswerPanel text={finalAnswer} />
           <MetricsStrip envelope={{ meta: lastMeta }} />
+          {stageOutputs.length > 0 && (
+            <div className="final-answer-panel" style={{ marginTop: '0.75rem' }}>
+              <div className="swarm-config-title">PIPELINE STAGE OUTPUTS</div>
+              {stageOutputs.map(stage => (
+                <details key={`${stage.step}-${stage.agent}`} style={{ marginTop: '0.4rem' }}>
+                  <summary>
+                    {stage.step}. {stage.agent}
+                  </summary>
+                  <pre style={{ whiteSpace: 'pre-wrap', marginTop: '0.4rem' }}>
+                    {stage.output}
+                  </pre>
+                </details>
+              ))}
+            </div>
+          )}
           <AgentGrid
             activeAgents={activeAgents}
             responses={responses}
             loading={loading}
             onSaveCode={handleSaveCode}
+            flatPickMode={activeMode === 'flat'}
+            pickedFlatAgent={flatPickAgent}
+            onPickFlatAgent={setFlatPickAgent}
+            onExpandProgrammer={(instruction) => handleSubmit(instruction, 0.2, {
+              followup: true,
+              contextPolicy: {
+                include: ['original_prompt', 'final', 'programmer'],
+                target_agent: 'programmer',
+                max_context_chars: 24000,
+              },
+            })}
           />
+          {activeMode === 'flat' && Object.keys(responses).length > 0 && (
+            <div className="final-answer-panel" style={{ marginTop: '0.75rem' }}>
+              <div className="swarm-config-title">COMPARE VARIANTS</div>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  overflowX: 'auto',
+                  paddingBottom: '0.35rem',
+                  marginTop: '0.35rem',
+                }}
+              >
+                {activeAgents.map(({ name }) => {
+                  const text = responses[name];
+                  if (!text) return null;
+                  return (
+                    <div
+                      key={name}
+                      style={{
+                        flex: '0 0 min(280px, 45vw)',
+                        maxHeight: '180px',
+                        overflow: 'auto',
+                        fontSize: '0.78rem',
+                        border: '1px solid color-mix(in srgb, var(--fg, #ccc) 25%, transparent)',
+                        borderRadius: 4,
+                        padding: '0.35rem',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{name}</div>
+                      <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{text}</pre>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>
+                  Pick best variant in the grid (highlight), then continue refinement:
+                </span>
+                <button
+                  type="button"
+                  className="submit-button continue-button"
+                  disabled={loading || !flatPickAgent || !currentSession?.sessionId}
+                  onClick={() => handleSendBestContinue(0.2)}
+                >
+                  SEND BEST TO CONTINUE
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 

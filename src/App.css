@@ -431,6 +431,18 @@ h1 {
 }
 
 /* ========== Error Banner ========== */
+.dispatch-hint-banner {
+  padding: 10px 15px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.dispatch-hint-banner--breaker {
+  background: rgba(255, 65, 54, 0.12);
+  border: 1px solid rgba(255, 65, 54, 0.55);
+  color: #ff8877;
+}
 .error-banner {
   background: rgba(255, 75, 43, 0.1);
   border: 1px solid #ff4b2b;

@@ -39,6 +39,12 @@ for i in {1..10}; do echo -n "."; sleep 0.1; done; echo "."
 # --------------------------------------------------------------
 echo "Starting UI"
 cd "$ROOT"
+# CRA + WDS v5: ensure react-scripts shutdown patch (patch-package may skip start.js
+# if webpack hunk already applied — scripts/ensure-react-scripts-patch.mjs falls back).
+node "$ROOT/scripts/ensure-react-scripts-patch.mjs" || {
+  echo "FATAL: Could not patch react-scripts for webpack-dev-server v5. Run: cd $ROOT && npm install"
+  exit 1
+}
 npm start > logs/ui.log 2>&1 &
 echo $! >> "$PID_FILE"
 

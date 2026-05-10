@@ -5,19 +5,27 @@ export function useSwarm() {
   const [responses, setResponses] = useState({});
   const [finalAnswer, setFinalAnswer] = useState(null);
   const [lastMeta, setLastMeta] = useState(null);
+  const [currentSession, setCurrentSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
   const [online, setOnline] = useState(false);
 
-  const submit = useCallback(async (prompt, temperature = 0.7) => {
+  const submit = useCallback(async (prompt, temperature = 0.7, opts = {}) => {
     setLoading(true);
     setError(null);
     setResponses({});
     setFinalAnswer(null);
     setLastMeta(null);
     try {
-      const result = await submitPrompt(prompt, temperature);
+      const requestOpts = { ...opts };
+      if (opts.followup && !requestOpts.sessionId && currentSession?.sessionId) {
+        requestOpts.sessionId = currentSession.sessionId;
+      }
+      if (opts.followup && !requestOpts.parentRunId && currentSession?.runId) {
+        requestOpts.parentRunId = currentSession.runId;
+      }
+      const result = await submitPrompt(prompt, temperature, requestOpts);
       // submitPrompt returns { mode, agents, final, meta }; store the flat
       // agents map so existing consumers (AgentGrid, handleSaveCode, history
       // selection) keep seeing the same shape as before.
@@ -34,6 +42,12 @@ export function useSwarm() {
       setResponses(merged);
       setFinalAnswer(result.final || null);
       setLastMeta(result.meta || null);
+      if (result?.meta?.session_id && result?.meta?.run_id) {
+        setCurrentSession({
+          sessionId: result.meta.session_id,
+          runId: result.meta.run_id,
+        });
+      }
       return result;
     } catch (err) {
       setError(err.message);
@@ -41,7 +55,7 @@ export function useSwarm() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentSession]);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -66,6 +80,7 @@ export function useSwarm() {
     responses,
     finalAnswer,
     lastMeta,
+    currentSession,
     loading,
     error,
     history,
@@ -76,6 +91,7 @@ export function useSwarm() {
     setResponses,
     setFinalAnswer,
     setLastMeta,
+    setCurrentSession,
   };
 }
 

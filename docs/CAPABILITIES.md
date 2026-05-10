@@ -14,7 +14,7 @@ header dropdown.
 
 | Mode | Behaviour | Reducer? | Use when |
 |---|---|---|---|
-| `flat` | Broadcast in parallel to every roster agent. | No (`final = null`) | Cross-reference different roles on the same question. |
+| `flat` | Broadcast in parallel to **every deployed agent** (ignores per-mode roster). | No (`final = null`) | Cross-reference different roles on the same question. |
 | `pipeline` | Sequential chain. Each stage receives the previous stage's output. | Optional synthesizer; otherwise last stage is final. | Dependent steps: design → code → review. |
 | `cascade` | Parallel broadcast (like flat) followed by a synthesizer reducer. | Required for non-null `final`. | Mixture-of-agents — best of parallel + a coherent answer. |
 | `router` | Classifier picks ≤ `max_select` agents from the roster, only those run. | No (selected agents respond independently). | Save tokens when most agents aren't relevant. |
@@ -32,10 +32,77 @@ config file. Edit via `PUT /api/modes/<mode>/agents`:
 }
 ```
 
-Empty `agents` ⇒ mode falls back to the full deployed swarm. The
-synthesizer agent does not double-execute as a chain stage — it's auto-
+Empty `agents` ⇒ mode falls back to the full deployed swarm (except **flat**:
+flat mode **always** uses the full deployed swarm and ignores `agents` — use
+pipeline/router/cascade rosters to limit participation).
+
+The synthesizer agent does not double-execute as a chain stage — it's auto-
 excluded from the parallel/sequential dispatch and runs once at the end with
 all stage outputs.
+
+### Response envelope (all modes)
+
+Every `POST /api/architect` response is shaped as:
+
+```json
+{
+  "mode": "pipeline",
+  "agents": { "programmer": "...", "reviewer": "..." },
+  "final": "optional combined text or null",
+  "meta": { }
+}
+```
+
+`Mode.run` in C++ (`src2/modes/mode.h`) defines this contract. Session continuation and follow-ups reuse the same envelope on each run.
+
+### Per-mode config keys (`coordinator.modes.<mode>`)
+
+| Key | Modes | Purpose |
+|-----|-------|---------|
+| `agents` | pipeline, router, cascade | Ordered roster; duplicates allowed **only for pipeline** (repeat stages). |
+| `order` | pipeline | Explicit stage sequence (optional). String array; duplicates allowed (e.g. programmer twice). If omitted or empty, order is derived from roster, then `preset`, then defaults. Persisted via `PUT /api/modes/pipeline/agents`. |
+| `preset` | pipeline | Named preset (`code-quality`, `debug-fix`, `docs-finalize`) when no explicit `order` / roster chain is used. |
+| `stage_context_chars` | pipeline | Soft limit for passing prior stage text forward. |
+| `synthesizer` | pipeline, cascade | Reducer agent name (optional). |
+| `synthesis_policy` | cascade | Reducer instruction style (`summary`, `full-code`, etc.). |
+| `variant_policy` | flat | Prompt shaping (`standard`, `distinct`, `code-alternatives`). |
+| `max_select` | router | Max agents the classifier may choose. |
+| `classifier_policy` | router | Hint text for the classifier (`code`, `debug`, `docs`, `ops`, …). |
+
+The namespace `mode_module` in C++ (`src2/mode_module.h`) holds **shared helpers** (preset text, policy snippets). It is not the `Mode` struct — each mode still registers a `modes::register_mode({...})` entry.
+
+### Stable `meta` fields (debugging / UI)
+
+| Mode | Notable `meta` keys |
+|------|---------------------|
+| flat | `module`, `variant_policy`, `participants` |
+| pipeline | `module`, `preset`, `order`, `stage_outputs`, `stage_compaction`, `errors`, synthesizer fields when used |
+| cascade | `module`, `synthesis_policy`, `participants`, `synthesizer`, `errors`, `excluded` (agents skipped by synthesis due to failures) |
+| router | `classifier`, `selected`, `classifier_policy`, … |
+| all | `quality_pass` when the client sends `quality_pass: true` on a follow-up |
+
+### Startup validation (`coordinator.modes` / `presets`)
+
+On boot the coordinator logs **`[config] …`** for malformed types (for example `agents` not an array of strings, invalid `max_select`). An unknown **key** under `coordinator.modes` (a name that does not match a registered mode) produces a warning but the file still loads.
+
+- C++: `src2/config/coordinator_config_validate.cpp`
+- UI reference (doc only): `src/config/coordinatorSchema.js`
+
+### Optional config HTTP service (`matrix_config_service`)
+
+Separate process that **owns** one `swarm-config.json` path:
+
+| Endpoint | Method | Behavior |
+|----------|--------|----------|
+| `/health` | GET | `{"status":"ok"}` |
+| `/api/v1/config` | GET | Full JSON document |
+| `/api/v1/config` | PUT | Replace document (shallow validation + atomic write) |
+
+Port: `--port` or `MATRIX_CONFIG_SERVICE_PORT` (default **8011**).
+
+Run `./matrix_config_service --config /path/to/swarm-config.json`.
+
+When **`MATRIX_SWARM_CONFIG_SERVICE=http://host:port`** is set, the coordinator loads startup config with **`GET /api/v1/config`** instead of reading `--config` from disk, and persists **modes + presets** with **GET → merge → PUT** (agent rows / prompts still use local `--config` dual-write unless you point everything at shared storage).
 
 ### Pipeline staging prompt
 
@@ -284,3 +351,4 @@ in ~30 s.
 | `MATRIX_MODEL_DIR` | `/Users/Shared/llama/models` | Where the proxy scans for models. |
 | `MATRIX_LLAMA_SERVER` | (resolved from PATH) | Path to `llama-server` binary. |
 | `MATRIX_MLX_PYTHON` | (resolved) | Python interpreter that has `mlx_lm` installed. |
+| `MATRIX_SYNTHESIS_MAX_PROMPT_TOKENS` | `1400` | Approximate max prompt size for pipeline/cascade/stream **synthesis** (concatenated agent outputs). Lower if synthesizer uses a small `--ctx-size`; raise when you increase model context. |
