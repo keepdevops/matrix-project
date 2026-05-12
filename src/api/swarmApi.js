@@ -114,36 +114,25 @@ export async function fetchAgents() {
 }
 
 /**
- * Fetch available model files from the models directory.
- * Merges live proxy results with /models.json static list so that known
- * models appear even when the proxy scanner can't verify them (e.g. empty
- * MLX dirs that haven't been populated yet).
- * Falls back entirely to /models.json when the proxy is unreachable.
+ * Fetch available model files from the live proxy scan.
+ * Source of truth is whatever is installed on disk + Docker right now;
+ * there is no static fallback list. If the proxy is unreachable, surface
+ * an explicit error so the UI shows "proxy offline" rather than stale data.
  */
 export async function fetchModels() {
-  let liveModels = null;
+  let response;
   try {
-    const response = await fetch(`${API_BASE}/models`);
-    if (response.ok) liveModels = await response.json();
-  } catch {
-    // proxy not running — fall through to static fallback
+    response = await fetch(`${API_BASE}/models`);
+  } catch (err) {
+    console.error('fetchModels: proxy unreachable', err);
+    throw new Error('Cannot fetch models: proxy is not running. Start the proxy and retry.');
   }
-
-  const staticRes = await fetch('/models.json');
-  const staticModels = staticRes.ok ? await staticRes.json() : [];
-
-  if (!liveModels) {
-    if (!staticModels.length) throw new Error('Failed to fetch models (proxy and static fallback both unavailable)');
-    return staticModels;
+  if (!response.ok) {
+    const msg = `Failed to fetch models: ${response.status}`;
+    console.error('fetchModels:', msg);
+    throw new Error(msg);
   }
-
-  // Merge: add static entries whose path isn't already in the live list
-  const livePaths = new Set(liveModels.map(m => m.path));
-  const merged = [...liveModels];
-  for (const m of staticModels) {
-    if (!livePaths.has(m.path)) merged.push(m);
-  }
-  return merged;
+  return response.json();
 }
 
 /**

@@ -417,10 +417,10 @@ export default function SwarmConfig({ onDeployed }) {
   // For vLLM: always show all 4 pre-started servers (8080-8083) even if no agents assigned
   if (engine === 'vllm') {
     const allVllmPorts = [
-      { port: 8080, model: 'Qwen2.5-14B', agents: [], parallel: 0, engine: 'vllm' },
-      { port: 8081, model: 'Llama-3.2-3B', agents: [], parallel: 0, engine: 'vllm' },
-      { port: 8082, model: 'DeepSeek-Coder-V2', agents: [], parallel: 0, engine: 'vllm' },
-      { port: 8083, model: 'Phi-4-mini', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8080, model: 'Mistral-Small-3.1-24B', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8081, model: 'Meta-Llama-3.1-8B', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8082, model: 'Codestral-22B', agents: [], parallel: 0, engine: 'vllm' },
+      { port: 8083, model: 'phi-4', agents: [], parallel: 0, engine: 'vllm' },
     ];
     // Merge: keep existing ports with their agents, fill in missing ports with empty entries
     const merged = allVllmPorts.map(vllm => {
@@ -472,7 +472,7 @@ export default function SwarmConfig({ onDeployed }) {
                     onClick={() => !isDisabled && handleEngineChange(e.id)}
                     title={
                       isAppleSiliconDisabled ? `${e.label} requires NVIDIA GPU (not available on Apple Silicon)`
-                      : count === 0 ? `No ${e.label} models found in /Users/Shared/llama/models/`
+                      : count === 0 ? `No ${e.label} models found in the configured model directory (MATRIX_MODEL_DIR)`
                       : `${count} model${count !== 1 ? 's' : ''} available`
                     }
                   >
