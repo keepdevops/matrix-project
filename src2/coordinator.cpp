@@ -201,7 +201,24 @@ int main(int argc, char* argv[]) {
             auto j_body = json::parse(req.body);
             std::string user_prompt = j_body.value("prompt", "");
             double temperature = j_body.value("temperature", 0.7);
-            std::cout << "📝 Prompt: " << user_prompt << std::endl;
+            bool refine = j_body.value("refine", false);
+            std::string session = j_body.value("session", std::string{"default"});
+            std::cout << "📝 Prompt: " << user_prompt
+                      << (refine ? " [refine]" : "") << std::endl;
+
+            // For a refine call, prepend prior summary + recent turns so the
+            // active mode (and through it, each agent) sees the context.
+            // The user's actual prompt is preserved verbatim under "[Current
+            // request — refining]" so the mode router still sees it cleanly.
+            std::string effective_prompt = user_prompt;
+            if (refine) {
+                std::string preamble = g_memory->format_context_preamble(session);
+                if (!preamble.empty()) {
+                    effective_prompt = preamble
+                        + "[Current request — refining the above]\n"
+                        + user_prompt;
+                }
+            }
 
             const std::string mode_name = modes::active();
             const Mode* mode = modes::get(mode_name);
@@ -214,7 +231,7 @@ int main(int argc, char* argv[]) {
 
             const json& cfg_for_mode = modes_config.contains(mode_name)
                 ? modes_config[mode_name] : json::object();
-            ModeContext ctx{agents, user_prompt, temperature, cfg_for_mode};
+            ModeContext ctx{agents, effective_prompt, temperature, cfg_for_mode};
 
             json envelope;
             try { envelope = mode->run(ctx); }
@@ -242,7 +259,11 @@ int main(int argc, char* argv[]) {
             }
             if (envelope.contains("mode")) entry["_mode"] = envelope["mode"];
 
-            g_memory->append_turn("default", entry);
+            // Store the user's original prompt — not the refine-augmented
+            // version — so history stays a record of what the user asked.
+            entry["prompt"] = user_prompt;
+            if (refine) entry["_refined"] = true;
+            g_memory->append_turn(session, entry);
 
             res.set_content(envelope.dump(), "application/json");
             std::cout << "✅ [Swarm Matrix] Response sent (mode=" << mode_name << ")" << std::endl;

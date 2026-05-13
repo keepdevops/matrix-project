@@ -9,13 +9,13 @@ export function useSwarm() {
   const [history, setHistory] = useState([]);
   const [online, setOnline] = useState(false);
 
-  const submit = useCallback(async (prompt, temperature = 0.7) => {
+  const submit = useCallback(async (prompt, temperature = 0.7, opts = {}) => {
     setLoading(true);
     setError(null);
     setResponses({});
     setFinalAnswer(null);
     try {
-      const result = await submitPrompt(prompt, temperature);
+      const result = await submitPrompt(prompt, temperature, opts);
       // submitPrompt returns { mode, agents, final, meta }; store the flat
       // agents map so existing consumers (AgentGrid, handleSaveCode, history
       // selection) keep seeing the same shape as before.

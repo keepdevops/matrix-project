@@ -206,9 +206,9 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSubmit = async (prompt, temperature) => {
+  const handleSubmit = async (prompt, temperature, opts = {}) => {
     try {
-      await submit(prompt, temperature);
+      await submit(prompt, temperature, opts);
       loadHistory();
     } catch (err) {
       console.error('Submission failed:', err);
@@ -297,6 +297,7 @@ function App() {
             onSubmit={handleSubmit}
             loading={loading}
             disabled={!online}
+            hasHistory={history.length > 0}
             externalPrompt={selectedPrompt}
             externalTemperature={selectedTemperature}
             onPromptConsumed={() => setSelectedPrompt(null)}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-function PromptInput({ onSubmit, loading = false, disabled = false, externalPrompt, externalTemperature, onPromptConsumed }) {
+function PromptInput({ onSubmit, loading = false, disabled = false, hasHistory = false, externalPrompt, externalTemperature, onPromptConsumed }) {
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.2);
   const onPromptConsumedRef = useRef(onPromptConsumed);
@@ -24,6 +24,12 @@ function PromptInput({ onSubmit, loading = false, disabled = false, externalProm
     e.preventDefault();
     if (prompt.trim() && !loading && !disabled) {
       onSubmit(prompt.trim(), temperature);
+    }
+  };
+
+  const handleRefine = () => {
+    if (prompt.trim() && !loading && !disabled && hasHistory) {
+      onSubmit(prompt.trim(), temperature, { refine: true });
     }
   };
 
@@ -70,6 +76,17 @@ function PromptInput({ onSubmit, loading = false, disabled = false, externalProm
           disabled={loading || disabled || !prompt.trim()}
         >
           {loading ? 'BROADCASTING...' : 'BROADCAST'}
+        </button>
+        <button
+          type="button"
+          className="refine-button"
+          onClick={handleRefine}
+          disabled={loading || disabled || !prompt.trim() || !hasHistory}
+          title={hasHistory
+            ? 'Resend with prior conversation as context'
+            : 'Submit at least one prompt first to enable refine'}
+        >
+          REFINE
         </button>
       </div>
     </form>

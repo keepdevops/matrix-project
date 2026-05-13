@@ -430,6 +430,31 @@ h1 {
   cursor: not-allowed;
 }
 
+.refine-button {
+  background: transparent;
+  color: #00ff41;
+  border: 1px solid #00ff41;
+  padding: 9px 22px;
+  margin-left: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.refine-button:hover:not(:disabled) {
+  background: rgba(0, 255, 65, 0.15);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.35);
+}
+
+.refine-button:disabled {
+  border-color: #444;
+  color: #666;
+  cursor: not-allowed;
+}
+
 /* ========== Error Banner ========== */
 .error-banner {
   background: rgba(255, 75, 43, 0.1);

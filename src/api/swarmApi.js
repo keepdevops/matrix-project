@@ -44,11 +44,14 @@ function normalizeArchitectResponse(raw) {
   return { mode: null, agents: raw || {}, final: null, meta: {} };
 }
 
-export async function submitPrompt(prompt, temperature = 0.2) {
+export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
+  const body = { prompt, temperature };
+  if (opts.refine) body.refine = true;
+  if (opts.session) body.session = opts.session;
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, temperature }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const errorText = await response.text();

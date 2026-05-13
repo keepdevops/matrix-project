@@ -160,6 +160,21 @@ void MemoryManager::append_turn(const std::string& session_id,
     state->append(entry);
     persist(session_id, *state);
 
+    // Skip compression entirely if the configured summarizer agent isn't
+    // part of the deployed swarm. Without this guard, check_and_isolate
+    // sets compression_pending=true, the worker dequeues, find_agent fails,
+    // and we cancel — repeating every turn. Log once so the operator knows
+    // memory will accumulate uncompressed.
+    if (!find_agent(state->cfg.summarizer_agent)) {
+        if (!summarizer_warned_.exchange(true)) {
+            std::cerr << "⚠️  [memory] summarizer agent '"
+                      << state->cfg.summarizer_agent
+                      << "' is not in the active swarm; running without "
+                      << "background compression (recent[] will grow).\n";
+        }
+        return;
+    }
+
     std::string prompt;
     std::uint64_t version = 0;
     if (!state->check_and_isolate(prompt, version)) return;
@@ -173,6 +188,54 @@ void MemoryManager::append_turn(const std::string& session_id,
 
 json MemoryManager::snapshot_json(const std::string& session_id) {
     return get_or_create(session_id)->snapshot_json();
+}
+
+namespace {
+std::string truncate(const std::string& s, std::size_t cap) {
+    if (s.size() <= cap) return s;
+    return s.substr(0, cap) + "…";
+}
+}  // namespace
+
+std::string MemoryManager::format_context_preamble(
+        const std::string& session_id,
+        std::size_t max_recent_turns,
+        std::size_t max_chars_per_response) {
+    auto snap = get_or_create(session_id)->load_snapshot();
+    if (snap->summary.empty() && snap->history.empty()) return "";
+
+    std::ostringstream out;
+    out << "[Prior conversation — session \"" << session_id << "\"]\n";
+    if (!snap->summary.empty()) {
+        out << "Summary: " << snap->summary << "\n\n";
+    }
+
+    const auto& h = snap->history;
+    std::size_t start = (h.size() > max_recent_turns) ? h.size() - max_recent_turns : 0;
+    for (std::size_t i = start; i < h.size(); ++i) {
+        const auto& entry = h[i];
+        std::string prior_prompt = entry.value("prompt", std::string{});
+        out << "Turn " << (i + 1) << " (prompt: \""
+            << truncate(prior_prompt, 120) << "\"):\n";
+
+        // Prefer the final answer if present; otherwise list each agent's reply.
+        if (entry.contains("_final") && entry["_final"].is_string()) {
+            out << "  " << truncate(entry["_final"].get<std::string>(),
+                                    max_chars_per_response) << "\n";
+        } else {
+            for (auto it = entry.begin(); it != entry.end(); ++it) {
+                const std::string& k = it.key();
+                if (k == "prompt" || k == "temperature" || k == "timestamp"
+                    || k == "_final" || k == "_mode") continue;
+                if (!it.value().is_string()) continue;
+                out << "  " << k << ": "
+                    << truncate(it.value().get<std::string>(), max_chars_per_response)
+                    << "\n";
+            }
+        }
+        out << "\n";
+    }
+    return out.str();
 }
 
 void MemoryManager::worker_loop() {
@@ -192,9 +255,12 @@ void MemoryManager::worker_loop() {
 
         const Agent* agent = find_agent(state->cfg.summarizer_agent);
         if (!agent) {
-            std::cerr << "❌ [memory] summarizer agent '"
-                      << state->cfg.summarizer_agent
-                      << "' not in config; skipping compression\n";
+            // Build the full message before writing so it can't interleave
+            // with concurrent std::cout from request handlers.
+            std::string line = "❌ [memory] summarizer agent '"
+                + state->cfg.summarizer_agent
+                + "' not in config; skipping compression\n";
+            std::cerr << line << std::flush;
             state->cancel_pending();
             continue;
         }
@@ -202,8 +268,9 @@ void MemoryManager::worker_loop() {
         const std::string result =
             call_agent_with_system(*agent, kSummarizerSystem, task.prompt);
         if (looks_like_error(result)) {
-            std::cerr << "❌ [memory] summarizer call failed: "
-                      << result.substr(0, 200) << "\n";
+            std::string line = "❌ [memory] summarizer call failed: "
+                + result.substr(0, 200) + "\n";
+            std::cerr << line << std::flush;
             state->cancel_pending();
             continue;
         }

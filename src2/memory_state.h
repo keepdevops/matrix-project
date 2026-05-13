@@ -84,6 +84,14 @@ public:
 
     nlohmann::json snapshot_json(const std::string& session_id);
 
+    // Render the session's stored summary + most-recent turns as a plain-text
+    // preamble that can be prepended to a refined prompt. Returns "" if the
+    // session has no history. Each prior agent response is truncated to keep
+    // the context manageable.
+    std::string format_context_preamble(const std::string& session_id,
+                                        std::size_t max_recent_turns = 2,
+                                        std::size_t max_chars_per_response = 1500);
+
     // Load any memory_<session>.json files already on disk for the
     // "default" session, and one-time-migrate a legacy flat history.json
     // into that session if present.
@@ -115,4 +123,9 @@ private:
     std::condition_variable queue_cv_;
     std::queue<Task> queue_;
     std::atomic<bool> shutdown_{false};
+    // Tracks whether we've already logged "summarizer agent not deployed".
+    // The summarizer is optional infrastructure: if its agent isn't part of
+    // the active swarm, we degrade quietly — recent[] grows, summary stays
+    // empty — instead of spamming the log on every turn.
+    std::atomic<bool> summarizer_warned_{false};
 };
