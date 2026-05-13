@@ -7,6 +7,7 @@ import {
   fetchModeAgents,
   fetchActiveMode,
 } from '../api/swarmApi';
+import { useSwarmStatus } from '../context/SwarmStatusContext';
 
 // Preset library: named bundles of (mode, agents[], synthesizer?, max_select?).
 // Save current mode state under a name, apply a preset (loads it into the
@@ -15,6 +16,7 @@ import {
 // On apply, dispatches a `mode-roster-changed` window event so sibling panels
 // (ModeRosterPanel) can refetch their config without prop wiring.
 export default function PresetsPanel() {
+  const { online } = useSwarmStatus();
   const [presets, setPresets] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -22,8 +24,9 @@ export default function PresetsPanel() {
   const [savedAt, setSavedAt] = useState(null);
 
   const reload = useCallback(() => {
+    if (!online) return;
     fetchPresets().then(setPresets).catch(e => setError(e.message));
-  }, []);
+  }, [online]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -120,7 +123,11 @@ export default function PresetsPanel() {
       </div>
 
       {presetEntries.length === 0 && (
-        <div className="presets-empty">— no presets yet —</div>
+        <div className="presets-empty">
+          {online
+            ? '— no presets yet —'
+            : 'Backend not running — click LAUNCH SWARM to start.'}
+        </div>
       )}
 
       <div className="presets-list">

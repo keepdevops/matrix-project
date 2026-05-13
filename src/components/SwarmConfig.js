@@ -3,6 +3,8 @@ import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs, fetchAgents }
 import TokenBudgetPanel from './TokenBudgetPanel';
 import ModeRosterPanel from './ModeRosterPanel';
 import PresetsPanel from './PresetsPanel';
+import { useSwarmStatus } from '../context/SwarmStatusContext';
+import { useKvSettings } from '../context/KvSettingsContext';
 import VllmPanel from './VllmPanel';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
@@ -258,6 +260,8 @@ function computeRiskEstimate(roles, selected, roleModels, models) {
 }
 
 export default function SwarmConfig({ onDeployed }) {
+  const { checkStatus } = useSwarmStatus();
+  const { warnPct, critPct, pollSec, setWarnPct, setCritPct, setPollSec } = useKvSettings();
   const [roles, setRoles] = useState([]);
   const [models, setModels] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -397,6 +401,9 @@ export default function SwarmConfig({ onDeployed }) {
     try {
       await configureSwarm(agents);
       setStatus('idle');
+      // Immediately re-check health so consumers gated on `online` (panels,
+      // status badge, etc.) flip true without waiting for the 10s poll tick.
+      checkStatus();
       onDeployed();
     } catch (e) {
       setStatus('error');
@@ -620,6 +627,39 @@ export default function SwarmConfig({ onDeployed }) {
             {riskEstimate.readyAgents === 0 && (
               <div className="swarm-risk-hint">Select agents and models to estimate memory pressure.</div>
             )}
+            <div className="swarm-kv-settings">
+              <div className="swarm-kv-settings-title">KV pressure</div>
+              <label className="swarm-kv-field">
+                <span>Warn at (%)</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={warnPct}
+                  onChange={e => setWarnPct(Number(e.target.value))}
+                />
+              </label>
+              <label className="swarm-kv-field">
+                <span>Critical at (%)</span>
+                <input
+                  type="number"
+                  min={Math.max(2, warnPct + 1)}
+                  max="100"
+                  value={critPct}
+                  onChange={e => setCritPct(Number(e.target.value))}
+                />
+              </label>
+              <label className="swarm-kv-field">
+                <span>Poll interval (s)</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={pollSec}
+                  onChange={e => setPollSec(Number(e.target.value))}
+                />
+              </label>
+            </div>
           </div>
           <div className="swarm-layout">
             {layout.map(s => (

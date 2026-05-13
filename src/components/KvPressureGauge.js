@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { fetchKvPressure } from '../api/swarmApi';
-
-const POLL_MS = 5000;
-
-function colorFor(pct) {
-  if (pct >= 90) return 'var(--kv-crit, #ff4136)';
-  if (pct >= 70) return 'var(--kv-warn, #ffae00)';
-  return 'var(--kv-ok, #00ff41)';
-}
+import { useKvSettings } from '../context/KvSettingsContext';
 
 export default function KvPressureGauge({ online }) {
+  const { warnPct, critPct, pollSec } = useKvSettings();
   const [readings, setReadings] = useState([]);
   const [errored, setErrored] = useState(false);
+
+  const colorFor = pct =>
+    pct >= critPct ? 'var(--kv-crit, #ff4136)' :
+    pct >= warnPct ? 'var(--kv-warn, #ffae00)' :
+                     'var(--kv-ok, #00ff41)';
 
   useEffect(() => {
     if (!online) {
@@ -33,12 +32,12 @@ export default function KvPressureGauge({ online }) {
     };
 
     tick();
-    const id = setInterval(tick, POLL_MS);
+    const id = setInterval(tick, Math.max(1, pollSec) * 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [online]);
+  }, [online, pollSec]);
 
   if (!online) return null;
 

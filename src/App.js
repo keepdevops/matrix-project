@@ -11,6 +11,8 @@ import ModeSelector from './components/ModeSelector';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
 import KvPressureGauge from './components/KvPressureGauge';
 import { extractCodeBlock } from './utils/codeExtractor';
+import { SwarmStatusProvider } from './context/SwarmStatusContext';
+import { KvSettingsProvider } from './context/KvSettingsContext';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode']);
 
@@ -214,6 +216,8 @@ function App() {
   };
 
   return (
+    <SwarmStatusProvider value={{ online, checkStatus }}>
+    <KvSettingsProvider>
     <div className="matrix-container">
       <header>
         <h1>Swarm Matrix v{process.env.REACT_APP_VERSION || 'dev'}</h1>
@@ -316,6 +320,8 @@ function App() {
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>
+    </KvSettingsProvider>
+    </SwarmStatusProvider>
   );
 }
 

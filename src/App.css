@@ -1030,6 +1030,49 @@ h1 {
   margin-top: 3px;
 }
 
+.swarm-kv-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #202833;
+  background: #0a0f14;
+  border-radius: 4px;
+}
+
+.swarm-kv-settings-title {
+  color: #b6c0cd;
+  font-size: 0.74rem;
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+}
+
+.swarm-kv-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #8a97aa;
+  font-size: 0.7rem;
+}
+
+.swarm-kv-field input {
+  width: 56px;
+  padding: 3px 5px;
+  background: #050a0f;
+  border: 1px solid #202833;
+  border-radius: 3px;
+  color: #b6c0cd;
+  font-size: 0.72rem;
+  font-family: inherit;
+}
+
+.swarm-kv-field input:focus {
+  outline: none;
+  border-color: #00ff41;
+}
+
 .swarm-config-offline {
   display: flex;
   flex-direction: column;

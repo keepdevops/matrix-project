@@ -6,6 +6,7 @@ import {
   fetchAgents,
   fetchAgentHealth,
 } from '../api/swarmApi';
+import { useSwarmStatus } from '../context/SwarmStatusContext';
 
 function presetStageOrder(preset, agentNames) {
   const avail = new Set(agentNames);
@@ -36,6 +37,7 @@ function presetStageOrder(preset, agentNames) {
 // Empty roster ⇒ mode falls back to the full deployed roster (except flat,
 // which always uses everyone — server-side filter_agents_for_mode).
 export default function ModeRosterPanel() {
+  const { online } = useSwarmStatus();
   const [modes, setModes] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [available, setAvailable] = useState([]);
@@ -55,6 +57,7 @@ export default function ModeRosterPanel() {
 
   // Poll agent health every 5s. Light enough to be safe; the snapshot is in-memory.
   useEffect(() => {
+    if (!online) return;
     let cancelled = false;
     const tick = () => {
       fetchAgentHealth().then(snap => {
@@ -70,7 +73,7 @@ export default function ModeRosterPanel() {
     tick();
     const id = setInterval(tick, 5000);
     return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  }, [online]);
 
   const tripped = Object.entries(health)
     .filter(([, v]) => v && v.tripped)
@@ -80,6 +83,7 @@ export default function ModeRosterPanel() {
   const [savedAt, setSavedAt] = useState(null);
 
   const loadModes = useCallback(async () => {
+    if (!online) return;
     try {
       const [m, a] = await Promise.all([fetchModes(), fetchAgents()]);
       setModes(m);
@@ -90,7 +94,7 @@ export default function ModeRosterPanel() {
     } catch (e) {
       setError(e.message);
     }
-  }, [activeTab]);
+  }, [activeTab, online]);
 
   useEffect(() => { loadModes(); }, [loadModes]);
 
@@ -106,7 +110,7 @@ export default function ModeRosterPanel() {
   }, [loadModes]);
 
   useEffect(() => {
-    if (!activeTab) return;
+    if (!activeTab || !online) return;
     let cancelled = false;
     (async () => {
       try {
@@ -137,7 +141,7 @@ export default function ModeRosterPanel() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab]);
+  }, [activeTab, online]);
 
   const isPipeline = activeTab === 'pipeline';
 
@@ -238,7 +242,11 @@ export default function ModeRosterPanel() {
       <div className="swarm-config-section" style={{ padding: '0.75rem' }}>
         <div className="swarm-config-title">PER-MODE ROSTER</div>
         <div style={{ opacity: 0.7, fontSize: '0.85rem' }}>
-          {error ? `Error: ${error}` : 'Loading modes…'}
+          {error
+            ? `Error: ${error}`
+            : online
+              ? 'Loading modes…'
+              : 'Backend not running — click LAUNCH SWARM to start.'}
         </div>
       </div>
     );

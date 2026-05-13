@@ -250,6 +250,19 @@ body[data-theme="light"] .swarm-risk-engine,
 body[data-theme="light"] .swarm-risk-math { color: #6a6a75; }
 body[data-theme="light"] .swarm-risk-warn { color: #b45309; }
 
+body[data-theme="light"] .swarm-kv-settings {
+  background: #ffffff;
+  border-color: #d8d6cc;
+}
+body[data-theme="light"] .swarm-kv-settings-title { color: #1a1a1f; }
+body[data-theme="light"] .swarm-kv-field { color: #6a6a75; }
+body[data-theme="light"] .swarm-kv-field input {
+  background: #f6f4ec;
+  border-color: #d8d6cc;
+  color: #1a1a1f;
+}
+body[data-theme="light"] .swarm-kv-field input:focus { border-color: #008c2a; }
+
 /* Offline / errors / logs */
 body[data-theme="light"] .swarm-config-offline {
   background: rgba(193, 49, 31, 0.06);
