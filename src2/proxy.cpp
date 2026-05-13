@@ -281,14 +281,26 @@ int main(int argc, char* argv[]) {
         httplib::Result r;
         std::string ct = req.get_header_value("Content-Type");
         const char* ctype = ct.empty() ? "application/json" : ct.c_str();
+        // req.path strips the query string; reconstruct it so things like
+        // /api/history?format=legacy actually reach the coordinator.
+        std::string target = req.path;
+        if (!req.params.empty()) {
+            target += "?";
+            bool first = true;
+            for (const auto& [k, v] : req.params) {
+                if (!first) target += "&";
+                target += k + "=" + v;
+                first = false;
+            }
+        }
         if (req.method == "POST") {
-            r = coord.Post(req.path.c_str(), req.body, ctype);
+            r = coord.Post(target.c_str(), req.body, ctype);
         } else if (req.method == "PUT") {
-            r = coord.Put(req.path.c_str(), req.body, ctype);
+            r = coord.Put(target.c_str(), req.body, ctype);
         } else if (req.method == "DELETE") {
-            r = coord.Delete(req.path.c_str());
+            r = coord.Delete(target.c_str());
         } else {
-            r = coord.Get(req.path.c_str());
+            r = coord.Get(target.c_str());
         }
         if (r) {
             res.status = r->status;
