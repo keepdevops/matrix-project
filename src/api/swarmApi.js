@@ -2,30 +2,35 @@
  * Swarm Matrix API
  * Browser → Proxy (:3002) → Coordinator (:8000)
  *
- * Set at build time: REACT_APP_API_BASE
- *   - Dev default: http://localhost:3002/api
- *   - Same-origin (nginx): /api
+ * Facade: most call sites import from this module. Helpers live in:
+ *   - apiBase.js     — API_BASE resolution
+ *   - modes.js       — mode + agent CRUD
+ *   - presets.js     — preset CRUD
+ *   - kvPressure.js  — KV-cache pressure polling
  */
 
-function normalizeApiBase() {
-  const raw = process.env.REACT_APP_API_BASE;
-  if (raw === undefined || raw === '') {
-    return 'http://localhost:3002/api';
-  }
-  const trimmed = raw.trim().replace(/\/+$/, '');
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
-  }
-  // Relative e.g. /api
-  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
-}
+import { API_BASE } from './apiBase';
 
-const API_BASE = normalizeApiBase();
+export { API_BASE };
+export {
+  fetchModes,
+  fetchActiveMode,
+  setActiveMode,
+  fetchModeAgents,
+  setModeAgents,
+  setAgentSystemPrompt,
+  setAgentDescription,
+  setAgentTokens,
+  fetchAgentHealth,
+} from './modes';
+export {
+  fetchPresets,
+  savePreset,
+  deletePreset,
+  applyPreset,
+} from './presets';
+export { VLLM_METRIC_PORTS, fetchKvPressure } from './kvPressure';
 
-/**
- * Normalize a coordinator /api/architect response into { mode, agents, final, meta }.
- * Accepts both the envelope shape (new) and the legacy flat-map shape.
- */
 function normalizeArchitectResponse(raw) {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)
       && raw.agents && typeof raw.agents === 'object') {
@@ -36,77 +41,28 @@ function normalizeArchitectResponse(raw) {
       meta: raw.meta || {},
     };
   }
-  // Legacy: coordinator returned {agent_name: text, ...} directly
   return { mode: null, agents: raw || {}, final: null, meta: {} };
 }
 
-/**
- * Submit a prompt to all agents via the coordinator
- */
 export async function submitPrompt(prompt, temperature = 0.2) {
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, temperature }),
   });
-
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`API error (${response.status}): ${errorText}`);
   }
-
-  const raw = await response.json();
-  return normalizeArchitectResponse(raw);
+  return normalizeArchitectResponse(await response.json());
 }
 
-/**
- * List all modes registered on the coordinator.
- * Returns [{ name, description, active }].
- */
-export async function fetchModes() {
-  const response = await fetch(`${API_BASE}/modes`);
-  if (!response.ok) throw new Error(`Failed to fetch modes: ${response.status}`);
-  return response.json();
-}
-
-export async function fetchActiveMode() {
-  const response = await fetch(`${API_BASE}/modes/active`);
-  if (!response.ok) throw new Error(`Failed to fetch active mode: ${response.status}`);
-  const j = await response.json();
-  return j.mode || null;
-}
-
-export async function setActiveMode(name) {
-  const response = await fetch(`${API_BASE}/modes/active`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: name }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to set mode: ${response.status}`);
-  }
-  return response.json();
-}
-
-/**
- * Fetch history of previous prompts and responses
- */
 export async function fetchHistory() {
-  const response = await fetch(`${API_BASE}/history`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch history: ${response.status}`);
-  }
-
+  const response = await fetch(`${API_BASE}/history?format=legacy`);
+  if (!response.ok) throw new Error(`Failed to fetch history: ${response.status}`);
   return response.json();
 }
 
-/**
- * Fetch the list of active agents from the coordinator
- */
 export async function fetchAgents() {
   const response = await fetch(`${API_BASE}/agents`);
   if (!response.ok) throw new Error(`Failed to fetch agents: ${response.status}`);
@@ -115,122 +71,10 @@ export async function fetchAgents() {
 
 export function invalidateModelsCache() { /* no-op: kept for API compatibility */ }
 
-export async function setAgentSystemPrompt(name, systemPrompt) {
-  const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/prompt`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system_prompt: systemPrompt }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to update agent prompt: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function setAgentDescription(name, description) {
-  const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/description`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ description }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to update agent description: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function setAgentTokens(name, { max_tokens, context, read_timeout_secs } = {}) {
-  const body = {};
-  if (Number.isFinite(max_tokens)) body.max_tokens = max_tokens;
-  if (Number.isFinite(context)) body.context = context;
-  if (Number.isFinite(read_timeout_secs)) body.read_timeout_secs = read_timeout_secs;
-  const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/tokens`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to update agent tokens: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function fetchPresets() {
-  const response = await fetch(`${API_BASE}/presets`);
-  if (!response.ok) throw new Error(`Failed to fetch presets: ${response.status}`);
-  return response.json();
-}
-
-export async function savePreset(name, bundle) {
-  const response = await fetch(`${API_BASE}/presets/${encodeURIComponent(name)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(bundle),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to save preset: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function deletePreset(name) {
-  const response = await fetch(`${API_BASE}/presets/${encodeURIComponent(name)}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error(`Failed to delete preset: ${response.status}`);
-  return response.json();
-}
-
-export async function applyPreset(name) {
-  const response = await fetch(`${API_BASE}/presets/${encodeURIComponent(name)}/apply`, { method: 'POST' });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to apply preset: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function fetchAgentHealth() {
-  const response = await fetch(`${API_BASE}/health/agents`);
-  if (!response.ok) throw new Error(`Failed to fetch agent health: ${response.status}`);
-  return response.json();
-}
-
-export async function fetchModeAgents(name) {
-  const response = await fetch(`${API_BASE}/modes/${encodeURIComponent(name)}/agents`);
-  if (!response.ok) throw new Error(`Failed to fetch mode agents: ${response.status}`);
-  return response.json();
-}
-
-export async function setModeAgents(name, agentNames, opts = {}) {
-  const body = { agents: agentNames };
-  if (Number.isInteger(opts.maxSelect)) body.max_select = opts.maxSelect;
-  if (opts.synthesizer !== undefined) body.synthesizer = opts.synthesizer || null;
-  ['variant_policy', 'preset', 'synthesis_policy', 'classifier_policy', 'engine_policy'].forEach(key => {
-    if (opts[key] !== undefined) body[key] = opts[key] || null;
-  });
-  if (Number.isInteger(opts.stage_context_chars)) body.stage_context_chars = opts.stage_context_chars;
-  if (Array.isArray(opts.order)) body.order = opts.order;
-  else if (opts.order === null) body.order = null;
-  const response = await fetch(`${API_BASE}/modes/${encodeURIComponent(name)}/agents`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Failed to set mode agents: ${response.status}`);
-  }
-  return response.json();
-}
-
 /**
- * Fetch available model files from the live proxy scan.
- * Source of truth is whatever is installed on disk + Docker right now;
- * there is no static fallback list. If the proxy is unreachable, surface
- * an explicit error so the UI shows "proxy offline" rather than stale data.
+ * Fetch available model files from the live proxy scan. No static fallback —
+ * if the proxy is unreachable, surface an explicit error so the UI shows
+ * "proxy offline" rather than stale data.
  */
 export async function fetchModels() {
   let response;
@@ -249,8 +93,8 @@ export async function fetchModels() {
 }
 
 /**
- * Fetch base swarm role definitions from swarm-config.json.
- * Falls back to /swarm-config.json (public static) when the proxy is unreachable.
+ * Fetch base swarm role definitions. Falls back to /swarm-config.json
+ * (public static) when the proxy is unreachable.
  */
 export async function fetchSwarmConfig() {
   try {
@@ -264,12 +108,11 @@ export async function fetchSwarmConfig() {
   return fallback.json();
 }
 
-/** Timeout for configure (server waits up to 240s; allow a bit more for slow responses) */
-const CONFIGURE_TIMEOUT_MS = 270000;
+/** Server health budget is 360s, plus model warmup, coordinator start, and config-write
+ *  overhead — large GGUFs (Codestral-22B) regularly need >6 min on cold start. */
+const CONFIGURE_TIMEOUT_MS = 600000;
+const CONFIGURE_TIMEOUT_LABEL = '10 min';
 
-/**
- * Deploy a swarm configuration — starts llama-servers and coordinator
- */
 export async function configureSwarm(agents) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), CONFIGURE_TIMEOUT_MS);
@@ -290,7 +133,7 @@ export async function configureSwarm(agents) {
     return response.json();
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error('Launch timed out (4.5 min). Check logs in CONFIGURE or project logs/ and try again.');
+      throw new Error(`Launch timed out (${CONFIGURE_TIMEOUT_LABEL}). Check logs in CONFIGURE or project logs/ and try again.`);
     }
     throw e;
   } finally {
@@ -298,57 +141,12 @@ export async function configureSwarm(agents) {
   }
 }
 
-/** Default vLLM ports — keep in sync with VllmPanel. */
-export const VLLM_METRIC_PORTS = [8080, 8081, 8082, 8083];
-
-/**
- * Fetch KV-cache pressure (0..1) from each port's Prometheus /metrics endpoint.
- * Supports both vLLM (`vllm:gpu_cache_usage_perc`) and llama.cpp servers
- * launched with `--metrics` (`llamacpp:kv_cache_usage_ratio`).
- * Returns one entry per port; entries with ok:false mean "no data".
- */
-const KV_METRIC_PATTERNS = [
-  /^vllm:gpu_cache_usage_perc(?:\{[^}]*\})?\s+([\d.eE+-]+)/m,
-  /^llamacpp:kv_cache_usage_ratio(?:\{[^}]*\})?\s+([\d.eE+-]+)/m,
-];
-
-export async function fetchKvPressure(ports = VLLM_METRIC_PORTS) {
-  return Promise.all(ports.map(async (port) => {
-    try {
-      const res = await fetch(`http://localhost:${port}/metrics`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const text = await res.text();
-      let usage = null;
-      let backend = null;
-      for (const re of KV_METRIC_PATTERNS) {
-        const m = text.match(re);
-        if (m) {
-          usage = Number(m[1]);
-          backend = re === KV_METRIC_PATTERNS[0] ? 'vllm' : 'llama';
-          break;
-        }
-      }
-      const ok = usage !== null && Number.isFinite(usage);
-      return { port, usage: ok ? usage : null, backend, ok };
-    } catch (e) {
-      console.error(`KV pressure fetch failed for :${port}:`, e);
-      return { port, usage: null, backend: null, ok: false, error: e.message };
-    }
-  }));
-}
-
-/**
- * Clear KV cache on all agents
- */
 export async function clearCache() {
   const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
   if (!response.ok) throw new Error(`Clear cache failed: ${response.status}`);
   return response.json();
 }
 
-/**
- * Check if the coordinator is healthy/online
- */
 export async function checkHealth() {
   try {
     const response = await fetch(`${API_BASE}/health`);
@@ -358,9 +156,7 @@ export async function checkHealth() {
   }
 }
 
-/**
- * Fetch last lines of server logs (e.g. for MLX ports when launch fails)
- */
+/** Fetch last lines of server logs (e.g. for MLX ports when launch fails). */
 export async function fetchLogs(ports) {
   if (!ports?.length) return { logs: [] };
   const q = ports.join(',');
@@ -369,7 +165,7 @@ export async function fetchLogs(ports) {
   return response.json();
 }
 
-/** Timeout slightly over the script's internal 600s health-check window */
+/** Slightly over the script's internal 600s health-check window. */
 const VLLM_START_TIMEOUT_MS = 620_000;
 
 /**

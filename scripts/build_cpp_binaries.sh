@@ -14,6 +14,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$ROOT/src2/coordinator_extras.cpp" \
    "$ROOT/src2/agent_client.cpp" \
    "$ROOT/src2/matrix_env.cpp" \
+   "$ROOT/src2/memory_state.cpp" \
    "$ROOT/src2/pressure.cpp" \
    $ROOT/src2/modes/*.cpp \
    -pthread
@@ -24,6 +25,7 @@ echo "Building proxy..."
 c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$ROOT/src2/proxy.cpp" \
   "$ROOT/src2/proxy_configure.cpp" \
+  "$ROOT/src2/proxy_port_groups.cpp" \
   "$ROOT/src2/proxy_validate.cpp" \
   "$ROOT/src2/matrix_env.cpp" \
   -pthread

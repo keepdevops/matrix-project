@@ -1,4 +1,5 @@
 #include "proxy_configure.h"
+#include "proxy_port_groups.h"
 #include "proxy_validate.h"
 #include "matrix_env.h"
 #include "httplib.h"
@@ -76,89 +77,6 @@ void spawn_detached(const std::string& bin,
     close(fd);
 }
 
-static const int DOCKER_PORT = 12434;
-
-// ── wait_for_health ──────────────────────────────────────────────────────────
-
-struct PortGroup {
-    std::string model, backend;
-    int context = 0, gpu_layers = 0;
-    float gpu_mem_util = 0.75f;
-    std::vector<std::string> names;
-};
-
-static std::vector<int> wait_for_health(
-    const std::map<int, PortGroup>& pgs,
-    int timeout_secs)
-{
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeout_secs);
-    auto check = [&]() -> std::vector<int> {
-        std::vector<int> failed;
-        for (const auto& [port, g] : pgs) {
-            const char* path = (g.backend == "mlx" || g.backend == "docker"
-                            || g.backend == "vllm" || g.backend == "docker-vllm")
-                           ? "/v1/models" : "/health";
-            try {
-                httplib::Client cli("127.0.0.1", port);
-                cli.set_connection_timeout(5);
-                cli.set_read_timeout(30);
-                auto r = cli.Get(path);
-                if (!r || r->status != 200) failed.push_back(port);
-            } catch (...) { failed.push_back(port); }
-        }
-        return failed;
-    };
-    while (std::chrono::steady_clock::now() < deadline) {
-        if (check().empty()) return {};
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-    }
-    return check();
-}
-
-// ── check_docker_model_runner ─────────────────────────────────────────────────
-
-// Pre-flight check for the "docker" backend (Docker Desktop Model Runner).
-// Probes port 12434 with a short timeout and verifies the model is already loaded.
-// Returns "" on success, error string on failure.
-static std::string check_docker_model_runner(const std::string& model) {
-    if (model.empty())
-        return "docker agent requires a non-empty model field"
-               "\n  (e.g. ai/meta-llama-3.2-3b-instruct:Q8_0-F32)";
-
-    httplib::Client cli("127.0.0.1", DOCKER_PORT);
-    cli.set_connection_timeout(3);
-    cli.set_read_timeout(3);
-    auto r = cli.Get("/v1/models");
-    if (!r || r->status != 200)
-        return "Docker Model Runner is not running on port "
-             + std::to_string(DOCKER_PORT)
-             + ".\n  Start it with: docker model run " + model
-             + "\n  Then relaunch the swarm.";
-
-    // Check if the requested model appears in the loaded model list.
-    // Use substring match to handle tag variants (e.g. ":Q8_0-F32" suffixes).
-    const std::string& body = r->body;
-    if (body.find(model) != std::string::npos) return "";
-
-    // Model not found — collect loaded model IDs for a helpful error.
-    std::string loaded;
-    try {
-        json j = json::parse(body);
-        if (j.contains("data") && j["data"].is_array()) {
-            for (const auto& m : j["data"]) {
-                if (m.contains("id") && m["id"].is_string()) {
-                    if (!loaded.empty()) loaded += ", ";
-                    loaded += m["id"].get<std::string>();
-                }
-            }
-        }
-    } catch (...) {}
-
-    return "Model '" + model + "' is not loaded in Docker Model Runner."
-         + "\n  Run: docker model run " + model
-         + (loaded.empty() ? "" : "\n  Currently loaded: " + loaded);
-}
-
 // ── handle_configure ─────────────────────────────────────────────────────────
 
 ConfigureResult handle_configure(const json& request_body, const std::string& proj) {
@@ -183,12 +101,11 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         std::string key;
         int fixed_port = a.contains("port") ? a["port"].get<int>() : -1;
         if (bk == "docker") key = "docker:shared";
-        else if (bk == "docker-vllm" && fixed_port > 0) key = "docker-vllm:" + std::to_string(fixed_port);
-        else if ((bk == "mlx" || bk == "vllm") && fixed_port > 0) key = bk + ":" + std::to_string(fixed_port);
+        else if (fixed_port > 0) key = bk + ":" + std::to_string(fixed_port);
         else key = bk + ":" + model + ":" + sg;
         if (!key_to_port.count(key)) {
             if (bk == "docker") key_to_port[key] = DOCKER_PORT;
-            else if ((bk == "docker-vllm" || bk == "mlx" || bk == "vllm") && fixed_port > 0) key_to_port[key] = fixed_port;
+            else if (fixed_port > 0) key_to_port[key] = fixed_port;
             else key_to_port[key] = next_port++;
         }
         int port = key_to_port[key];
@@ -199,7 +116,18 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         // inference to exceed read_timeout on large models like Codestral-22B.
         int default_gpu_layers = (bk == "llama") ? 99 : 0;
         if (g.model.empty()) g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}};
-        else g.context = std::max(g.context, a["context"].get<int>());
+        else {
+            if (g.model != model || g.backend != bk) {
+                std::cerr << "[Configure] Port " << port << " collision: '"
+                          << g.model << "' (" << g.backend << ") vs '"
+                          << model << "' (" << bk << ") — using first.\n";
+                return {false, 400, {{"error",
+                    "Port " + std::to_string(port) + " is assigned to two different models/backends: '"
+                    + g.model + "' (" + g.backend + ") and '" + model + "' (" + bk
+                    + "). Assign distinct ports per (model, backend)."}}};
+            }
+            g.context = std::max(g.context, a["context"].get<int>());
+        }
         g.names.push_back(a["name"].get<std::string>());
     }
 
@@ -311,7 +239,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     }
 
     // docker-vllm cold-starts take 1–3 min per model; use 600 s when any are present
-    int health_timeout = 240;
+    int health_timeout = 360;
     for (const auto& kv : pgs) {
         if (kv.second.backend == "docker-vllm") { health_timeout = 600; break; }
     }
