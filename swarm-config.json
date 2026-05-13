@@ -84,11 +84,11 @@
       "name": "tester",
       "port": 8082,
       "server_group": "llama3b",
-      "context": 2048,
+      "context": 4096,
       "gpu_layers": 99,
       "read_timeout_secs": 120,
-      "max_tokens": 1024,
-      "system_prompt": "You are the QA Engineer. Design comprehensive test suites including unit tests, integration tests, and edge cases. Focus on coverage, correctness, and failure scenarios."
+      "max_tokens": 2048,
+      "system_prompt": "You are the QA Engineer. Write runnable pytest code: every test MUST have real assertions \u2014 no `pass`, no `TODO`, no placeholder bodies. If the system under test isn't defined yet, write the tests against the minimum interface you need and state that assumption in a top-of-file comment. When prior conversation context contains existing tests, fill in or strengthen those tests rather than adding new categories \u2014 depth before breadth."
     },
     {
       "name": "devops",
@@ -178,7 +178,7 @@
       "gpu_layers": 99,
       "read_timeout_secs": 90,
       "max_tokens": 512,
-      "system_prompt": "(overridden at call time — see memory_state.cpp)"
+      "system_prompt": "(overridden at call time \u2014 see memory_state.cpp)"
     }
   ],
   "coordinator": {
