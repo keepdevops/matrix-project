@@ -173,7 +173,8 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     std::map<int, PortGroup> pgs;
 
     for (auto& a : agents) {
-        std::string model = a["model"].get<std::string>();
+        std::string model = resolve_model_path(a["model"].get<std::string>(), g_env.model_dir);
+        a["model"] = model;
         std::string sg    = a.value("server_group", "");
         std::string bk    = a.value("backend",
                               std::string(ends_with_gguf(model) ? "llama" : "mlx"));

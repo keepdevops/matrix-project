@@ -89,3 +89,12 @@ void matrix_env_init(const std::string& project_root) {
     g_env.proxy_port = getenv_int("MATRIX_PROXY_PORT", 3002);
     g_env.coordinator_port = getenv_int("MATRIX_COORDINATOR_PORT", 8000);
 }
+
+std::string resolve_model_path(const std::string& model, const std::string& base_dir) {
+    if (model.empty()) return model;
+    if (model[0] == '/' || model[0] == '~') return model;
+    if (base_dir.empty()) return model;
+    std::string b = base_dir;
+    if (b.back() == '/') b.pop_back();
+    return b + "/" + model;
+}

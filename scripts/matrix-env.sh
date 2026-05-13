@@ -14,6 +14,8 @@ if [[ -n "${MATRIX_MODEL_DIR:-}" ]]; then
   MODEL_DIR="$MATRIX_MODEL_DIR"
 elif [[ "$OS" == "Darwin" ]]; then
   MODEL_DIR="/Users/Shared/llama/models"
+else
+  MODEL_DIR="${HOME}/.local/share/llama/models"
 fi
 
 

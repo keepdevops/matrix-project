@@ -19,3 +19,9 @@ extern MatrixEnv g_env;
 
 /** Call once at startup after project_root is known (directory containing swarm-config.json). */
 void matrix_env_init(const std::string& project_root);
+
+/** Resolve a swarm-config `model` field: absolute paths and `~`-prefixed paths
+ *  pass through; bare filenames are joined against `base_dir`. Returns `model`
+ *  unchanged if `base_dir` is empty so callers without a configured model dir
+ *  still get sane behavior. */
+std::string resolve_model_path(const std::string& model, const std::string& base_dir);

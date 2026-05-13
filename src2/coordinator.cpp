@@ -2,9 +2,11 @@
 #include "json.hpp"
 #include "agent.h"
 #include "agent_client.h"
+#include "matrix_env.h"
 #include "modes/mode.h"
 
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <future>
 #include <iostream>
@@ -77,7 +79,8 @@ int main(int argc, char* argv[]) {
             a["system_prompt"].get<std::string>(),
             backend_val,
             engine,
-            a.value("model", "")
+            resolve_model_path(a.value("model", ""),
+                               std::getenv("MATRIX_MODEL_DIR") ? std::getenv("MATRIX_MODEL_DIR") : "")
         });
     }
     init_mlx_port_locks(agents);
