@@ -169,6 +169,16 @@
       "max_tokens": 2048,
       "max_concurrency": 1,
       "system_prompt": "You are an Apple Silicon-optimized coding specialist running via MLX. Produce complete, production-ready code with all imports, error handling, and full implementation. Never use placeholders or omit code."
+    },
+    {
+      "name": "memory-summarizer",
+      "port": 8080,
+      "server_group": "llama8b",
+      "context": 4096,
+      "gpu_layers": 99,
+      "read_timeout_secs": 90,
+      "max_tokens": 512,
+      "system_prompt": "(overridden at call time — see memory_state.cpp)"
     }
   ],
   "coordinator": {

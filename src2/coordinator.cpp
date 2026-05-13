@@ -3,16 +3,19 @@
 #include "agent.h"
 #include "agent_client.h"
 #include "matrix_env.h"
+#include "memory_state.h"
 #include "modes/mode.h"
 #include "coordinator_extras.h"
 
+#include <atomic>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <fstream>
 #include <future>
 #include <iostream>
 #include <map>
-#include <mutex>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,33 +23,17 @@
 using json = nlohmann::json;
 
 static std::vector<Agent> agents;
-
-static std::vector<json> history;
-static std::mutex history_mutex;
-static std::string history_path;
+static std::unique_ptr<MemoryManager> g_memory;
 
 // Per-mode config map from swarm-config.json (coordinator.modes), passed to
 // each mode invocation so mode-specific options live with the mode.
 static json modes_config = json::object();
 
-static void load_history() {
-    std::ifstream f(history_path);
-    if (!f.is_open()) return;
-    try {
-        json arr = json::parse(f);
-        if (arr.is_array()) history = arr.get<std::vector<json>>();
-    } catch (const std::exception& e) {
-        std::cerr << "❌ Failed to parse history: " << e.what() << std::endl;
-    }
-}
-
-static void save_history() {
-    std::ofstream f(history_path);
-    if (!f.is_open()) {
-        std::cerr << "❌ Failed to open history file for writing: " << history_path << std::endl;
-        return;
-    }
-    f << json(history).dump(2);
+// SIGINT/SIGTERM hook: stops the httplib server so listen() returns and
+// destructors (including g_memory's worker join) run on the main thread.
+static std::atomic<httplib::Server*> g_svr{nullptr};
+static void on_signal(int) {
+    if (auto* s = g_svr.load()) s->stop();
 }
 
 int main(int argc, char* argv[]) {
@@ -57,9 +44,6 @@ int main(int argc, char* argv[]) {
             i++;
         }
     }
-
-    history_path = config_path.substr(0, config_path.rfind('/') + 1) + "history.json";
-    if (history_path == "history.json") history_path = "history.json";
 
     std::ifstream config_file(config_path);
     if (!config_file.is_open()) {
@@ -87,6 +71,20 @@ int main(int argc, char* argv[]) {
     init_mlx_port_locks(agents);
     std::cout << "✅ Loaded " << agents.size() << " agents from " << config_path << std::endl;
 
+    // Memory manager — stores per-session conversation history with
+    // background summarization. Storage dir mirrors the legacy history.json
+    // location (alongside the active config).
+    {
+        auto slash = config_path.rfind('/');
+        std::string storage_dir = (slash == std::string::npos)
+            ? std::string(".")
+            : config_path.substr(0, slash);
+        if (storage_dir.empty()) storage_dir = ".";
+        g_memory = std::make_unique<MemoryManager>(storage_dir, agents);
+        g_memory->load_existing();
+        std::cout << "🧠 memory manager online (dir=" << storage_dir << ")" << std::endl;
+    }
+
     // Resolve coordinator.default_mode; fall back to whatever mode registered first.
     if (config.contains("coordinator")) {
         const auto& coord = config["coordinator"];
@@ -103,10 +101,10 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "🧠 active mode: " << modes::active() << std::endl;
 
-    load_history();
-    std::cout << "📜 Loaded " << history.size() << " history entries from " << history_path << std::endl;
-
     httplib::Server svr;
+    g_svr.store(&svr);
+    std::signal(SIGINT, on_signal);
+    std::signal(SIGTERM, on_signal);
 
     // 1. Health
     svr.Get("/api/health", [](const httplib::Request&, httplib::Response& res) {
@@ -127,11 +125,22 @@ int main(int argc, char* argv[]) {
         res.set_content(list.dump(), "application/json");
     });
 
-    // 3. History
-    svr.Get("/api/history", [](const httplib::Request&, httplib::Response& res) {
+    // 3. History — new shape: {summary, recent, version, last_compressed,
+    //    compression_pending}. Pass ?format=legacy (or ?format=array) to get
+    //    the old bare-array shape so existing UI consumers keep working
+    //    until they migrate.
+    svr.Get("/api/history", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        std::lock_guard<std::mutex> lock(history_mutex);
-        res.set_content(json(history).dump(), "application/json");
+        const std::string sid = req.has_param("session")
+            ? req.get_param_value("session") : "default";
+        json full = g_memory->snapshot_json(sid);
+        const std::string fmt = req.has_param("format")
+            ? req.get_param_value("format") : "";
+        if (fmt == "legacy" || fmt == "array") {
+            res.set_content(full["recent"].dump(), "application/json");
+        } else {
+            res.set_content(full.dump(), "application/json");
+        }
     });
 
     // 4. Mode registry — list all modes + active flag
@@ -233,11 +242,7 @@ int main(int argc, char* argv[]) {
             }
             if (envelope.contains("mode")) entry["_mode"] = envelope["mode"];
 
-            {
-                std::lock_guard<std::mutex> lock(history_mutex);
-                history.push_back(entry);
-                save_history();
-            }
+            g_memory->append_turn("default", entry);
 
             res.set_content(envelope.dump(), "application/json");
             std::cout << "✅ [Swarm Matrix] Response sent (mode=" << mode_name << ")" << std::endl;
@@ -309,5 +314,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "🌐 Swarm Matrix coordinator ONLINE (port 8000)" << std::endl;
     svr.listen("0.0.0.0", 8000);
+
+    // listen() returns when on_signal() calls svr.stop(). Drop g_memory
+    // before main exits so its worker joins on the main thread instead of
+    // racing process teardown.
+    g_svr.store(nullptr);
+    g_memory.reset();
+    std::cout << "👋 Swarm Matrix coordinator shut down cleanly" << std::endl;
     return 0;
 }
