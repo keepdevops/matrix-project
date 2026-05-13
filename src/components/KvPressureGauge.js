@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { fetchKvPressure } from '../api/swarmApi';
 import { useKvSettings } from '../context/KvSettingsContext';
 
-export default function KvPressureGauge({ online }) {
-  const { warnPct, critPct, pollSec } = useKvSettings();
+export default function KvPressureGauge({ online, agents = [] }) {
+  const { warnPct, critPct, pollSec, extraPorts } = useKvSettings();
   const [readings, setReadings] = useState([]);
   const [errored, setErrored] = useState(false);
 
@@ -12,19 +12,32 @@ export default function KvPressureGauge({ online }) {
     pct >= warnPct ? 'var(--kv-warn, #ffae00)' :
                      'var(--kv-ok, #00ff41)';
 
+  // Auto-derive deployed-agent ports; merge user-supplied extras.
+  // Sort + dedupe so the effect doesn't re-fire on key reorderings.
+  const portsKey = (() => {
+    const set = new Set();
+    for (const a of agents) {
+      const p = Number(a?.port);
+      if (Number.isInteger(p) && p > 0) set.add(p);
+    }
+    for (const p of extraPorts) set.add(p);
+    return [...set].sort((x, y) => x - y).join(',');
+  })();
+
   useEffect(() => {
     if (!online) {
       setReadings([]);
       return undefined;
     }
     let cancelled = false;
+    const ports = portsKey ? portsKey.split(',').map(Number) : [];
 
     const tick = async () => {
       try {
-        const data = await fetchKvPressure();
+        const data = ports.length ? await fetchKvPressure(ports) : [];
         if (cancelled) return;
         setReadings(data);
-        setErrored(data.every(r => !r.ok));
+        setErrored(data.length > 0 && data.every(r => !r.ok));
       } catch (err) {
         console.error('KV pressure poll failed:', err);
         if (!cancelled) setErrored(true);
@@ -37,7 +50,7 @@ export default function KvPressureGauge({ online }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [online, pollSec]);
+  }, [online, pollSec, portsKey]);
 
   if (!online) return null;
 

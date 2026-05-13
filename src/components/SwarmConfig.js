@@ -261,7 +261,11 @@ function computeRiskEstimate(roles, selected, roleModels, models) {
 
 export default function SwarmConfig({ onDeployed }) {
   const { checkStatus } = useSwarmStatus();
-  const { warnPct, critPct, pollSec, setWarnPct, setCritPct, setPollSec } = useKvSettings();
+  const {
+    warnPct, critPct, pollSec, extraPorts,
+    setWarnPct, setCritPct, setPollSec, setExtraPorts,
+  } = useKvSettings();
+  const [extraPortsDraft, setExtraPortsDraft] = useState(extraPorts.join(', '));
   const [roles, setRoles] = useState([]);
   const [models, setModels] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -657,6 +661,19 @@ export default function SwarmConfig({ onDeployed }) {
                   max="60"
                   value={pollSec}
                   onChange={e => setPollSec(Number(e.target.value))}
+                />
+              </label>
+              <label
+                className="swarm-kv-field swarm-kv-field--wide"
+                title="Extra ports to scrape, comma-separated. Added to the auto-derived deployed-agent ports. Useful for docker model runner (12434), ad-hoc vLLM, etc."
+              >
+                <span>Monitor ports</span>
+                <input
+                  type="text"
+                  placeholder="e.g. 12434, 8090"
+                  value={extraPortsDraft}
+                  onChange={e => setExtraPortsDraft(e.target.value)}
+                  onBlur={() => setExtraPorts(extraPortsDraft)}
                 />
               </label>
             </div>

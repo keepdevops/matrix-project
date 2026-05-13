@@ -236,7 +236,7 @@ function App() {
             onChange={handleModeChange}
             disabled={!online}
           />
-          <KvPressureGauge online={online} />
+          <KvPressureGauge online={online} agents={activeAgents} />
           <button
             className={`cache-button cache-button--${cacheStatus}`}
             onClick={handleClearCache}

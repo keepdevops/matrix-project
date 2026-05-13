@@ -1093,6 +1093,10 @@ h1 {
   font-family: inherit;
 }
 
+.swarm-kv-field--wide input {
+  width: 140px;
+}
+
 .swarm-kv-field input:focus {
   outline: none;
   border-color: #00ff41;
