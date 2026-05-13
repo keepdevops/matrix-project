@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchSwarmConfig, fetchModels, configureSwarm, fetchLogs, fetchAgents } from '../api/swarmApi';
+import TokenBudgetPanel from './TokenBudgetPanel';
+import ModeRosterPanel from './ModeRosterPanel';
+import PresetsPanel from './PresetsPanel';
 import VllmPanel from './VllmPanel';
 
 const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
@@ -569,6 +572,7 @@ export default function SwarmConfig({ onDeployed }) {
               </div>
             ))}
           </div>
+          <TokenBudgetPanel roles={roles} onRolesChange={setRoles} selected={selected} />
         </div>
 
         {/* Right: server layout preview */}
@@ -661,6 +665,9 @@ export default function SwarmConfig({ onDeployed }) {
           {status === 'deploying' && (
             <div className="swarm-config-deploying">{statusMsg}</div>
           )}
+
+          <ModeRosterPanel />
+          <PresetsPanel />
 
           <button
             className={`swarm-deploy-btn ${status}`}

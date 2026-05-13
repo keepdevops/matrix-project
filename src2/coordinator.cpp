@@ -4,6 +4,7 @@
 #include "agent_client.h"
 #include "matrix_env.h"
 #include "modes/mode.h"
+#include "coordinator_extras.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -294,6 +295,9 @@ int main(int argc, char* argv[]) {
         res.set_content(results.dump(), "application/json");
         std::cout << "✅ [Swarm Matrix] KV cache clear complete" << std::endl;
     });
+
+    // Register extension routes (agent tokens/prompt edits, presets, rosters)
+    register_extras_routes(svr, agents, config_path);
 
     // 7. CORS preflight
     svr.Options(R"(/api/.*)", [](const httplib::Request&, httplib::Response& res) {
