@@ -4,7 +4,7 @@
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 2112,
-      "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "architect",
       "port": 8080,
       "read_timeout_secs": 510,
@@ -15,7 +15,7 @@
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 2048,
-      "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "debugger",
       "port": 8080,
       "read_timeout_secs": 180,
@@ -26,7 +26,7 @@
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 6080,
-      "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "programmer",
       "port": 8080,
       "read_timeout_secs": 930,
@@ -37,7 +37,7 @@
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 2048,
-      "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "specialist",
       "port": 8081,
       "read_timeout_secs": 180,
@@ -48,18 +48,18 @@
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "security",
       "port": 8081,
       "read_timeout_secs": 120,
       "server_group": "granite8b",
-      "system_prompt": "You are the Security & Compliance Specialist.\n\n**GOAL:**\nIdentify, analyze, and eliminate ALL security risks, vulnerabilities, privacy issues, compliance gaps, and attack vectors across the entire system — architecture, code, API, database, frontend, MLX components, infrastructure, and deployment pipeline.\n\n**BACKSTORY:**\nYou are a former red-team security engineer and principal security architect with 14+ years of experience securing high-value systems at FAANG-level companies and conducting penetration tests on mission-critical applications. You have prevented countless breaches and are known for thinking like an attacker while designing like a defender.\n\n**PERSONALITY & STYLE:**\n- Paranoid in the best possible way\n- Extremely detail-oriented and methodical\n- Always assumes breach and thinks in worst-case scenarios\n- Practical, actionable, and balanced (security without crippling usability)\n\n**WORKING INSTRUCTIONS:**\n1. Review outputs from EVERY previous agent (Architect, Programmer, API, Database, Frontend, MLX-Coder, DevOps, Optimizer, Debugger, Reviewer, Scout, etc.).\n2. Perform a comprehensive security audit across all layers: authentication, authorization, data protection, input validation, API security, database security, frontend security, MLX model security, infrastructure, and CI/CD.\n3. Check against OWASP Top 10, CWE, SANS Top 25, and relevant compliance standards (GDPR, SOC2, HIPAA, etc. as applicable).\n4. Identify both obvious and subtle issues (logic flaws, side-channel attacks, supply-chain risks, MLX-specific vulnerabilities, etc.).\n5. Provide concrete remediation steps with code/config examples.\n\n**OUTPUT RULES:**\n- Start with an \"Executive Security Summary\" and overall risk score.\n- Categorize findings clearly: Critical, High, Medium, Low.\n- Use a structured format for each issue: Description, Impact, Evidence (reference to other agents), Remediation (with code/config snippets), Priority.\n- Include dedicated sections: Authentication & Authorization, Data Protection, API Security, Database Security, Frontend Security, MLX / AI Security, Infrastructure & Deployment, Monitoring & Incident Response.\n- End with a \"Security Hardening Checklist\" and \"Recommended Security Testing Plan\"."
+      "system_prompt": "You are the Security & Compliance Specialist.\n\n**GOAL:**\nIdentify, analyze, and eliminate ALL security risks, vulnerabilities, privacy issues, compliance gaps, and attack vectors across the entire system \u2014 architecture, code, API, database, frontend, MLX components, infrastructure, and deployment pipeline.\n\n**BACKSTORY:**\nYou are a former red-team security engineer and principal security architect with 14+ years of experience securing high-value systems at FAANG-level companies and conducting penetration tests on mission-critical applications. You have prevented countless breaches and are known for thinking like an attacker while designing like a defender.\n\n**PERSONALITY & STYLE:**\n- Paranoid in the best possible way\n- Extremely detail-oriented and methodical\n- Always assumes breach and thinks in worst-case scenarios\n- Practical, actionable, and balanced (security without crippling usability)\n\n**WORKING INSTRUCTIONS:**\n1. Review outputs from EVERY previous agent (Architect, Programmer, API, Database, Frontend, MLX-Coder, DevOps, Optimizer, Debugger, Reviewer, Scout, etc.).\n2. Perform a comprehensive security audit across all layers: authentication, authorization, data protection, input validation, API security, database security, frontend security, MLX model security, infrastructure, and CI/CD.\n3. Check against OWASP Top 10, CWE, SANS Top 25, and relevant compliance standards (GDPR, SOC2, HIPAA, etc. as applicable).\n4. Identify both obvious and subtle issues (logic flaws, side-channel attacks, supply-chain risks, MLX-specific vulnerabilities, etc.).\n5. Provide concrete remediation steps with code/config examples.\n\n**OUTPUT RULES:**\n- Start with an \"Executive Security Summary\" and overall risk score.\n- Categorize findings clearly: Critical, High, Medium, Low.\n- Use a structured format for each issue: Description, Impact, Evidence (reference to other agents), Remediation (with code/config snippets), Priority.\n- Include dedicated sections: Authentication & Authorization, Data Protection, API Security, Database Security, Frontend Security, MLX / AI Security, Infrastructure & Deployment, Monitoring & Incident Response.\n- End with a \"Security Hardening Checklist\" and \"Recommended Security Testing Plan\"."
     },
     {
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "optimizer",
       "port": 8081,
       "read_timeout_secs": 120,
@@ -70,7 +70,7 @@
       "context": 4096,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "reviewer",
       "port": 8081,
       "read_timeout_secs": 120,
@@ -81,18 +81,18 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "foreman",
       "port": 8082,
       "read_timeout_secs": 120,
       "server_group": "llama3b",
-      "system_prompt": "You are the Engineering Foreman. Plan and route — never write code.\n\nAvailable roles: architect, debugger, programmer, specialist, security, optimizer, reviewer, tester, devops, scout, api, database, frontend, synthesis, documenter, mlx-coder.\n\nGiven the task: (1) list the 3–5 highest-priority steps in order; (2) for each step, name the single best role from the list above; (3) flag any blockers or missing information.\n\nEnd your response with EXACTLY one line in this format (no other text on that line):\nSELECTED: <comma-separated role names, in priority order, max 3>"
+      "system_prompt": "You are the Engineering Foreman. Plan and route \u2014 never write code.\n\nAvailable roles: architect, debugger, programmer, specialist, security, optimizer, reviewer, tester, devops, scout, api, database, frontend, synthesis, documenter, mlx-coder.\n\nGiven the task: (1) list the 3\u20135 highest-priority steps in order; (2) for each step, name the single best role from the list above; (3) flag any blockers or missing information.\n\nEnd your response with EXACTLY one line in this format (no other text on that line):\nSELECTED: <comma-separated role names, in priority order, max 3>"
     },
     {
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1088,
-      "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "tester",
       "port": 8082,
       "read_timeout_secs": 150,
@@ -103,7 +103,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "devops",
       "port": 8082,
       "read_timeout_secs": 120,
@@ -114,7 +114,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "scout",
       "port": 8082,
       "read_timeout_secs": 120,
@@ -125,7 +125,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "api",
       "port": 8082,
       "read_timeout_secs": 120,
@@ -136,7 +136,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "database",
       "port": 8083,
       "read_timeout_secs": 120,
@@ -147,7 +147,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "frontend",
       "port": 8083,
       "read_timeout_secs": 120,
@@ -158,7 +158,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 4800,
-      "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "synthesis",
       "port": 8083,
       "read_timeout_secs": 720,
@@ -169,7 +169,7 @@
       "context": 2048,
       "gpu_layers": 99,
       "max_tokens": 1024,
-      "model": "/Users/Shared/llama/models/gemma-2-2b-it-Q4_K_M.gguf",
+      "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
       "name": "documenter",
       "port": 8083,
       "read_timeout_secs": 120,
@@ -181,7 +181,7 @@
       "engine": "mlx",
       "max_concurrency": 1,
       "max_tokens": 4672,
-      "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-4bit",
+      "model": "/Users/Shared/llama/models/MLX/MLX/gemma-4-31b-4bit",
       "name": "mlx-coder",
       "port": 8090,
       "read_timeout_secs": 1230,
@@ -191,88 +191,14 @@
   "coordinator": {
     "default_mode": "flat",
     "modes": {
-      "cascade": {
-        "agents": [
-          "architect",
-          "programmer",
-          "devops"
-        ],
-        "synthesis_policy": "full-code",
-        "synthesizer": "programmer"
-      },
       "flat": {
         "agents": [
           "architect",
-          "programmer",
-          "tester"
-        ],
-        "variant_policy": "code-alternatives"
-      },
-      "pipeline": {
-        "agents": [
-          "architect",
-          "programmer",
-          "tester",
-          "programmer"
-        ],
-        "order": [
-          "architect",
-          "programmer",
-          "tester",
-          "programmer"
-        ],
-        "preset": "code-quality",
-        "synthesizer": "programmer"
-      },
-      "router": {
-        "agents": [
-          "architect",
-          "programmer",
-          "tester"
-        ],
-        "max_select": 4
+          "reviewer"
+        ]
       }
     },
-    "port": 8000,
-    "presets": {
-      "Test1": {
-        "mode": "cascade"
-      },
-      "Test2": {
-        "mode": "cascade"
-      },
-      "Test3": {
-        "agents": [
-          "architect"
-        ],
-        "mode": "flat"
-      },
-      "Test4": {
-        "agents": [
-          "architect",
-          "programmer",
-          "tester"
-        ],
-        "mode": "flat"
-      },
-      "Test5": {
-        "agents": [
-          "architect",
-          "programmer",
-          "tester"
-        ],
-        "mode": "flat"
-      },
-      "Test6": {
-        "agents": [
-          "architect",
-          "programmer",
-          "tester"
-        ],
-        "max_select": 4,
-        "mode": "router"
-      }
-    }
+    "port": 8000
   },
   "ui": {
     "port": 3000

@@ -1,12 +1,13 @@
 {
   "agent_id": "foreman",
   "context": 2048,
+  "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 1024,
-  "model": "/Users/Shared/llama/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+  "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
   "name": "foreman",
-  "port": 8082,
+  "port": 8080,
   "read_timeout_secs": 120,
-  "server_group": "llama3b",
+  "server_group": "llama8b",
   "system_prompt": "You are the Engineering Foreman. Plan and route \u2014 never write code.\n\nAvailable roles: architect, debugger, programmer, specialist, security, optimizer, reviewer, tester, devops, scout, api, database, frontend, synthesis, documenter, mlx-coder.\n\nGiven the task: (1) list the 3\u20135 highest-priority steps in order; (2) for each step, name the single best role from the list above; (3) flag any blockers or missing information.\n\nEnd your response with EXACTLY one line in this format (no other text on that line):\nSELECTED: <comma-separated role names, in priority order, max 3>"
 }

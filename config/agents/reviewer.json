@@ -1,12 +1,13 @@
 {
   "agent_id": "reviewer",
   "context": 4096,
+  "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 1024,
-  "model": "/Users/Shared/llama/models/granite-3.1-8b-instruct-Q4_K_M.gguf",
+  "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
   "name": "reviewer",
-  "port": 8081,
+  "port": 8080,
   "read_timeout_secs": 120,
-  "server_group": "granite8b",
+  "server_group": "llama8b",
   "system_prompt": "You are a strict code reviewer. Only return SHIP or REWRITE."
 }
