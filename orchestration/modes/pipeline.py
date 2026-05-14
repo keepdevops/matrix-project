@@ -5,6 +5,7 @@ import logging
 from typing import AsyncIterator
 
 from backends.base import GenerateRequest
+from ._helpers.rag import build_rag_block
 from .base import Event, ModeContext, OrchestrationMode
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,11 @@ class PipelineMode(OrchestrationMode):
             backend = ctx.backend_for(agent_id)
             yield Event(kind="agent_start", agent_id=agent_id)
 
-            prompt = f"<system>{cfg.system_prompt}</system>\n<input>{running_context}</input>"
+            rag_block = await build_rag_block(query, cfg, ctx)
+            prompt = (
+                f"<system>{cfg.system_prompt}</system>\n"
+                f"{rag_block}\n<input>{running_context}</input>"
+            )
             buf: list[str] = []
             try:
                 async for chunk in backend.generate_stream(

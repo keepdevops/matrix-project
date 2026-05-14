@@ -37,6 +37,10 @@ class ModeContext:
     agents: list[str] = field(default_factory=list)  # subset of swarm participating
     params: dict[str, Any] = field(default_factory=dict)  # mode-specific knobs
     request_id: str = ""
+    # Optional RAG plumbing. When both are set and an agent has rag.enabled
+    # in its config, modes inject retrieved top-k chunks into the prompt.
+    embedder: Any = None
+    store: Any = None
 
     def agent(self, agent_id: str) -> AgentConfig:
         try:
