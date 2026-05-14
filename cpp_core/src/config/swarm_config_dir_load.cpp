@@ -1,5 +1,7 @@
 #include "swarm_config_dir_load.h"
 
+#include "path_expand.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -68,6 +70,14 @@ bool load_swarm_config_from_dir(const std::string& path, json& out) {
         if (!one.contains("name") || !one["name"].is_string()) {
             std::cerr << "❌ " << p << " missing 'name' field" << std::endl;
             return false;
+        }
+        // Expand ${MATRIX_MODEL_DIR} and rewrite the legacy /Users/Shared
+        // prefix so configs are portable across machines.
+        if (one.contains("model") && one["model"].is_string()) {
+            one["model"] = expand_model_path(one["model"].get<std::string>());
+        }
+        if (one.contains("draft_model") && one["draft_model"].is_string()) {
+            one["draft_model"] = expand_model_path(one["draft_model"].get<std::string>());
         }
         agents.push_back(std::move(one));
     }

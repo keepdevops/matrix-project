@@ -44,6 +44,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
+   "$CPP_SRC/config/path_expand.cpp" \
    "$CPP_SRC/telemetry.cpp" \
    "$CPP_SRC/coordinator_context.cpp" \
    "$CPP_SRC/mode_module.cpp" \
@@ -83,6 +84,7 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy_file_io.cpp" \
   "$CPP_SRC/proxy_models_scan.cpp" \
   "$CPP_SRC/proxy_configure.cpp" \
+  "$CPP_SRC/config/path_expand.cpp" \
   "$CPP_SRC/proxy_configure_health.cpp" \
   "$CPP_SRC/proxy_configure_kill_prepare.cpp" \
   "$CPP_SRC/proxy_configure_coordinator_startup.cpp" \

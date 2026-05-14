@@ -5,6 +5,7 @@
 #include "proxy_configure_coordinator_startup.h"
 #include "proxy_validate.h"
 #include "matrix_env.h"
+#include "config/path_expand.h"
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -95,6 +96,20 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         if (a.contains("port") && a["port"].is_number_integer()) {
             int p = a["port"].get<int>();
             if (p > 0) fixed_ports.insert(p);
+        }
+    }
+
+    // Expand ${MATRIX_MODEL_DIR} and rewrite the legacy /Users/Shared prefix so
+    // configs are portable across machines. Mutates the JSON in place so all
+    // downstream reads (and the active_config_path write) see the resolved paths.
+    for (auto& a : agents) {
+        if (a.contains("model") && a["model"].is_string()) {
+            a["model"] = coordinator_config::expand_model_path(
+                a["model"].get<std::string>());
+        }
+        if (a.contains("draft_model") && a["draft_model"].is_string()) {
+            a["draft_model"] = coordinator_config::expand_model_path(
+                a["draft_model"].get<std::string>());
         }
     }
 
