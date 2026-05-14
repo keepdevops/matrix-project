@@ -37,6 +37,7 @@ echo "Building coordinator..."
 c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
+   "$CPP_SRC/config/swarm_config_dir_load.cpp" \
    "$CPP_SRC/coordinator_context.cpp" \
    "$CPP_SRC/mode_module.cpp" \
    "$CPP_SRC/session_store.cpp" \
