@@ -34,10 +34,17 @@ else
 fi
 
 echo "Building coordinator..."
+# prometheus-cpp (header + core lib) is required for /metrics. Installed via
+# `brew install prometheus-cpp`. Headers at /opt/homebrew/include/prometheus,
+# core dylib at /opt/homebrew/lib/libprometheus-cpp-core.dylib.
+PROM_INC="/opt/homebrew/include"
+PROM_LIB="/opt/homebrew/lib"
 c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
+   -I"$PROM_INC" -L"$PROM_LIB" \
    "$CPP_SRC/coordinator.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
+   "$CPP_SRC/telemetry.cpp" \
    "$CPP_SRC/coordinator_context.cpp" \
    "$CPP_SRC/mode_module.cpp" \
    "$CPP_SRC/session_store.cpp" \
@@ -66,6 +73,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/kv_router.cpp" \
    -I"$CPP_SRC" \
    "${MOD_LINK[@]}" \
+   -lprometheus-cpp-core \
    -pthread
 
 echo "Building proxy..."
