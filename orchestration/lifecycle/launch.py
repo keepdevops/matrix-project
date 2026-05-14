@@ -1,0 +1,97 @@
+"""matrixctl launch — start proxy + UI (npm start) in background.
+
+Sources scripts/matrix-env.sh if present so model paths and conda env vars
+are inherited just like the bash launcher.
+"""
+from __future__ import annotations
+
+import logging
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def _source_env_file(path: Path) -> dict[str, str]:
+    """Run `bash -c 'source <path> && env'` to capture exported vars."""
+    if not path.is_file():
+        return {}
+    try:
+        out = subprocess.run(
+            ["bash", "-c", f"set -a; source {path}; env"],
+            capture_output=True, text=True, check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        logger.error("sourcing %s failed: %s", path, exc)
+        return {}
+    env: dict[str, str] = {}
+    for line in out.stdout.splitlines():
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        env[k] = v
+    return env
+
+
+def _spawn(cmd: list[str], log_path: Path, env: dict[str, str]) -> int:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_fp = open(log_path, "ab")
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log_fp,
+        stderr=subprocess.STDOUT,
+        cwd=REPO,
+        env=env,
+        start_new_session=True,  # detach from this terminal
+    )
+    return proc.pid
+
+
+def run_launch() -> int:
+    print("=" * 60)
+    print("SWARM MATRIX starting")
+    print(f"ROOT = {REPO}")
+
+    env = dict(os.environ)
+    env_overlay = _source_env_file(REPO / "scripts" / "matrix-env.sh")
+    env.update(env_overlay)
+
+    logs = REPO / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    pid_file = logs / "matrix.pids"
+    pid_file.write_text("")  # reset
+
+    proxy_bin = REPO / "proxy"
+    if not proxy_bin.is_file() or not os.access(proxy_bin, os.X_OK):
+        logger.error("proxy binary missing or not executable: %s", proxy_bin)
+        print(f"FATAL: {proxy_bin} not found — run scripts/build_cpp_binaries.sh")
+        return 2
+
+    print("Starting proxy ...")
+    proxy_pid = _spawn([str(proxy_bin)], logs / "proxy.log", env)
+    with pid_file.open("a") as f:
+        f.write(f"{proxy_pid}\n")
+
+    # CRA + WDS v5 patch shim — same call the bash launcher made.
+    patch_script = REPO / "scripts" / "ensure-react-scripts-patch.mjs"
+    if patch_script.is_file() and shutil.which("node"):
+        rc = subprocess.run(["node", str(patch_script)], cwd=REPO, env=env).returncode
+        if rc != 0:
+            logger.error("ensure-react-scripts-patch.mjs failed rc=%d", rc)
+            print("FATAL: react-scripts patch failed — run npm install")
+            return 3
+
+    print("Starting UI (npm start) ...")
+    npm = shutil.which("npm") or "npm"
+    ui_pid = _spawn([npm, "start"], logs / "ui.log", env)
+    with pid_file.open("a") as f:
+        f.write(f"{ui_pid}\n")
+
+    print(f"proxy pid={proxy_pid}  ui pid={ui_pid}")
+    print("SWARM MATRIX started -> http://localhost:3000")
+    print("=" * 60)
+    return 0

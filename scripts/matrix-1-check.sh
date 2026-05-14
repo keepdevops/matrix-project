@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED: prefer `python3 scripts/matrixctl check` (native port).
+# This script remains for legacy automation but won't receive new features.
 
 # Define colors for the terminal UI
 GREEN='\033[0;32m'
