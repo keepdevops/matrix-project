@@ -100,13 +100,17 @@ def main() -> int:
 
     embedder = _pick_embedder(args.embedder)
     store = PgVectorStore()
-    try:
-        if args.rag_cmd == "index":
-            asyncio.run(_index(args.path, embedder, store))
-        elif args.rag_cmd == "query":
-            asyncio.run(_query(args.text, args.k, embedder, store))
-    finally:
-        asyncio.run(store.close())
+
+    async def _go() -> None:
+        try:
+            if args.rag_cmd == "index":
+                await _index(args.path, embedder, store)
+            elif args.rag_cmd == "query":
+                await _query(args.text, args.k, embedder, store)
+        finally:
+            await store.close()
+
+    asyncio.run(_go())
     return 0
 
 
