@@ -164,11 +164,19 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         }
     }
 
-    // Write active config
+    // Write active config. Prefer the split layout (config/coordinator.json);
+    // fall back to the legacy swarm-config.json so older checkouts still boot.
     try {
-        std::ifstream sc_in(proj + "/swarm-config.json");
-        if (!sc_in.is_open()) throw std::runtime_error("Cannot open swarm-config.json");
-        json sc = json::parse(sc_in);
+        json sc;
+        const std::string preferred = proj + "/config/coordinator.json";
+        const std::string legacy = proj + "/swarm-config.json";
+        std::ifstream sc_in(preferred);
+        if (!sc_in.is_open()) {
+            sc_in.open(legacy);
+            if (!sc_in.is_open())
+                throw std::runtime_error("Cannot open " + preferred + " or " + legacy);
+        }
+        sc = json::parse(sc_in);
         std::ofstream sc_out(g_env.active_config_path);
         if (!sc_out.is_open()) throw std::runtime_error("Cannot write " + g_env.active_config_path);
         sc_out << json{{"agents", agents}, {"coordinator", sc["coordinator"]}, {"ui", sc["ui"]}}.dump(2);
