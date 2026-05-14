@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """matrixctl — unified CLI for the matrix-project control plane.
 
-Subcommands (Phase 4 introduces `rag`; check/launch/shutdown land in Phase 5):
+    matrixctl check               Show running llama-server processes + mem pressure.
+    matrixctl launch              Start the swarm (coordinator + proxy + agents).
+    matrixctl shutdown            Stop everything.
     matrixctl rag index <path>    Walk path, chunk, embed, upsert into pgvector.
     matrixctl rag query <text>    Run a top-k retrieval and print results.
+
+check/launch/shutdown currently shell out to the legacy matrix-{1,2,3}-*.sh
+scripts. They will be reimplemented natively once the C++ coordinator reads
+config/agents/*.json directly (until then, swarm-config.json remains the
+source of truth for the live system).
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import logging
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -77,9 +86,26 @@ async def _query(text: str, k: int, embedder, store: PgVectorStore) -> None:
         print("  " + (h.content[:200].replace("\n", " ⏎ ")) + ("..." if len(h.content) > 200 else ""))
 
 
+def _run_legacy(script_name: str) -> int:
+    """Shell out to scripts/<script_name>. Returns the script's exit code."""
+    script = REPO / "scripts" / script_name
+    if not script.is_file():
+        logger.error("legacy script missing: %s", script)
+        return 2
+    try:
+        return subprocess.call(["bash", str(script)], cwd=REPO)
+    except OSError as exc:
+        logger.error("failed to exec %s: %s", script, exc)
+        return 3
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="matrixctl")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("check", help="Show swarm status (wraps matrix-1-check.sh)")
+    sub.add_parser("launch", help="Start the swarm (wraps matrix-2-launch.sh)")
+    sub.add_parser("shutdown", help="Stop the swarm (wraps matrix-3-shutdown.sh)")
 
     rag = sub.add_parser("rag", help="RAG / pgvector ops")
     rag_sub = rag.add_subparsers(dest="rag_cmd", required=True)
@@ -94,9 +120,13 @@ def main() -> int:
     qry.add_argument("--embedder", choices=["hash", "mlx"], default="hash")
 
     args = p.parse_args()
-    if args.cmd != "rag":
-        p.error("only 'rag' subcommand is implemented in Phase 4")
-        return 2
+
+    if args.cmd == "check":
+        return _run_legacy("matrix-1-check.sh")
+    if args.cmd == "launch":
+        return _run_legacy("matrix-2-launch.sh")
+    if args.cmd == "shutdown":
+        return _run_legacy("matrix-3-shutdown.sh")
 
     embedder = _pick_embedder(args.embedder)
     store = PgVectorStore()
