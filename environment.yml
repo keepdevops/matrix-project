@@ -19,3 +19,4 @@ dependencies:
       # MLX (Apple Silicon only — installed via pip since conda channel coverage is uneven)
       - mlx
       - mlx-lm
+      - mlx-embedding-models

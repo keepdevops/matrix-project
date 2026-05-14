@@ -52,19 +52,61 @@ class HashEmbedder(Embedder):
 
 
 class MLXEmbedder(Embedder):
-    """Real embedder. Lazy-loads the MLX model on first call."""
+    """MLX-backed embedder via mlx-embedding-models. Lazy-loads on first call.
 
-    def __init__(self, model_id: str = "mlx-community/bge-base-en-v1.5",
-                 dim: int = EMBED_DIM) -> None:
+    Default model is bge-small-en-v1.5 (384-d) — fast on Apple Silicon and
+    available in mlx-embedding-models' built-in registry. Pass a registry
+    key or HuggingFace repo id to use a different model.
+    """
+
+    # bge-base = 768-d. Matches the chunks.embedding vector(768) column.
+    DEFAULT_MODEL = "bge-base"
+    DEFAULT_DIM = 768
+
+    def __init__(self, model_id: str = DEFAULT_MODEL, dim: int | None = None,
+                 batch_size: int = 32, max_length: int = 512) -> None:
         self.model_id = model_id
-        self.dim = dim
+        self.dim = dim or self.DEFAULT_DIM
+        self.batch_size = batch_size
+        self.max_length = max_length
         self._model = None  # filled on first embed()
 
+    def _ensure_loaded(self) -> None:
+        if self._model is not None:
+            return
+        try:
+            from mlx_embedding_models.embedding import EmbeddingModel
+        except ImportError as exc:
+            logger.error("mlx-embedding-models not installed: %s", exc)
+            raise
+        try:
+            self._model = EmbeddingModel.from_registry(self.model_id)
+        except Exception:
+            logger.info("MLXEmbedder: registry miss for %s, trying HF repo id",
+                        self.model_id)
+            self._model = EmbeddingModel.from_pretrained(self.model_id)
+        emitted = getattr(self._model, "dim", None) or getattr(
+            self._model, "embedding_dim", None)
+        if isinstance(emitted, int) and emitted > 0:
+            self.dim = emitted
+
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        # Intentionally minimal — full implementation lands when MLX embed
-        # weights are pinned in the env. For now this raises so callers know
-        # to use HashEmbedder until the model is wired.
-        logger.error("MLXEmbedder not yet implemented (model=%s)", self.model_id)
-        raise NotImplementedError(
-            "MLXEmbedder requires mlx-lm model loading — wire in a follow-up."
-        )
+        from orchestration.telemetry.metrics import RAG_EMBED_SECONDS
+
+        if not texts:
+            return []
+        start = time.perf_counter()
+        try:
+            self._ensure_loaded()
+            arr = self._model.encode(
+                list(texts),
+                batch_size=self.batch_size,
+                max_length=self.max_length,
+            )
+            return [list(map(float, row)) for row in arr]
+        except Exception as exc:
+            logger.error("MLXEmbedder.embed failed for %d texts: %s",
+                         len(texts), exc)
+            raise
+        finally:
+            RAG_EMBED_SECONDS.observe(time.perf_counter() - start)
