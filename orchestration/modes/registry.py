@@ -3,6 +3,9 @@
 A module qualifies as a mode if it defines exactly one subclass of OrchestrationMode
 with a non-empty `mode_id`. Helpers can live under `_helpers/` (underscore-prefixed,
 ignored by the scanner).
+
+`run_mode` is the instrumented entrypoint: it wraps execution with metric counters
+and per-token accounting so individual modes don't need to know about telemetry.
 """
 from __future__ import annotations
 
@@ -11,8 +14,9 @@ import inspect
 import logging
 import pkgutil
 from pathlib import Path
+from typing import AsyncIterator
 
-from .base import OrchestrationMode
+from .base import Event, ModeContext, OrchestrationMode
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,27 @@ def discover_modes(force: bool = False) -> dict[str, type[OrchestrationMode]]:
     logger.info("[BOOT] discovered %d orchestration modes: %s",
                 len(_registry), sorted(_registry))
     return _registry
+
+
+async def run_mode(mode_id: str, ctx: ModeContext, query: str) -> AsyncIterator[Event]:
+    """Instrumented execution: token counters + total-latency histogram + request counter.
+
+    Imported lazily so registry.py stays importable without prometheus_client when
+    telemetry isn't wired (e.g. trivial unit tests).
+    """
+    from orchestration.telemetry.metrics import (
+        AGENT_TOKENS,
+        instrument_mode,
+    )
+
+    cls = get_mode(mode_id)
+    async with instrument_mode(mode_id, ctx.agents):
+        async for ev in cls().execute(ctx, query):
+            if ev.kind == "token" and ev.agent_id and ev.text:
+                AGENT_TOKENS.labels(
+                    agent_id=ev.agent_id, direction="completion"
+                ).inc(len(ev.text))
+            yield ev
 
 
 def get_mode(mode_id: str) -> type[OrchestrationMode]:
