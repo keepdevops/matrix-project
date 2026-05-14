@@ -5,6 +5,7 @@
 #include "config/http_url_parse.h"
 #include "config/swarm_config_dir_load.h"
 #include "modes/mode.h"
+#include "telemetry.h"
 
 #include "httplib.h"
 #include "json.hpp"
@@ -151,6 +152,34 @@ int main(int argc, char* argv[]) {
               << state.sessions_path << std::endl;
 
     httplib::Server svr;
+
+    // /metrics — Prometheus text exposition for the C++ plane. Mirror series
+    // names with orchestration/telemetry/metrics.py so a single scrape config
+    // can pull from both planes. Register BEFORE the broader route handlers
+    // so the catch-all in register_coordinator_routes doesn't shadow us.
+    {
+        auto& boot = telemetry::Registry::instance().counter(
+            "coordinator_boot_total", "Coordinator process starts.");
+        boot.Increment();
+        auto& loaded = telemetry::Registry::instance().gauge(
+            "coordinator_agents_loaded", "Agents loaded from the active swarm config.");
+        loaded.Set(static_cast<double>(state.agents.size()));
+    }
+
+    svr.Get("/metrics", [](const httplib::Request&, httplib::Response& res) {
+        res.set_content(telemetry::Registry::instance().render(),
+                        "text/plain; version=0.0.4");
+    });
+    svr.set_pre_routing_handler(
+        [](const httplib::Request& req, httplib::Response&) {
+            telemetry::Registry::instance()
+                .counter("coordinator_http_requests_total",
+                         "Coordinator HTTP requests handled.",
+                         {{"method", req.method}})
+                .Increment();
+            return httplib::Server::HandlerResponse::Unhandled;
+        });
+
     register_coordinator_routes(svr, state);
 
     std::cout << "🌐 Swarm Matrix coordinator ONLINE (port 8000)" << std::endl;

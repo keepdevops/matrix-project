@@ -5,6 +5,7 @@ import logging
 from typing import AsyncIterator
 
 from backends.base import GenerateRequest
+from ._helpers.rag import build_rag_block
 from .base import Event, ModeContext, OrchestrationMode
 
 logger = logging.getLogger(__name__)
@@ -26,12 +27,14 @@ class CascadeMode(OrchestrationMode):
             backend = ctx.backend_for(agent_id)
             yield Event(kind="agent_start", agent_id=agent_id)
             buf: list[str] = []
+            rag_block = await build_rag_block(query, cfg, ctx)
+            prompt = (
+                f"<system>{cfg.system_prompt}</system>\n"
+                f"{rag_block}\n<query>{query}</query>"
+            )
             try:
                 async for chunk in backend.generate_stream(
-                    GenerateRequest(
-                        prompt=f"<system>{cfg.system_prompt}</system>\n<query>{query}</query>",
-                        max_tokens=cfg.max_tokens,
-                    )
+                    GenerateRequest(prompt=prompt, max_tokens=cfg.max_tokens)
                 ):
                     if chunk.text:
                         buf.append(chunk.text)
