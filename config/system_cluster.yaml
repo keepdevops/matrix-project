@@ -1,0 +1,65 @@
+# Global infrastructure parameters.
+# Per-agent configuration lives in config/agents/*.json.
+# Extracted from swarm-config.json {coordinator, ui} blocks.
+
+coordinator:
+  port: 8000
+  default_mode: flat
+
+ui:
+  port: 3000
+
+# Inference engine server groups — host/port shared by multiple agents.
+# Individual agents reference these via their `server_group` field.
+server_groups:
+  llama8b:
+    host: 127.0.0.1
+    port: 8080
+    engine: llama_cpp
+  granite8b:
+    host: 127.0.0.1
+    port: 8081
+    engine: llama_cpp
+  mlx_local:
+    host: 127.0.0.1
+    port: 8082
+    engine: mlx
+
+# Orchestration mode definitions (which agents participate, policy knobs).
+modes:
+  flat:
+    agents: [architect, programmer, tester]
+    variant_policy: code-alternatives
+  pipeline:
+    agents: [architect, programmer, tester, programmer]
+    order: [architect, programmer, tester, programmer]
+    preset: code-quality
+    synthesizer: programmer
+  cascade:
+    agents: [architect, programmer, devops]
+    synthesizer: programmer
+    synthesis_policy: full-code
+  router:
+    agents: [architect, programmer, tester]
+    max_select: 4
+
+presets:
+  Test1: { mode: cascade }
+  Test2: { mode: cascade }
+  Test3: { mode: flat, agents: [architect] }
+  Test4: { mode: flat, agents: [architect, programmer, tester] }
+  Test5: { mode: flat, agents: [architect, programmer, tester] }
+  Test6: { mode: router, agents: [architect, programmer, tester], max_select: 4 }
+
+# Telemetry (Phase 3).
+telemetry:
+  metrics_port: 9100
+  log_dir: agent_logs
+  log_format: json
+
+# RAG (Phase 4). Empty until pgvector is provisioned.
+rag:
+  enabled: false
+  dsn_env: RAG_DSN
+  embed_model: mlx-community/bge-base-en-v1.5
+  embed_dim: 768
