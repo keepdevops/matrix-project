@@ -26,6 +26,11 @@ logs/
 *.log
 agent_logs/
 
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 # OS
 .DS_Store
 # pixi environments
