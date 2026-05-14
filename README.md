@@ -243,13 +243,49 @@ and a collapsible **schema cheat sheet**.
 
 ```
 src/                React UI (App, components, hooks, api)
-src2/               C++ coordinator + proxy + modes (flat/pipeline/router)
-scripts/            Build / launch / shutdown / env helpers
+cpp_core/src/       C++ coordinator + proxy + modes (flat/pipeline/router)
+                    (formerly src2/ — moved in the reorg branch)
+backends/           Python InferenceBackend ABC + per-engine adapters
+                    (llama_cpp, mlx, vllm)
+orchestration/      Python control plane
+  ├─ manager.py     SwarmFactory: loads config/agents/*.json (Pydantic)
+  ├─ modes/         Plugin modes: flat/pipeline/cascade/router +
+                    speculative/map_reduce/critic_debate/tree_of_thought
+  ├─ telemetry/     structlog JSON logging + Prometheus /metrics
+  └─ rag/           pgvector chunker / embedder / store / retrieve
+config/
+  ├─ system_cluster.yaml   Global infra (ports, modes, presets)
+  └─ agents/*.json         One file per agent (split from swarm-config.json)
+docker/pgvector/    docker-compose for Postgres+pgvector (RAG)
+scripts/
+  ├─ matrixctl              Unified Python CLI (check/launch/shutdown/rag)
+  ├─ matrix-1-check.sh      Legacy wrappers (matrixctl currently shells out)
+  ├─ matrix-2-launch.sh
+  ├─ matrix-3-shutdown.sh
+  ├─ build_cpp_binaries.sh  C++ build (now points at cpp_core/src)
+  └─ migrate_swarm_config.py  Split swarm-config.json -> config/agents/
 public/             CRA static assets, models.json fallback
-swarm-config*.json  Pre-tuned agent/model layouts
-docker/             Optional Docker bits (not required for bare-metal run)
+swarm-config*.json  Pre-tuned agent/model layouts (still read by the live
+                    C++ coordinator — removed once it consumes config/agents/)
 production/         Optional nginx UI (not required for dev)
 ```
+
+### matrixctl quickstart
+
+```
+# Status / lifecycle (wrap the legacy scripts for now)
+python3 scripts/matrixctl check
+python3 scripts/matrixctl launch
+python3 scripts/matrixctl shutdown
+
+# RAG over pgvector (requires Docker)
+docker compose -f docker/pgvector/docker-compose.yml up -d
+python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+python3 scripts/matrixctl rag query "kv router" --embedder hash
+```
+
+Conda env: `conda env update -n mlx-env -f environment.yml`.
+Tests: `pytest tests/modes tests/telemetry tests/rag`.
 
 ## Coordinator HTTP API (cheat sheet)
 

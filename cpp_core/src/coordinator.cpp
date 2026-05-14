@@ -3,6 +3,7 @@
 #include "agent_client.h"
 #include "config/coordinator_config_validate.h"
 #include "config/http_url_parse.h"
+#include "config/swarm_config_dir_load.h"
 #include "modes/mode.h"
 
 #include "httplib.h"
@@ -38,10 +39,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    state.history_path = config_path.substr(0, config_path.rfind('/') + 1) + "history.json";
-    if (state.history_path == "history.json") state.history_path = "history.json";
-    state.sessions_path = config_path.substr(0, config_path.rfind('/') + 1) + "sessions.json";
-    if (state.sessions_path == "sessions.json") state.sessions_path = "sessions.json";
+    // When loading from a directory layout, anchor state files at the repo
+    // root rather than inside config/ — keeps history.json/sessions.json
+    // where the legacy launch scripts expect them.
+    if (coordinator_config::is_directory_path(config_path)) {
+        state.history_path = "history.json";
+        state.sessions_path = "sessions.json";
+    } else {
+        state.history_path = config_path.substr(0, config_path.rfind('/') + 1) + "history.json";
+        if (state.history_path == "history.json") state.history_path = "history.json";
+        state.sessions_path = config_path.substr(0, config_path.rfind('/') + 1) + "sessions.json";
+        if (state.sessions_path == "sessions.json") state.sessions_path = "sessions.json";
+    }
 
     json config;
     const char* cfg_svc = std::getenv("MATRIX_SWARM_CONFIG_SERVICE");
@@ -67,6 +76,14 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::cout << "✅ Loaded swarm config from MATRIX_SWARM_CONFIG_SERVICE\n";
+    } else if (coordinator_config::is_directory_path(config_path)) {
+        if (!coordinator_config::load_swarm_config_from_dir(config_path, config)) {
+            std::cerr << "❌ failed to load swarm config from directory "
+                      << config_path << std::endl;
+            return 1;
+        }
+        std::cout << "📂 Loaded swarm config from directory " << config_path
+                  << " (" << config["agents"].size() << " agents)" << std::endl;
     } else {
         std::ifstream config_file(config_path);
         if (!config_file.is_open()) {

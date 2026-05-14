@@ -1,0 +1,22 @@
+services:
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: matrix-pgvector
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: matrix
+      POSTGRES_PASSWORD: matrix
+      POSTGRES_DB: matrix_rag
+    ports:
+      - "5433:5432"   # host:container — 5433 avoids clashes with a local Postgres
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+      - ../../orchestration/rag/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matrix -d matrix_rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgvector_data:

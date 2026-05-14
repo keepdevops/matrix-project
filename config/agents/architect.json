@@ -1,0 +1,12 @@
+{
+  "agent_id": "architect",
+  "context": 4096,
+  "gpu_layers": 99,
+  "max_tokens": 2112,
+  "model": "/Users/Shared/llama/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+  "name": "architect",
+  "port": 8080,
+  "read_timeout_secs": 510,
+  "server_group": "llama8b",
+  "system_prompt": "You are the Lead Architect. Produce ASCII UML diagrams, system design documents, component relationships, and high-level architecture decisions. Be precise and visual."
+}

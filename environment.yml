@@ -1,0 +1,21 @@
+name: mlx-env
+channels:
+  - conda-forge
+  - apple
+dependencies:
+  - python=3.11
+  # Orchestration control plane
+  - pydantic>=2
+  - structlog>=24
+  - prometheus_client>=0.20
+  - asyncpg>=0.29
+  - pyyaml>=6
+  # RAG / embedding stack
+  - numpy>=1.26
+  - pytest>=8
+  - pytest-asyncio>=0.23
+  - pip
+  - pip:
+      # MLX (Apple Silicon only — installed via pip since conda channel coverage is uneven)
+      - mlx
+      - mlx-lm
