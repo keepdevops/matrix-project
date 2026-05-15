@@ -17,6 +17,9 @@ on:
       - 'tests/test_build_swarm_config.py'
       - '.github/workflows/config-generator.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
