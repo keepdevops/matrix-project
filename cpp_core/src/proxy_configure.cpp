@@ -194,7 +194,9 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         sc = json::parse(sc_in);
         std::ofstream sc_out(g_env.active_config_path);
         if (!sc_out.is_open()) throw std::runtime_error("Cannot write " + g_env.active_config_path);
-        sc_out << json{{"agents", agents}, {"coordinator", sc["coordinator"]}, {"ui", sc["ui"]}}.dump(2);
+        json active = {{"agents", agents}, {"coordinator", sc["coordinator"]}, {"ui", sc["ui"]}};
+        if (sc.contains("rag")) active["rag"] = sc["rag"];
+        sc_out << active.dump(2);
     } catch (const std::exception& e) {
         return {false, 500, {{"error", std::string(e.what())}}};
     }

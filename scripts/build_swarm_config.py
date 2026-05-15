@@ -71,11 +71,14 @@ def load_agents(agents_dir: Path) -> list[dict]:
 
 def build(root: Path) -> dict:
     coord = load_json(root / "config" / "coordinator.json")
-    return {
+    out: dict = {
         "agents": load_agents(root / "config" / "agents"),
         "coordinator": coord.get("coordinator", {}),
         "ui": coord.get("ui", {}),
     }
+    if "rag" in coord:
+        out["rag"] = coord["rag"]
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
