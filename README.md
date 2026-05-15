@@ -4,6 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/@keepdevops/matrix?style=flat-square&color=8a8a99&label=downloads)](https://www.npmjs.com/package/@keepdevops/matrix)
 [![GitHub stars](https://img.shields.io/github/stars/keepdevops/matrix-project?style=flat-square&logo=github&color=00ff9d)](https://github.com/keepdevops/matrix-project)
 [![License](https://img.shields.io/github/license/keepdevops/matrix-project?style=flat-square&color=8a8a99&v=2)](LICENSE)
+[![Config generator](https://img.shields.io/github/actions/workflow/status/keepdevops/matrix-project/config-generator.yml?branch=main&style=flat-square&label=config%20generator)](https://github.com/keepdevops/matrix-project/actions/workflows/config-generator.yml)
 
 > **The local-first multi-agent coding swarm.** Privacy-first, no cloud, no API keys —
 > turns your Apple Silicon or NVIDIA box into a 16-agent dev team.
