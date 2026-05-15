@@ -348,7 +348,7 @@ in ~30 s.
 | `MATRIX_UI_PORT` | `3000` | React dev server port. |
 | `MATRIX_ACTIVE_CONFIG` | `~/.matrix/run/matrix-active-config.json` | Where the proxy stages the deployed config. |
 | `MATRIX_SOURCE_CONFIG` | (unset) | If set, coordinator mirrors per-mode + preset edits to this path so they survive UI redeploy. |
-| `MATRIX_MODEL_DIR` | `/Users/Shared/llama/models` | Where the proxy scans for models. |
+| `MATRIX_MODEL_DIR` | `/Users/Shared/llama/models` (Darwin) | Root for model paths. Agent profiles under `config/agents/*.json` reference models via `${MATRIX_MODEL_DIR}/...`; the loader (`orchestration/manager.py`) and `scripts/build_swarm_config.py` expand the variable at load time and fail loudly on unresolved `${VAR}`. Also scanned by the proxy for model discovery. |
 | `MATRIX_LLAMA_SERVER` | (resolved from PATH) | Path to `llama-server` binary. |
 | `MATRIX_MLX_PYTHON` | (resolved) | Python interpreter that has `mlx_lm` installed. |
 | `MATRIX_SYNTHESIS_MAX_PROMPT_TOKENS` | `1400` | Approximate max prompt size for pipeline/cascade/stream **synthesis** (concatenated agent outputs). Lower if synthesizer uses a small `--ctx-size`; raise when you increase model context. |

@@ -101,6 +101,9 @@ it with Matrix Swarm for parallel planning + deep execution.
   `python3 scripts/build_swarm_config.py` to regenerate `swarm-config.json`
   and its `public/` copy. Both are gitignored build artifacts;
   `scripts/stage-dist.sh` runs the generator automatically before publish.
+  Agent JSONs use `${MATRIX_MODEL_DIR}/...` for model paths; the
+  `SwarmFactory` loader and the build script expand these at load time
+  and fail loudly on any unresolved `${VAR}`.
 - **Per-mode agent rosters** — pick which agents participate in each mode from
   the **PER-MODE ROSTER** panel. Order matters in pipeline. Empty roster ⇒
   mode falls back to the full deployed swarm. Persists across coordinator
@@ -139,8 +142,10 @@ it with Matrix Swarm for parallel planning + deep execution.
 - For LLAMA: `llama-server` from llama.cpp on `PATH`.
 - For MLX: `pip install mlx-lm` (Apple Silicon).
 - For vLLM: Docker Desktop with Model Runner.
-- GGUF / MLX models on disk. Default config expects models under
-  `/Users/Shared/llama/models/` (override per-agent in the UI).
+- GGUF / MLX models on disk. Agent profiles reference models via
+  `${MATRIX_MODEL_DIR}/...` (defaults to `/Users/Shared/llama/models` on
+  macOS via `scripts/matrix-env.sh`). Override the root by exporting
+  `MATRIX_MODEL_DIR=/some/path`, or override per-agent in the UI.
 
 ## Quick start
 
