@@ -140,8 +140,9 @@ function startUiServer(root, port) {
       res.setHeader('Content-Type', mime[ext] || 'application/octet-stream');
       res.end(body);
     } catch (err) {
+      console.error('[matrix] ui server error serving', file, err);
       res.statusCode = 500;
-      res.end(String(err));
+      res.end('Internal Server Error');
     }
   });
   server.listen(port);
