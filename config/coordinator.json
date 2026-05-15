@@ -13,5 +13,11 @@
   },
   "ui": {
     "port": 3000
+  },
+  "rag": {
+    "enabled": true,
+    "top_k": 3,
+    "min_score": 1.0,
+    "embedder": "hash"
   }
 }
