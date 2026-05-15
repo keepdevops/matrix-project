@@ -21,7 +21,7 @@ PATTERNS = [
     ("mlx-lm", "mlx-lm"),
 ]
 
-PORTS = [3000, 3002, 8000]
+PORTS = [3000, 3002, 8000, 8001]
 
 LAUNCHD_PLIST = Path.home() / "Library/LaunchAgents/com.caribou.swarm-dashboard.plist"
 DISABLED_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
