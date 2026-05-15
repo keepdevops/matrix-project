@@ -22,6 +22,54 @@ function normalizeApiBase() {
 
 const API_BASE = normalizeApiBase();
 
+/**
+ * Base URL for the RAG ingest sidecar (orchestration/rag/service.py).
+ * Default: http://localhost:8001 — set REACT_APP_RAG_INGEST_BASE to override.
+ */
+const RAG_INGEST_BASE = (process.env.REACT_APP_RAG_INGEST_BASE
+  || 'http://localhost:8001').replace(/\/+$/, '');
+
+export async function ragIngestUpload(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(`${RAG_INGEST_BASE}/ingest`, { method: 'POST', body: fd });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`ingest failed (${res.status}): ${msg}`);
+  }
+  return res.json();
+}
+
+export async function ragIngestJob(jobId) {
+  const res = await fetch(`${RAG_INGEST_BASE}/jobs/${encodeURIComponent(jobId)}`);
+  if (!res.ok) throw new Error(`job lookup failed (${res.status})`);
+  return res.json();
+}
+
+export async function ragIngestList() {
+  const res = await fetch(`${RAG_INGEST_BASE}/documents`);
+  if (!res.ok) throw new Error(`list failed (${res.status})`);
+  return res.json();
+}
+
+export async function ragIngestDelete(sourcePath) {
+  const url = `${RAG_INGEST_BASE}/documents?source=${encodeURIComponent(sourcePath)}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete failed (${res.status})`);
+  return res.json();
+}
+
+export async function ragIngestHealth() {
+  try {
+    const res = await fetch(`${RAG_INGEST_BASE}/health`);
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    return await res.json();
+  } catch (err) {
+    console.error('[rag-ingest] health failed:', err);
+    return { ok: false, error: err?.message || 'unreachable' };
+  }
+}
+
 /** Concurrent callers await one in-flight request (App + CONFIGURE + panels). */
 const inflight = new Map();
 function coalesce(key, fn) {
@@ -78,6 +126,9 @@ export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
   if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
   if (opts.useRag) body.use_rag = true;
   if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
+  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore)) {
+    body.rag_min_score = opts.ragMinScore;
+  }
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: {
@@ -443,6 +494,24 @@ export async function checkHealth() {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Probe the RAG backing store (pgvector) via the coordinator. Returns
+ * { ok, enabled, embedder, top_k, min_score, error? } on success, or
+ * { ok: false, error } if the coordinator itself is unreachable.
+ */
+export async function checkRagHealth() {
+  try {
+    const response = await fetch(`${API_BASE}/rag/health`);
+    if (!response.ok) {
+      return { ok: false, error: `HTTP ${response.status}` };
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('[rag] health probe failed:', err);
+    return { ok: false, error: err?.message || 'unreachable' };
   }
 }
 

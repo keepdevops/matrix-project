@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useRagHealth from '../hooks/useRagHealth';
 
 function PromptInput({
   onSubmit,
@@ -9,10 +10,46 @@ function PromptInput({
   onPromptConsumed,
   canContinue = false,
   onQualityPass,
+  useRag = false,
+  onUseRagChange,
 }) {
+  const ragHealth = useRagHealth(true);
+  const ragDown = !ragHealth.loading && !ragHealth.ok;
+  const badgeColor = ragHealth.loading
+    ? '#888'
+    : ragHealth.ok
+      ? '#3fb950'
+      : '#f85149';
+  const badgeTitle = ragHealth.loading
+    ? 'Checking pgvector…'
+    : ragHealth.ok
+      ? `pgvector ok (embedder: ${ragHealth.embedder || 'unknown'})`
+      : `pgvector unavailable${ragHealth.error ? `: ${ragHealth.error}` : ''}`;
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.2);
-  const [useRag, setUseRag] = useState(false);
+  const [ragTopK, setRagTopK] = useState(() => {
+    const raw = parseInt(
+      typeof window !== 'undefined' && localStorage.getItem('rag.top_k'),
+      10,
+    );
+    return Number.isFinite(raw) && raw >= 1 && raw <= 20 ? raw : 3;
+  });
+  const [ragMinScore, setRagMinScore] = useState(() => {
+    const raw = parseFloat(
+      typeof window !== 'undefined' && localStorage.getItem('rag.min_score'),
+    );
+    return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 1.0;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('rag.top_k', String(ragTopK)); } catch (err) {
+      console.error('[rag] persist top_k failed:', err);
+    }
+  }, [ragTopK]);
+  useEffect(() => {
+    try { localStorage.setItem('rag.min_score', String(ragMinScore)); } catch (err) {
+      console.error('[rag] persist min_score failed:', err);
+    }
+  }, [ragMinScore]);
   const onPromptConsumedRef = useRef(onPromptConsumed);
   useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; });
 
@@ -32,7 +69,10 @@ function PromptInput({
 
   const submitPrompt = (opts = {}) => {
     if (prompt.trim() && !loading && !disabled) {
-      onSubmit(prompt.trim(), temperature, { useRag, ...opts });
+      const ragOpts = useRag
+        ? { ragTopK, ragMinScore }
+        : {};
+      onSubmit(prompt.trim(), temperature, { ...ragOpts, ...opts });
     }
   };
 
@@ -78,15 +118,79 @@ function PromptInput({
             className="temperature-slider"
           />
         </div>
-        <label className="rag-toggle" title="Prepend retrieved pgvector chunks to the prompt (requires rag.enabled in coordinator config)">
+        <label
+          className="rag-toggle"
+          title={ragDown
+            ? badgeTitle
+            : 'Prepend retrieved pgvector chunks to the prompt (requires rag.enabled in coordinator config)'}
+        >
+          <span
+            aria-label={badgeTitle}
+            title={badgeTitle}
+            style={{
+              display: 'inline-block',
+              width: '0.6rem',
+              height: '0.6rem',
+              borderRadius: '50%',
+              backgroundColor: badgeColor,
+              marginRight: '0.35rem',
+              verticalAlign: 'middle',
+            }}
+          />
           <input
             type="checkbox"
             checked={useRag}
-            onChange={(e) => setUseRag(e.target.checked)}
-            disabled={loading || disabled}
+            onChange={(e) => onUseRagChange?.(e.target.checked)}
+            disabled={loading || disabled || ragDown}
           />
           {' '}Use RAG context
         </label>
+        {useRag && (
+          <details className="rag-options" style={{ marginLeft: '0.5rem' }}>
+            <summary style={{ cursor: 'pointer', userSelect: 'none', opacity: 0.8 }}>
+              RAG options
+            </summary>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem', alignItems: 'center' }}>
+              <label style={{ fontSize: '0.85rem' }}>
+                top_k{' '}
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={ragTopK}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isFinite(n)) {
+                      setRagTopK(Math.max(1, Math.min(20, n)));
+                    }
+                  }}
+                  disabled={loading || disabled}
+                  style={{ width: '4rem' }}
+                />
+              </label>
+              <label style={{ fontSize: '0.85rem' }}>
+                min_score{' '}
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={ragMinScore}
+                  onChange={(e) => {
+                    const n = parseFloat(e.target.value);
+                    if (Number.isFinite(n)) {
+                      setRagMinScore(Math.max(0, Math.min(1, n)));
+                    }
+                  }}
+                  disabled={loading || disabled}
+                  style={{ width: '5rem' }}
+                  title="Maximum cosine distance to accept (lower = stricter match)"
+                />
+              </label>
+            </div>
+          </details>
+        )}
         <button
           type="submit"
           className="submit-button"
