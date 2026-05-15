@@ -320,6 +320,13 @@ Config shape:
 "rag": { "enabled": true, "top_k": 3, "min_score": 1.0, "embedder": "hash" }
 ```
 
+`min_score` is a **cosine distance ceiling** — a hit is kept when `distance <= min_score` (0 = identical, 1 = orthogonal, 2 = opposite). Recommended values:
+
+| Embedder | Recommended `min_score` | Notes |
+|---|---|---|
+| `hash` (default) | `1.0` (no filter) | Hash embeddings have no semantic meaning; distances cluster near 1.0. Anything stricter drops every hit. |
+| MLX / `bge` / semantic | `~0.6` | True neighbors land at 0.1–0.5, noise at 0.8+. Tighten per-prompt via the UI slider. |
+
 ## Coordinator HTTP API (cheat sheet)
 
 | Method · Path | Purpose |
