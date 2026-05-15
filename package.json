@@ -1,7 +1,7 @@
 {
   "name": "@keepdevops/matrix",
-  "version": "2.0.6",
-  "description": "Matrix UI + proxy + coordinator stack \u2014 npx-installable on macOS and Linux.",
+  "version": "2.0.7",
+  "description": "Matrix UI + proxy + coordinator stack — npx-installable on macOS and Linux.",
   "license": "AGPL-3.0-only",
   "author": "Bret Kuhne <keepdevops@gmail.com> (Coficube)",
   "repository": {
