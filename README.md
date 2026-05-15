@@ -295,6 +295,11 @@ python3 scripts/matrixctl rag index ./cpp_core --embedder hash
 python3 scripts/matrixctl rag query "kv router" --embedder hash
 ```
 
+Convenience wrapper for the pgvector stack: `scripts/rag-docker-compose.sh`
+exposes `up`, `down`, `restart`, `logs`, `status`, `wait` (blocks on
+`pg_isready`), `psql` (shell into `matrix_rag`), and `nuke` (down + volume
+wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
+
 Conda env: `conda env update -n mlx-env -f environment.yml`.
 Tests: `pytest tests/modes tests/telemetry tests/rag`.
 
