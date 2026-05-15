@@ -9,8 +9,19 @@ import glob
 import json
 import logging
 import os
+import platform
 from pathlib import Path
 from typing import Any
+
+
+def _default_model_dir() -> str:
+    """Fallback for MATRIX_MODEL_DIR, mirroring scripts/matrix-env.sh."""
+    if platform.system() == "Darwin":
+        return "/Users/Shared/llama/models"
+    return ""
+
+
+os.environ.setdefault("MATRIX_MODEL_DIR", _default_model_dir())
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -47,6 +58,16 @@ class AgentConfig(BaseModel):
         if any(c.isspace() for c in v):
             raise ValueError("agent_id must be slug-form (no whitespace)")
         return v
+
+    @field_validator("model")
+    @classmethod
+    def _expand_model_path(cls, v: str) -> str:
+        expanded = os.path.expandvars(os.path.expanduser(v))
+        if "$" in expanded:
+            # An unresolved ${VAR} would silently break llama-server at launch.
+            logger.error("unresolved env var in model path: %s", v)
+            raise ValueError(f"unresolved env var in model path: {v}")
+        return expanded
 
 
 class SwarmFactory:

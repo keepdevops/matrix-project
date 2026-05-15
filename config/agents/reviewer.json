@@ -4,7 +4,7 @@
   "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 1024,
-  "model": "/Users/Shared/llama/models/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+  "model": "${MATRIX_MODEL_DIR}/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
   "name": "reviewer",
   "port": 8080,
   "read_timeout_secs": 120,

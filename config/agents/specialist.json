@@ -4,7 +4,7 @@
   "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 2048,
-  "model": "/Users/Shared/llama/models/26B/GGUF/google_gemma-4-26B-A4B-it-Q4_K_M.gguf",
+  "model": "${MATRIX_MODEL_DIR}/26B/GGUF/google_gemma-4-26B-A4B-it-Q4_K_M.gguf",
   "name": "specialist",
   "port": 8083,
   "read_timeout_secs": 180,

@@ -4,7 +4,7 @@
   "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 4800,
-  "model": "/Users/Shared/llama/models/31B/GGUF/google_gemma-4-31B-it-Q4_K_M.gguf",
+  "model": "${MATRIX_MODEL_DIR}/31B/GGUF/google_gemma-4-31B-it-Q4_K_M.gguf",
   "name": "synthesis",
   "port": 8085,
   "read_timeout_secs": 720,

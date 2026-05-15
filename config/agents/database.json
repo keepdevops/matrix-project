@@ -4,7 +4,7 @@
   "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 1024,
-  "model": "/Users/Shared/llama/models/22B/GGUF/Codestral-22B-v0.1-Q4_K_M.gguf",
+  "model": "${MATRIX_MODEL_DIR}/22B/GGUF/Codestral-22B-v0.1-Q4_K_M.gguf",
   "name": "database",
   "port": 8082,
   "read_timeout_secs": 120,

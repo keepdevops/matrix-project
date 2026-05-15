@@ -4,7 +4,7 @@
   "engine": "mlx",
   "max_concurrency": 1,
   "max_tokens": 4672,
-  "model": "/Users/Shared/llama/models/MLX/MLX/gemma-4-31b-4bit",
+  "model": "${MATRIX_MODEL_DIR}/MLX/MLX/gemma-4-31b-4bit",
   "name": "mlx-coder",
   "port": 8086,
   "read_timeout_secs": 1230,
