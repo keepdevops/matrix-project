@@ -1,6 +1,6 @@
 {
   "agent_id": "tester",
-  "context": 2048,
+  "context": 4096,
   "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 1088,
