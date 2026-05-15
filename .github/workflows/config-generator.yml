@@ -1,0 +1,34 @@
+name: Config generator
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'config/agents/**'
+      - 'config/coordinator.json'
+      - 'scripts/build_swarm_config.py'
+      - 'tests/test_build_swarm_config.py'
+      - '.github/workflows/config-generator.yml'
+  pull_request:
+    paths:
+      - 'config/agents/**'
+      - 'config/coordinator.json'
+      - 'scripts/build_swarm_config.py'
+      - 'tests/test_build_swarm_config.py'
+      - '.github/workflows/config-generator.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run generator tests
+        run: pytest tests/test_build_swarm_config.py -v
