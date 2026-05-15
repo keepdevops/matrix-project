@@ -5,11 +5,6 @@
 #include <set>
 
 std::vector<Agent> filter_agents_for_mode(CoordinatorState& st, const std::string& mode_name) {
-    // Flat mode always broadcasts to every deployed agent. Per-mode roster
-    // lists apply to pipeline / router / cascade only (subset, order, router pool).
-    if (mode_name == "flat") {
-        return st.agents;
-    }
     std::lock_guard<std::mutex> lock(st.modes_config_mutex);
     if (!st.modes_config.contains(mode_name)) return st.agents;
     const auto& cfg = st.modes_config[mode_name];
