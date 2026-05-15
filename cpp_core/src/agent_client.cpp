@@ -17,6 +17,26 @@
 
 using json = nlohmann::json;
 
+// Strip any chat-template turn markers that leaked past EOS (defensive — even
+// with a stop[] list, the stop string itself may be emitted before halt).
+// Cuts the response at the first marker we recognise.
+static std::string strip_template_leakage(std::string s) {
+    static const char* markers[] = {
+        "<|im_end|>", "<|im_start|>",
+        "<|eot_id|>", "<|start_header_id|>",
+        "<|endoftext|>",
+    };
+    size_t cut = std::string::npos;
+    for (const char* m : markers) {
+        size_t pos = s.find(m);
+        if (pos != std::string::npos && pos < cut) cut = pos;
+    }
+    if (cut != std::string::npos) s.erase(cut);
+    while (!s.empty() && (s.back() == '\n' || s.back() == ' ' || s.back() == '\t'))
+        s.pop_back();
+    return s;
+}
+
 // mlx-lm does not support concurrent requests on the same port.
 // Serialize all calls to mlx ports via a per-port mutex.
 static std::map<int, std::unique_ptr<std::mutex>> mlx_port_locks;
@@ -60,7 +80,14 @@ static AttemptResult call_agent_once(const Agent& agent,
                                      || agent.backend == "docker-vllm")) {
             body["model"] = agent.model;
         }
-        if (agent.engine == "llama") body["cache_prompt"] = true;
+        if (agent.engine == "llama") {
+            body["cache_prompt"] = true;
+            // Stop at any chat-template turn marker we might leak past EOS.
+            // Covers ChatML (Codestral/Qwen/Phi-4), Llama-3, and generic.
+            body["stop"] = {"<|im_end|>", "<|im_start|>",
+                            "<|eot_id|>", "<|start_header_id|>",
+                            "<|endoftext|>"};
+        }
 
         auto t_start = std::chrono::steady_clock::now();
         auto res = cli.Post("/v1/chat/completions", body.dump(), "application/json");
@@ -69,7 +96,8 @@ static AttemptResult call_agent_once(const Agent& agent,
         if (res && res->status == 200) {
             auto j = json::parse(sanitize_invalid_utf8(res->body));
             if (j.contains("choices") && !j["choices"].empty()) {
-                out.text = sanitize_invalid_utf8(j["choices"][0]["message"]["content"].get<std::string>());
+                out.text = strip_template_leakage(
+                    sanitize_invalid_utf8(j["choices"][0]["message"]["content"].get<std::string>()));
             }
             if (agent.engine == "llama") {
                 kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);

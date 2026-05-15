@@ -89,7 +89,12 @@ std::string stream_llama(const Agent& agent,
         {"messages", messages},
         {"max_tokens", agent.max_tokens},
         {"stream", true},
-        {"cache_prompt", true}
+        {"cache_prompt", true},
+        // Halt on chat-template turn markers so we don't leak into a fresh
+        // user/assistant turn after EOS. See agent_client.cpp for context.
+        {"stop", {"<|im_end|>", "<|im_start|>",
+                  "<|eot_id|>", "<|start_header_id|>",
+                  "<|endoftext|>"}}
     };
 
     std::string accumulated;
@@ -127,6 +132,24 @@ std::string stream_llama(const Agent& agent,
         drain_frames(buf, on_chunk, accumulated, done);
     }
     auto t_end = std::chrono::steady_clock::now();
+    // Trim any chat-template marker that slipped past the server-side stop.
+    {
+        static const char* markers[] = {
+            "<|im_end|>", "<|im_start|>",
+            "<|eot_id|>", "<|start_header_id|>",
+            "<|endoftext|>",
+        };
+        size_t cut = std::string::npos;
+        for (const char* m : markers) {
+            size_t pos = accumulated.find(m);
+            if (pos != std::string::npos && pos < cut) cut = pos;
+        }
+        if (cut != std::string::npos) accumulated.erase(cut);
+        while (!accumulated.empty() &&
+               (accumulated.back() == '\n' || accumulated.back() == ' ' ||
+                accumulated.back() == '\t'))
+            accumulated.pop_back();
+    }
     if (!accumulated.empty()) {
         kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
         // Approximate token count from word count — llama-server's SSE chunks
