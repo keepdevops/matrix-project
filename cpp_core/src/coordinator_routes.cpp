@@ -10,4 +10,5 @@ void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_dispatch(svr, st);
     register_coordinator_routes_architect_stream(svr, st);
     register_coordinator_routes_misc(svr, st);
+    register_coordinator_routes_rag_health(svr, st);
 }

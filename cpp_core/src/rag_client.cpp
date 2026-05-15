@@ -124,6 +124,28 @@ std::string render_context_block(const std::vector<Hit>& hits) {
     return os.str();
 }
 
+bool health_check(const Settings& s, std::string* error_out) {
+    if (!s.enabled) {
+        if (error_out) *error_out = "rag.enabled is false";
+        return false;
+    }
+    Conn& c = conn_singleton();
+    std::lock_guard<std::mutex> lock(c.mu);
+    if (!ensure_open_locked(c, s.dsn)) {
+        if (error_out) *error_out = "pgvector connect failed";
+        return false;
+    }
+    PGresult* res = PQexec(c.pg, "SELECT 1");
+    bool ok = res && PQresultStatus(res) == PGRES_TUPLES_OK;
+    if (!ok) {
+        std::string msg = res ? PQresultErrorMessage(res) : "no result";
+        std::cerr << "❌ [rag] health probe failed: " << msg << std::endl;
+        if (error_out) *error_out = msg;
+    }
+    if (res) PQclear(res);
+    return ok;
+}
+
 void shutdown_for_test() {
     Conn& c = conn_singleton();
     std::lock_guard<std::mutex> lock(c.mu);

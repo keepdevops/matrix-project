@@ -25,6 +25,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             json context_policy = j_body.value("context_policy", json::object());
             const bool use_rag = j_body.value("use_rag", false);
             const int  rag_top_k_override = j_body.value("rag_top_k", 0);
+            const double rag_min_score_override = j_body.value("rag_min_score", -1.0);
             if (session_id.empty()) session_id = session_new_id("sess");
             const std::string run_id = session_new_id("run");
 
@@ -44,7 +45,12 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             json rag_meta = json::object();
             if (use_rag) {
                 rag::Settings rag_s = rag::settings_from_config(st.startup_config);
-                if (rag_top_k_override > 0) rag_s.top_k = rag_top_k_override;
+                if (rag_top_k_override > 0) {
+                    rag_s.top_k = std::min(rag_top_k_override, 20);
+                }
+                if (rag_min_score_override >= 0.0 && rag_min_score_override <= 1.0) {
+                    rag_s.min_score = rag_min_score_override;
+                }
                 if (!rag_s.enabled) {
                     rag_meta = {{"requested", true}, {"used", false},
                                 {"reason", "rag.enabled is false in coordinator config"}};

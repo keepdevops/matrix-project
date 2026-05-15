@@ -71,6 +71,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_misc.cpp" \
    "$CPP_SRC/coordinator_routes_modes.cpp" \
    "$CPP_SRC/coordinator_routes_presets.cpp" \
+   "$CPP_SRC/coordinator_routes_rag_health.cpp" \
    "$CPP_SRC/swarm_config_store.cpp" \
    "$CPP_SRC/agent_client.cpp" \
    "$CPP_SRC/agent_health.cpp" \

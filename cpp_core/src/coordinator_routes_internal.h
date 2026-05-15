@@ -17,3 +17,4 @@ void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState&
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st);
 void register_coordinator_routes_architect_stream(httplib::Server& svr, CoordinatorState& st);
 void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st);
+void register_coordinator_routes_rag_health(httplib::Server& svr, CoordinatorState& st);
