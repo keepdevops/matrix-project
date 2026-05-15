@@ -12,6 +12,7 @@ function PromptInput({
 }) {
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.2);
+  const [useRag, setUseRag] = useState(false);
   const onPromptConsumedRef = useRef(onPromptConsumed);
   useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; });
 
@@ -31,7 +32,7 @@ function PromptInput({
 
   const submitPrompt = (opts = {}) => {
     if (prompt.trim() && !loading && !disabled) {
-      onSubmit(prompt.trim(), temperature, opts);
+      onSubmit(prompt.trim(), temperature, { useRag, ...opts });
     }
   };
 
@@ -77,6 +78,15 @@ function PromptInput({
             className="temperature-slider"
           />
         </div>
+        <label className="rag-toggle" title="Prepend retrieved pgvector chunks to the prompt (requires rag.enabled in coordinator config)">
+          <input
+            type="checkbox"
+            checked={useRag}
+            onChange={(e) => setUseRag(e.target.checked)}
+            disabled={loading || disabled}
+          />
+          {' '}Use RAG context
+        </label>
         <button
           type="submit"
           className="submit-button"

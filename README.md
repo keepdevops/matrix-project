@@ -303,6 +303,23 @@ wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
 Conda env: `conda env update -n mlx-env -f environment.yml`.
 Tests: `pytest tests/modes tests/telemetry tests/rag`.
 
+**Coordinator RAG hook (opt-in)**: when `swarm-config.json` carries a
+top-level `"rag"` block with `"enabled": true`, `POST /api/architect` accepts
+`"use_rag": true` (and optional `"rag_top_k": N`). The C++ coordinator embeds
+the prompt with the same hash embedder as `matrixctl rag` (see
+`cpp_core/src/rag_embed.cpp` — byte-matched against
+`orchestration/rag/embed.py:HashEmbedder` via `tests/cpp/rag_embed_test.cpp`),
+runs the cosine-distance ANN query against `chunks`, and prepends a
+`<context source="rag">…</context>` block to the prompt before mode dispatch.
+Hit metadata appears under `meta.rag` in the response. `RAG_DSN` env
+overrides the DSN. Only the `hash` embedder is wired into the coordinator;
+the MLX/bge path remains Python-only (CLI).
+
+Config shape:
+```json
+"rag": { "enabled": true, "top_k": 3, "min_score": 1.0, "embedder": "hash" }
+```
+
 ## Coordinator HTTP API (cheat sheet)
 
 | Method · Path | Purpose |

@@ -76,6 +76,8 @@ export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
   if (opts.followup) body.followup = true;
   if (opts.qualityPass) body.quality_pass = true;
   if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
+  if (opts.useRag) body.use_rag = true;
+  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: {
