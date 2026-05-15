@@ -92,9 +92,14 @@ it with Matrix Swarm for parallel planning + deep execution.
 - **CLEAR KV** — drop llama-server KV cache and restart MLX servers between
   unrelated prompts.
 - **SAVE CODE** — export every agent's code blocks to one timestamped file.
-- **Pre-built swarm configs** — `swarm-config.json`,
-  `swarm-config-16gb.json`, `swarm-config-32gb.json`,
+- **Pre-built swarm configs** — `swarm-config.json` (generated; see below),
+  plus authored variants `swarm-config-16gb.json`, `swarm-config-32gb.json`,
   `swarm-config-8agents-text-image.json`.
+- **Per-agent config source of truth** — edit `config/agents/<name>.json`
+  (one file per agent) and `config/coordinator.json`, then run
+  `python3 scripts/build_swarm_config.py` to regenerate `swarm-config.json`
+  and its `public/` copy. Both are gitignored build artifacts;
+  `scripts/stage-dist.sh` runs the generator automatically before publish.
 - **Per-mode agent rosters** — pick which agents participate in each mode from
   the **PER-MODE ROSTER** panel. Order matters in pipeline. Empty roster ⇒
   mode falls back to the full deployed swarm. Persists across coordinator
