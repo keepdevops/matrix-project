@@ -1,5 +1,7 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "rag_client.h"
+#include "rag_config.h"
 #include "session_store.h"
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
@@ -21,6 +23,8 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             std::string session_id = j_body.value("session_id", std::string(""));
             const std::string parent_run_id = j_body.value("parent_run_id", std::string(""));
             json context_policy = j_body.value("context_policy", json::object());
+            const bool use_rag = j_body.value("use_rag", false);
+            const int  rag_top_k_override = j_body.value("rag_top_k", 0);
             if (session_id.empty()) session_id = session_new_id("sess");
             const std::string run_id = session_new_id("run");
 
@@ -32,6 +36,34 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     st.sessions, session_id, user_prompt, context_policy);
                 effective_prompt = cont.prompt;
                 compaction = cont.compaction;
+            }
+
+            // RAG: opt-in via {"use_rag": true}. Retrieved chunks are prepended
+            // to the prompt as a <context> block before mode dispatch. Failures
+            // log loudly but do not break dispatch (degrade to no-context).
+            json rag_meta = json::object();
+            if (use_rag) {
+                rag::Settings rag_s = rag::settings_from_config(st.startup_config);
+                if (rag_top_k_override > 0) rag_s.top_k = rag_top_k_override;
+                if (!rag_s.enabled) {
+                    rag_meta = {{"requested", true}, {"used", false},
+                                {"reason", "rag.enabled is false in coordinator config"}};
+                } else {
+                    auto hits = rag::retrieve(rag_s, user_prompt);
+                    std::string block = rag::render_context_block(hits);
+                    if (!block.empty()) effective_prompt = block + effective_prompt;
+                    json sources = json::array();
+                    for (const auto& h : hits) {
+                        sources.push_back({{"source_path", h.source_path},
+                                           {"chunk_idx", h.chunk_idx},
+                                           {"distance", h.distance}});
+                    }
+                    rag_meta = {{"requested", true},
+                                {"used", !hits.empty()},
+                                {"top_k", rag_s.top_k},
+                                {"min_score", rag_s.min_score},
+                                {"hits", sources}};
+                }
             }
             std::cout << "📝 Prompt: " << user_prompt
                       << (followup ? " (follow-up)" : "") << std::endl;
@@ -98,6 +130,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             envelope["meta"]["session_id"] = session_id;
             envelope["meta"]["run_id"] = run_id;
             envelope["meta"]["followup"] = followup;
+            if (!rag_meta.empty()) envelope["meta"]["rag"] = rag_meta;
             if (quality_pass) {
                 envelope["meta"]["quality_pass"] = {
                     {"used", true},

@@ -39,8 +39,18 @@ echo "Building coordinator..."
 # core dylib at /opt/homebrew/lib/libprometheus-cpp-core.dylib.
 PROM_INC="/opt/homebrew/include"
 PROM_LIB="/opt/homebrew/lib"
+
+# libpq (keg-only Homebrew) for the optional RAG retrieval path in dispatch.
+LIBPQ_PREFIX="/opt/homebrew/opt/libpq"
+LIBPQ_INC="$LIBPQ_PREFIX/include"
+LIBPQ_LIB="$LIBPQ_PREFIX/lib"
+
+# Compile vendored BLAKE2b as C (header uses extern "C" for C++ callers).
+cc -std=c99 -O2 -c -o "$ROOT/build/blake2b.o" "$CPP_SRC/blake2b.c"
+
 c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    -I"$PROM_INC" -L"$PROM_LIB" \
+   -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
@@ -72,9 +82,14 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/response_cache.cpp" \
    "$CPP_SRC/mlx_inflight.cpp" \
    "$CPP_SRC/kv_router.cpp" \
+   "$CPP_SRC/rag_config.cpp" \
+   "$CPP_SRC/rag_embed.cpp" \
+   "$CPP_SRC/rag_client.cpp" \
+   "$ROOT/build/blake2b.o" \
    -I"$CPP_SRC" \
    "${MOD_LINK[@]}" \
    -lprometheus-cpp-core \
+   -lpq \
    -pthread
 
 echo "Building proxy..."
@@ -114,6 +129,16 @@ c++ -std=c++17 -O0 -g -o "$ROOT/swarm_config_store_test" \
   "$CPP_SRC/swarm_config_store.cpp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/swarm_config_store_test"
+
+echo "Building rag_embed_test..."
+c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
+  "$ROOT/tests/cpp/rag_embed_test.cpp" \
+  "$CPP_SRC/rag_embed.cpp" \
+  "$CPP_SRC/rag_client.cpp" \
+  "$ROOT/build/blake2b.o" \
+  -I"$CPP_SRC" \
+  -I"$LIBPQ_INC" -L"$LIBPQ_LIB" -lpq
+ls -lart "$ROOT/rag_embed_test"
 
 echo "Build complete."
 # EOF
