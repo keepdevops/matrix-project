@@ -30,6 +30,11 @@ std::vector<Hit> retrieve(const Settings& s, const std::string& query);
 /// when no hits. Used by dispatch when use_rag is true.
 std::string render_context_block(const std::vector<Hit>& hits);
 
+/// Liveness probe. Runs `SELECT 1` against the same DSN/connection used by
+/// retrieve(). Returns true on success; on failure, fills `error_out` (when
+/// non-null) with the libpq error message and logs it.
+bool health_check(const Settings& s, std::string* error_out);
+
 /// Test seam: close any cached connection. Safe to call from a single thread.
 void shutdown_for_test();
 

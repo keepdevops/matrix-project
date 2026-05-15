@@ -9,6 +9,7 @@ dependencies:
   - structlog>=24
   - prometheus_client>=0.20
   - asyncpg>=0.29
+  - aiohttp>=3.9
   - pyyaml>=6
   # RAG / embedding stack
   - numpy>=1.26
