@@ -17,6 +17,9 @@ mkdir -p "$DIST/web" "$DIST/config"
 
 cp -R "$ROOT/build"/* "$DIST/web/"
 
+# Regenerate swarm-config.json from per-agent files in config/agents/
+python3 "$ROOT/scripts/build_swarm_config.py"
+
 # Remove source maps — they expose original source code in the published package.
 find "$DIST/web" -name '*.map' -delete
 
