@@ -57,6 +57,9 @@
                 <a href="https://github.com/keepdevops/matrix-project/blob/main/LICENSE" target="_blank" rel="noopener">
                     <img src="https://img.shields.io/github/license/keepdevops/matrix-project?style=for-the-badge&color=8a8a99&labelColor=111114" alt="license" />
                 </a>
+                <a href="https://github.com/keepdevops/matrix-project/actions/workflows/config-generator.yml" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/actions/workflow/status/keepdevops/matrix-project/config-generator.yml?branch=main&style=for-the-badge&labelColor=111114&label=config%20generator" alt="config generator CI" />
+                </a>
             </div>
 
             <div>
@@ -282,7 +285,7 @@
         </details>
         <details>
             <summary>How do I add a custom agent?</summary>
-            <p>Drop a JSON entry into your <code>swarm-config.json</code> with a system prompt, model binding, and role. See <code>swarm-config-16gb.json</code> in the repo for examples.</p>
+            <p>Add a new file under <code>config/agents/&lt;name&gt;.json</code> with a system prompt, model binding, and role, then run <code>python3 scripts/build_swarm_config.py</code> to regenerate <code>swarm-config.json</code>. See existing files in <code>config/agents/</code> for examples.</p>
         </details>
         <details>
             <summary>Is there a Docker install?</summary>
