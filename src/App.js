@@ -18,6 +18,8 @@ import SwarmConfig from './components/SwarmConfig';
 import HelpModal from './components/HelpModal';
 import ModeSelector from './components/ModeSelector';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
+import RagSources from './components/RagSources';
+import RagAdmin from './components/RagAdmin';
 import KvPressureGauge from './components/KvPressureGauge';
 import PressureCluster from './components/PressureCluster';
 import { extractCodeBlock } from './utils/codeExtractor';
@@ -59,9 +61,11 @@ function App() {
   const [showConfig, setShowConfig] = useState(true);
   const [deployPending, setDeployPending] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showRagAdmin, setShowRagAdmin] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [cacheStatus, setCacheStatus] = useState('idle');
+  const [useRag, setUseRag] = useState(false);
 
   const [theme, setTheme] = useState(() => {
     try {
@@ -261,7 +265,7 @@ function App() {
 
   const handleSubmit = async (prompt, temperature, opts = {}) => {
     try {
-      await submit(prompt, temperature, opts);
+      await submit(prompt, temperature, { useRag, ...opts });
       loadHistory();
     } catch (err) {
       console.error('Submission failed:', err);
@@ -342,6 +346,13 @@ function App() {
           >
             HISTORY ({history.length})
           </button>
+          <button
+            className="help-button"
+            onClick={() => setShowRagAdmin(true)}
+            title="Upload/manage RAG documents"
+          >
+            RAG DOCS
+          </button>
           <button className="help-button" onClick={() => setShowHelp(true)}>
             ?
           </button>
@@ -386,6 +397,8 @@ function App() {
             onPromptConsumed={() => setSelectedPrompt(null)}
             canContinue={Boolean(currentSession?.sessionId)}
             onQualityPass={handleQualityPass}
+            useRag={useRag}
+            onUseRagChange={setUseRag}
           />
           {excludedBreaker.length > 0 && (
             <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">
@@ -401,6 +414,7 @@ function App() {
             </div>
           )}
           <FinalAnswerPanel text={finalAnswer} />
+          <RagSources rag={lastMeta?.rag} />
           <MetricsStrip envelope={{ meta: lastMeta }} />
           {stageOutputs.length > 0 && (
             <div className="final-answer-panel" style={{ marginTop: '0.75rem' }}>
@@ -487,6 +501,7 @@ function App() {
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showRagAdmin && <RagAdmin onClose={() => setShowRagAdmin(false)} />}
     </div>
   );
 }
