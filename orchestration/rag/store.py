@@ -94,6 +94,50 @@ class PgVectorStore:
             RAG_DB_ERRORS.labels(op="upsert").inc()
             raise
 
+    async def list_sources(self) -> list[dict[str, Any]]:
+        """Return one row per source_path: {source_path, chunks, latest}."""
+        pool = await self._pool_or_connect()
+        sql = """
+            SELECT source_path,
+                   COUNT(*)        AS chunks,
+                   MAX(created_at) AS latest
+              FROM chunks
+             GROUP BY source_path
+             ORDER BY latest DESC
+        """
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql)
+        except Exception as exc:
+            logger.error("rag: list_sources failed: %s", exc)
+            RAG_DB_ERRORS.labels(op="list").inc()
+            raise
+        return [
+            {
+                "source_path": r["source_path"],
+                "chunks": int(r["chunks"]),
+                "latest": r["latest"].isoformat() if r["latest"] else None,
+            }
+            for r in rows
+        ]
+
+    async def delete_source(self, source_path: str) -> int:
+        """Delete all chunks for one source_path. Returns rows removed."""
+        pool = await self._pool_or_connect()
+        try:
+            async with pool.acquire() as conn:
+                tag = await conn.execute(
+                    "DELETE FROM chunks WHERE source_path = $1", source_path,
+                )
+        except Exception as exc:
+            logger.error("rag: delete_source(%s) failed: %s", source_path, exc)
+            RAG_DB_ERRORS.labels(op="delete").inc()
+            raise
+        try:
+            return int(tag.rsplit(" ", 1)[-1])
+        except (ValueError, AttributeError):
+            return 0
+
     async def search(self, query_vec: Sequence[float], k: int = 3) -> list[SearchHit]:
         pool = await self._pool_or_connect()
         sql = """
