@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     '/Users/caribou/matrix-project/swarm_config_store_test'
-relocations:     []
-...
