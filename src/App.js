@@ -463,21 +463,35 @@ function App() {
                 {activeAgents.map(({ name }) => {
                   const text = responses[name];
                   if (!text) return null;
+                  const isPicked = flatPickAgent === name;
                   return (
                     <div
                       key={name}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setFlatPickAgent(isPicked ? null : name)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFlatPickAgent(isPicked ? null : name); }}
                       style={{
                         flex: '0 0 min(280px, 45vw)',
                         maxHeight: '180px',
                         overflow: 'auto',
                         fontSize: '0.78rem',
-                        border: '1px solid color-mix(in srgb, var(--fg, #ccc) 25%, transparent)',
+                        border: isPicked
+                          ? '2px solid #00ff41'
+                          : '1px solid color-mix(in srgb, var(--fg, #ccc) 25%, transparent)',
                         borderRadius: 4,
                         padding: '0.35rem',
+                        cursor: 'pointer',
+                        boxShadow: isPicked ? '0 0 0 1px #00ff4166' : 'none',
+                        background: isPicked ? 'rgba(0,255,65,0.06)' : 'transparent',
+                        userSelect: 'none',
                       }}
                     >
-                      <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{name}</div>
-                      <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{text}</pre>
+                      <div style={{ fontWeight: 700, marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{name}</span>
+                        {isPicked && <span style={{ color: '#00ff41', fontSize: '0.7rem' }}>✓ SELECTED</span>}
+                      </div>
+                      <pre style={{ whiteSpace: 'pre-wrap', margin: 0, userSelect: 'text' }}>{text}</pre>
                     </div>
                   );
                 })}
@@ -489,7 +503,7 @@ function App() {
                 <button
                   type="button"
                   className="submit-button continue-button"
-                  disabled={loading || !flatPickAgent || !currentSession?.sessionId}
+                  disabled={loading || !flatPickAgent}
                   onClick={() => handleSendBestContinue(0.2)}
                 >
                   SEND BEST TO CONTINUE
