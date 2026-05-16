@@ -30,25 +30,6 @@ export function parseModelSizeBillions(modelPath) {
   return m ? Number(m[1]) : null;
 }
 
-export function getModelWeight(modelPath, engine) {
-  const sizeB = parseModelSizeBillions(modelPath);
-  if (sizeB !== null) {
-    if (sizeB <= 2.5)  return 0.4;
-    if (sizeB <= 3.5)  return 0.55;
-    if (sizeB <= 8.5)  return 1.0;
-    if (sizeB <= 14.5) return 1.4;
-    return 1.8;
-  }
-  if (engine === 'vllm') return 1.1;
-  if (engine === 'mlx')  return 0.9;
-  return 1.0;
-}
-
-export function getRiskBand(totalScore) {
-  if (totalScore > 18)  return { id: 'high',   label: 'HIGH',   hint: 'Likely OOM on heavy prompts' };
-  if (totalScore >= 12) return { id: 'medium', label: 'MEDIUM', hint: 'May OOM under flat/full parallel runs' };
-  return                       { id: 'low',    label: 'LOW',    hint: 'Usually stable for normal prompts' };
-}
 
 export function computeLayout(roles, selected, roleModels, models) {
   const keyToPort = {};
