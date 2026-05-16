@@ -18,3 +18,9 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 void register_coordinator_routes_architect_stream(httplib::Server& svr, CoordinatorState& st);
 void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st);
 void register_coordinator_routes_rag_health(httplib::Server& svr, CoordinatorState& st);
+
+// Defined in coordinator_routes_modes_put.cpp — handles PUT /api/modes/<name>/agents
+void handle_mode_agents_put(CoordinatorState& st,
+                             const std::string& mode_name,
+                             const httplib::Request& req,
+                             httplib::Response& res);

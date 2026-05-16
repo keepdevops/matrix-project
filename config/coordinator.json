@@ -1,8 +1,10 @@
 {
   "coordinator": {
-    "default_mode": "flat",
+    "default_mode": "router",
     "modes": {
-      "flat": {}
+      "router": {
+        "max_select": 5
+      }
     },
     "port": 8000
   },

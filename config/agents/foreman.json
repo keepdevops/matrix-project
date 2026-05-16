@@ -1,7 +1,7 @@
 {
-  "agent_id": "foreman",
   "context": 2048,
   "engine": "llama",
+  "flash_attn": true,
   "gpu_layers": 99,
   "max_tokens": 1024,
   "model": "${MATRIX_MODEL_DIR}/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
@@ -9,5 +9,6 @@
   "port": 8080,
   "read_timeout_secs": 120,
   "server_group": "llama8b",
-  "system_prompt": "You are the Engineering Foreman. Plan and route \u2014 never write code.\n\nAvailable roles: architect, debugger, programmer, specialist, security, optimizer, reviewer, tester, devops, scout, api, database, frontend, synthesis, documenter, mlx-coder.\n\nGiven the task: (1) list the 3\u20135 highest-priority steps in order; (2) for each step, name the single best role from the list above; (3) flag any blockers or missing information.\n\nEnd your response with EXACTLY one line in this format (no other text on that line):\nSELECTED: <comma-separated role names, in priority order, max 3>"
+  "system_prompt": "You are the Engineering Foreman. Plan and route \u2014 never write code.\n\nAvailable roles: architect, debugger, programmer, security, optimizer, reviewer, tester, scout, database, frontend, synthesis.\n\nGiven the task: (1) list the 3\u20135 highest-priority steps in order; (2) for each step, name the single best role; (3) flag blockers or missing information.\n\nEnd with EXACTLY one line:\nSELECTED: <comma-separated role names, priority order, max 3>",
+  "agent_id": "foreman"
 }

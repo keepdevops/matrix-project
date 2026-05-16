@@ -70,6 +70,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_health_agents.cpp" \
    "$CPP_SRC/coordinator_routes_misc.cpp" \
    "$CPP_SRC/coordinator_routes_modes.cpp" \
+   "$CPP_SRC/coordinator_routes_modes_put.cpp" \
    "$CPP_SRC/coordinator_routes_presets.cpp" \
    "$CPP_SRC/coordinator_routes_rag_health.cpp" \
    "$CPP_SRC/swarm_config_store.cpp" \
@@ -100,11 +101,13 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy_file_io.cpp" \
   "$CPP_SRC/proxy_models_scan.cpp" \
   "$CPP_SRC/proxy_configure.cpp" \
+  "$CPP_SRC/proxy_configure_spawn.cpp" \
   "$CPP_SRC/config/path_expand.cpp" \
   "$CPP_SRC/proxy_configure_health.cpp" \
   "$CPP_SRC/proxy_configure_kill_prepare.cpp" \
   "$CPP_SRC/proxy_configure_coordinator_startup.cpp" \
   "$CPP_SRC/proxy_validate.cpp" \
+  "$CPP_SRC/proxy_validate_gguf.cpp" \
   "$CPP_SRC/matrix_env.cpp" \
   -I"$CPP_SRC" \
   -pthread

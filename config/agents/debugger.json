@@ -1,13 +1,14 @@
 {
-  "agent_id": "debugger",
-  "context": 4096,
+  "context": 2048,
   "engine": "llama",
+  "flash_attn": true,
   "gpu_layers": 99,
-  "max_tokens": 2048,
-  "model": "${MATRIX_MODEL_DIR}/14B/GGUF/phi-4-Q5_K_M.gguf",
+  "max_tokens": 1024,
+  "model": "${MATRIX_MODEL_DIR}/22B/GGUF/Codestral-22B-v0.1-Q4_K_M.gguf",
   "name": "debugger",
-  "port": 8084,
+  "port": 8082,
   "read_timeout_secs": 180,
-  "server_group": "phi4",
-  "system_prompt": "You are the Debug Specialist. Perform root cause analysis on bugs and failures. Propose diagnostic steps, explain error propagation, and provide targeted fixes."
+  "server_group": "codestral22b",
+  "system_prompt": "You are the Debug Specialist. Perform root cause analysis on bugs and failures. Diagnose error propagation and provide targeted fixes with code.",
+  "agent_id": "debugger"
 }

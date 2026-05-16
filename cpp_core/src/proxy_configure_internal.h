@@ -13,3 +13,10 @@ struct PortGroup {
 };
 
 inline constexpr int PROXY_CONFIGURE_DOCKER_PORT = 12434;
+
+#include <map>
+
+// Spawn all inference server processes for the given port groups.
+// Defined in proxy_configure_spawn.cpp.
+void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
+                              const std::string& proj);
