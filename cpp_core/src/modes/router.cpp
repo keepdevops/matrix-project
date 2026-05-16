@@ -181,6 +181,29 @@ json run_router(const ModeContext& ctx) {
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : agents) by_name[a.name] = &a;
 
+    // Quality pass: skip classifier, re-run the prior target agent directly.
+    if (ctx.quality_pass) {
+        json agent_outputs = json::object();
+        const std::string& target = ctx.quality_pass_target;
+        if (by_name.count(target)) {
+            std::cout << "🧭 [router] quality_pass: skipping classifier, re-running '"
+                      << target << "'" << std::endl;
+            const Agent* agent = by_name[target];
+            agent_outputs[target] = call_agent(*agent, ctx.user_prompt);
+        } else {
+            std::cerr << "⚠️  [router] quality_pass target '" << target
+                      << "' not reachable — no agents called" << std::endl;
+        }
+        meta["quality_pass_target"] = target;
+        meta["selected"] = json::array({target});
+        return json{
+            {"mode", "router"},
+            {"agents", agent_outputs},
+            {"final", nullptr},
+            {"meta", meta}
+        };
+    }
+
     std::string classifier_name = cfg.value("classifier", std::string(""));
     const std::string configured_classifier = classifier_name;
     int max_select = cfg.value("max_select", 3);

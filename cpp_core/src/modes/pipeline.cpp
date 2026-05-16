@@ -238,9 +238,15 @@ json run_pipeline(const ModeContext& ctx) {
             missing.push_back(name);
             continue;
         }
+        // Quality pass: only execute the target stage; skip all others.
+        if (ctx.quality_pass && name != ctx.quality_pass_target) {
+            std::cout << "⏭️  [pipeline] quality_pass: skipping stage '" << name << "'" << std::endl;
+            continue;
+        }
         ++step;
         std::cout << "🔗 [pipeline] step " << step << "/" << total
-                  << " → " << name << std::endl;
+                  << " → " << name << (ctx.quality_pass ? " (quality pass)" : "")
+                  << std::endl;
 
         std::string prev_for_prompt = prev_output;
         if (!prev_agent.empty() && stage_context_chars > 0
