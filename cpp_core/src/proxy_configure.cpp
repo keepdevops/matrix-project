@@ -141,8 +141,10 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         // Default to 99 (all layers on GPU) for llama backend — CPU-only (0) causes
         // inference to exceed read_timeout on large models like Codestral-22B.
         int default_gpu_layers = (bk == "llama") ? 99 : 0;
+        int agent_n_batch = a.value("n_batch", 0);
         if (g.model.empty()) {
-            g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), gmu, {}, "", 0};
+            g = {model, bk, a["context"].get<int>(), a.value("gpu_layers", default_gpu_layers), 0, gmu, {}, "", 0};
+            g.n_batch = agent_n_batch;
         } else {
             if (g.backend != bk || g.model != model) {
                 return {false, 400, {
@@ -157,6 +159,9 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
                 }};
             }
             g.context = std::max(g.context, a["context"].get<int>());
+            // n_batch: tightest constraint wins (lowest non-zero value)
+            if (agent_n_batch > 0)
+                g.n_batch = (g.n_batch == 0) ? agent_n_batch : std::min(g.n_batch, agent_n_batch);
         }
         g.names.push_back(a["name"].get<std::string>());
         // Capture draft-model config (llama only). First non-empty wins; later
@@ -282,6 +287,10 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
                 "--metrics",
                 "--slot-save-path", g_env.matrix_slots_dir
             };
+            if (g.n_batch > 0) {
+                args.push_back("--batch-size");
+                args.push_back(std::to_string(g.n_batch));
+            }
             if (!g.draft_model.empty()) {
                 args.push_back("--model-draft");
                 args.push_back(g.draft_model);

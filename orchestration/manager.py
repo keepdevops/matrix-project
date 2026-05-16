@@ -46,6 +46,7 @@ class AgentConfig(BaseModel):
     server_group: str | None = None
     port: int | None = None
     gpu_layers: int | None = None
+    n_batch: int | None = None
     read_timeout_secs: int | None = None
     max_concurrency: int | None = None
 
