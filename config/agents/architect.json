@@ -1,6 +1,6 @@
 {
   "agent_id": "architect",
-  "context": 4096,
+  "context": 8192,
   "engine": "llama",
   "gpu_layers": 99,
   "max_tokens": 2112,
