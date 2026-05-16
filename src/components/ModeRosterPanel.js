@@ -51,6 +51,7 @@ export default function ModeRosterPanel() {
 
   const [pipelineOrder, setPipelineOrder] = useState([]);
   const [usePipelineOrder, setUsePipelineOrder] = useState(false);
+  const [stageContextChars, setStageContextChars] = useState('');
 
   // Poll agent health every 5s. Light enough to be safe; the snapshot is in-memory.
   useEffect(() => {
@@ -177,6 +178,10 @@ export default function ModeRosterPanel() {
       if (activeTab === 'router') opts.classifier_policy = classifierPolicy;
       if (activeTab === 'pipeline' && usePipelineOrder) {
         opts.order = pipelineOrder.length ? pipelineOrder : null;
+      }
+      if (activeTab === 'pipeline' && stageContextChars !== '') {
+        const scc = parseInt(stageContextChars, 10);
+        if (Number.isInteger(scc) && scc > 0) opts.stage_context_chars = scc;
       }
       const res = await setModeAgents(activeTab, selected, opts);
       // Trust server-normalized roster: it reflects what was actually persisted
@@ -402,6 +407,21 @@ export default function ModeRosterPanel() {
           <span style={{ opacity: 0.6, fontSize: '0.75rem' }}>
             (used when no explicit stage roster/order is saved)
           </span>
+        </div>
+      )}
+
+      {activeTab === 'pipeline' && (
+        <div style={{ marginTop: '0.4rem', fontSize: '0.85rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <label title="Max chars of prior-stage output passed as context to each stage. Leave blank for server default.">stage ctx chars</label>
+          <input
+            type="number"
+            min={256}
+            step={256}
+            value={stageContextChars}
+            onChange={e => setStageContextChars(e.target.value)}
+            placeholder="server default"
+            style={{ padding: '0.15rem 0.3rem', width: '8rem' }}
+          />
         </div>
       )}
 

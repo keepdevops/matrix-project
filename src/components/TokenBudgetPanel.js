@@ -17,6 +17,10 @@ const MIN_CONTEXT = 512;
 const MAX_CONTEXT = 262144;
 const MIN_TIMEOUT = 30;
 const MAX_TIMEOUT = 7200;
+const MIN_GPU_LAYERS = 0;
+const MAX_GPU_LAYERS = 999;
+const MIN_CONCURRENCY = 1;
+const MAX_CONCURRENCY = 64;
 
 function clamp(n, lo, hi) {
   if (!Number.isFinite(n)) return lo;
@@ -53,11 +57,14 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
     const d = drafts[role.name];
     if (!d) return false;
     const dm = d.max_tokens, dc = d.context, dt = d.read_timeout_secs;
-    const changed =
+    const dg = d.gpu_layers, dmc = d.max_concurrency;
+    return (
       (dm !== undefined && dm !== '' && Number(dm) !== role.max_tokens) ||
       (dc !== undefined && dc !== '' && Number(dc) !== role.context) ||
-      (dt !== undefined && dt !== '' && Number(dt) !== role.read_timeout_secs);
-    return changed;
+      (dt !== undefined && dt !== '' && Number(dt) !== role.read_timeout_secs) ||
+      (dg !== undefined && dg !== '' && Number(dg) !== role.gpu_layers) ||
+      (dmc !== undefined && dmc !== '' && Number(dmc) !== role.max_concurrency)
+    );
   };
 
   const totalContext = useMemo(
@@ -82,6 +89,12 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
     }
     if (d.read_timeout_secs !== undefined && d.read_timeout_secs !== '') {
       patch.read_timeout_secs = clamp(Number(d.read_timeout_secs), MIN_TIMEOUT, MAX_TIMEOUT);
+    }
+    if (d.gpu_layers !== undefined && d.gpu_layers !== '') {
+      patch.gpu_layers = clamp(Number(d.gpu_layers), MIN_GPU_LAYERS, MAX_GPU_LAYERS);
+    }
+    if (d.max_concurrency !== undefined && d.max_concurrency !== '' && role.max_concurrency !== undefined) {
+      patch.max_concurrency = clamp(Number(d.max_concurrency), MIN_CONCURRENCY, MAX_CONCURRENCY);
     }
     if (Object.keys(patch).length === 0) return;
 
@@ -173,7 +186,7 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 5rem 5rem 4.25rem 3.25rem',
+        gridTemplateColumns: '1fr 4.5rem 4.5rem 3.75rem 3.25rem 3.25rem 3.25rem',
         columnGap: '0.4rem',
         rowGap: '0.15rem',
         fontSize: '0.78rem',
@@ -184,6 +197,8 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
         <div style={{ opacity: 0.55, fontSize: '0.72rem' }}>ctx</div>
         <div style={{ opacity: 0.55, fontSize: '0.72rem' }}>max_tok</div>
         <div style={{ opacity: 0.55, fontSize: '0.72rem' }} title="HTTP read timeout (seconds). Auto-bumped when max_tokens is raised past 4096.">to (s)</div>
+        <div style={{ opacity: 0.55, fontSize: '0.72rem' }} title="GPU layers offloaded. Takes effect on next deploy.">gpu</div>
+        <div style={{ opacity: 0.55, fontSize: '0.72rem' }} title="Max concurrent requests for this agent.">conc</div>
         <div />
         {visibleRoles.map(role => {
           const dirty = isDirty(role);
@@ -193,6 +208,8 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
           const ctxVal = drafts[role.name]?.context ?? role.context ?? '';
           const mtVal = drafts[role.name]?.max_tokens ?? role.max_tokens ?? '';
           const toVal = drafts[role.name]?.read_timeout_secs ?? role.read_timeout_secs ?? '';
+          const gpuVal = drafts[role.name]?.gpu_layers ?? role.gpu_layers ?? '';
+          const concVal = drafts[role.name]?.max_concurrency ?? role.max_concurrency ?? '';
           const inputStyle = {
             padding: '0.05rem 0.25rem',
             fontSize: '0.78rem',
@@ -242,6 +259,21 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
                 onChange={e => setDraft(role.name, 'read_timeout_secs', e.target.value)}
                 disabled={isBusy} style={inputStyle}
                 title="HTTP read timeout (s). Leave blank to let the server auto-pick when raising max_tokens."
+              />
+              <input
+                type="number" min={MIN_GPU_LAYERS} max={MAX_GPU_LAYERS} step={1}
+                value={gpuVal}
+                onChange={e => setDraft(role.name, 'gpu_layers', e.target.value)}
+                disabled={isBusy} style={inputStyle}
+                title="GPU layers offloaded to VRAM. Takes effect on next deploy."
+              />
+              <input
+                type="number" min={MIN_CONCURRENCY} max={MAX_CONCURRENCY} step={1}
+                value={concVal}
+                onChange={e => setDraft(role.name, 'max_concurrency', e.target.value)}
+                disabled={isBusy || role.max_concurrency === undefined} style={inputStyle}
+                title={role.max_concurrency === undefined ? 'Not configurable for this agent' : 'Max concurrent requests'}
+                placeholder={role.max_concurrency === undefined ? '—' : ''}
               />
               <button
                 onClick={() => saveOne(role)}
