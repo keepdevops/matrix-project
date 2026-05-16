@@ -113,7 +113,68 @@ void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st
         }
     }
 
-    // 8. CORS preflight
+    // 8. Token usage metrics per agent (accumulated since last evict/reset)
+    svr.Get("/api/metrics", [&st](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        json out = agent_metrics::snapshot();
+        std::map<std::string, int> name_to_port;
+        for (const auto& a : st.agents) name_to_port[a.name] = a.port;
+        for (auto& [name, entry] : out.items()) {
+            if (name_to_port.count(name)) entry["port"] = name_to_port[name];
+        }
+        res.set_content(out.dump(), "application/json");
+    });
+
+    // 9. Evict all KV slots on every llama-server + reset per-agent token counters.
+    svr.Post("/api/slots/evict", [&st](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        json prior = agent_metrics::snapshot();
+        agent_metrics::reset();
+
+        std::map<int, int> port_slots;
+        for (const auto& a : st.agents) port_slots[a.port]++;
+
+        std::vector<std::future<std::pair<int, json>>> futures;
+        for (const auto& kv : port_slots) {
+            int port = kv.first, slot_count = kv.second;
+            futures.push_back(std::async(std::launch::async, [port, slot_count]() {
+                json result;
+                result["slots_attempted"] = slot_count;
+                int ok = 0;
+                try {
+                    httplib::Client cli("127.0.0.1", port);
+                    cli.set_connection_timeout(5);
+                    cli.set_read_timeout(10);
+                    for (int s = 0; s < slot_count; ++s) {
+                        auto r = cli.Post("/slots/" + std::to_string(s) + "?action=erase",
+                                         "", "application/json");
+                        if (r && r->status == 200) ++ok;
+                    }
+                    result["slots_cleared"] = ok;
+                    result["status"] = (ok == slot_count) ? "ok" : "partial";
+                } catch (const std::exception& e) {
+                    std::cerr << "❌ [evict] port " << port << ": " << e.what() << std::endl;
+                    result["status"] = std::string("error: ") + e.what();
+                    result["slots_cleared"] = ok;
+                }
+                return std::make_pair(port, result);
+            }));
+        }
+
+        json ports_out = json::object();
+        for (auto& fut : futures) {
+            auto pr = fut.get();
+            ports_out[std::to_string(pr.first)] = pr.second;
+        }
+        std::cout << "🧹 [slots/evict] KV cleared, metrics reset" << std::endl;
+        res.set_content(json({
+            {"status", "ok"},
+            {"ports", ports_out},
+            {"prior_metrics", prior}
+        }).dump(), "application/json");
+    });
+
+    // 10. CORS preflight
     svr.Options(R"(/api/.*)", [&st](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
