@@ -100,7 +100,8 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     }
                     return false;
                 }), mode_agents.end());
-            ModeContext ctx{mode_agents, effective_prompt, temperature, cfg_for_mode};
+            const std::string qp_target = context_policy.value("target_agent", std::string("programmer"));
+            ModeContext ctx{mode_agents, effective_prompt, temperature, cfg_for_mode, quality_pass, qp_target};
 
             if (!excluded_unhealthy.empty()) {
                 std::cerr << "🔴 [dispatch] excluding " << excluded_unhealthy.size()
@@ -140,7 +141,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             if (quality_pass) {
                 envelope["meta"]["quality_pass"] = {
                     {"used", true},
-                    {"instruction", "review previous output and produce corrected final answer"}
+                    {"target", qp_target}
                 };
             }
             if (!parent_run_id.empty()) envelope["meta"]["parent_run_id"] = parent_run_id;

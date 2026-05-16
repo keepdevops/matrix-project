@@ -12,6 +12,8 @@ struct ModeContext {
     const std::string& user_prompt;
     double temperature;
     const nlohmann::json& mode_config; // per-mode options from swarm-config.json
+    bool quality_pass = false;
+    std::string quality_pass_target = "programmer"; // agent to re-run on quality pass
 };
 
 // A mode returns an envelope: {mode, agents, final, meta}.

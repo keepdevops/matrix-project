@@ -11,9 +11,29 @@ using json = nlohmann::json;
 namespace {
 
 // Parallel broadcast: every agent receives the same user prompt.
+// On quality_pass, only the target agent (default: programmer) is called.
 json run_flat(const ModeContext& ctx) {
-    std::cout << "🔀 [flat] broadcasting to " << ctx.agents.size()
-              << " agent(s) in parallel..." << std::endl;
+    // Quality pass: narrow to target agent only
+    std::vector<Agent> active_agents;
+    if (ctx.quality_pass) {
+        for (const auto& a : ctx.agents) {
+            if (a.name == ctx.quality_pass_target) {
+                active_agents.push_back(a);
+                break;
+            }
+        }
+        if (active_agents.empty()) {
+            std::cerr << "⚠️  [flat] quality_pass target '" << ctx.quality_pass_target
+                      << "' not in roster — falling back to full broadcast" << std::endl;
+            active_agents = ctx.agents;
+        }
+    } else {
+        active_agents = ctx.agents;
+    }
+
+    std::cout << "🔀 [flat] broadcasting to " << active_agents.size()
+              << " agent(s) in parallel" << (ctx.quality_pass ? " (quality pass)" : "")
+              << "..." << std::endl;
 
     json agent_outputs = json::object();
     json meta = mode_module::module_meta("flat", ctx.mode_config);
@@ -23,11 +43,11 @@ json run_flat(const ModeContext& ctx) {
     json participants = json::array();
 
     std::vector<std::future<std::pair<std::string, std::string>>> futures;
-    for (size_t i = 0; i < ctx.agents.size(); ++i) {
-        const Agent agent = ctx.agents[i];
+    for (size_t i = 0; i < active_agents.size(); ++i) {
+        const Agent agent = active_agents[i];
         participants.push_back(agent.name);
         const std::string prompt = mode_module::flat_prompt_for_agent(
-            ctx.user_prompt, agent, variant_policy, i, ctx.agents.size());
+            ctx.user_prompt, agent, variant_policy, i, active_agents.size());
         futures.push_back(std::async(std::launch::async, [prompt, agent]() {
             return std::make_pair(agent.name, call_agent(agent, prompt));
         }));
