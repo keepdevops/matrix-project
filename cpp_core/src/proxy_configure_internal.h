@@ -5,7 +5,7 @@
 
 struct PortGroup {
     std::string model, backend;
-    int context = 0, gpu_layers = 0;
+    int context = 0, gpu_layers = 0, n_batch = 0;
     float gpu_mem_util = 0.75f;
     std::vector<std::string> names;
     std::string draft_model;
