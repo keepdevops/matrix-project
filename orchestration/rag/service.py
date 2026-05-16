@@ -74,7 +74,8 @@ async def cors_mw(request: web.Request, handler: Any) -> web.StreamResponse:
     try:
         resp = await handler(request)
     except web.HTTPException as exc:
-        return _cors(exc)
+        _cors(exc)
+        raise
     return _cors(resp)
 
 
@@ -162,6 +163,31 @@ async def handle_job(request: web.Request) -> web.Response:
     return web.json_response(job.to_dict())
 
 
+async def handle_embed(request: web.Request) -> web.Response:
+    """POST /embed {"texts": [...]} → {"vectors": [[...], ...]}
+
+    Used by the C++ coordinator when embedder == "mlx" so that semantic
+    embeddings are computed here in Python and returned as a JSON array.
+    """
+    try:
+        body = await request.json()
+    except Exception as exc:
+        logger.error("rag-embed: invalid JSON: %s", exc)
+        raise web.HTTPBadRequest(reason="invalid JSON body")
+    texts = body.get("texts")
+    if not isinstance(texts, list) or not all(isinstance(t, str) for t in texts):
+        raise web.HTTPBadRequest(reason="'texts' must be a list of strings")
+    if len(texts) > 512:
+        raise web.HTTPBadRequest(reason="'texts' exceeds max batch size of 512")
+    embedder = request.app["embedder"]
+    try:
+        vectors = await embedder.embed(texts)
+    except Exception as exc:
+        logger.error("rag-embed: embed failed: %s", exc)
+        raise web.HTTPInternalServerError(reason=f"embed error: {exc}")
+    return web.json_response({"vectors": vectors})
+
+
 async def handle_documents(request: web.Request) -> web.Response:
     store: PgVectorStore = request.app["store"]
     if request.method == "DELETE":
@@ -181,6 +207,7 @@ def make_app(embedder_name: str = "hash") -> web.Application:
     app["embedder_name"] = embedder_name
     app["jobs"] = JobRegistry()
     app.router.add_get("/health", handle_health)
+    app.router.add_post("/embed", handle_embed)
     app.router.add_post("/ingest", handle_ingest)
     app.router.add_get("/jobs/{job_id}", handle_job)
     app.router.add_get("/documents", handle_documents)

@@ -12,8 +12,10 @@ struct Settings {
     bool enabled       = false;
     int  top_k         = 3;
     double min_score   = 1.0;   // cosine distance ceiling (1.0 = no filter)
-    std::string embedder = "hash";
+    std::string embedder  = "hash";
     std::string dsn;
+    // URL of the ingest sidecar /embed endpoint; used when embedder == "mlx".
+    std::string embed_url = "http://127.0.0.1:8001/embed";
 };
 
 // `root` is the full coordinator config JSON (the same object loaded from

@@ -2,6 +2,9 @@
 
 #include "rag_embed.h"
 
+#define CPPHTTPLIB_NO_EXCEPTIONS 1
+#include "httplib.h"
+
 #include <libpq-fe.h>
 
 #include <cstdio>
@@ -51,6 +54,58 @@ bool ensure_open_locked(Conn& c, const std::string& dsn) {
     return true;
 }
 
+// Parse "http://host:port/path" → (host, port, path). Returns false on failure.
+bool parse_http_url(const std::string& url, std::string& host,
+                    int& port, std::string& path) {
+    const std::string prefix = "http://";
+    if (url.substr(0, prefix.size()) != prefix) return false;
+    std::string rest = url.substr(prefix.size());
+    auto slash = rest.find('/');
+    path = (slash == std::string::npos) ? "/" : rest.substr(slash);
+    std::string hostport = (slash == std::string::npos) ? rest : rest.substr(0, slash);
+    auto colon = hostport.rfind(':');
+    if (colon == std::string::npos) { host = hostport; port = 80; }
+    else {
+        host = hostport.substr(0, colon);
+        port = std::stoi(hostport.substr(colon + 1));
+    }
+    return !host.empty() && port > 0 && port < 65536;
+}
+
+// Call the ingest sidecar's /embed endpoint to get a semantic vector for query.
+// Returns empty on any network or parse error (always logged).
+std::vector<double> mlx_embed(const std::string& embed_url,
+                               const std::string& query) {
+    std::string host, path;
+    int port = 0;
+    if (!parse_http_url(embed_url, host, port, path)) {
+        std::cerr << "❌ [rag] invalid embed_url: " << embed_url << std::endl;
+        return {};
+    }
+    httplib::Client cli(host, port);
+    cli.set_connection_timeout(2);
+    cli.set_read_timeout(10);
+    nlohmann::json body = {{"texts", {query}}};
+    auto res = cli.Post(path.c_str(), body.dump(), "application/json");
+    if (!res || res->status != 200) {
+        std::cerr << "❌ [rag] embed sidecar error at " << embed_url
+                  << " status=" << (res ? res->status : -1) << std::endl;
+        return {};
+    }
+    try {
+        auto j = nlohmann::json::parse(res->body);
+        auto& vecs = j.at("vectors");
+        if (vecs.empty()) return {};
+        std::vector<double> out;
+        out.reserve(vecs[0].size());
+        for (double v : vecs[0]) out.push_back(v);
+        return out;
+    } catch (const std::exception& e) {
+        std::cerr << "❌ [rag] embed sidecar parse error: " << e.what() << std::endl;
+        return {};
+    }
+}
+
 } // namespace
 
 std::string vec_literal(const std::vector<double>& v) {
@@ -70,14 +125,17 @@ std::vector<Hit> retrieve(const Settings& s, const std::string& query) {
     std::vector<Hit> hits;
     if (!s.enabled) return hits;
     if (query.empty()) return hits;
-    if (s.embedder != "hash") {
-        std::cerr << "❌ [rag] embedder '" << s.embedder
-                  << "' not implemented in coordinator; only 'hash' is wired."
-                  << std::endl;
+    std::vector<double> emb;
+    if (s.embedder == "hash") {
+        emb = hash_embed(query);
+    } else if (s.embedder == "mlx" || s.embedder == "bge") {
+        emb = mlx_embed(s.embed_url, query);
+        if (emb.empty()) return hits;
+    } else {
+        std::cerr << "❌ [rag] unknown embedder '" << s.embedder
+                  << "'; supported: hash, mlx, bge" << std::endl;
         return hits;
     }
-
-    std::vector<double> emb = hash_embed(query);
     std::string lit = vec_literal(emb);
     std::string k   = std::to_string(s.top_k);
 
