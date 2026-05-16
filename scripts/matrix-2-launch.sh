@@ -50,7 +50,29 @@ node "$ROOT/scripts/ensure-react-scripts-patch.mjs" || {
 npm start > logs/ui.log 2>&1 &
 echo $! >> "$PID_FILE"
 
-for i in {1..20}; do echo -n "."; sleep 0.1; done; echo "."  
+for i in {1..20}; do echo -n "."; sleep 0.1; done; echo "."
+
+# --------------------------------------------------------------
+echo "Starting pgvector (RAG backing store)..."
+bash "$ROOT/scripts/rag-docker-compose.sh" up
+bash "$ROOT/scripts/rag-docker-compose.sh" wait
+
+echo "Starting RAG ingest sidecar..."
+RAG_DSN="${RAG_DSN:-postgresql://matrix:matrix@127.0.0.1:5433/matrix_rag}"
+RAG_INGEST_EMBEDDER="${RAG_INGEST_EMBEDDER:-hash}"
+cd "$ROOT"
+RAG_DSN="$RAG_DSN" python -m orchestration.rag.service \
+  --port 8001 \
+  --embedder "$RAG_INGEST_EMBEDDER" \
+  > "$ROOT/logs/rag_ingest.log" 2>&1 &
+echo $! >> "$PID_FILE"
+for i in {1..15}; do
+  if curl -sf http://localhost:8001/health > /dev/null 2>&1; then
+    echo " RAG sidecar ready."
+    break
+  fi
+  echo -n "."; sleep 0.5
+done
 
 echo "SWARM MATRIX started -> localhost:3000"
 echo "=========================================================="
