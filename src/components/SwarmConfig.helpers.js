@@ -16,16 +16,10 @@ export const ENGINES = [
   { id: 'vllm',  label: 'vLLM',  backend: 'vllm'  },
 ];
 
-export const PROFILE_SAFE = 'safe';
+export const PROFILE_SAFE     = 'safe';
 export const PROFILE_BALANCED = 'balanced';
-export const PROFILE_MAX = 'max';
-export const PROFILE_MIXED = 'mixed';
-
-export const SAFE_ROLES = ['foreman', 'tester', 'devops', 'scout', 'api', 'documenter'];
-export const BALANCED_ROLES = [...SAFE_ROLES, 'architect', 'programmer'];
-export const SAFE_ROLES_MLX = ['mlx-coder', 'foreman', 'documenter', 'api'];
-export const BALANCED_ROLES_MLX = [...SAFE_ROLES_MLX, 'architect', 'programmer', 'scout'];
-export const MIXED_ROLES = ['architect', 'programmer', 'foreman', 'scout', 'api', 'documenter', 'mlx-coder'];
+export const PROFILE_MAX      = 'max';
+export const PROFILE_MIXED    = 'mixed';
 
 export function getEngineLabel(engineId) {
   return ENGINES.find(e => e.id === engineId)?.label ?? engineId;
@@ -39,21 +33,21 @@ export function parseModelSizeBillions(modelPath) {
 export function getModelWeight(modelPath, engine) {
   const sizeB = parseModelSizeBillions(modelPath);
   if (sizeB !== null) {
-    if (sizeB <= 2.5) return 0.4;
-    if (sizeB <= 3.5) return 0.55;
-    if (sizeB <= 8.5) return 1.0;
+    if (sizeB <= 2.5)  return 0.4;
+    if (sizeB <= 3.5)  return 0.55;
+    if (sizeB <= 8.5)  return 1.0;
     if (sizeB <= 14.5) return 1.4;
     return 1.8;
   }
   if (engine === 'vllm') return 1.1;
-  if (engine === 'mlx') return 0.9;
+  if (engine === 'mlx')  return 0.9;
   return 1.0;
 }
 
 export function getRiskBand(totalScore) {
-  if (totalScore > 18) return { id: 'high', label: 'HIGH', hint: 'Likely OOM on heavy prompts' };
+  if (totalScore > 18)  return { id: 'high',   label: 'HIGH',   hint: 'Likely OOM on heavy prompts' };
   if (totalScore >= 12) return { id: 'medium', label: 'MEDIUM', hint: 'May OOM under flat/full parallel runs' };
-  return { id: 'low', label: 'LOW', hint: 'Usually stable for normal prompts' };
+  return                       { id: 'low',    label: 'LOW',    hint: 'Usually stable for normal prompts' };
 }
 
 export function computeLayout(roles, selected, roleModels, models) {
@@ -85,73 +79,45 @@ export function computeLayout(roles, selected, roleModels, models) {
   }));
 }
 
-export function getProfileRoles(engineId, profileId, allRoles) {
-  if (profileId === PROFILE_MIXED) return MIXED_ROLES;
-  if (profileId === PROFILE_MAX) return allRoles;
-  if (engineId === 'mlx') {
-    return profileId === PROFILE_SAFE ? SAFE_ROLES_MLX : BALANCED_ROLES_MLX;
-  }
-  return profileId === PROFILE_SAFE ? SAFE_ROLES : BALANCED_ROLES;
+/**
+ * Return the subset of agent names to activate for a given profile.
+ *
+ * roleContextMap: { [agentName]: contextSize } — derived from live agent configs.
+ *   safe     → agents with context <= 2048  (fast, lightweight)
+ *   balanced → agents with context <= 4096
+ *   max      → all agents
+ *   mixed    → all agents
+ *
+ * No hardcoded role names — only what exists in config/agents/ can appear.
+ */
+export function getProfileRoles(profileId, allRoles, roleContextMap = {}) {
+  if (profileId === PROFILE_MAX || profileId === PROFILE_MIXED) return allRoles;
+  const limit = profileId === PROFILE_SAFE ? 2048 : 4096;
+  const filtered = allRoles.filter(name => (roleContextMap[name] ?? 0) <= limit);
+  // Always fall back to all roles if nothing passes the filter (avoids empty selection).
+  return filtered.length > 0 ? filtered : allRoles;
 }
 
-function selectBestModel(candidates) {
-  if (candidates.length === 0) return null;
-  const ranked = [...candidates].sort((a, b) => {
-    const sa = parseModelSizeBillions(a.path) ?? 999;
-    const sb = parseModelSizeBillions(b.path) ?? 999;
-    if (sa !== sb) return sa - sb;
+// Roles that benefit from the largest available model.
+const HEAVY_ROLES = new Set([
+  'architect', 'programmer', 'debugger', 'optimizer', 'security', 'reviewer',
+]);
+
+/**
+ * Choose the best model for a role from a pre-filtered list of candidates.
+ *
+ * availableModels should already be filtered to the correct backend by the caller.
+ * Heavy roles (architect, programmer, …) get the largest model; light roles get smallest.
+ * Tie-break: alphabetical by name.
+ */
+export function chooseModelForRole(roleName, availableModels) {
+  if (!availableModels.length) return null;
+  const heavy = HEAVY_ROLES.has(roleName);
+  const sorted = [...availableModels].sort((a, b) => {
+    const sa = parseModelSizeBillions(a.path) ?? (heavy ? 0 : 999);
+    const sb = parseModelSizeBillions(b.path) ?? (heavy ? 0 : 999);
+    if (sa !== sb) return heavy ? sb - sa : sa - sb;
     return shortName(a.path).localeCompare(shortName(b.path));
   });
-  return ranked[0];
-}
-
-export function chooseModelForRole(roleName, availableModels, preferredPattern) {
-  if (!availableModels.length) return null;
-  if (preferredPattern) {
-    const preferred = availableModels.find(m => preferredPattern.test(shortName(m.path)));
-    if (preferred) return preferred.path;
-  }
-  if (roleName === 'architect' || roleName === 'programmer') {
-    const medium = selectBestModel(
-      availableModels.filter(m => {
-        const size = parseModelSizeBillions(m.path);
-        return size !== null && size >= 6 && size <= 9;
-      }),
-    );
-    if (medium) return medium.path;
-  }
-  return selectBestModel(availableModels)?.path || null;
-}
-
-export function getPreferredBackends(profileId, roleName, activeEngine) {
-  if (profileId !== PROFILE_MIXED) return [activeEngine];
-  if (['mlx-coder', 'documenter', 'api'].includes(roleName)) return ['mlx', 'llama'];
-  return ['llama', 'mlx'];
-}
-
-export function getModelPattern(engineId, profileId, roleName) {
-  if (profileId === PROFILE_MIXED) {
-    if (['architect', 'programmer'].includes(roleName)) {
-      return /(meta-llama.*8b|llama.*8b|granite.*8b|qwen.*7b|qwen.*8b)/i;
-    }
-    if (roleName === 'mlx-coder') return /(4bit|mlx|instruct)/i;
-    if (roleName === 'documenter') return /(gemma.*2b|3b|mini)/i;
-    return /(llama-?3\.2.*3b|3b|2b|mini)/i;
-  }
-  if (profileId === PROFILE_SAFE) {
-    if (roleName === 'documenter') return /gemma.*2b/i;
-    if (engineId === 'mlx') return /(3b|2b|mini)/i;
-    if (engineId === 'vllm') return /(3b|2b|mini|phi)/i;
-    return /llama-?3\.2.*3b/i;
-  }
-  if (profileId === PROFILE_BALANCED) {
-    if (['architect', 'programmer'].includes(roleName)) {
-      return /(meta-llama.*8b|llama.*8b|granite.*8b|qwen.*7b|qwen.*8b)/i;
-    }
-    if (roleName === 'documenter') return /gemma.*2b/i;
-    if (engineId === 'mlx') return /(3b|2b|mini)/i;
-    if (engineId === 'vllm') return /(3b|phi|mini|deepseek|coder)/i;
-    return /llama-?3\.2.*3b/i;
-  }
-  return null;
+  return sorted[0]?.path ?? null;
 }

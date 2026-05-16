@@ -20,8 +20,6 @@ import {
   computeLayout,
   getEngineLabel,
   getProfileRoles,
-  getModelPattern,
-  getPreferredBackends,
   chooseModelForRole,
 } from './SwarmConfig.helpers';
 import { computeRiskEstimate, RiskCard } from './SwarmConfig.risk';
@@ -99,25 +97,21 @@ export default function SwarmConfig({ onDeployed }) {
   };
 
   const applyProfile = profileId => {
-    const engineModelsForProfile = models.filter(m => m.backend === engine);
     const roleMap = new Map(roles.map(r => [r.name, r]));
-    const roleNames = getProfileRoles(engine, profileId, roles.map(r => r.name));
+    const roleContextMap = Object.fromEntries(roles.map(r => [r.name, r.context ?? 0]));
+    const roleNames = getProfileRoles(profileId, roles.map(r => r.name), roleContextMap);
     const selectedNames = roleNames.filter(name => roleMap.has(name));
     const nextRoleModels = {};
 
     for (const roleName of selectedNames) {
-      const preferredPattern = getModelPattern(engine, profileId, roleName);
-      const backendOrder = getPreferredBackends(profileId, roleName, engine);
-      let modelPath = null;
-      for (const backendId of backendOrder) {
-        const backendModels = models.filter(m => m.backend === backendId);
-        modelPath = chooseModelForRole(
-          roleName,
-          profileId === PROFILE_MIXED ? backendModels : engineModelsForProfile,
-          preferredPattern,
-        );
-        if (modelPath) break;
-      }
+      const role = roleMap.get(roleName);
+      const backend = role?.engine || role?.backend || engine;
+      const backendModels = models.filter(m => m.backend === backend);
+      // Fall back to active engine models if nothing matches the role's backend.
+      const candidates = backendModels.length
+        ? backendModels
+        : models.filter(m => m.backend === engine);
+      const modelPath = chooseModelForRole(roleName, candidates);
       if (modelPath) nextRoleModels[roleName] = modelPath;
     }
 
@@ -241,8 +235,7 @@ export default function SwarmConfig({ onDeployed }) {
               <div key={role.name}
                    className={`swarm-role-row ${selected.has(role.name) ? 'active' : ''}`}>
                 <label className="swarm-role-check"
-                       title={role.description
-                         || (role.name === 'mlx-coder' ? 'Apple Silicon optimized coding agent — pairs well with standard LLAMA agents for mixed swarms' : '')}>
+                       title={role.description || role.name}>
                   <input
                     type="checkbox"
                     checked={selected.has(role.name)}

@@ -110,7 +110,7 @@ function HelpModal({ onClose }) {
               <dt>vLLM</dt>
               <dd>Launches 4 vLLM servers via Docker Model Runner on ports 8080–8083 (Qwen2.5-14B, Llama-3.2-3B, DeepSeek-Coder-V2, Phi-4-mini). Use the <strong>vLLM INFERENCE SERVERS</strong> panel in CONFIGURE to start them and tail logs on failure.</dd>
               <dt>Mixed Swarms (LLAMA + MLX)</dt>
-              <dd>Select standard agents (architect, programmer, etc.) together with <strong>mlx-coder</strong> to run a hybrid swarm. LLAMA agents run in parallel on their ports; mlx-coder runs on its dedicated MLX server. Useful to compare coding output across both inference engines or get Apple Silicon performance for the coding specialist role.</dd>
+              <dd>Add an MLX-backend agent to your swarm config to run a hybrid swarm. LLAMA agents run in parallel on their ports; MLX agents serialize on their port. Useful to compare coding output across both inference engines or get Apple Silicon performance for specific roles.</dd>
             </dl>
           </div>
 
@@ -125,8 +125,8 @@ function HelpModal({ onClose }) {
               <dd>Running large swarms (12–16 agents) risks VRAM exhaustion and KV token budget overflow — only do that for high-level exploration.</dd>
               <dt>SAVE CODE after each successful round</dt>
               <dd>The SAVE CODE button below the agent grid exports all code blocks from every agent into a single timestamped file.</dd>
-              <dt>Try mlx-coder for Apple Silicon</dt>
-              <dd>If running on M1/M2/M3, select standard agents plus <strong>mlx-coder</strong> to benchmark Metal-optimized inference. MLX often produces code faster per-token on Apple Silicon; compare outputs across both engines in one broadcast.</dd>
+              <dt>MLX on Apple Silicon</dt>
+              <dd>If running on M1/M2/M3 with an MLX model available, add an MLX agent to benchmark Metal-optimized inference. MLX often produces code faster per-token on Apple Silicon; compare outputs across both engines in one broadcast.</dd>
             </dl>
           </div>
 
