@@ -1,9 +1,9 @@
 {
   "agent_id": "synthesis",
-  "context": 2048,
+  "context": 8192,
   "engine": "llama",
   "gpu_layers": 99,
-  "max_tokens": 4800,
+  "max_tokens": 4096,
   "model": "${MATRIX_MODEL_DIR}/31B/GGUF/google_gemma-4-31B-it-Q4_K_M.gguf",
   "name": "synthesis",
   "port": 8085,

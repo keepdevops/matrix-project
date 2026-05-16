@@ -1,9 +1,9 @@
 {
   "agent_id": "programmer",
-  "context": 4096,
+  "context": 16384,
   "engine": "llama",
   "gpu_layers": 99,
-  "max_tokens": 6080,
+  "max_tokens": 8192,
   "model": "${MATRIX_MODEL_DIR}/22B/GGUF/Codestral-22B-v0.1-Q4_K_M.gguf",
   "name": "programmer",
   "port": 8082,
