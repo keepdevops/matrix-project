@@ -22,4 +22,10 @@ struct Agent {
 
     /// Deployed model context length from swarm-config `context` (inference window).
     int context_window = 8192;
+
+    /// Max simultaneous in-flight requests to this agent's port.
+    /// 0 = unlimited (default for llama/vllm).
+    /// 1 = serialized (default for mlx, which cannot handle concurrent requests).
+    /// >1 = counted semaphore (useful for vllm with known concurrency limits).
+    int max_concurrency = 0;
 };

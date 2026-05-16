@@ -50,8 +50,12 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     for (auto& a : agents) {
         std::string model = a["model"].get<std::string>();
         std::string sg    = a.value("server_group", "");
-        std::string bk    = a.value("backend",
-                              std::string(ends_with_gguf(model) ? "llama" : "mlx"));
+        // backend resolution order: explicit "backend" field → "engine" field → infer from extension
+        std::string bk = a.contains("backend") && !a["backend"].get<std::string>().empty()
+                         ? a["backend"].get<std::string>()
+                         : a.contains("engine") && !a["engine"].get<std::string>().empty()
+                           ? a["engine"].get<std::string>()
+                           : std::string(ends_with_gguf(model) ? "llama" : "mlx");
         std::string key;
         int fixed_port = a.contains("port") ? a["port"].get<int>() : -1;
         if (bk == "docker") key = "docker:shared";

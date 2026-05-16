@@ -9,6 +9,7 @@
 #include "utf8_sanitize.h"
 
 #include <chrono>
+#include <condition_variable>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -37,14 +38,38 @@ static std::string strip_template_leakage(std::string s) {
     return s;
 }
 
-// mlx-lm does not support concurrent requests on the same port.
-// Serialize all calls to mlx ports via a per-port mutex.
-static std::map<int, std::unique_ptr<std::mutex>> mlx_port_locks;
+// Per-port concurrency limiter driven by Agent::max_concurrency.
+// max_concurrency == 0  → unlimited (no lock taken).
+// max_concurrency == 1  → serialized (mlx default).
+// max_concurrency >  1  → counted semaphore (e.g. vllm with known slot limit).
+struct PortSemaphore {
+    int limit = 0;
+    int count = 0;
+    std::mutex mu;
+    std::condition_variable cv;
 
-void init_mlx_port_locks(const std::vector<Agent>& agents) {
+    void acquire() {
+        if (limit <= 0) return;
+        std::unique_lock<std::mutex> lk(mu);
+        cv.wait(lk, [this] { return count < limit; });
+        ++count;
+    }
+    void release() {
+        if (limit <= 0) return;
+        std::lock_guard<std::mutex> lk(mu);
+        --count;
+        cv.notify_one();
+    }
+};
+
+static std::map<int, std::unique_ptr<PortSemaphore>> port_semaphores;
+
+void init_port_concurrency(const std::vector<Agent>& agents) {
     for (const auto& a : agents) {
-        if (a.engine == "mlx" && mlx_port_locks.find(a.port) == mlx_port_locks.end()) {
-            mlx_port_locks[a.port] = std::make_unique<std::mutex>();
+        if (a.max_concurrency > 0 && port_semaphores.find(a.port) == port_semaphores.end()) {
+            auto sem = std::make_unique<PortSemaphore>();
+            sem->limit = a.max_concurrency;
+            port_semaphores[a.port] = std::move(sem);
         }
     }
 }
@@ -168,13 +193,13 @@ static std::string call_agent_impl(const Agent& agent,
         return *cached;
     }
     std::unique_ptr<mlx_inflight::Scope> mlx_pressure;
-    std::unique_lock<std::mutex> mlx_lock;
-    if (agent.engine == "mlx") {
+    PortSemaphore* sem = nullptr;
+    if (agent.engine == "mlx")
         mlx_pressure = std::make_unique<mlx_inflight::Scope>(agent.port);
-        auto it = mlx_port_locks.find(agent.port);
-        if (it != mlx_port_locks.end()) {
-            mlx_lock = std::unique_lock<std::mutex>(*it->second);
-        }
+    auto sem_it = port_semaphores.find(agent.port);
+    if (sem_it != port_semaphores.end()) {
+        sem = sem_it->second.get();
+        sem->acquire();
     }
 
     AttemptResult attempt;
@@ -195,9 +220,9 @@ static std::string call_agent_impl(const Agent& agent,
     } else if (attempt.ok) {
         response_cache::store(agent, system_prompt, prompt, result);
     }
-    if (agent.engine == "mlx") {
+    if (sem) sem->release();
+    if (agent.engine == "mlx")
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
     agent_health::record(agent.name, attempt.ok);
     return result;
 }

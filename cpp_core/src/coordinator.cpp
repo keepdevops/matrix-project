@@ -105,22 +105,28 @@ int main(int argc, char* argv[]) {
         std::string engine = a.contains("engine") ? a["engine"].get<std::string>()
                              : (backend_val == "mlx" ? "mlx"
                                : backend_val == "docker" ? "docker" : "llama");
-        state.agents.push_back({
-            a["name"].get<std::string>(),
-            a["port"].get<int>(),
-            a["read_timeout_secs"].get<int>(),
-            a["max_tokens"].get<int>(),
-            a["system_prompt"].get<std::string>(),
-            a.value("description", ""),
-            backend_val,
-            engine,
-            a.value("model", ""),
-            a.value("draft_model", ""),
-            a.value("draft_max", 0),
-            a.value("context", 8192)
-        });
+        // max_concurrency: explicit config wins; otherwise default to 1 for mlx
+        // (serialized) and 0 (unlimited) for all other engines.
+        int max_conc = a.contains("max_concurrency") && a["max_concurrency"].is_number_integer()
+                       ? a["max_concurrency"].get<int>()
+                       : (engine == "mlx" ? 1 : 0);
+        Agent ag;
+        ag.name            = a["name"].get<std::string>();
+        ag.port            = a["port"].get<int>();
+        ag.read_timeout_secs = a["read_timeout_secs"].get<int>();
+        ag.max_tokens      = a["max_tokens"].get<int>();
+        ag.system_prompt   = a["system_prompt"].get<std::string>();
+        ag.description     = a.value("description", "");
+        ag.backend         = backend_val;
+        ag.engine          = engine;
+        ag.model           = a.value("model", "");
+        ag.draft_model     = a.value("draft_model", "");
+        ag.draft_max       = a.value("draft_max", 0);
+        ag.context_window  = a.value("context", 8192);
+        ag.max_concurrency = max_conc;
+        state.agents.push_back(ag);
     }
-    init_mlx_port_locks(state.agents);
+    init_port_concurrency(state.agents);
     std::cout << "✅ Loaded " << state.agents.size() << " agents from "
               << ((cfg_svc && cfg_svc[0]) ? std::string("MATRIX_SWARM_CONFIG_SERVICE") : config_path)
               << std::endl;

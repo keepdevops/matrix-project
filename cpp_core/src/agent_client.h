@@ -17,7 +17,7 @@ std::string call_agent_with_system(const Agent& agent,
                                    const std::string& system_prompt_override,
                                    const std::string& prompt);
 
-// Install one per-port mutex for each mlx agent so concurrent requests to the
-// same mlx-lm port are serialized. Call once at startup, after agents are
-// loaded from config.
-void init_mlx_port_locks(const std::vector<Agent>& agents);
+// Install per-port concurrency limiters driven by Agent::max_concurrency.
+// mlx agents default to 1 (serialized); others default to 0 (unlimited).
+// Call once at startup, after agents are loaded from config.
+void init_port_concurrency(const std::vector<Agent>& agents);
