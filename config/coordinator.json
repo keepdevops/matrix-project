@@ -2,12 +2,7 @@
   "coordinator": {
     "default_mode": "flat",
     "modes": {
-      "flat": {
-        "agents": [
-          "architect",
-          "reviewer"
-        ]
-      }
+      "flat": {}
     },
     "port": 8000
   },
