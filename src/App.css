@@ -430,6 +430,15 @@ h1 {
   cursor: not-allowed;
 }
 
+.continue-button {
+  border-color: #648FFF;
+  color: #648FFF;
+}
+
+.continue-button:hover:not(:disabled) {
+  background: rgba(100, 143, 255, 0.12);
+}
+
 /* ========== Error Banner ========== */
 .dispatch-hint-banner {
   padding: 10px 15px;
@@ -503,6 +512,20 @@ h1 {
   border-radius: 8px;
   overflow: hidden;
   border-top: 3px solid var(--agent-color, #00ff41);
+}
+
+.agent-response--pickable {
+  cursor: pointer;
+}
+
+.agent-response--pickable:hover {
+  border-color: #555;
+  box-shadow: 0 0 0 1px #555;
+}
+
+.agent-response--picked {
+  box-shadow: 0 0 0 2px var(--agent-color, #00ff41);
+  border-color: var(--agent-color, #00ff41);
 }
 
 .agent-header {

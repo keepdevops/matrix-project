@@ -11,7 +11,8 @@ const modelDisplayName = (m) => {
   return s.includes('/') ? s.split('/').pop() : s;
 };
 
-function AgentGrid({ activeAgents, responses, loading, onSaveCode }) {
+function AgentGrid({ activeAgents, responses, loading, onSaveCode,
+                     flatPickMode = false, pickedFlatAgent = null, onPickFlatAgent = null }) {
   const hasAnyCode = activeAgents.some(({ name }) => {
     const r = responses[name];
     if (!r) return false;
@@ -24,18 +25,25 @@ function AgentGrid({ activeAgents, responses, loading, onSaveCode }) {
     ? extractCodeBlock(programmerResp)
     : { code: null, language: null };
 
-  const renderCard = ({ name, port, model, backend, engine }) => (
-    <AgentResponse
-      key={name}
-      name={name.toUpperCase()}
-      port={String(port)}
-      response={responses[name] || null}
-      color={getAgentColor(name)}
-      loading={loading}
-      model={modelDisplayName(model)}
-      engine={ENGINE_LABELS[backend || engine] || backend || engine || null}
-    />
-  );
+  const renderCard = ({ name, port, model, backend, engine }) => {
+    const isPicked = flatPickMode && pickedFlatAgent === name;
+    const isPickable = flatPickMode && responses[name] && !loading;
+    return (
+      <AgentResponse
+        key={name}
+        name={name.toUpperCase()}
+        port={String(port)}
+        response={responses[name] || null}
+        color={getAgentColor(name)}
+        loading={loading}
+        model={modelDisplayName(model)}
+        engine={ENGINE_LABELS[backend || engine] || backend || engine || null}
+        picked={isPicked}
+        pickable={isPickable}
+        onPick={isPickable ? () => onPickFlatAgent(name) : null}
+      />
+    );
+  };
 
   return (
     <>

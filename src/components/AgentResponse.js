@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import AgentEditorModal from './AgentEditorModal';
 
-function AgentResponse({ name, response, color = '#00ff41', loading = false, port, model, engine }) {
+function AgentResponse({ name, response, color = '#00ff41', loading = false, port, model, engine,
+                         picked = false, pickable = false, onPick = null }) {
   const [showModal, setShowModal] = useState(false);
 
   const getStatusClass = () => {
@@ -18,7 +19,11 @@ function AgentResponse({ name, response, color = '#00ff41', loading = false, por
 
   return (
     <>
-      <div className="agent-response" style={{ '--agent-color': color }}>
+      <div
+        className={`agent-response${picked ? ' agent-response--picked' : ''}${pickable ? ' agent-response--pickable' : ''}`}
+        style={{ '--agent-color': color }}
+        onClick={onPick || undefined}
+      >
         <div className="agent-header">
           <span className="agent-name">{name}</span>
           {port && <span className="agent-port">({port})</span>}
