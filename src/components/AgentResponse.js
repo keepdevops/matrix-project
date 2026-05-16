@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import AgentEditorModal from './AgentEditorModal';
 
 function AgentResponse({ name, response, color = '#00ff41', loading = false, port, model, engine,
-                         picked = false, pickable = false, onPick = null }) {
+                         tokenStats = null, picked = false, pickable = false, onPick = null }) {
   const [showModal, setShowModal] = useState(false);
 
   const getStatusClass = () => {
@@ -47,6 +47,19 @@ function AgentResponse({ name, response, color = '#00ff41', loading = false, por
           <div className="agent-meta">
             <span className="agent-meta-item">MODEL: {model || '—'}</span>
             <span className="agent-meta-item">ENGINE: {engine || '—'}</span>
+          </div>
+        )}
+        {tokenStats && (
+          <div className="agent-token-stats">
+            <span className="agent-token-item" title="Prompt tokens">
+              ↑{tokenStats.prompt_tokens ?? '—'}
+            </span>
+            <span className="agent-token-item" title="Completion tokens">
+              ↓{tokenStats.completion_tokens ?? '—'}
+            </span>
+            <span className="agent-token-item" title="Latency">
+              {tokenStats.total_ms != null ? `${(tokenStats.total_ms / 1000).toFixed(1)}s` : '—'}
+            </span>
           </div>
         )}
         <div className="agent-content">

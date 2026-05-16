@@ -560,6 +560,21 @@ h1 {
   letter-spacing: 0.05em;
 }
 
+.agent-token-stats {
+  display: flex;
+  gap: 10px;
+  padding: 3px 15px 5px;
+  font-size: 0.68rem;
+  color: var(--agent-color, #00ff41);
+  opacity: 0.75;
+  border-bottom: 1px solid rgba(0, 255, 65, 0.08);
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+.agent-token-item {
+  white-space: nowrap;
+}
+
 .agent-status {
   margin-left: auto;
   font-size: 0.75rem;

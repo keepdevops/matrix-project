@@ -154,6 +154,7 @@ body[data-theme="light"] .cm-content ::selection { background-color: rgba(0, 140
 
 /* Muted text */
 body[data-theme="light"] .agent-meta,
+body[data-theme="light"] .agent-token-stats,
 body[data-theme="light"] .muted,
 body[data-theme="light"] .help-modal p { color: #4a4a55; }
 

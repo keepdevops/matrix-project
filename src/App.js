@@ -260,6 +260,7 @@ function App() {
             activeAgents={activeAgents}
             responses={responses}
             loading={loading}
+            timings={lastMeta?.timings || {}}
             onSaveCode={handleSaveCode}
             flatPickMode={activeMode === 'flat'}
             pickedFlatAgent={flatPickAgent}

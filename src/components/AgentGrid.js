@@ -11,7 +11,7 @@ const modelDisplayName = (m) => {
   return s.includes('/') ? s.split('/').pop() : s;
 };
 
-function AgentGrid({ activeAgents, responses, loading, onSaveCode,
+function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
                      flatPickMode = false, pickedFlatAgent = null, onPickFlatAgent = null }) {
   const hasAnyCode = activeAgents.some(({ name }) => {
     const r = responses[name];
@@ -38,6 +38,7 @@ function AgentGrid({ activeAgents, responses, loading, onSaveCode,
         loading={loading}
         model={modelDisplayName(model)}
         engine={ENGINE_LABELS[backend || engine] || backend || engine || null}
+        tokenStats={timings[name] || null}
         picked={isPicked}
         pickable={isPickable}
         onPick={isPickable ? () => onPickFlatAgent(name) : null}
