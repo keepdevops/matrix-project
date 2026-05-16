@@ -104,7 +104,9 @@ std::vector<Hit> retrieve(const Settings& s, const std::string& query) {
         h.chunk_idx   = std::atoi(PQgetvalue(res, i, 2));
         h.content     = PQgetvalue(res, i, 3);
         h.distance    = std::strtod(PQgetvalue(res, i, 4), nullptr);
-        if (h.distance <= s.min_score) hits.push_back(std::move(h));
+        // min_score is a similarity threshold [0,1]; distance is cosine distance
+        // [0,2] where lower = more similar. Convert: accept if distance <= 1-min_score.
+        if (h.distance <= (1.0 - s.min_score)) hits.push_back(std::move(h));
     }
     PQclear(res);
     return hits;
