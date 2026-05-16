@@ -3,7 +3,7 @@ import './App.css';
 import './themes/light.css';
 import { useSwarm } from './hooks/useSwarm';
 import {
-  clearCache,
+  clearKvCache,
   fetchAgents,
   fetchKvPressure,
   fetchSwarmConfig,
@@ -236,7 +236,7 @@ function App() {
   const handleClearCache = async () => {
     setCacheStatus('clearing');
     try {
-      await clearCache();
+      await clearKvCache();
       setCacheStatus('cleared');
     } catch {
       setCacheStatus('failed');
