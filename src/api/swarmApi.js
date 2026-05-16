@@ -479,7 +479,7 @@ export async function fetchKvPressure() {
 /**
  * Clear KV cache on all agents
  */
-export async function clearCache() {
+export async function clearKvCache() {
   const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
   if (!response.ok) throw new Error(`Clear cache failed: ${response.status}`);
   return response.json();
