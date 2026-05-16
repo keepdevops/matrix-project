@@ -45,13 +45,16 @@ static std::string strip_template_leakage(std::string s) {
 struct PortSemaphore {
     int limit = 0;
     int count = 0;
+    int waiting = 0;
     std::mutex mu;
     std::condition_variable cv;
 
     void acquire() {
         if (limit <= 0) return;
         std::unique_lock<std::mutex> lk(mu);
+        ++waiting;
         cv.wait(lk, [this] { return count < limit; });
+        --waiting;
         ++count;
     }
     void release() {
@@ -59,6 +62,10 @@ struct PortSemaphore {
         std::lock_guard<std::mutex> lk(mu);
         --count;
         cv.notify_one();
+    }
+    bool has_waiters() {
+        std::lock_guard<std::mutex> lk(mu);
+        return waiting > 0;
     }
 };
 
@@ -221,7 +228,8 @@ static std::string call_agent_impl(const Agent& agent,
         response_cache::store(agent, system_prompt, prompt, result);
     }
     if (sem) sem->release();
-    if (agent.engine == "mlx")
+    // Yield only when another caller is queued, letting it start before we return.
+    if (agent.engine == "mlx" && sem && sem->has_waiters())
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     agent_health::record(agent.name, attempt.ok);
     return result;

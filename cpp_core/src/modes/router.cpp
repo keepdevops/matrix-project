@@ -9,8 +9,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <future>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -25,23 +27,48 @@ bool is_mlx_agent(const Agent& a) {
     return a.engine == "mlx" || a.backend == "mlx";
 }
 
+// TTL cache for port liveness — avoids a blocking HTTP round-trip per agent
+// on every dispatch. Cache entries expire after READY_TTL_SECS seconds so a
+// newly-dead port is detected within one TTL window.
+static constexpr int READY_TTL_SECS = 30;
+struct PortReadyCache {
+    struct Entry { bool ok; std::chrono::steady_clock::time_point expiry; };
+    std::unordered_map<int, Entry> m;
+    std::mutex mu;
+
+    bool get(int port, bool& out) {
+        std::lock_guard<std::mutex> lk(mu);
+        auto it = m.find(port);
+        if (it == m.end() || std::chrono::steady_clock::now() > it->second.expiry)
+            return false;
+        out = it->second.ok;
+        return true;
+    }
+    void set(int port, bool ok) {
+        std::lock_guard<std::mutex> lk(mu);
+        m[port] = {ok, std::chrono::steady_clock::now()
+                       + std::chrono::seconds(READY_TTL_SECS)};
+    }
+};
+static PortReadyCache g_ready_cache;
+
 bool endpoint_ready(const Agent& a) {
+    bool cached = false;
+    if (g_ready_cache.get(a.port, cached)) return cached;
+
     const bool openai_backend = a.engine == "mlx" || a.backend == "mlx"
         || a.backend == "vllm" || a.backend == "docker-vllm"
         || a.backend == "docker";
     const char* path = openai_backend ? "/v1/models" : "/health";
+    bool ok = false;
     try {
         httplib::Client cli("127.0.0.1", a.port);
         cli.set_connection_timeout(1);
         cli.set_read_timeout(1);
-        auto r = cli.Get(path);
-        // This is a liveness precheck, not a full backend health check. Some
-        // test doubles and OpenAI-compatible servers may not implement the
-        // exact probe path, but any HTTP response proves the port is alive.
-        return static_cast<bool>(r);
-    } catch (...) {
-        return false;
-    }
+        ok = static_cast<bool>(cli.Get(path));
+    } catch (...) {}
+    g_ready_cache.set(a.port, ok);
+    return ok;
 }
 
 bool is_mlx_centric_run(const std::vector<Agent>& agents) {
