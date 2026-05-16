@@ -497,6 +497,35 @@ export async function checkHealth() {
   }
 }
 
+export async function fetchCacheStats() {
+  const res = await fetch(`${API_BASE}/cache`);
+  if (!res.ok) throw new Error(`cache stats failed (${res.status})`);
+  return res.json();
+}
+
+export async function clearCache() {
+  const res = await fetch(`${API_BASE}/cache/clear`, { method: 'POST' });
+  if (!res.ok) throw new Error(`cache clear failed (${res.status})`);
+  return res.json();
+}
+
+export async function setCacheConfig({ enabled, ttl_secs, max_entries } = {}) {
+  const body = {};
+  if (enabled !== undefined) body.enabled = enabled;
+  if (Number.isFinite(ttl_secs)) body.ttl_secs = ttl_secs;
+  if (Number.isFinite(max_entries)) body.max_entries = max_entries;
+  const res = await fetch(`${API_BASE}/cache/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `cache config failed (${res.status})`);
+  }
+  return res.json();
+}
+
 /**
  * Probe the RAG backing store (pgvector) via the coordinator. Returns
  * { ok, enabled, embedder, top_k, min_score, error? } on success, or

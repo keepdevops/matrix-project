@@ -20,6 +20,7 @@ import ModeSelector from './components/ModeSelector';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
 import RagSources from './components/RagSources';
 import RagAdmin from './components/RagAdmin';
+import CachePanel from './components/CachePanel';
 import KvPressureGauge from './components/KvPressureGauge';
 import PressureCluster from './components/PressureCluster';
 import { extractCodeBlock } from './utils/codeExtractor';
@@ -62,6 +63,7 @@ function App() {
   const [deployPending, setDeployPending] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showRagAdmin, setShowRagAdmin] = useState(false);
+  const [showCachePanel, setShowCachePanel] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [cacheStatus, setCacheStatus] = useState('idle');
@@ -353,6 +355,13 @@ function App() {
           >
             RAG DOCS
           </button>
+          <button
+            className="help-button"
+            onClick={() => setShowCachePanel(true)}
+            title="Inspect and manage the response cache"
+          >
+            CACHE
+          </button>
           <button className="help-button" onClick={() => setShowHelp(true)}>
             ?
           </button>
@@ -516,6 +525,7 @@ function App() {
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showRagAdmin && <RagAdmin onClose={() => setShowRagAdmin(false)} />}
+      {showCachePanel && <CachePanel onClose={() => setShowCachePanel(false)} />}
     </div>
   );
 }
