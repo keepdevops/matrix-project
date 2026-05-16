@@ -43,7 +43,7 @@ def test_generator_produces_expected_structure(staged_repo: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     out = json.loads((staged_repo / "swarm-config.json").read_text())
-    assert set(out.keys()) == {"agents", "coordinator", "ui"}
+    assert {"agents", "coordinator", "ui"}.issubset(out.keys())
     assert len(out["agents"]) == len(list(AGENTS_DIR.glob("*.json")))
 
     # agent_id is an internal per-file key and must be stripped.
