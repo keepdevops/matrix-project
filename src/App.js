@@ -148,7 +148,16 @@ function App() {
 
   const handleSubmit = async (prompt, temperature, opts = {}) => {
     try {
-      await submit(prompt, temperature, { useRag, ...opts });
+      const autoOpts = { ...opts };
+      if (currentSession?.sessionId && !opts.followup && !opts.qualityPass) {
+        const hasFinal = ['pipeline', 'cascade'].includes(activeMode);
+        autoOpts.followup = true;
+        autoOpts.contextPolicy = autoOpts.contextPolicy || {
+          include: hasFinal ? ['original_prompt', 'final'] : ['original_prompt'],
+          max_context_chars: 20000,
+        };
+      }
+      await submit(prompt, temperature, { useRag, ...autoOpts });
       loadHistory();
     } catch (err) {
       console.error('Submission failed:', err);
