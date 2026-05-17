@@ -63,18 +63,24 @@ export function computeLayout(roles, selected, roleModels, models) {
 /**
  * Return the subset of agent names to activate for a given profile.
  *
- * roleContextMap: { [agentName]: contextSize } — derived from live agent configs.
- *   safe     → agents with context <= 2048  (fast, lightweight)
- *   balanced → agents with context <= 4096
- *   max      → all agents
- *   mixed    → all agents
+ * roleContextMap:   { [agentName]: contextSize } — derived from live agent configs.
+ * profileThresholds: { [profileId]: { max_context: number|null } } — from
+ *   coordinator.profiles in swarm-config.json. Falls back to built-in defaults
+ *   so the UI works even when the config key is absent.
  *
- * No hardcoded role names — only what exists in config/agents/ can appear.
+ *   safe     → agents with context <= max_context (default 2048)
+ *   balanced → agents with context <= max_context (default 4096)
+ *   max      → all agents (max_context: null means no filter)
+ *   mixed    → all agents
  */
-export function getProfileRoles(profileId, allRoles, roleContextMap = {}) {
-  if (profileId === PROFILE_MAX || profileId === PROFILE_MIXED) return allRoles;
-  const limit = profileId === PROFILE_SAFE ? 2048 : 4096;
-  const filtered = allRoles.filter(name => (roleContextMap[name] ?? 0) <= limit);
+export function getProfileRoles(profileId, allRoles, roleContextMap = {}, profileThresholds = {}) {
+  const DEFAULT_THRESHOLDS = { safe: 2048, balanced: 4096 };
+  const thresholdEntry = profileThresholds[profileId];
+  const maxCtx = thresholdEntry !== undefined
+    ? thresholdEntry.max_context
+    : DEFAULT_THRESHOLDS[profileId] ?? null;
+  if (maxCtx === null || maxCtx === undefined) return allRoles;
+  const filtered = allRoles.filter(name => (roleContextMap[name] ?? 0) <= maxCtx);
   // Always fall back to all roles if nothing passes the filter (avoids empty selection).
   return filtered.length > 0 ? filtered : allRoles;
 }

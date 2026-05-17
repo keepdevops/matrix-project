@@ -43,6 +43,7 @@ export default function SwarmConfig({ onDeployed }) {
   const [loadError, setLoadError] = useState('');
   const [loadRetries, setLoadRetries] = useState(0);
   const [activeProfile, setActiveProfile] = useState(PROFILE_SAFE);
+  const [profileThresholds, setProfileThresholds] = useState({});
   const [editingAgent, setEditingAgent] = useState(null);
 
   const { status, statusMsg, logTail, deploy, reset } = useDeploy({ onDeployed });
@@ -58,6 +59,7 @@ export default function SwarmConfig({ onDeployed }) {
       .then(([config, modelList, activeAgents]) => {
         if (cancelled) return;
         setRoles(config.agents);
+        if (config.coordinator?.profiles) setProfileThresholds(config.coordinator.profiles);
         setModels(modelList);
         setSelected(new Set(activeAgents.map(a => a.name)));
 
@@ -99,7 +101,7 @@ export default function SwarmConfig({ onDeployed }) {
   const applyProfile = profileId => {
     const roleMap = new Map(roles.map(r => [r.name, r]));
     const roleContextMap = Object.fromEntries(roles.map(r => [r.name, r.context ?? 0]));
-    const roleNames = getProfileRoles(profileId, roles.map(r => r.name), roleContextMap);
+    const roleNames = getProfileRoles(profileId, roles.map(r => r.name), roleContextMap, profileThresholds);
     const selectedNames = roleNames.filter(name => roleMap.has(name));
     const nextRoleModels = {};
 

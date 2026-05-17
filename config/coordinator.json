@@ -6,7 +6,13 @@
         "max_select": 5
       }
     },
-    "port": 8000
+    "port": 8000,
+    "profiles": {
+      "safe":     { "max_context": 2048 },
+      "balanced": { "max_context": 4096 },
+      "max":      { "max_context": null },
+      "mixed":    { "max_context": null }
+    }
   },
   "ui": {
     "port": 3000
