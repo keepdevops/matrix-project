@@ -33,6 +33,13 @@ echo "Starting Proxy..."
 PID_FILE="$ROOT/logs/matrix.pids"
 # Following command clears stale PID file from any previous run
 > "$PID_FILE"
+# Kill any stale proxy on port 3002 so the freshest binary always runs.
+STALE_PROXY=$(lsof -ti tcp:3002 2>/dev/null)
+if [[ -n "$STALE_PROXY" ]]; then
+  echo "  Stopping stale proxy (pid=$STALE_PROXY)..."
+  kill "$STALE_PROXY" 2>/dev/null
+  sleep 0.5
+fi
 "$ROOT/proxy" > "$ROOT/logs/proxy.log" 2>&1 &
 echo $! >> "$PID_FILE"
 

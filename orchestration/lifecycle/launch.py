@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,18 @@ def run_launch() -> int:
         logger.error("proxy binary missing or not executable: %s", proxy_bin)
         print(f"FATAL: {proxy_bin} not found — run scripts/build_cpp_binaries.sh")
         return 2
+
+    # Kill any stale proxy on port 3002 so the freshest binary always runs.
+    # This also handles the case where the binary was rebuilt after last launch.
+    from ._proc import lsof_pids_on_port, kill_pids
+    stale = lsof_pids_on_port(3002)
+    if stale:
+        print(f"Stopping stale proxy (pid={stale}) ...")
+        survivors = kill_pids(stale)
+        if survivors:
+            logger.error("stale proxy pids still alive after kill: %s", survivors)
+        else:
+            time.sleep(0.5)  # let port unbind
 
     print("Starting proxy ...")
     proxy_pid = _spawn([str(proxy_bin)], logs / "proxy.log", env)
