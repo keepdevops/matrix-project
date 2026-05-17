@@ -903,6 +903,153 @@ h1 {
   font-size: 0.72rem;
 }
 
+/* Configure / Live Swap mode tabs */
+.swarm-mode-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #1a1a2e;
+  padding-bottom: 8px;
+}
+
+.swarm-mode-tab {
+  border: 1px solid #2a3341;
+  background: #0d1117;
+  color: #8e9aab;
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  border-radius: 3px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.swarm-mode-tab:hover { border-color: #648FFF; color: #c9d1d9; }
+
+.swarm-mode-tab.active {
+  color: #00ff41;
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.08);
+}
+
+/* ModelSwapSection */
+.model-swap-section { display: flex; flex-direction: column; gap: 8px; }
+
+.swap-hint { font-size: 0.75rem; color: #555; margin: 0 0 4px; }
+
+.swap-agent-list {
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.swap-agent-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 5px 10px;
+  background: #050505;
+  border-top: 1px solid #111;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.swap-agent-row:first-child { border-top: none; }
+.swap-agent-row.dirty { background: #0a0f0a; }
+
+.swap-agent-name { color: #888; padding-top: 3px; }
+.swap-agent-row.dirty .swap-agent-name { color: #00ff41; }
+.swap-dirty-dot { color: #00ff41; margin-right: 4px; }
+
+.swap-select-wrap { display: flex; flex-direction: column; gap: 2px; }
+
+.swap-model-select {
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: #000;
+  color: #ccd;
+  border: 1px solid #222;
+  border-radius: 3px;
+  padding: 2px 4px;
+  width: 100%;
+}
+
+.swap-model-select.warn { border-color: #aa4400; }
+
+.swap-mem-warn { font-size: 0.68rem; color: #fa0; }
+
+.swap-mem-banner {
+  padding: 7px 10px;
+  background: #110800;
+  border: 1px solid #442200;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #fa0;
+  font-family: monospace;
+}
+
+.swap-deploying {
+  padding: 10px 12px;
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #0af;
+  font-family: monospace;
+}
+
+.swap-error {
+  padding: 7px 10px;
+  background: #110000;
+  border: 1px solid #330000;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #f77;
+  font-family: monospace;
+}
+
+.swap-loading { font-size: 0.8rem; color: #555; }
+
+.swap-actions { display: flex; gap: 8px; }
+
+.swap-dirty-btn {
+  background: #003300 !important;
+  color: #00ff41 !important;
+  border-color: #00ff41 !important;
+}
+
+.swap-reset-btn {
+  font-size: 0.82rem;
+  padding: 5px 10px;
+  cursor: pointer;
+  background: #0d1117;
+  border: 1px solid #2a3341;
+  color: #8e9aab;
+  border-radius: 3px;
+}
+
+.swap-server-layout {
+  padding: 8px 10px;
+  background: #050505;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+}
+
+.swap-layout-label { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+.swap-layout-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-family: monospace;
+  margin-bottom: 3px;
+}
+
+.swap-layout-port { color: #0af; min-width: 40px; }
+.swap-layout-model { color: #555; flex: 1; }
+.swap-layout-agents { color: #888; }
+
 /* VRAM layout preview */
 .swarm-layout {
   display: flex;

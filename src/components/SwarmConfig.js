@@ -24,6 +24,7 @@ import {
 } from './SwarmConfig.helpers';
 import { computeRiskEstimate, RiskCard } from './SwarmConfig.risk';
 import { useDeploy } from './SwarmConfig.deploy';
+import ModelSwapSection from './ModelSwapSection';
 
 // Pre-started vLLM servers. Even when no agents are bound to a port, we want
 // the UI to show the slot so users can see what's available.
@@ -45,6 +46,7 @@ export default function SwarmConfig({ onDeployed }) {
   const [activeProfile, setActiveProfile] = useState(PROFILE_SAFE);
   const [profileThresholds, setProfileThresholds] = useState({});
   const [editingAgent, setEditingAgent] = useState(null);
+  const [configureMode, setConfigureMode] = useState('configure'); // 'configure' | 'swap'
 
   const { status, statusMsg, logTail, deploy, reset } = useDeploy({ onDeployed });
 
@@ -207,6 +209,21 @@ export default function SwarmConfig({ onDeployed }) {
             )}
           </div>
 
+          <div className="swarm-mode-tabs">
+            <button
+              className={`swarm-mode-tab${configureMode === 'configure' ? ' active' : ''}`}
+              onClick={() => setConfigureMode('configure')}
+            >CONFIGURE</button>
+            <button
+              className={`swarm-mode-tab${configureMode === 'swap' ? ' active' : ''}`}
+              onClick={() => setConfigureMode('swap')}
+            >LIVE SWAP</button>
+          </div>
+
+          {configureMode === 'swap' ? (
+            <ModelSwapSection onRedeployed={onDeployed} />
+          ) : (<>
+
           <div className="swarm-config-title">SELECT AGENTS</div>
           <div className="swarm-profile-row">
             <span className="swarm-profile-label">PROFILE</span>
@@ -273,6 +290,7 @@ export default function SwarmConfig({ onDeployed }) {
             ))}
           </div>
           <TokenBudgetPanel roles={roles} onRolesChange={setRoles} selected={selected} />
+          </>)}
         </div>
 
         {/* Right: server layout preview */}

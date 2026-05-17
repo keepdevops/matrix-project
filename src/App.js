@@ -10,7 +10,6 @@ import AgentGrid from './components/AgentGrid';
 import MetricsStrip from './components/MetricsStrip';
 import SwarmConfig from './components/SwarmConfig';
 import ModelConverter from './components/ModelConverter';
-import ModelSwapPanel from './components/ModelSwapPanel';
 import HelpModal from './components/HelpModal';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
 import RagSources from './components/RagSources';
@@ -42,7 +41,6 @@ function App() {
   const [deployPending, setDeployPending] = useState(false);
   const [showHelp, setShowHelp]           = useState(false);
   const [showConverter, setShowConverter]   = useState(false);
-  const [showModelSwap, setShowModelSwap]   = useState(false);
   const [showRagAdmin, setShowRagAdmin]   = useState(false);
   const [showCachePanel, setShowCachePanel] = useState(false);
   const [selectedPrompt, setSelectedPrompt]           = useState(null);
@@ -206,7 +204,6 @@ function App() {
         onToggleConfig={() => setShowConfig(v => !v)}
         onToggleHistory={() => setShowHistory(v => !v)}
         onOpenConverter={() => setShowConverter(v => !v)}
-        onOpenModelSwap={() => setShowModelSwap(v => !v)}
         onOpenRagAdmin={() => setShowRagAdmin(true)}
         onOpenCachePanel={() => setShowCachePanel(true)}
         onOpenHelp={() => setShowHelp(true)}
@@ -219,11 +216,7 @@ function App() {
         </div>
       )}
 
-      {showModelSwap && (
-        <ModelSwapPanel onRedeployed={() => { refreshAgents(); checkStatus(); }} />
-      )}
-
-      {!showConverter && !showModelSwap && showConfigPanel && <SwarmConfig onDeployed={handleDeployed} />}
+      {!showConverter && showConfigPanel && <SwarmConfig onDeployed={handleDeployed} />}
 
       {showHistory && history.length > 0 && (
         <div className="history-dropdown">
