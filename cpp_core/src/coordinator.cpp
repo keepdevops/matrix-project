@@ -112,10 +112,10 @@ int main(int argc, char* argv[]) {
                        : (engine == "mlx" ? 1 : 0);
         Agent ag;
         ag.name            = a["name"].get<std::string>();
-        ag.port            = a["port"].get<int>();
-        ag.read_timeout_secs = a["read_timeout_secs"].get<int>();
-        ag.max_tokens      = a["max_tokens"].get<int>();
-        ag.system_prompt   = a["system_prompt"].get<std::string>();
+        ag.port            = a.value("port", 8080);
+        ag.read_timeout_secs = a.value("read_timeout_secs", 120);
+        ag.max_tokens      = a.value("max_tokens", 1024);
+        ag.system_prompt   = a.value("system_prompt", std::string(""));
         ag.description     = a.value("description", "");
         if (a.contains("tags") && a["tags"].is_array())
             for (const auto& t : a["tags"])
