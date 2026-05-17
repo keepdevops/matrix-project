@@ -14,19 +14,42 @@ std::vector<int> proxy_configure_wait_for_health(
 {
     auto deadline = std::chrono::steady_clock::now()
                     + std::chrono::seconds(timeout_secs);
+    // Extract the bare filename from a model path (after last '/').
+    auto model_basename = [](const std::string& path) -> std::string {
+        auto sl = path.rfind('/');
+        return sl == std::string::npos ? path : path.substr(sl + 1);
+    };
+
     auto check = [&]() -> std::vector<int> {
         std::vector<int> failed;
         for (const auto& [port, g] : pgs) {
-            const char* path = (g.backend == "mlx" || g.backend == "docker"
-                            || g.backend == "vllm" || g.backend == "docker-vllm")
-                           ? "/v1/models"
-                           : "/health";
             try {
                 httplib::Client cli("127.0.0.1", port);
                 cli.set_connection_timeout(5);
                 cli.set_read_timeout(30);
-                auto r = cli.Get(path);
-                if (!r || r->status != 200) failed.push_back(port);
+
+                if (g.backend == "mlx" || g.backend == "docker"
+                    || g.backend == "vllm" || g.backend == "docker-vllm") {
+                    auto r = cli.Get("/v1/models");
+                    if (!r || r->status != 200) { failed.push_back(port); continue; }
+                } else {
+                    // llama backend: require /health AND confirm the correct
+                    // model is loaded via /v1/models — prevents a stale process
+                    // with a different model from passing the health check.
+                    auto hr = cli.Get("/health");
+                    if (!hr || hr->status != 200) { failed.push_back(port); continue; }
+
+                    auto mr = cli.Get("/v1/models");
+                    if (!mr || mr->status != 200) { failed.push_back(port); continue; }
+
+                    const std::string expected = model_basename(g.model);
+                    if (!expected.empty() && mr->body.find(expected) == std::string::npos) {
+                        std::cerr << "[Health] port " << port
+                                  << ": wrong model (expected " << expected << "); stale process?\n";
+                        failed.push_back(port);
+                        continue;
+                    }
+                }
             } catch (...) { failed.push_back(port); }
         }
         return failed;
