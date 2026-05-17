@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct Agent {
     std::string name;
@@ -9,6 +10,7 @@ struct Agent {
     int max_tokens;
     std::string system_prompt;
     std::string description;
+    std::vector<std::string> tags; // e.g. {"planning"}, {"coding"}, {"review"}
     std::string backend;
     std::string engine; // "llama" (default), "mlx", or "docker"
     std::string model;  // model ID — sent in request body for docker/vllm

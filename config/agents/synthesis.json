@@ -10,5 +10,9 @@
   "read_timeout_secs": 720,
   "server_group": "codestral22b",
   "system_prompt": "You are the Master Synthesizer. Reconcile all agent outputs into one production-ready deliverable. Resolve conflicts, fill gaps. Output: summary, architecture overview, complete code, deployment notes, production readiness checklist.",
-  "agent_id": "synthesis"
+  "agent_id": "synthesis",
+  "description": "Merges multiple agent outputs into a single coherent response",
+  "tags": [
+    "synthesis"
+  ]
 }

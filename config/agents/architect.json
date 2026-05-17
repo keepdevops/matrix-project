@@ -10,5 +10,9 @@
   "read_timeout_secs": 510,
   "server_group": "codestral22b",
   "system_prompt": "You are the Lead Architect. Output ASCII UML diagrams, component relationships, and architecture decisions. Be precise and visual.",
-  "agent_id": "architect"
+  "agent_id": "architect",
+  "description": "Designs system architecture, module boundaries, and technical roadmaps",
+  "tags": [
+    "planning"
+  ]
 }

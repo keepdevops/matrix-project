@@ -17,47 +17,14 @@ using json = nlohmann::json;
 
 namespace {
 
-bool is_mlx_centric_run(const std::vector<Agent>& agents) {
-    int mlx = 0;
-    int other = 0;
-    for (const auto& a : agents) {
-        if (a.engine == "mlx" || a.backend == "mlx") ++mlx;
-        else ++other;
-    }
-    return mlx > 0 && mlx >= other;
-}
-
-std::vector<std::string> preferred_names(const std::vector<Agent>& agents,
-                                         const std::vector<std::string>& preferred) {
-    std::vector<std::string> active;
-    active.reserve(agents.size());
-    for (const auto& a : agents) active.push_back(a.name);
-    std::vector<std::string> out;
-    for (const auto& p : preferred) {
-        if (std::find(active.begin(), active.end(), p) != active.end()) out.push_back(p);
-    }
-    return out;
-}
 
 std::vector<std::string> default_pipeline_order(const std::vector<Agent>& agents) {
     if (agents.empty()) return {};
 
-    if (is_mlx_centric_run(agents)) {
-        // MLX-centric chain: start with mlx-coder if present, then coordinator-like roles.
-        auto mlx_pref = preferred_names(agents, {
-            "mlx-coder", "foreman", "api", "documenter", "scout",
-            "architect", "programmer"
-        });
-        if (!mlx_pref.empty()) return mlx_pref;
-    }
-
-    // Build a coding pipeline from whatever planner/coder/reviewer roles are
-    // active. Architect is the preferred planner, but foreman serves the same
-    // function in swarms that omit architect. Fall through tiers so we always
-    // produce a multi-stage chain when the active agents allow it.
-    auto planners = preferred_names(agents, {"architect", "foreman"});
-    auto coders   = preferred_names(agents, {"programmer", "mlx-coder", "specialist"});
-    auto checkers = preferred_names(agents, {"reviewer", "tester", "security", "documenter"});
+    // Build a pipeline from tag-grouped roles: planning → coding → review.
+    auto planners = mode_module::agents_with_tag(agents, "planning");
+    auto coders   = mode_module::agents_with_tag(agents, "coding");
+    auto checkers = mode_module::agents_with_tag(agents, "review");
 
     std::vector<std::string> out;
     auto push_first = [&](const std::vector<std::string>& xs) {
@@ -96,29 +63,6 @@ json run_pipeline(const ModeContext& ctx) {
             if (item.is_string()) effective_order.push_back(item.get<std::string>());
         }
     }
-    if (!effective_order.empty() && is_mlx_centric_run(ctx.agents)) {
-        // In MLX-centric runs, require mlx-coder to participate when available.
-        std::unordered_map<std::string, const Agent*> by_name_for_check;
-        for (const auto& a : ctx.agents) by_name_for_check[a.name] = &a;
-        const bool has_mlx_coder = by_name_for_check.find("mlx-coder") != by_name_for_check.end();
-        bool order_has_mlx_coder = false;
-        for (const auto& n : effective_order) if (n == "mlx-coder") { order_has_mlx_coder = true; break; }
-        if (has_mlx_coder && !order_has_mlx_coder) {
-            effective_order = default_pipeline_order(ctx.agents);
-            fallback_order_used = true;
-            std::cerr << "⚠️  [pipeline] overriding static order for MLX-centric run (mlx-coder not in order)" << std::endl;
-        } else if (has_mlx_coder && order_has_mlx_coder && !effective_order.empty()
-                   && effective_order.front() != "mlx-coder") {
-            // Keep configured order but move mlx-coder to the front for MLX-centric runs.
-            std::vector<std::string> reordered;
-            reordered.reserve(effective_order.size());
-            reordered.push_back("mlx-coder");
-            for (const auto& n : effective_order) if (n != "mlx-coder") reordered.push_back(n);
-            effective_order.swap(reordered);
-            fallback_order_used = true;
-            std::cerr << "⚠️  [pipeline] reordered static order for MLX-centric run (mlx-coder first)" << std::endl;
-        }
-    }
     // If a synthesizer is configured, it runs as a final reducer — exclude it
     // from chain construction so it doesn't double-execute as a regular stage.
     std::string synth_name_for_filter;
@@ -141,33 +85,20 @@ json run_pipeline(const ModeContext& ctx) {
         effective_order = mode_module::pipeline_preset_order(preset, ctx.agents);
     }
     if (effective_order.empty()) {
-        // Roster-driven fallback: run EVERY active agent, with planners first,
-        // then coders, then checkers, then any remaining roles. This honors the
-        // configured roster instead of capping at the 3-stage representative chain.
-        const std::vector<std::string> planner_pref  = {"architect", "foreman"};
-        const std::vector<std::string> coder_pref    = {"programmer", "mlx-coder", "specialist"};
-        const std::vector<std::string> checker_pref  = {"reviewer", "tester", "security", "optimizer", "debugger", "documenter"};
+        // Roster-driven fallback: run EVERY active agent, with planning first,
+        // then coding, then review, then any remaining roles (data, synthesis, etc.).
         std::unordered_set<std::string> emitted;
-        auto push_if_active = [&](const std::string& name) {
-            if (name == synth_name_for_filter) return;
-            for (const auto& a : ctx.agents) {
-                if (a.name == name && !emitted.count(name)) {
-                    effective_order.push_back(name);
-                    emitted.insert(name);
-                    return;
-                }
+        const std::vector<std::string> tag_order = {"planning", "coding", "review", "data", "synthesis"};
+        for (const auto& tag : tag_order) {
+            for (const auto& name : mode_module::agents_with_tag(ctx.agents, tag)) {
+                if (name == synth_name_for_filter) continue;
+                if (emitted.insert(name).second) effective_order.push_back(name);
             }
-        };
-        for (const auto& n : planner_pref)  push_if_active(n);
-        for (const auto& n : coder_pref)    push_if_active(n);
-        for (const auto& n : checker_pref)  push_if_active(n);
-        // Append any remaining active agents in config order (roster tail).
+        }
+        // Append any remaining agents not covered by known tags.
         for (const auto& a : ctx.agents) {
             if (a.name == synth_name_for_filter) continue;
-            if (!emitted.count(a.name)) {
-                effective_order.push_back(a.name);
-                emitted.insert(a.name);
-            }
+            if (emitted.insert(a.name).second) effective_order.push_back(a.name);
         }
         fallback_order_used = true;
         std::cerr << "⚠️  [pipeline] roster-driven fallback: " << effective_order.size()
@@ -177,18 +108,8 @@ json run_pipeline(const ModeContext& ctx) {
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : ctx.agents) by_name[a.name] = &a;
 
-    // Role-equivalent substitutions: when a configured order references an
-    // agent that isn't active, try a substitute that fills the same role
-    // before silently skipping. Without this, a config that names "architect"
-    // in a swarm without one collapses to a single-agent "pipeline".
-    const std::vector<std::pair<std::string, std::vector<std::string>>> role_substitutes = {
-        {"architect",  {"foreman"}},
-        {"foreman",    {"architect"}},
-        {"programmer", {"mlx-coder", "specialist"}},
-        {"mlx-coder",  {"programmer", "specialist"}},
-        {"reviewer",   {"tester", "security"}},
-        {"tester",     {"reviewer"}},
-    };
+    // Role substitution: when a configured order names an agent that isn't active,
+    // find the first active agent with the same tags before silently skipping.
     std::unordered_map<std::string, std::string> substituted;
     std::vector<std::string> resolved_order;
     std::unordered_set<std::string> already_in_order(effective_order.begin(),
@@ -196,19 +117,22 @@ json run_pipeline(const ModeContext& ctx) {
     std::unordered_set<std::string> seen_resolved;
     for (const auto& name : effective_order) {
         if (by_name.count(name)) {
-            resolved_order.push_back(name);
+            if (seen_resolved.insert(name).second) resolved_order.push_back(name);
             continue;
         }
+        // Find the missing agent's tags from the full ctx.agents list (it may be
+        // unconfigured for this run). Fall back to first same-tag active agent.
+        std::vector<std::string> missing_tags;
+        for (const auto& a : ctx.agents)
+            if (a.name == name) { missing_tags = a.tags; break; }
         std::string sub;
-        for (const auto& kv : role_substitutes) {
-            if (kv.first != name) continue;
-            for (const auto& cand : kv.second) {
+        for (const auto& tag : missing_tags) {
+            for (const auto& cand : mode_module::agents_with_tag(ctx.agents, tag)) {
                 if (by_name.count(cand) && !already_in_order.count(cand)) {
-                    sub = cand;
-                    break;
+                    sub = cand; break;
                 }
             }
-            break;
+            if (!sub.empty()) break;
         }
         if (!sub.empty()) {
             substituted[name] = sub;

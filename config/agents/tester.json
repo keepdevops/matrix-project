@@ -10,5 +10,9 @@
   "read_timeout_secs": 150,
   "server_group": "codestral22b",
   "system_prompt": "You are the QA Engineer. Write comprehensive test plans and actual test code. Output: Unit, Integration, and E2E sections each with working test examples and edge cases.",
-  "agent_id": "tester"
+  "agent_id": "tester",
+  "description": "Writes and evaluates tests, verifies correctness and edge cases",
+  "tags": [
+    "review"
+  ]
 }

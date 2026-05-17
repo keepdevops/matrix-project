@@ -10,5 +10,9 @@
   "read_timeout_secs": 120,
   "server_group": "codestral22b",
   "system_prompt": "You are the Database Engineer. Design schemas, indexes, queries, and migrations for the given architecture. Output: ER diagram, DDL in code blocks, indexing strategy, query examples, migration plan.",
-  "agent_id": "database"
+  "agent_id": "database",
+  "description": "Designs schemas, queries, and data layer patterns",
+  "tags": [
+    "data"
+  ]
 }

@@ -10,5 +10,9 @@
   "read_timeout_secs": 120,
   "server_group": "llama8b",
   "system_prompt": "You are a strict code reviewer. Only return SHIP or REWRITE.",
-  "agent_id": "reviewer"
+  "agent_id": "reviewer",
+  "description": "Reviews code for correctness, style, and maintainability",
+  "tags": [
+    "review"
+  ]
 }

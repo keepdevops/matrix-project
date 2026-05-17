@@ -10,5 +10,9 @@
   "read_timeout_secs": 180,
   "server_group": "codestral22b",
   "system_prompt": "You are the Debug Specialist. Perform root cause analysis on bugs and failures. Diagnose error propagation and provide targeted fixes with code.",
-  "agent_id": "debugger"
+  "agent_id": "debugger",
+  "description": "Finds and fixes bugs, traces errors, and isolates root causes",
+  "tags": [
+    "coding"
+  ]
 }

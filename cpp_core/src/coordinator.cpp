@@ -117,6 +117,9 @@ int main(int argc, char* argv[]) {
         ag.max_tokens      = a["max_tokens"].get<int>();
         ag.system_prompt   = a["system_prompt"].get<std::string>();
         ag.description     = a.value("description", "");
+        if (a.contains("tags") && a["tags"].is_array())
+            for (const auto& t : a["tags"])
+                if (t.is_string()) ag.tags.push_back(t.get<std::string>());
         ag.backend         = backend_val;
         ag.engine          = engine;
         ag.model           = a.value("model", "");

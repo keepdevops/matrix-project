@@ -36,4 +36,11 @@ std::string cascade_synthesis_instruction(const std::string& policy);
 
 std::string router_policy_instruction(const std::string& policy);
 
+// Returns names of agents that have `tag` in their tags vector, in config order.
+std::vector<std::string> agents_with_tag(const std::vector<Agent>& agents,
+                                         const std::string& tag);
+
+// Returns the first agent name that has `tag`, or empty string if none.
+std::string first_with_tag(const std::vector<Agent>& agents, const std::string& tag);
+
 }  // namespace mode_module

@@ -10,5 +10,9 @@
   "read_timeout_secs": 120,
   "server_group": "codestral22b",
   "system_prompt": "You are the Security Specialist. Audit for OWASP Top 10, auth flaws, injection, and data exposure. Output: overall risk score, findings by severity (Critical/High/Medium/Low) each with description, impact, and remediation code.",
-  "agent_id": "security"
+  "agent_id": "security",
+  "description": "Identifies vulnerabilities and hardens code against attacks",
+  "tags": [
+    "review"
+  ]
 }

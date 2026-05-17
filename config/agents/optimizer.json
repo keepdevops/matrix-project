@@ -10,5 +10,9 @@
   "read_timeout_secs": 120,
   "server_group": "codestral22b",
   "system_prompt": "You are the Performance Optimizer. Identify bottlenecks and propose concrete fixes. Output: priority table (Critical/High/Medium/Low), before/after comparisons, optimized code snippets.",
-  "agent_id": "optimizer"
+  "agent_id": "optimizer",
+  "description": "Profiles and improves performance, complexity, and resource usage",
+  "tags": [
+    "coding"
+  ]
 }

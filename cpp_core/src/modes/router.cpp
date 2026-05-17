@@ -71,103 +71,13 @@ bool endpoint_ready(const Agent& a) {
     return ok;
 }
 
-bool is_mlx_centric_run(const std::vector<Agent>& agents) {
-    int mlx = 0;
-    int other = 0;
-    for (const auto& a : agents) {
-        if (is_mlx_agent(a)) ++mlx;
-        else ++other;
-    }
-    return mlx > 0 && mlx >= other;
-}
 
-std::vector<std::string> mlx_first_agents(const std::vector<Agent>& agents,
-                                          const std::string& exclude = "") {
-    std::vector<std::string> mlx;
-    std::vector<std::string> other;
-    for (const auto& a : agents) {
-        if (!exclude.empty() && a.name == exclude) continue;
-        if (is_mlx_agent(a)) mlx.push_back(a.name);
-        else other.push_back(a.name);
-    }
-    mlx.insert(mlx.end(), other.begin(), other.end());
-    return mlx;
-}
-
-std::vector<std::string> mlx_priority_targets(const std::vector<Agent>& agents,
-                                              const std::string& exclude = "") {
-    std::vector<std::string> active;
-    active.reserve(agents.size());
-    for (const auto& a : agents) {
-        if (!exclude.empty() && a.name == exclude) continue;
-        active.push_back(a.name);
-    }
-    std::vector<std::string> out;
-    std::vector<std::string> preferred = {
-        "foreman", "api", "documenter", "scout",
-        "mlx-coder", "architect", "programmer", "tester", "devops"
-    };
-    for (const auto& p : preferred) {
-        for (const auto& n : active) {
-            if (n == p) { out.push_back(n); break; }
-        }
-    }
-    // Append any active names not already present.
-    std::unordered_set<std::string> seen(out.begin(), out.end());
-    for (const auto& n : active) if (!seen.count(n)) out.push_back(n);
-    return out;
-}
-
-std::vector<std::string> mlx_strict_fallback_order(const std::vector<Agent>& agents,
-                                                   const std::string& exclude = "") {
-    std::vector<std::string> active;
-    active.reserve(agents.size());
-    for (const auto& a : agents) {
-        if (!exclude.empty() && a.name == exclude) continue;
-        active.push_back(a.name);
-    }
-    // Tier-1: MLX-support/coordinator roles.
-    const std::vector<std::string> tier1 = {
-        "foreman", "api", "documenter", "scout", "mlx-coder", "tester", "devops"
-    };
-    // Tier-2: coding/heavy roles, only after tier1 is exhausted.
-    const std::vector<std::string> tier2 = {
-        "architect", "programmer", "reviewer", "security", "optimizer",
-        "specialist", "database", "frontend", "synthesis"
-    };
-    std::vector<std::string> out;
-    out.reserve(active.size());
-    auto append_if_active = [&](const std::vector<std::string>& tier) {
-        for (const auto& p : tier) {
-            for (const auto& n : active) {
-                if (n == p) { out.push_back(n); break; }
-            }
-        }
-    };
-    append_if_active(tier1);
-    append_if_active(tier2);
-    // Append any active names not already present.
-    std::unordered_set<std::string> seen(out.begin(), out.end());
-    for (const auto& n : active) if (!seen.count(n)) out.push_back(n);
-    return out;
-}
-
-bool contains_any(const std::vector<std::string>& xs, const std::unordered_set<std::string>& set) {
-    for (const auto& x : xs) if (set.count(x)) return true;
-    return false;
-}
-
-std::string choose_classifier(const std::vector<Agent>& agents, bool mlx_centric) {
-    auto has = [&](const std::string& n) {
-        for (const auto& a : agents) if (a.name == n) return true;
-        return false;
-    };
-    if (mlx_centric) {
-        if (has("mlx-coder")) return "mlx-coder";
-        if (has("foreman")) return "foreman";
-    } else {
-        if (has("foreman")) return "foreman";
-    }
+// Choose the classifier: prefer any agent tagged "planning" (e.g. foreman, architect),
+// otherwise fall back to the first active agent.
+std::string choose_classifier(const std::vector<Agent>& agents) {
+    for (const auto& a : agents)
+        for (const auto& t : a.tags)
+            if (t == "planning") return a.name;
     return agents.empty() ? std::string() : agents.front().name;
 }
 
@@ -203,7 +113,6 @@ json run_router(const ModeContext& ctx) {
         };
     }
     const auto& agents = reachable_agents;
-    const bool mlx_centric = is_mlx_centric_run(agents);
 
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : agents) by_name[a.name] = &a;
@@ -238,17 +147,8 @@ json run_router(const ModeContext& ctx) {
         ? router_plan::as_string_vec(cfg["fallback"]) : std::vector<std::string>{};
 
     bool fallback_classifier_used = false;
-    bool mlx_classifier_override_used = false;
-    if (mlx_centric && by_name.find("mlx-coder") != by_name.end()
-        && classifier_name != "mlx-coder") {
-        classifier_name = "mlx-coder";
-        mlx_classifier_override_used = true;
-        std::cerr << "⚠️  [router] MLX-centric run: overriding classifier to 'mlx-coder'"
-                  << (configured_classifier.empty() ? "" : " (from config '" + configured_classifier + "')")
-                  << std::endl;
-    }
     if (classifier_name.empty() || by_name.find(classifier_name) == by_name.end()) {
-        classifier_name = choose_classifier(agents, mlx_centric);
+        classifier_name = choose_classifier(agents);
         fallback_classifier_used = true;
     }
 
@@ -269,15 +169,7 @@ json run_router(const ModeContext& ctx) {
         }
         choices.swap(active_choices);
     }
-    if (mlx_centric && !choices.empty()) {
-        // Reorder with strict MLX-centric priority (tier1 before architect/programmer).
-        std::vector<std::string> preferred = mlx_strict_fallback_order(agents, classifier_name);
-        std::unordered_set<std::string> allowed(choices.begin(), choices.end());
-        std::vector<std::string> reordered;
-        for (const auto& n : preferred) if (allowed.count(n)) reordered.push_back(n);
-        if (!reordered.empty()) choices = reordered;
-    }
-    std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
+std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
 
     if (classifier_name.empty() || by_name.find(classifier_name) == by_name.end()) {
         std::cerr << "❌ [router] no active agents available for classifier" << std::endl;
@@ -291,16 +183,7 @@ json run_router(const ModeContext& ctx) {
         };
     }
 
-    if (mlx_centric) {
-        // Strict MLX policy: ignore configured fallback and enforce tiered MLX-priority.
-        fallback.clear();
-        const auto candidates = mlx_strict_fallback_order(agents, classifier_name);
-        for (const auto& n : candidates) {
-            fallback.push_back(n);
-            if ((int)fallback.size() >= max_select) break;
-        }
-    } else if (fallback.empty()) {
-        // Non-MLX: keep existing behavior.
+    if (fallback.empty()) {
         for (const auto& a : agents) {
             if (a.name == classifier_name) continue;
             fallback.push_back(a.name);
@@ -316,10 +199,19 @@ json run_router(const ModeContext& ctx) {
     // forces a strict SELECTED-line response. Without this, the classifier
     // just answers the user's prompt literally (e.g. asked to "list sorts",
     // it lists sort algorithms instead of picking agents).
+
+    // Build agent list with descriptions so the classifier can reason about roles.
     std::string choices_csv;
+    std::string choices_annotated;
     for (size_t i = 0; i < choices.size(); ++i) {
         if (i) choices_csv += ", ";
         choices_csv += choices[i];
+        const auto it = by_name.find(choices[i]);
+        const std::string desc = (it != by_name.end() && !it->second->description.empty())
+            ? it->second->description : "";
+        choices_annotated += "  " + choices[i];
+        if (!desc.empty()) choices_annotated += " — " + desc;
+        choices_annotated += "\n";
     }
     const std::string classifier_system =
         "You are a routing classifier. Your ONLY job is to choose which "
@@ -365,7 +257,7 @@ json run_router(const ModeContext& ctx) {
     } catch (...) { /* skip banner on error */ }
 
     const std::string classifier_user =
-        "Allowed agents: " + choices_csv + "\n\n"
+        "Allowed agents:\n" + choices_annotated + "\n"
         + load_banner +
         "User request:\n" + ctx.user_prompt + "\n\n"
         "Respond with the SELECTED line only.";
@@ -401,14 +293,6 @@ json run_router(const ModeContext& ctx) {
     }
 
     bool fallback_used = false;
-    const std::unordered_set<std::string> mlx_prioritized = {"foreman", "api", "documenter", "scout", "mlx-coder"};
-    if (mlx_centric && !selected.empty() && !contains_any(selected, mlx_prioritized)) {
-        // If classifier chose only late coding roles, bias toward MLX-centric defaults.
-        fallback_used = true;
-        selected.clear();
-        seen.clear();
-        std::cerr << "⚠️  [router] MLX-centric run: classifier selection not mlx-priority; using fallback" << std::endl;
-    }
     if (selected.empty()) {
         fallback_used = true;
         std::cerr << "⚠️  [router] no valid selection; using fallback" << std::endl;
@@ -418,12 +302,10 @@ json run_router(const ModeContext& ctx) {
             if ((int)selected.size() >= max_select) break;
         }
         if (selected.empty()) {
-            // Final safety net: pick first active non-classifier agents.
-            const auto final_candidates = mlx_centric
-                ? mlx_strict_fallback_order(agents, classifier_name)
-                : mlx_first_agents(agents, classifier_name);
-            for (const auto& n : final_candidates) {
-                if (seen.insert(n).second) selected.push_back(n);
+            // Final safety net: first active non-classifier agents in config order.
+            for (const auto& a : agents) {
+                if (a.name == classifier_name) continue;
+                if (seen.insert(a.name).second) selected.push_back(a.name);
                 if ((int)selected.size() >= max_select) break;
             }
         }
@@ -460,8 +342,6 @@ json run_router(const ModeContext& ctx) {
     meta["classifier_raw"] = raw;
     meta["fallback_used"] = fallback_used;
     meta["fallback_classifier_used"] = fallback_classifier_used;
-    meta["mlx_classifier_override_used"] = mlx_classifier_override_used;
-    meta["mlx_centric"] = mlx_centric;
     if (!affinity_meta.empty()) meta["kv_affinity"] = affinity_meta;
 
     return json{

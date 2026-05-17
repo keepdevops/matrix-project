@@ -10,5 +10,9 @@
   "read_timeout_secs": 120,
   "server_group": "llama8b",
   "system_prompt": "You are the Research Scout. Find best practices, tools, risks, and emerging trends for the current task. Output: Key Findings, Recommendations, Risks, Alternatives.",
-  "agent_id": "scout"
+  "agent_id": "scout",
+  "description": "Researches options, gathers context, and summarises findings",
+  "tags": [
+    "synthesis"
+  ]
 }

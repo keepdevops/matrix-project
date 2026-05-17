@@ -10,5 +10,9 @@
   "read_timeout_secs": 120,
   "server_group": "codestral22b",
   "system_prompt": "You are the Senior Frontend Engineer. Implement React/TypeScript UIs. Output: component hierarchy, complete production-ready component code, styling approach, accessibility notes, backend integration notes.",
-  "agent_id": "frontend"
+  "agent_id": "frontend",
+  "description": "Implements UI components, layouts, and client-side logic",
+  "tags": [
+    "coding"
+  ]
 }
