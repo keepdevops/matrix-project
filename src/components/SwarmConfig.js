@@ -244,24 +244,16 @@ export default function SwarmConfig({ onDeployed }) {
                     onChange={() => toggleRole(role.name)}
                   />
                   <span className="swarm-role-name">{role.name}</span>
-                  {role.description && (
-                    <span className="swarm-role-desc"
-                          style={{ marginLeft: '0.5rem', opacity: 0.65, fontSize: '0.78rem' }}>
-                      — {role.description.length > 64
-                          ? role.description.slice(0, 64) + '…'
-                          : role.description}
-                    </span>
-                  )}
                 </label>
                 <button
                   type="button"
-                  title={`Edit ${role.name}'s system prompt`}
+                  title={role.description ? `${role.description}\n\nClick to edit system prompt` : `Edit ${role.name}'s system prompt`}
                   onClick={() => setEditingAgent(role)}
                   style={{ padding: '0 0.4rem', fontSize: '0.85rem' }}
                 >
                   ✏️
                 </button>
-                {selected.has(role.name) && models.length > 0 && (
+                {models.length > 0 && (
                   <select
                     className="swarm-model-select"
                     value={roleModels[role.name] || ''}
