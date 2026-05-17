@@ -126,6 +126,33 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         sc = json::parse(sc_in);
         std::ofstream sc_out(g_env.active_config_path);
         if (!sc_out.is_open()) throw std::runtime_error("Cannot write " + g_env.active_config_path);
+        // Stamp max_concurrency on every llama agent to match its port's slot
+        // count. The coordinator semaphore then queues overflow requests in
+        // memory rather than letting them race past llama-server's fixed
+        // --parallel limit and time out. mlx stays at 1 (already serialised).
+        std::map<int, int> port_slots;
+        for (const auto& kv2 : pgs)
+            if (kv2.second.backend == "llama")
+                port_slots[kv2.first] = (int)kv2.second.names.size();
+        for (size_t ai = 0; ai < agents.size(); ++ai) {
+            auto& a = agents[ai];
+            if (!a.is_object()) continue;
+            // Match the backend resolution used in the PortGroup build loop.
+            std::string bk;
+            if (a.contains("backend") && a["backend"].is_string() && !a["backend"].get<std::string>().empty())
+                bk = a["backend"].get<std::string>();
+            else if (a.contains("engine") && a["engine"].is_string())
+                bk = a["engine"].get<std::string>();
+            else
+                bk = "llama";
+            if (bk != "llama") continue;
+            int p = a.contains("port") && a["port"].is_number_integer() ? a["port"].get<int>() : -1;
+            auto it = port_slots.find(p);
+            if (it == port_slots.end()) continue;
+            int cur = a.contains("max_concurrency") && a["max_concurrency"].is_number_integer()
+                      ? a["max_concurrency"].get<int>() : 0;
+            if (cur == 0) a["max_concurrency"] = it->second;
+        }
         json active = {{"agents", agents}, {"coordinator", sc["coordinator"]}, {"ui", sc["ui"]}};
         if (sc.contains("rag")) active["rag"] = sc["rag"];
         sc_out << active.dump(2);
