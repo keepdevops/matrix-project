@@ -95,6 +95,13 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
                 g.n_batch = (g.n_batch == 0) ? agent_n_batch : std::min(g.n_batch, agent_n_batch);
         }
         g.names.push_back(a["name"].get<std::string>());
+        // flash_attn: any agent in the group requesting it enables it for all.
+        if (a.value("flash_attn", false)) g.flash_attn = true;
+        // ctx_cap: lowest explicit cap across agents wins (conservative).
+        if (a.contains("ctx_cap") && a["ctx_cap"].is_number_integer()) {
+            int agent_cap = a["ctx_cap"].get<int>();
+            if (agent_cap > 0) g.ctx_cap = std::min(g.ctx_cap, agent_cap);
+        }
         if (bk == "llama") {
             std::string dm = a.value("draft_model", std::string(""));
             int dmax = a.value("draft_max", 0);

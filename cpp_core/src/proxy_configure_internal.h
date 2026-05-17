@@ -10,6 +10,8 @@ struct PortGroup {
     std::vector<std::string> names;
     std::string draft_model;
     int draft_max = 0;
+    bool flash_attn = false; // --flash-attn + KV q8_0 quantization
+    int ctx_cap = 65536;     // max total context across all slots (replaces hardcoded 16384)
 };
 
 inline constexpr int PROXY_CONFIGURE_DOCKER_PORT = 12434;

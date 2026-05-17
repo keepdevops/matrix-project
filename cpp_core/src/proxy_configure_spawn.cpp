@@ -101,16 +101,14 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
                       << " [" << join_names(g.names) << "]\n";
         } else {
             // llama backend
-            int per_agent = std::min(g.context, 8192);
-            int ctx = per_agent * (int)g.names.size();
-            const int ctx_cap = 16384;
-            if (ctx > ctx_cap) {
+            int ctx = g.context * (int)g.names.size();
+            if (ctx > g.ctx_cap) {
                 std::cerr << "[Configure] WARNING: effective ctx "
-                          << ctx << " exceeds cap " << ctx_cap
+                          << ctx << " exceeds cap " << g.ctx_cap
                           << " on port " << port << "; truncating. "
-                          << "Lower per-agent 'context' in swarm-config.json "
-                          << "to avoid Metal OOM." << std::endl;
-                ctx = ctx_cap;
+                          << "Lower per-agent 'context' or set 'ctx_cap' "
+                          << "in agent config to suppress." << std::endl;
+                ctx = g.ctx_cap;
             }
             std::vector<std::string> args = {
                 "-m", g.model, "-c", std::to_string(ctx), "--port", ps,
@@ -118,6 +116,11 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
                 "--parallel", std::to_string(g.names.size()),
                 "--metrics", "--slot-save-path", g_env.matrix_slots_dir
             };
+            if (g.flash_attn) {
+                args.push_back("--flash-attn"); args.push_back("on");
+                args.push_back("--cache-type-k"); args.push_back("q8_0");
+                args.push_back("--cache-type-v"); args.push_back("q8_0");
+            }
             if (g.n_batch > 0) {
                 args.push_back("--batch-size");
                 args.push_back(std::to_string(g.n_batch));
@@ -131,7 +134,9 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
                 }
             }
             spawn_detached(g_env.llama_server_bin, args, log);
-            std::cout << "[Configure] LLAMA :" << port << " x" << g.names.size()
+            std::cout << "[Configure] LLAMA :" << port << " ctx=" << ctx
+                      << (g.flash_attn ? " flash_attn+kv_q8" : "")
+                      << " x" << g.names.size()
                       << " [" << join_names(g.names) << "]"
                       << (g.draft_model.empty() ? ""
                           : " spec=" + g.draft_model
