@@ -9,6 +9,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import sys
 import traceback
 
@@ -25,7 +26,14 @@ def main():
                         help="Output directory for MLX weights")
     parser.add_argument("--q-bits", type=int, default=4, choices=[4, 8],
                         help="Quantization bits (default: 4)")
+    parser.add_argument("--hf-token", default="",
+                        help="HuggingFace API token for gated/private models")
     args = parser.parse_args()
+
+    # Set token in environment so huggingface_hub picks it up automatically.
+    token = args.hf_token or os.environ.get("HF_TOKEN", "")
+    if token:
+        os.environ["HF_TOKEN"] = token
 
     _emit({"status": "running", "step": "starting", "pct": 0,
            "hf_repo": args.hf_repo, "output": args.output, "q_bits": args.q_bits})

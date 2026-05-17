@@ -48,6 +48,7 @@ function ConvertRow({ model, onDone }) {
   const [hfRepo,     setHfRepo]     = useState(() => guessHfRepo(model.name));
   const [outputName, setOutputName] = useState(() => guessOutputName(model.name));
   const [qBits,      setQBits]      = useState(4);
+  const [hfToken,    setHfToken]    = useState('');
   const [job,        setJob]        = useState(null);
   const [error,      setError]      = useState(null);
   const pollRef = useRef(null);
@@ -59,7 +60,7 @@ function ConvertRow({ model, onDone }) {
   const start = async () => {
     setError(null);
     try {
-      const { job_id } = await startConversion({ hf_repo: hfRepo, output_name: outputName, q_bits: qBits });
+      const { job_id } = await startConversion({ hf_repo: hfRepo, output_name: outputName, q_bits: qBits, hf_token: hfToken });
       setJob({ job_id, status: 'running', step: 'starting', pct: 0 });
       pollRef.current = setInterval(async () => {
         try {
@@ -122,6 +123,19 @@ function ConvertRow({ model, onDone }) {
                 </label>
               ))}
             </div>
+
+            <label style={{ fontSize: '0.7rem', color: '#666', textTransform: 'uppercase' }}>
+              HF Token <span style={{ textTransform: 'none', color: '#444' }}>(optional, for gated models)</span>
+            </label>
+            <input
+              type="password"
+              value={hfToken}
+              onChange={e => setHfToken(e.target.value)}
+              placeholder="hf_…"
+              disabled={busy}
+              style={{ fontFamily: 'monospace', fontSize: '0.8rem', padding: '3px 6px',
+                       background: '#000', color: '#dde', border: '1px solid #333', borderRadius: 3 }}
+            />
 
             {job && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

@@ -587,11 +587,13 @@ export async function startVllmServers() {
 }
 
 
-export async function startConversion({ hf_repo, output_name, q_bits = 4 }) {
+export async function startConversion({ hf_repo, output_name, q_bits = 4, hf_token = '' }) {
+  const body = { hf_repo, output_name, q_bits };
+  if (hf_token) body.hf_token = hf_token;
   const res = await fetch(`${API_BASE}/models/convert`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hf_repo, output_name, q_bits }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

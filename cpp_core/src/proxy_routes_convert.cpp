@@ -120,6 +120,7 @@ void register_convert_routes(httplib::Server& svr, const std::string& proj_root)
         std::string hf_repo     = body["hf_repo"].get<std::string>();
         std::string output_name = body["output_name"].get<std::string>();
         int         q_bits      = body.value("q_bits", 4);
+        std::string hf_token    = body.value("hf_token", std::string(""));
         if (q_bits != 4 && q_bits != 8) q_bits = 4;
 
         std::string mlx_dir = g_env.model_dir + "/mlx/MLX/" + output_name;
@@ -127,11 +128,14 @@ void register_convert_routes(httplib::Server& svr, const std::string& proj_root)
         std::string log     = "/tmp/matrix-convert-" + job_id + ".log";
 
         // Build command: redirect stdout+stderr to log file.
+        // Pass HF_TOKEN via --hf-token arg (not env) so it doesn't linger in
+        // the process environment after the script exits.
         std::string cmd = g_env.mlx_python
             + " " + proj_root + "/scripts/gguf_to_mlx.py"
             + " --hf-repo \"" + hf_repo + "\""
             + " --output \"" + mlx_dir + "\""
             + " --q-bits " + std::to_string(q_bits)
+            + (hf_token.empty() ? "" : " --hf-token \"" + hf_token + "\"")
             + " >> \"" + log + "\" 2>&1";
 
         pid_t pid = fork();
