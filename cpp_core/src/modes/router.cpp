@@ -112,7 +112,9 @@ json run_router(const ModeContext& ctx) {
             {"meta", meta}
         };
     }
-    const auto& agents = reachable_agents;
+    // Work with a mutable local copy so SET_TOKENS directives from the
+    // foreman can adjust per-agent budgets for this request only.
+    std::vector<Agent>& agents = reachable_agents;
 
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : agents) by_name[a.name] = &a;
@@ -215,13 +217,19 @@ std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
     }
     const std::string classifier_system =
         "You are a routing classifier. Your ONLY job is to choose which "
-        "specialist agents should handle a user request. Do NOT answer the "
-        "request itself. Respond with exactly one line in this format and "
-        "nothing else:\n"
-        "SELECTED: <agent1>, <agent2>, ...\n"
-        "Pick between 1 and " + std::to_string(max_select) + " agents from the "
-        "allowed list. Use only names from the allowed list, separated by "
-        "commas. No prose, no explanations, no other lines.\n"
+        "specialist agents should handle a user request and optionally adjust "
+        "their token budgets for this request.\n\n"
+        "Respond with ONLY the following lines (in order) and nothing else:\n"
+        "  [optional] SET_TOKENS: <agent> max_tokens=<n>   — raise budget for large tasks\n"
+        "  SELECTED: <agent1>, <agent2>, ...\n\n"
+        "Rules:\n"
+        "- Emit SET_TOKENS lines BEFORE the SELECTED line.\n"
+        "- Only emit SET_TOKENS when the task clearly requires more output than the "
+        "default budget (e.g. large codegen needs max_tokens=4096, deep analysis "
+        "needs max_tokens=3000). Default is 2048. Never lower below 512.\n"
+        "- Pick between 1 and " + std::to_string(max_select) + " agents from the "
+        "allowed list. Use only names from the allowed list.\n"
+        "- No prose, no explanations, no other lines.\n"
         + mode_module::router_policy_instruction(classifier_policy);
     // Pressure-aware classifier hint: list current load per allowed agent so
     // the foreman can avoid hammering already-busy roles. Best-effort — if the
@@ -263,6 +271,32 @@ std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
         "Respond with the SELECTED line only.";
     const std::string raw = call_agent_with_system(
         *by_name[classifier_name], classifier_system, classifier_user);
+
+    // Apply any SET_TOKENS directives emitted by the foreman before dispatch.
+    // Changes are in-memory only for this request — no disk persistence.
+    {
+        auto directives = router_plan::parse_set_tokens_directives(raw);
+        if (!directives.empty()) {
+            int n = router_plan::apply_token_directives(agents, directives);
+            json token_adjustments = json::array();
+            for (const auto& d : directives) {
+                json entry = {{"agent", d.agent}};
+                if (d.max_tokens > 0)        entry["max_tokens"]        = d.max_tokens;
+                if (d.read_timeout_secs > 0) entry["read_timeout_secs"] = d.read_timeout_secs;
+                token_adjustments.push_back(entry);
+                std::cout << "🔧 [router] foreman SET_TOKENS: " << d.agent;
+                if (d.max_tokens > 0) std::cout << " max_tokens=" << d.max_tokens;
+                if (d.read_timeout_secs > 0) std::cout << " read_timeout_secs=" << d.read_timeout_secs;
+                std::cout << std::endl;
+            }
+            if (n > 0) {
+                meta["token_adjustments"] = token_adjustments;
+                // Rebuild by_name so dispatchers see updated token values.
+                by_name.clear();
+                for (const auto& a : agents) by_name[a.name] = &a;
+            }
+        }
+    }
 
     std::vector<std::string> parsed =
         router_plan::extract_names_from_plan(raw, choice_set);
