@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchAgents, fetchModels, configureSwarm } from '../api/swarmApi';
+import { fetchAgents, fetchModels, fetchSwarmConfig, configureSwarm } from '../api/swarmApi';
 
 function modelLabel(path) {
   if (!path) return '—';
@@ -46,9 +46,17 @@ export default function ModelSwapPanel({ onRedeployed }) {
   const [result,    setResult]    = useState(null);
 
   useEffect(() => {
-    Promise.all([fetchAgents(), fetchModels()])
-      .then(([agentList, modelList]) => {
-        setAgents(agentList);
+    Promise.all([fetchSwarmConfig(), fetchAgents(), fetchModels()])
+      .then(([swarmCfg, runningAgents, modelList]) => {
+        // Use full agent definitions from swarm config as base (has all numeric fields),
+        // then overlay the currently running model for each agent.
+        const runningMap = {};
+        runningAgents.forEach(a => { if (a.model) runningMap[a.name] = a.model; });
+        const full = (swarmCfg.agents || []).map(a => ({
+          ...a,
+          model: runningMap[a.name] || a.model || '',
+        }));
+        setAgents(full);
         setModels(modelList.filter(m => m.backend !== 'vllm'));
         setStatus('idle');
       })
