@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+static constexpr const char* JOBS_FILE = "/tmp/matrix-convert-jobs.json";
+
 using json = nlohmann::json;
 
 namespace {
@@ -38,9 +40,56 @@ std::string make_job_id() {
     return buf;
 }
 
+// Caller must hold jobs_mu.
+void save_jobs() {
+    json arr = json::array();
+    for (const auto& [id, j] : jobs) {
+        arr.push_back({
+            {"id",       j.id},
+            {"status",   j.status},
+            {"step",     j.step},
+            {"pct",      j.pct},
+            {"output",   j.output},
+            {"error",    j.error},
+            {"log_path", j.log_path},
+        });
+    }
+    std::string tmp = std::string(JOBS_FILE) + ".tmp";
+    std::ofstream f(tmp);
+    if (f.is_open()) {
+        f << arr.dump();
+        f.close();
+        std::rename(tmp.c_str(), JOBS_FILE);
+    }
+}
+
+void load_jobs() {
+    std::ifstream f(JOBS_FILE);
+    if (!f.is_open()) return;
+    try {
+        auto arr = json::parse(f);
+        std::lock_guard<std::mutex> lk(jobs_mu);
+        for (const auto& item : arr) {
+            ConvertJob j;
+            j.id       = item.value("id",       std::string(""));
+            j.status   = item.value("status",   std::string("error"));
+            j.step     = item.value("step",     std::string(""));
+            j.pct      = item.value("pct",      0);
+            j.output   = item.value("output",   std::string(""));
+            j.error    = item.value("error",    std::string(""));
+            j.log_path = item.value("log_path", std::string(""));
+            j.pid      = -1;  // stale pid from old process — don't waitpid on it
+            if (!j.id.empty()) jobs[j.id] = std::move(j);
+        }
+    } catch (...) {}
+}
+
 // Read last non-empty JSON line from the log file and update job state.
-void refresh_job(ConvertJob& j) {
-    if (j.status == "done" || j.status == "error") return;
+// Caller must hold jobs_mu. Returns true if status changed (caller should save).
+bool refresh_job(ConvertJob& j) {
+    if (j.status == "done" || j.status == "error") return false;
+
+    const std::string prev_status = j.status;
 
     // Read the log first — if it already says done/error, trust that.
     std::ifstream f(j.log_path);
@@ -71,10 +120,12 @@ void refresh_job(ConvertJob& j) {
     } else {
         j.pid = -1;
     }
+
+    return j.status != prev_status;
 }
 
 json job_to_json(ConvertJob& j) {
-    refresh_job(j);
+    if (refresh_job(j)) save_jobs();
     return {
         {"job_id",   j.id},
         {"status",   j.status},
@@ -89,6 +140,7 @@ json job_to_json(ConvertJob& j) {
 } // namespace
 
 void register_convert_routes(httplib::Server& svr, const std::string& proj_root) {
+    load_jobs();
     auto cors = [](httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
     };
@@ -154,6 +206,7 @@ void register_convert_routes(httplib::Server& svr, const std::string& proj_root)
         {
             std::lock_guard<std::mutex> lk(jobs_mu);
             jobs[job_id] = {job_id, "running", "starting", 0, "", "", log, pid};
+            save_jobs();
         }
         res.set_content(json{{"job_id", job_id}, {"log", log}}.dump(), "application/json");
     });
