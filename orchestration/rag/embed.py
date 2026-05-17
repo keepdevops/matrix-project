@@ -89,6 +89,11 @@ class MLXEmbedder(Embedder):
             self._model, "embedding_dim", None)
         if isinstance(emitted, int) and emitted > 0:
             self.dim = emitted
+        # transformers >= 4.44 removed batch_encode_plus; patch it back as an
+        # alias for __call__ so mlx-embedding-models 0.0.x continues to work.
+        tok = getattr(self._model, "tokenizer", None)
+        if tok is not None and not callable(getattr(tok, "batch_encode_plus", None)):
+            tok.batch_encode_plus = tok.__call__
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         from orchestration.telemetry.metrics import RAG_EMBED_SECONDS
@@ -101,7 +106,6 @@ class MLXEmbedder(Embedder):
             arr = self._model.encode(
                 list(texts),
                 batch_size=self.batch_size,
-                max_length=self.max_length,
             )
             return [list(map(float, row)) for row in arr]
         except Exception as exc:
