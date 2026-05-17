@@ -89,7 +89,8 @@ bool load_swarm_config_from_dir(const std::string& path, json& out) {
         json coord_doc;
         if (!read_json_file(coord_file, coord_doc)) return false;
         if (coord_doc.contains("coordinator")) out["coordinator"] = coord_doc["coordinator"];
-        if (coord_doc.contains("ui")) out["ui"] = coord_doc["ui"];
+        if (coord_doc.contains("ui"))          out["ui"]          = coord_doc["ui"];
+        if (coord_doc.contains("rag"))         out["rag"]         = coord_doc["rag"];
     } else {
         std::cerr << "ℹ️  no " << coord_file << " — running with built-in coordinator defaults"
                   << std::endl;

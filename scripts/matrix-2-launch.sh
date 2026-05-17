@@ -66,7 +66,7 @@ bash "$ROOT/scripts/rag-docker-compose.sh" wait
 
 echo "Starting RAG ingest sidecar..."
 RAG_DSN="${RAG_DSN:-postgresql://matrix:matrix@127.0.0.1:5433/matrix_rag}"
-RAG_INGEST_EMBEDDER="${RAG_INGEST_EMBEDDER:-hash}"
+RAG_INGEST_EMBEDDER="${RAG_INGEST_EMBEDDER:-mlx}"
 cd "$ROOT"
 RAG_DSN="$RAG_DSN" python -m orchestration.rag.service \
   --port 8001 \
