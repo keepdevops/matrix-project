@@ -201,22 +201,6 @@ function PromptInput({
         <button
           type="button"
           className="submit-button continue-button"
-          disabled={loading || disabled || !prompt.trim() || !canContinue}
-          onClick={() => submitPrompt({
-            followup: true,
-            contextPolicy: {
-              include: ['original_prompt', 'final', 'programmer'],
-              target_agent: 'programmer',
-              max_context_chars: 24000,
-            },
-          })}
-          title={canContinue ? 'Append this prompt to the current session' : 'Run a broadcast first to start a session'}
-        >
-          CONTINUE
-        </button>
-        <button
-          type="button"
-          className="submit-button continue-button"
           disabled={loading || disabled || !canContinue}
           onClick={() => onQualityPass?.(temperature)}
           title={canContinue ? 'Review and correct the previous output in this session' : 'Run a broadcast first to start a session'}

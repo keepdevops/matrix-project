@@ -18,6 +18,7 @@ import CachePanel from './components/CachePanel';
 import PressureCluster from './components/PressureCluster';
 import PipelineStageOutputs from './components/PipelineStageOutputs';
 import CompareVariantsPanel from './components/CompareVariantsPanel';
+import ConversationThread from './components/ConversationThread';
 import { extractCodeBlock } from './utils/codeExtractor';
 import { qualityPassContextPolicy } from './utils/qualityPassContext';
 
@@ -167,6 +168,18 @@ function App() {
     });
   };
 
+  const handleFollowUp = async (text, contextPolicy) => {
+    await handleSubmit(text, 0.5, { followup: true, contextPolicy });
+    loadHistory();
+  };
+
+  const handleClearSession = () => {
+    setCurrentSession(null);
+    setResponses({});
+    setFinalAnswer(null);
+    setLastMeta(null);
+  };
+
   const handleSendBestContinue = async (temperature = 0.2) => {
     if (!flatPickAgent || !responses[flatPickAgent]) return;
     await handleSubmit(
@@ -261,6 +274,15 @@ function App() {
                 : `ERROR: ${error}`}
             </div>
           )}
+          <ConversationThread
+            history={history}
+            sessionId={currentSession?.sessionId}
+            responses={responses}
+            finalAnswer={finalAnswer}
+            loading={loading}
+            onFollowUp={handleFollowUp}
+            onClear={handleClearSession}
+          />
           <FinalAnswerPanel text={finalAnswer} />
           <RagSources rag={lastMeta?.rag} />
           <MetricsStrip envelope={{ meta: lastMeta }} />
