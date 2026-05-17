@@ -3,6 +3,16 @@ import React, { useState, useRef, useEffect } from 'react';
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode',
   '_session_id', '_run_id']);
 
+// For flat/router modes that produce no synthesized final, surface the
+// longest agent response as a representative summary.
+function bestAgentText(entry) {
+  let best = '';
+  for (const [k, v] of Object.entries(entry)) {
+    if (!METADATA_KEYS.has(k) && typeof v === 'string' && v.length > best.length) best = v;
+  }
+  return best || null;
+}
+
 function AgentExpander({ entry }) {
   const [open, setOpen] = useState(false);
   const agentKeys = Object.keys(entry).filter(k => !METADATA_KEYS.has(k) && entry[k]);
@@ -27,9 +37,12 @@ function AgentExpander({ entry }) {
 }
 
 function Turn({ entry, isLatest, loading, finalAnswer }) {
-  const swarmText = isLatest
+  const synth = isLatest
     ? (loading ? null : (finalAnswer || entry._final || null))
     : (entry._final || null);
+  const fallback = !synth ? bestAgentText(entry) : null;
+  const swarmText = synth || fallback;
+  const isFallback = !synth && !!fallback;
 
   return (
     <div className="ct-turn">
@@ -47,7 +60,10 @@ function Turn({ entry, isLatest, loading, finalAnswer }) {
         {isLatest && loading
           ? <span className="ct-thinking">thinking…</span>
           : swarmText
-            ? <span className="ct-bubble-text">{swarmText.length > 280 ? swarmText.slice(0, 280) + '…' : swarmText}</span>
+            ? <>
+                {isFallback && <span className="ct-fallback-label">best agent · </span>}
+                <span className="ct-bubble-text">{swarmText.length > 280 ? swarmText.slice(0, 280) + '…' : swarmText}</span>
+              </>
             : <span className="ct-bubble-empty">—</span>
         }
       </div>

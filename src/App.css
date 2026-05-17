@@ -540,6 +540,7 @@ h1 {
 .ct-bubble-empty  { color: #333; font-style: italic; }
 .ct-bubble-time   { font-size: 0.6rem; color: #444; margin-left: auto; }
 .ct-thinking      { color: #555; font-style: italic; font-size: 0.78rem; }
+.ct-fallback-label { color: #555; font-size: 0.65rem; font-style: italic; }
 
 .ct-agent-expander { padding-left: 46px; }
 
