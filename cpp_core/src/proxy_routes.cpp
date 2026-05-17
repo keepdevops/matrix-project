@@ -2,6 +2,7 @@
 #include "proxy_configure.h"
 #include "proxy_file_io.h"
 #include "proxy_models_scan.h"
+#include "proxy_routes_convert.h"
 #include "matrix_env.h"
 
 #include "httplib.h"
@@ -179,6 +180,8 @@ void register_proxy_routes(httplib::Server& svr, const std::string& proj_root) {
                 "application/json");
         }
     };
+    register_convert_routes(svr, proj_root);
+
     svr.Get   (R"(.*)", fwd);
     svr.Post  (R"(.*)", fwd);
     svr.Put   (R"(.*)", fwd);

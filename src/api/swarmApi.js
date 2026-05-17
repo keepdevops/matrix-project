@@ -585,3 +585,26 @@ export async function startVllmServers() {
     clearTimeout(timeoutId);
   }
 }
+
+
+export async function startConversion({ hf_repo, output_name, q_bits = 4 }) {
+  const res = await fetch(`${API_BASE}/models/convert`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hf_repo, output_name, q_bits }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Conversion failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function pollConversion(jobId) {
+  const res = await fetch(`${API_BASE}/models/convert/${encodeURIComponent(jobId)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Poll failed: ${res.status}`);
+  }
+  return res.json();
+}

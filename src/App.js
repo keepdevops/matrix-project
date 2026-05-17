@@ -9,6 +9,7 @@ import PromptInput from './components/PromptInput';
 import AgentGrid from './components/AgentGrid';
 import MetricsStrip from './components/MetricsStrip';
 import SwarmConfig from './components/SwarmConfig';
+import ModelConverter from './components/ModelConverter';
 import HelpModal from './components/HelpModal';
 import FinalAnswerPanel from './components/FinalAnswerPanel';
 import RagSources from './components/RagSources';
@@ -39,6 +40,7 @@ function App() {
   const [showConfig, setShowConfig]       = useState(true);
   const [deployPending, setDeployPending] = useState(false);
   const [showHelp, setShowHelp]           = useState(false);
+  const [showConverter, setShowConverter] = useState(false);
   const [showRagAdmin, setShowRagAdmin]   = useState(false);
   const [showCachePanel, setShowCachePanel] = useState(false);
   const [selectedPrompt, setSelectedPrompt]           = useState(null);
@@ -201,13 +203,20 @@ function App() {
         onClearCache={handleClearCache}
         onToggleConfig={() => setShowConfig(v => !v)}
         onToggleHistory={() => setShowHistory(v => !v)}
+        onOpenConverter={() => setShowConverter(v => !v)}
         onOpenRagAdmin={() => setShowRagAdmin(true)}
         onOpenCachePanel={() => setShowCachePanel(true)}
         onOpenHelp={() => setShowHelp(true)}
         onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
       />
 
-      {showConfigPanel && <SwarmConfig onDeployed={handleDeployed} />}
+      {showConverter && (
+        <div style={{ padding: '1rem 1.5rem', maxWidth: 860, margin: '0 auto' }}>
+          <ModelConverter standalone />
+        </div>
+      )}
+
+      {!showConverter && showConfigPanel && <SwarmConfig onDeployed={handleDeployed} />}
 
       {showHistory && history.length > 0 && (
         <div className="history-dropdown">

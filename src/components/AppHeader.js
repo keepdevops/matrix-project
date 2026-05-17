@@ -25,6 +25,7 @@ export default function AppHeader({
   onClearCache,
   onToggleConfig,
   onToggleHistory,
+  onOpenConverter,
   onOpenRagAdmin,
   onOpenCachePanel,
   onOpenHelp,
@@ -69,6 +70,9 @@ export default function AppHeader({
         </button>
         <button className="history-button" onClick={onToggleHistory}>
           HISTORY ({historyCount})
+        </button>
+        <button className="help-button" onClick={onOpenConverter} title="Convert GGUF → MLX">
+          ⚙ Convert
         </button>
         <button
           className="help-button"
