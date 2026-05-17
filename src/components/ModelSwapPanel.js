@@ -66,6 +66,21 @@ export default function ModelSwapPanel({ onRedeployed }) {
   const dirtyCount = Object.keys(overrides).length;
   const grouped    = groupModelsByBackend(models);
 
+  // Build per-agent memory warnings for overrides that pick a larger model.
+  const memoryWarnings = {};
+  agents.forEach(a => {
+    const newPath = overrides[a.name];
+    if (!newPath || newPath === a.model) return;
+    const cur = models.find(m => m.path === a.model);
+    const next = models.find(m => m.path === newPath);
+    if (cur?.size_bytes > 0 && next?.size_bytes > 0 && next.size_bytes > cur.size_bytes) {
+      const diffGB = ((next.size_bytes - cur.size_bytes) / 1e9).toFixed(1);
+      const nextGB = (next.size_bytes / 1e9).toFixed(1);
+      memoryWarnings[a.name] = `+${diffGB} GB larger (${nextGB} GB) — may exceed Metal pool`;
+    }
+  });
+  const hasMemoryWarning = Object.keys(memoryWarnings).length > 0;
+
   const handleChange = (agentName, value) => {
     setOverrides(prev => ({ ...prev, [agentName]: value }));
   };
@@ -135,34 +150,44 @@ export default function ModelSwapPanel({ onRedeployed }) {
           {agents.map((a, i) => {
             const current  = overrides[a.name] || a.model || '';
             const isDirty  = !!overrides[a.name] && overrides[a.name] !== a.model;
+            const warn = memoryWarnings[a.name];
             return (
               <div key={a.name} style={{
                 display: 'grid', gridTemplateColumns: '120px 1fr',
-                alignItems: 'center', gap: 8,
+                alignItems: 'start', gap: 8,
                 padding: '5px 10px',
                 background: isDirty ? '#0a0f0a' : (i % 2 === 0 ? '#050505' : '#070707'),
                 borderTop: i > 0 ? '1px solid #111' : 'none',
               }}>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.78rem',
-                               color: isDirty ? '#00ff41' : '#888' }}>
+                               color: isDirty ? '#00ff41' : '#888', paddingTop: 3 }}>
                   {isDirty && <span style={{ color: '#00ff41', marginRight: 4 }}>●</span>}
                   {a.name}
                 </span>
-                <select
-                  value={current}
-                  onChange={e => handleChange(a.name, e.target.value)}
-                  style={{ fontFamily: 'monospace', fontSize: '0.75rem',
-                           background: '#000', color: '#ccd', border: '1px solid #222',
-                           borderRadius: 3, padding: '2px 4px', width: '100%' }}
-                >
-                  {Object.entries(grouped).map(([backend, mlist]) => (
-                    <optgroup key={backend} label={backend.toUpperCase()}>
-                      {mlist.map(m => (
-                        <option key={m.path} value={m.path}>{m.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <div>
+                  <select
+                    value={current}
+                    onChange={e => handleChange(a.name, e.target.value)}
+                    style={{ fontFamily: 'monospace', fontSize: '0.75rem',
+                             background: '#000', color: '#ccd',
+                             border: warn ? '1px solid #aa4400' : '1px solid #222',
+                             borderRadius: 3, padding: '2px 4px', width: '100%' }}
+                  >
+                    {Object.entries(grouped).map(([backend, mlist]) => (
+                      <optgroup key={backend} label={backend.toUpperCase()}>
+                        {mlist.map(m => (
+                          <option key={m.path} value={m.path}>{m.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {warn && (
+                    <div style={{ fontSize: '0.68rem', color: '#fa0',
+                                  fontFamily: 'monospace', marginTop: 2 }}>
+                      ⚠ {warn}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -178,6 +203,16 @@ export default function ModelSwapPanel({ onRedeployed }) {
       )}
 
       {result && <ServerLayout servers={result.servers} />}
+
+      {hasMemoryWarning && (
+        <div style={{ padding: '8px 10px', background: '#110800', border: '1px solid #442200',
+                      borderRadius: 4, marginBottom: 10, fontSize: '0.78rem',
+                      color: '#fa0', fontFamily: 'monospace' }}>
+          ⚠ Memory warning: one or more selected models are larger than the current ones.
+          The Metal pool on this machine is ~28 GB — loading a significantly larger model
+          alongside existing ones may cause an out-of-memory crash.
+        </div>
+      )}
 
       {status !== 'loading' && status !== 'deploying' && agents.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
