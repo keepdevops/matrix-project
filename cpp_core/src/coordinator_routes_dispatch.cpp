@@ -62,7 +62,8 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     for (const auto& h : hits) {
                         sources.push_back({{"source_path", h.source_path},
                                            {"chunk_idx", h.chunk_idx},
-                                           {"distance", h.distance}});
+                                           {"distance", h.distance},
+                                           {"content", h.content}});
                     }
                     rag_meta = {{"requested", true},
                                 {"used", !hits.empty()},
