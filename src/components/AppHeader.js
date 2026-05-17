@@ -26,6 +26,7 @@ export default function AppHeader({
   onToggleConfig,
   onToggleHistory,
   onOpenConverter,
+  onOpenModelSwap,
   onOpenRagAdmin,
   onOpenCachePanel,
   onOpenHelp,
@@ -73,6 +74,9 @@ export default function AppHeader({
         </button>
         <button className="help-button" onClick={onOpenConverter} title="Convert GGUF → MLX">
           ⚙ Convert
+        </button>
+        <button className="help-button" onClick={onOpenModelSwap} title="Swap models per agent">
+          ⟳ Models
         </button>
         <button
           className="help-button"
