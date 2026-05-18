@@ -80,9 +80,11 @@ export function useSwarm() {
       setHistory(Array.isArray(data) ? data : []);
       setOnline(true);
       return data;
-    } catch {
-      // Offline is expected before configuration — don't surface as error
-      setOnline(false);
+    } catch (err) {
+      // History fetch failing does NOT mean the coordinator is offline — a
+      // transient failure mid-stream was clearing kvReadings and hiding the
+      // ConversationThread. Online status is managed by checkStatus only.
+      console.error('[useSwarm] loadHistory failed:', err);
       return [];
     }
   }, []);

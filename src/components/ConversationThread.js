@@ -36,10 +36,8 @@ function AgentExpander({ entry }) {
   );
 }
 
-function Turn({ entry, isLatest, loading, finalAnswer }) {
-  const synth = isLatest
-    ? (loading ? null : (finalAnswer || entry._final || null))
-    : (entry._final || null);
+function Turn({ entry, finalAnswer }) {
+  const synth = entry._final || finalAnswer || null;
   const fallback = !synth ? bestAgentText(entry) : null;
   const swarmText = synth || fallback;
   const isFallback = !synth && !!fallback;
@@ -57,17 +55,15 @@ function Turn({ entry, isLatest, loading, finalAnswer }) {
       </div>
       <div className="ct-bubble ct-bubble--swarm">
         <span className="ct-bubble-label">SWARM</span>
-        {isLatest && loading
-          ? <span className="ct-thinking">thinking…</span>
-          : swarmText
-            ? <>
-                {isFallback && <span className="ct-fallback-label">best agent · </span>}
-                <span className="ct-bubble-text">{swarmText.length > 280 ? swarmText.slice(0, 280) + '…' : swarmText}</span>
-              </>
-            : <span className="ct-bubble-empty">—</span>
+        {swarmText
+          ? <>
+              {isFallback && <span className="ct-fallback-label">best agent · </span>}
+              <span className="ct-bubble-text">{swarmText.length > 280 ? swarmText.slice(0, 280) + '…' : swarmText}</span>
+            </>
+          : <span className="ct-bubble-empty">—</span>
         }
       </div>
-      {!loading && <AgentExpander entry={entry} />}
+      <AgentExpander entry={entry} />
     </div>
   );
 }
@@ -137,16 +133,15 @@ export default function ConversationThread({
     ? history.filter(e => e._session_id === sessionId)
     : [];
 
-  // Append a synthetic "latest" entry if the current run isn't in history yet
-  const latestInHistory = turns.length > 0 && turns[turns.length - 1];
-  const currentPrompt = loading ? null : null; // resolved via turns once history updates
-  const showLatestPending = loading && (turns.length === 0 || latestInHistory?._final);
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns.length, loading]);
 
   if (!sessionId) return null;
+
+  // Determine which history entry holds the final answer for the latest completed turn.
+  // We only pass finalAnswer to the most-recent turn so it can show the live synthesized text.
+  const latestTurnIdx = turns.length - 1;
 
   return (
     <section className="conversation-thread">
@@ -160,12 +155,10 @@ export default function ConversationThread({
           <Turn
             key={entry._run_id || i}
             entry={entry}
-            isLatest={i === turns.length - 1}
-            loading={loading && i === turns.length - 1}
-            finalAnswer={finalAnswer}
+            finalAnswer={i === latestTurnIdx && !loading ? finalAnswer : null}
           />
         ))}
-        {showLatestPending && (
+        {loading && (
           <div className="ct-bubble ct-bubble--swarm">
             <span className="ct-bubble-label">SWARM</span>
             <span className="ct-thinking">thinking…</span>
