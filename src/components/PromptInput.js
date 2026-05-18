@@ -84,9 +84,10 @@ function PromptInput({
   };
 
   const handleKeyDown = (e) => {
-    // Submit on Ctrl/Cmd + Enter
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      handleSubmit(e);
+    // Enter submits; Shift+Enter inserts newline; Ctrl/Cmd+Enter also submits.
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitPrompt();
     }
   };
 
