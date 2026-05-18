@@ -83,6 +83,25 @@ inline std::string sanitize_invalid_utf8(const std::string& in) {
     return out;
 }
 
+/// Strip chat-template turn markers that leaked past EOS. Cuts at the first
+/// recognised marker and trims trailing whitespace. Shared by blocking and
+/// streaming agent callers so the marker list stays in one place.
+inline void strip_template_leakage(std::string& s) {
+    static const char* markers[] = {
+        "<|im_end|>", "<|im_start|>",
+        "<|eot_id|>", "<|start_header_id|>",
+        "<|endoftext|>",
+    };
+    size_t cut = std::string::npos;
+    for (const char* m : markers) {
+        size_t pos = s.find(m);
+        if (pos != std::string::npos && pos < cut) cut = pos;
+    }
+    if (cut != std::string::npos) s.erase(cut);
+    while (!s.empty() && (s.back() == '\n' || s.back() == ' ' || s.back() == '\t'))
+        s.pop_back();
+}
+
 /// Return the largest prefix length <= max_bytes that does not split a UTF-8
 /// continuation sequence. Callers should sanitize first if the input may be
 /// ill-formed.

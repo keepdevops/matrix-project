@@ -135,89 +135,61 @@ std::string assemble_fit(const std::string& prefix,
 
 }  // namespace
 
-std::string build_pipeline_synthesis_prompt(
+// Shared builder: all three public functions differ only in their label word
+// and the intro phrase. The footer is identical except pipeline/cascade add
+// "do not enumerate" — both are fine for all modes so we use the longer form.
+static std::string build_synthesis_prompt_impl(
     const std::string& user_prompt,
-    const std::vector<std::pair<std::string, std::string>>& stages_in_order,
-    const Agent* synthesizer) {
+    const std::vector<std::pair<std::string, std::string>>& contributions,
+    const Agent* synthesizer,
+    const std::string& label,        // e.g. "Stage", "Response", ""
+    const std::string& intro_phrase) // e.g. "produced staged outputs"
+{
     const std::string footer =
         "\n\nProduce ONE consolidated answer that integrates the "
         "above contributions. Resolve contradictions, drop redundancy, "
-        "and keep only the strongest material. Do not enumerate the "
-        "stages — write the final answer directly.";
+        "and keep only the strongest material. Write the final answer directly.";
     std::string prefix = "Original user request:\n<<<\n";
     prefix += user_prompt;
-    prefix += "\n>>>\n\nThe following agents produced staged outputs:\n";
+    prefix += "\n>>>\n\nThe following agents " + intro_phrase + ":\n";
 
     std::vector<std::string> headers;
     std::vector<std::string> bodies;
     int n = 0;
-    for (const auto& pr : stages_in_order) {
+    for (const auto& pr : contributions) {
         ++n;
-        std::string hdr = "\n--- Stage ";
-        hdr += std::to_string(n);
-        hdr += " (";
-        hdr += pr.first;
-        hdr += ") ---\n";
-        headers.push_back(hdr);
+        std::string hdr = "\n--- ";
+        if (!label.empty()) { hdr += label + " "; }
+        hdr += std::to_string(n) + " (" + pr.first + ") ---\n";
+        headers.push_back(std::move(hdr));
         bodies.push_back(pr.second);
     }
     return assemble_fit(prefix, headers, bodies, footer,
                         effective_max_prompt_chars(synthesizer));
+}
+
+std::string build_pipeline_synthesis_prompt(
+    const std::string& user_prompt,
+    const std::vector<std::pair<std::string, std::string>>& stages_in_order,
+    const Agent* synthesizer) {
+    return build_synthesis_prompt_impl(user_prompt, stages_in_order, synthesizer,
+                                       "Stage", "produced staged outputs");
 }
 
 std::string build_cascade_synthesis_prompt(
     const std::string& user_prompt,
     const std::vector<std::pair<std::string, std::string>>& responses_in_order,
     const Agent* synthesizer) {
-    const std::string footer =
-        "\n\nProduce ONE consolidated answer that integrates the "
-        "above contributions. Resolve contradictions, drop redundancy, "
-        "and keep only the strongest material. Do not enumerate the "
-        "responders — write the final answer directly.";
-    std::string prefix = "Original user request:\n<<<\n";
-    prefix += user_prompt;
-    prefix += "\n>>>\n\nThe following agents responded in parallel:\n";
-
-    std::vector<std::string> headers;
-    std::vector<std::string> bodies;
-    int n = 0;
-    for (const auto& pr : responses_in_order) {
-        ++n;
-        std::string hdr = "\n--- Response ";
-        hdr += std::to_string(n);
-        hdr += " (";
-        hdr += pr.first;
-        hdr += ") ---\n";
-        headers.push_back(hdr);
-        bodies.push_back(pr.second);
-    }
-    return assemble_fit(prefix, headers, bodies, footer,
-                        effective_max_prompt_chars(synthesizer));
+    return build_synthesis_prompt_impl(user_prompt, responses_in_order, synthesizer,
+                                       "Response", "responded in parallel");
 }
 
 std::string build_stream_synthesis_prompt(
     const std::string& user_prompt,
     const std::vector<std::pair<std::string, std::string>>& contributors_in_order,
     const Agent* synthesizer) {
-    const std::string footer =
-        "\n\nProduce ONE consolidated answer that integrates the "
-        "above contributions. Resolve contradictions, drop redundancy. "
-        "Write the final answer directly.";
-    std::string prefix = "Original user request:\n<<<\n";
-    prefix += user_prompt;
-    prefix += "\n>>>\n\nThe following agents contributed:\n";
-
-    std::vector<std::string> headers;
-    std::vector<std::string> bodies;
-    int n = 0;
-    for (const auto& pr : contributors_in_order) {
-        ++n;
-        std::string hdr = "\n--- " + std::to_string(n) + " (" + pr.first + ") ---\n";
-        headers.push_back(hdr);
-        bodies.push_back(pr.second);
-    }
-    return assemble_fit(prefix, headers, bodies, footer,
-                        effective_max_prompt_chars(synthesizer));
+    return build_synthesis_prompt_impl(user_prompt, contributors_in_order, synthesizer,
+                                       "", "contributed");
 }
 
 }  // namespace synthesis_budget

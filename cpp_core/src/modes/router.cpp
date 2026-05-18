@@ -9,7 +9,6 @@
 #include "../pressure.h"
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <future>
 #include <iostream>
