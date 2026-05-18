@@ -2,6 +2,7 @@
 #include "router_plan_parse.h"
 #include "../agent_client.h"
 #include "../agent_health.h"
+#include "../agent_stream.h"
 #include "../httplib.h"
 #include "../kv_router.h"
 #include "../mode_module.h"
@@ -277,12 +278,21 @@ std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
         + load_banner +
         "User request:\n" + ctx.user_prompt + "\n\n"
         "Respond with the SELECTED line only.";
-    const std::string raw = call_agent_with_system(
-        *by_name[classifier_name], classifier_system, classifier_user);
+    // Stream the classifier so selected agents can be dispatched the moment
+    // the SELECTED line appears in the stream — overlapping the classifier's
+    // tail tokens with actual agent inference. on_chunk fires synchronously
+    // from stream_agent's receive loop, so raw/agents/by_name are safe to
+    // mutate here (no concurrent on_chunk calls). Futures are launched async.
+    std::string raw;
+    bool agents_launched = false;
+    bool fallback_used   = false;
+    json affinity_meta   = json::object();
+    std::vector<std::string> selected;
+    std::vector<std::future<std::pair<std::string, std::string>>> agent_futures;
 
-    // Apply any SET_TOKENS directives emitted by the foreman before dispatch.
-    // Changes are in-memory only for this request — no disk persistence.
-    {
+    // Helper: apply SET_TOKENS + parse SELECTED + launch futures.
+    // Called from on_chunk the moment a complete SELECTED line is buffered.
+    auto apply_directives_and_dispatch = [&]() {
         auto directives = router_plan::parse_set_tokens_directives(raw);
         if (!directives.empty()) {
             int n = router_plan::apply_token_directives(agents, directives);
@@ -299,77 +309,100 @@ std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
             }
             if (n > 0) {
                 meta["token_adjustments"] = token_adjustments;
-                // Rebuild by_name so dispatchers see updated token values.
                 by_name.clear();
                 for (const auto& a : agents) by_name[a.name] = &a;
             }
         }
-    }
 
-    std::vector<std::string> parsed =
-        router_plan::extract_names_from_plan(raw, choice_set);
-
-    // KV-affinity bias: when the classifier returns more candidates than we
-    // can use (or the order doesn't match warm KV caches), reorder so agents
-    // with the longest prefix overlap come first. Threshold avoids reordering
-    // on trivial overlaps (boilerplate role headers etc.). MLX-centric runs
-    // already get a hard reorder later, so this only really affects llama.
-    json affinity_meta = json::object();
-    if (parsed.size() > 1) {
-        for (const auto& n : parsed) {
-            affinity_meta[n] = (uint64_t)kv_router::affinity(n, ctx.user_prompt);
+        std::vector<std::string> parsed =
+            router_plan::extract_names_from_plan(raw, choice_set);
+        if (parsed.size() > 1) {
+            for (const auto& n : parsed)
+                affinity_meta[n] = (uint64_t)kv_router::affinity(n, ctx.user_prompt);
+            kv_router::rank_by_affinity(parsed, ctx.user_prompt, /*min_bytes=*/64);
         }
-        kv_router::rank_by_affinity(parsed, ctx.user_prompt, /*min_bytes=*/64);
-    }
-    if (fallback.size() > 1) {
-        kv_router::rank_by_affinity(fallback, ctx.user_prompt, /*min_bytes=*/64);
+
+        std::unordered_set<std::string> seen;
+        for (const auto& name : parsed) {
+            if (!choice_set.count(name) || !by_name.count(name)) continue;
+            if (seen.insert(name).second) selected.push_back(name);
+            if ((int)selected.size() >= max_select) break;
+        }
+
+        for (const auto& name : selected) {
+            Agent agent_copy = *by_name[name]; // copy — by_name may change on retry
+            std::string prompt = ctx.prompt_for(name);
+            agent_futures.push_back(std::async(std::launch::async,
+                [agent_copy, prompt]() mutable {
+                    return std::make_pair(agent_copy.name, call_agent(agent_copy, prompt));
+                }));
+        }
+    };
+
+    // on_chunk: accumulate and trigger dispatch as soon as SELECTED line ends.
+    auto on_chunk = [&](const std::string& delta) {
+        raw += delta;
+        if (agents_launched) return;
+        if (raw.find("SELECTED:") == std::string::npos) return;
+        // Wait for newline so the full comma list is present before parsing.
+        if (raw.find('\n', raw.find("SELECTED:")) == std::string::npos) return;
+        agents_launched = true;
+        apply_directives_and_dispatch();
+        if (!selected.empty())
+            std::cout << "⚡ [router] early dispatch " << agent_futures.size()
+                      << " agent(s) while classifier finishes" << std::endl;
+    };
+
+    agent_stream::stream_agent(*by_name[classifier_name],
+                               classifier_system, classifier_user,
+                               on_chunk, /*cancel=*/nullptr);
+
+    // Classifier done. If on_chunk never saw a SELECTED line (e.g. MLX
+    // one-shot delivery or model ignored the instruction), run the full parse
+    // now on the complete raw response — same logic as before this change.
+    if (!agents_launched) {
+        agents_launched = true; // suppress double-dispatch
+        apply_directives_and_dispatch();
     }
 
-    std::vector<std::string> selected;
-    std::unordered_set<std::string> seen;
-    for (const auto& name : parsed) {
-        if (!choice_set.count(name)) continue;
-        if (by_name.find(name) == by_name.end()) continue;
-        if (seen.insert(name).second) selected.push_back(name);
-        if ((int)selected.size() >= max_select) break;
-    }
-
-    bool fallback_used = false;
+    // If parse produced nothing, fall back to the configured fallback list.
     if (selected.empty()) {
         fallback_used = true;
         std::cerr << "⚠️  [router] no valid selection; using fallback" << std::endl;
+        if (fallback.size() > 1)
+            kv_router::rank_by_affinity(fallback, ctx.user_prompt, /*min_bytes=*/64);
+        std::unordered_set<std::string> seen;
         for (const auto& name : fallback) {
-            if (by_name.find(name) == by_name.end()) continue;
+            if (!by_name.count(name)) continue;
             if (seen.insert(name).second) selected.push_back(name);
             if ((int)selected.size() >= max_select) break;
         }
         if (selected.empty()) {
-            // Final safety net: first active non-classifier agents in config order.
             for (const auto& a : agents) {
                 if (a.name == classifier_name) continue;
                 if (seen.insert(a.name).second) selected.push_back(a.name);
                 if ((int)selected.size() >= max_select) break;
             }
         }
+        // Fallback agents weren't launched by early dispatch — start them now.
+        for (const auto& name : selected) {
+            Agent agent_copy = *by_name[name];
+            std::string prompt = ctx.prompt_for(name);
+            agent_futures.push_back(std::async(std::launch::async,
+                [agent_copy, prompt]() mutable {
+                    return std::make_pair(agent_copy.name, call_agent(agent_copy, prompt));
+                }));
+        }
     }
 
     std::cout << "🧭 [router] selected=[";
-    for (size_t i = 0; i < selected.size(); ++i) {
+    for (size_t i = 0; i < selected.size(); ++i)
         std::cout << (i ? ", " : "") << selected[i];
-    }
     std::cout << "] fallback=" << (fallback_used ? "yes" : "no") << std::endl;
 
     json agent_outputs = json::object();
-    if (!selected.empty()) {
-        std::vector<std::future<std::pair<std::string, std::string>>> futures;
-        for (const auto& name : selected) {
-            const Agent* agent = by_name[name];
-            const std::string prompt = ctx.prompt_for(name);
-            futures.push_back(std::async(std::launch::async, [prompt, agent]() {
-                return std::make_pair(agent->name, call_agent(*agent, prompt));
-            }));
-        }
-        for (auto& fut : futures) {
+    if (!agent_futures.empty()) {
+        for (auto& fut : agent_futures) {
             auto pr = fut.get();
             agent_outputs[pr.first] = pr.second;
         }
