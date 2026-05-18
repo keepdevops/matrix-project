@@ -188,8 +188,8 @@ json run_pipeline(const ModeContext& ctx) {
             });
         }
         const std::string staged = prev_agent.empty()
-            ? ctx.user_prompt
-            : build_pipeline_staged_user_prompt(ctx.user_prompt, prev_agent, prev_for_prompt);
+            ? ctx.prompt_for(name)
+            : build_pipeline_staged_user_prompt(ctx.prompt_for(name), prev_agent, prev_for_prompt);
         const std::string stage_prompt = mode_module::pipeline_stage_prompt(staged, name, preset);
 
         std::string result = call_agent(*it->second, stage_prompt);

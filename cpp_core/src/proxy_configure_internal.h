@@ -12,6 +12,7 @@ struct PortGroup {
     int draft_max = 0;
     bool flash_attn = false; // --flash-attn + KV q8_0 quantization
     int ctx_cap = 65536;     // max total context across all slots (replaces hardcoded 16384)
+    std::vector<std::string> extra_args; // appended verbatim to llama-server command line
 };
 
 inline constexpr int PROXY_CONFIGURE_DOCKER_PORT = 12434;

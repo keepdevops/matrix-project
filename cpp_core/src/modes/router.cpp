@@ -127,7 +127,7 @@ json run_router(const ModeContext& ctx) {
             std::cout << "🧭 [router] quality_pass: skipping classifier, re-running '"
                       << target << "'" << std::endl;
             const Agent* agent = by_name[target];
-            agent_outputs[target] = call_agent(*agent, ctx.user_prompt);
+            agent_outputs[target] = call_agent(*agent, ctx.prompt_for(target));
         } else {
             std::cerr << "⚠️  [router] quality_pass target '" << target
                       << "' not reachable — no agents called" << std::endl;
@@ -356,7 +356,7 @@ std::unordered_set<std::string> choice_set(choices.begin(), choices.end());
         std::vector<std::future<std::pair<std::string, std::string>>> futures;
         for (const auto& name : selected) {
             const Agent* agent = by_name[name];
-            const std::string& prompt = ctx.user_prompt;
+            const std::string prompt = ctx.prompt_for(name);
             futures.push_back(std::async(std::launch::async, [prompt, agent]() {
                 return std::make_pair(agent->name, call_agent(*agent, prompt));
             }));

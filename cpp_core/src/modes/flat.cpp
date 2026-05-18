@@ -47,7 +47,7 @@ json run_flat(const ModeContext& ctx) {
         const Agent agent = active_agents[i];
         participants.push_back(agent.name);
         const std::string prompt = mode_module::flat_prompt_for_agent(
-            ctx.user_prompt, agent, variant_policy, i, active_agents.size());
+            ctx.prompt_for(agent.name), agent, variant_policy, i, active_agents.size());
         futures.push_back(std::async(std::launch::async, [prompt, agent]() {
             return std::make_pair(agent.name, call_agent(agent, prompt));
         }));

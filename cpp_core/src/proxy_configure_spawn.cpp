@@ -133,6 +133,7 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
                     args.push_back(std::to_string(g.draft_max));
                 }
             }
+            for (const auto& ea : g.extra_args) args.push_back(ea);
             spawn_detached(g_env.llama_server_bin, args, log);
             std::cout << "[Configure] LLAMA :" << port << " ctx=" << ctx
                       << (g.flash_attn ? " flash_attn+kv_q8" : "")

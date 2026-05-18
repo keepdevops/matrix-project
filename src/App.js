@@ -269,6 +269,7 @@ function App() {
             onQualityPass={handleQualityPass}
             useRag={useRag}
             onUseRagChange={setUseRag}
+            activeAgents={activeAgents}
           />
           {excludedBreaker.length > 0 && (
             <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">

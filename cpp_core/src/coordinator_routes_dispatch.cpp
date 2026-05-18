@@ -3,6 +3,7 @@
 #include "rag_client.h"
 #include "rag_config.h"
 #include "session_store.h"
+#include <unordered_set>
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
     // 5. Swarm dispatch — delegate to active mode
@@ -26,6 +27,12 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             const bool use_rag = j_body.value("use_rag", false);
             const int  rag_top_k_override = j_body.value("rag_top_k", 0);
             const double rag_min_score_override = j_body.value("rag_min_score", -1.0);
+            std::unordered_set<std::string> rag_agents_set;
+            if (j_body.contains("rag_agents") && j_body["rag_agents"].is_array()) {
+                for (const auto& a : j_body["rag_agents"]) {
+                    if (a.is_string()) rag_agents_set.insert(a.get<std::string>());
+                }
+            }
             if (session_id.empty()) session_id = session_new_id("sess");
             const std::string run_id = session_new_id("run");
 
@@ -43,6 +50,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             // to the prompt as a <context> block before mode dispatch. Failures
             // log loudly but do not break dispatch (degrade to no-context).
             json rag_meta = json::object();
+            std::string rag_block_for_ctx; // empty = no per-agent targeting
             if (use_rag) {
                 rag::Settings rag_s = rag::settings_from_config(st.startup_config);
                 if (rag_top_k_override > 0) {
@@ -57,7 +65,15 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 } else {
                     auto hits = rag::retrieve(rag_s, user_prompt);
                     std::string block = rag::render_context_block(hits);
-                    if (!block.empty()) effective_prompt = block + effective_prompt;
+                    if (!block.empty()) {
+                        if (rag_agents_set.empty()) {
+                            // Legacy: all agents get context baked into effective_prompt
+                            effective_prompt = block + effective_prompt;
+                        } else {
+                            // Per-agent: store block separately; modes inject per agent
+                            rag_block_for_ctx = block;
+                        }
+                    }
                     json sources = json::array();
                     for (const auto& h : hits) {
                         sources.push_back({{"source_path", h.source_path},
@@ -65,11 +81,14 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                                            {"distance", h.distance},
                                            {"content", h.content}});
                     }
+                    json rag_agents_arr = json::array();
+                    for (const auto& n : rag_agents_set) rag_agents_arr.push_back(n);
                     rag_meta = {{"requested", true},
                                 {"used", !hits.empty()},
                                 {"top_k", rag_s.top_k},
                                 {"min_score", rag_s.min_score},
                                 {"hits", sources}};
+                    if (!rag_agents_set.empty()) rag_meta["targeted_agents"] = rag_agents_arr;
                 }
             }
             std::cout << "📝 Prompt: " << user_prompt
@@ -102,7 +121,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     return false;
                 }), mode_agents.end());
             const std::string qp_target = context_policy.value("target_agent", std::string("programmer"));
-            ModeContext ctx{mode_agents, effective_prompt, temperature, cfg_for_mode, quality_pass, qp_target};
+            ModeContext ctx{mode_agents, effective_prompt, temperature, cfg_for_mode, quality_pass, qp_target, rag_block_for_ctx, rag_agents_set};
 
             if (!excluded_unhealthy.empty()) {
                 std::cerr << "🔴 [dispatch] excluding " << excluded_unhealthy.size()

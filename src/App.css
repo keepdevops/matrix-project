@@ -1165,6 +1165,19 @@ h1 {
 
 .swap-mem-warn { font-size: 0.68rem; color: #fa0; }
 
+.swap-extra-args {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  background: var(--bg-tertiary, #0d0d0d);
+  border: 1px solid var(--border-dim, #1a1a1a);
+  border-radius: 3px;
+  color: var(--text-secondary, #8a9bb0);
+  padding: 3px 6px;
+  width: 100%;
+  outline: none;
+}
+.swap-extra-args:focus { border-color: var(--accent, #00ff41); color: var(--text-primary, #c0e0ff); }
+
 .swap-mem-banner {
   padding: 7px 10px;
   background: #110800;

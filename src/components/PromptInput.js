@@ -12,6 +12,7 @@ function PromptInput({
   onQualityPass,
   useRag = false,
   onUseRagChange,
+  activeAgents = [],
 }) {
   const ragHealth = useRagHealth(true);
   const ragDown = !ragHealth.loading && !ragHealth.ok;
@@ -34,6 +35,7 @@ function PromptInput({
     );
     return Number.isFinite(raw) && raw >= 1 && raw <= 20 ? raw : 3;
   });
+  const [ragAgents, setRagAgents] = useState([]); // empty = all agents
   const [ragMinScore, setRagMinScore] = useState(() => {
     const raw = parseFloat(
       typeof window !== 'undefined' && localStorage.getItem('rag.min_score'),
@@ -70,7 +72,7 @@ function PromptInput({
   const submitPrompt = (opts = {}) => {
     if (prompt.trim() && !loading && !disabled) {
       const ragOpts = useRag
-        ? { ragTopK, ragMinScore }
+        ? { ragTopK, ragMinScore, ...(ragAgents.length > 0 ? { ragAgents } : {}) }
         : {};
       onSubmit(prompt.trim(), temperature, { ...ragOpts, ...opts });
     }
@@ -189,6 +191,31 @@ function PromptInput({
                 />
               </label>
             </div>
+            {activeAgents.length > 0 && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.78rem', opacity: 0.7 }}>
+                  Target agents{' '}
+                  <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(none = all)</span>:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.25rem' }}>
+                  {activeAgents.map(({ name }) => (
+                    <label key={name} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={ragAgents.includes(name)}
+                        onChange={(e) => {
+                          setRagAgents(prev =>
+                            e.target.checked ? [...prev, name] : prev.filter(n => n !== name)
+                          );
+                        }}
+                        disabled={loading || disabled}
+                      />
+                      {name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </details>
         )}
         <button

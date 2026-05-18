@@ -129,6 +129,9 @@ export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
   if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore)) {
     body.rag_min_score = opts.ragMinScore;
   }
+  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0) {
+    body.rag_agents = opts.ragAgents;
+  }
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: {

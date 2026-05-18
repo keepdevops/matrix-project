@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 struct ModeContext {
@@ -14,6 +15,18 @@ struct ModeContext {
     const nlohmann::json& mode_config; // per-mode options from swarm-config.json
     bool quality_pass = false;
     std::string quality_pass_target = "programmer"; // agent to re-run on quality pass
+
+    // Per-agent RAG targeting: when non-empty, only named agents receive rag_context_block.
+    // When empty, rag_context_block is already baked into user_prompt (legacy path).
+    std::string rag_context_block;
+    std::unordered_set<std::string> rag_agents;
+
+    // Returns the prompt for a specific agent, prepending RAG context if targeted.
+    std::string prompt_for(const std::string& agent_name) const {
+        if (rag_context_block.empty() || rag_agents.empty()) return user_prompt;
+        if (rag_agents.count(agent_name)) return rag_context_block + user_prompt;
+        return user_prompt;
+    }
 };
 
 // A mode returns an envelope: {mode, agents, final, meta}.

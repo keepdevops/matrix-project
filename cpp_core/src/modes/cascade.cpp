@@ -55,7 +55,7 @@ json run_cascade(const ModeContext& ctx) {
         }
         if (ctx.quality_pass) qp_target_found = true;
         participants.push_back(a.name);
-        const std::string prompt = ctx.user_prompt;
+        const std::string prompt = ctx.prompt_for(a.name);
         const Agent agent = a;
         futures.push_back(std::async(std::launch::async, [prompt, agent]() {
             return std::make_pair(agent.name, call_agent(agent, prompt));

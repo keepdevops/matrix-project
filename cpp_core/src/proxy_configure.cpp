@@ -6,6 +6,7 @@
 #include "proxy_validate.h"
 #include "matrix_env.h"
 #include "config/path_expand.h"
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -97,6 +98,16 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         g.names.push_back(a["name"].get<std::string>());
         // flash_attn: any agent in the group requesting it enables it for all.
         if (a.value("flash_attn", false)) g.flash_attn = true;
+        // extra_args: any agent can append verbatim flags; first one wins per unique flag.
+        if (a.contains("extra_args") && a["extra_args"].is_array()) {
+            for (const auto& arg : a["extra_args"]) {
+                if (arg.is_string()) {
+                    const std::string s = arg.get<std::string>();
+                    if (std::find(g.extra_args.begin(), g.extra_args.end(), s) == g.extra_args.end())
+                        g.extra_args.push_back(s);
+                }
+            }
+        }
         // ctx_cap: lowest explicit cap across agents wins (conservative).
         if (a.contains("ctx_cap") && a["ctx_cap"].is_number_integer()) {
             int agent_cap = a["ctx_cap"].get<int>();

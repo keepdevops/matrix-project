@@ -28,12 +28,13 @@ function ServerLayout({ servers }) {
 }
 
 export default function ModelSwapSection({ onRedeployed }) {
-  const [agents,    setAgents]    = useState([]);
-  const [models,    setModels]    = useState([]);
-  const [overrides, setOverrides] = useState({});
-  const [status,    setStatus]    = useState('loading');
-  const [error,     setError]     = useState(null);
-  const [result,    setResult]    = useState(null);
+  const [agents,         setAgents]         = useState([]);
+  const [models,         setModels]         = useState([]);
+  const [overrides,      setOverrides]      = useState({});
+  const [extraOverrides, setExtraOverrides] = useState({});
+  const [status,         setStatus]         = useState('loading');
+  const [error,          setError]          = useState(null);
+  const [result,         setResult]         = useState(null);
 
   useEffect(() => {
     Promise.all([fetchSwarmConfig(), fetchAgents(), fetchModels()])
@@ -52,7 +53,13 @@ export default function ModelSwapSection({ onRedeployed }) {
   }, []);
 
   const grouped    = groupByBackend(models);
-  const dirtyCount = Object.keys(overrides).length;
+  const dirtyCount = Object.keys(overrides).length + Object.keys(extraOverrides).length;
+
+  const currentExtraArgs = (a) => {
+    if (a.name in extraOverrides) return extraOverrides[a.name];
+    return Array.isArray(a.extra_args) ? a.extra_args.join(' ') : (a.extra_args || '');
+  };
+  const handleExtraChange = (name, value) => setExtraOverrides(prev => ({ ...prev, [name]: value }));
 
   const memoryWarnings = {};
   agents.forEach(a => {
@@ -77,13 +84,16 @@ export default function ModelSwapSection({ onRedeployed }) {
       const model     = overrides[a.name] || a.model;
       const modelMeta = models.find(m => m.path === model);
       const backend   = modelMeta?.backend || a.backend || a.engine || 'llama';
-      return { ...a, model, backend };
+      const extraRaw  = currentExtraArgs(a);
+      const extra_args = extraRaw.trim() ? extraRaw.trim().split(/\s+/) : [];
+      return { ...a, model, backend, extra_args };
     });
     try {
       const r = await configureSwarm(payload);
       setResult(r);
       setStatus('done');
       setOverrides({});
+      setExtraOverrides({});
       if (onRedeployed) onRedeployed();
     } catch (e) {
       console.error('[ModelSwapSection] redeploy failed:', e);
@@ -132,6 +142,14 @@ export default function ModelSwapSection({ onRedeployed }) {
                     ))}
                   </select>
                   {warn && <div className="swap-mem-warn">⚠ {warn}</div>}
+                  <input
+                    className="swap-extra-args"
+                    type="text"
+                    value={currentExtraArgs(a)}
+                    onChange={e => handleExtraChange(a.name, e.target.value)}
+                    placeholder="extra server flags e.g. -fit off"
+                    title="Extra llama-server flags passed verbatim at launch"
+                  />
                 </div>
               </div>
             );
@@ -164,7 +182,7 @@ export default function ModelSwapSection({ onRedeployed }) {
               : 'REDEPLOY'}
           </button>
           {dirtyCount > 0 && (
-            <button className="swap-reset-btn" onClick={() => { setOverrides({}); setError(null); setResult(null); }}>
+            <button className="swap-reset-btn" onClick={() => { setOverrides({}); setExtraOverrides({}); setError(null); setResult(null); }}>
               Reset
             </button>
           )}
