@@ -1,10 +1,11 @@
 import DefaultLayout from './DefaultLayout';
 import SidebarLayout from './SidebarLayout';
+import MinimalLayout from './MinimalLayout';
 
 export const LAYOUTS = {
   default: { label: 'Default', component: DefaultLayout },
   sidebar: { label: 'Sidebar', component: SidebarLayout },
-  // minimal: { label: 'Minimal', component: MinimalLayout },
+  minimal: { label: 'Minimal', component: MinimalLayout },
 };
 
 export const THEMES = {
