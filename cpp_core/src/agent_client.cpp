@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -71,6 +72,54 @@ struct PortSemaphore {
 
 static std::map<int, std::unique_ptr<PortSemaphore>> port_semaphores;
 
+// HTTP client pool — reuses TCP connections across calls to the same port.
+// Each client is only used by one thread at a time (checked out / returned).
+// Pool is bounded to MAX_POOL_PER_PORT to avoid accumulating idle sockets.
+static constexpr int MAX_POOL_PER_PORT = 4;
+struct ClientPool {
+    struct PortClients {
+        std::deque<std::unique_ptr<httplib::Client>> idle;
+        std::mutex mu;
+    };
+    std::map<int, std::unique_ptr<PortClients>> ports;
+    std::mutex map_mu;
+
+    std::unique_ptr<httplib::Client> checkout(int port, int read_timeout_secs) {
+        {
+            std::lock_guard<std::mutex> map_lk(map_mu);
+            if (ports.find(port) == ports.end())
+                ports[port] = std::make_unique<PortClients>();
+        }
+        PortClients* pc = ports[port].get();
+        {
+            std::lock_guard<std::mutex> lk(pc->mu);
+            if (!pc->idle.empty()) {
+                auto cli = std::move(pc->idle.front());
+                pc->idle.pop_front();
+                cli->set_read_timeout(read_timeout_secs);
+                return cli;
+            }
+        }
+        auto cli = std::make_unique<httplib::Client>("127.0.0.1", port);
+        cli->set_keep_alive(true);
+        cli->set_connection_timeout(5);
+        cli->set_read_timeout(read_timeout_secs);
+        return cli;
+    }
+
+    void checkin(int port, std::unique_ptr<httplib::Client> cli) {
+        std::lock_guard<std::mutex> map_lk(map_mu);
+        auto it = ports.find(port);
+        if (it == ports.end()) return;
+        PortClients* pc = it->second.get();
+        std::lock_guard<std::mutex> lk(pc->mu);
+        if ((int)pc->idle.size() < MAX_POOL_PER_PORT)
+            pc->idle.push_back(std::move(cli));
+        // else drop — pool is full; client destructor closes the socket
+    }
+};
+static ClientPool g_client_pool;
+
 void init_port_concurrency(const std::vector<Agent>& agents) {
     for (const auto& a : agents) {
         if (a.max_concurrency > 0 && port_semaphores.find(a.port) == port_semaphores.end()) {
@@ -95,9 +144,8 @@ static AttemptResult call_agent_once(const Agent& agent,
                                      const std::string& prompt) {
     AttemptResult out;
     try {
-        httplib::Client cli("127.0.0.1", agent.port);
-        cli.set_connection_timeout(5);
-        cli.set_read_timeout(agent.read_timeout_secs);
+        auto cli_ptr = g_client_pool.checkout(agent.port, agent.read_timeout_secs);
+        httplib::Client& cli = *cli_ptr;
 
         json messages = json::array();
         if (agent.engine == "mlx" && !system_prompt.empty()) {
@@ -168,6 +216,10 @@ static AttemptResult call_agent_once(const Agent& agent,
             // Connect/read timeout or refused connection.
             out.retryable = true;
         }
+        // Return healthy connections to the pool; drop on error so stale
+        // sockets don't accumulate (pool will create fresh ones on next call).
+        if (!out.retryable)
+            g_client_pool.checkin(agent.port, std::move(cli_ptr));
         return out;
     } catch (const std::exception& e) {
         std::cerr << "[coordinator] call_agent exception for " << agent.name

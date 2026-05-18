@@ -1,6 +1,7 @@
 #include "response_cache.h"
 
 #include <chrono>
+#include <cstdint>
 #include <list>
 #include <mutex>
 #include <string>
@@ -34,17 +35,38 @@ struct State {
 std::mutex g_mu;
 State g_state;
 
-std::string make_key(const Agent& a, const std::string& sys,
-                     const std::string& user) {
-    // No need to hash — std::unordered_map will hash the string for us.
-    // Use sentinels that can't appear in any field (NUL).
-    std::string k;
-    k.reserve(a.name.size() + sys.size() + user.size() + 32);
-    k.append(a.name).push_back('\0');
-    k.append(sys).push_back('\0');
-    k.append(user).push_back('\0');
-    k.append(std::to_string(a.max_tokens));
-    return k;
+// FNV-1a 64-bit — fast, dependency-free, good distribution for string keys.
+// Replacing the raw concatenated key shrinks LRU list entries from O(prompt)
+// to 8 bytes and speeds up map lookup (shorter key to hash and compare).
+static constexpr uint64_t FNV_OFFSET = 14695981039346656037ULL;
+static constexpr uint64_t FNV_PRIME  = 1099511628211ULL;
+
+static uint64_t fnv1a(uint64_t h, const std::string& s) {
+    for (unsigned char c : s) h = (h ^ c) * FNV_PRIME;
+    return h;
+}
+
+static uint64_t fnv1a_u32(uint64_t h, uint32_t v) {
+    for (int i = 0; i < 4; ++i) {
+        h = (h ^ (v & 0xFF)) * FNV_PRIME;
+        v >>= 8;
+    }
+    return h;
+}
+
+static std::string make_key(const Agent& a, const std::string& sys,
+                             const std::string& user) {
+    uint64_t h = FNV_OFFSET;
+    h = fnv1a(h, a.name);
+    h = (h ^ '\0') * FNV_PRIME;
+    h = fnv1a(h, sys);
+    h = (h ^ '\0') * FNV_PRIME;
+    h = fnv1a(h, user);
+    h = fnv1a_u32(h, static_cast<uint32_t>(a.max_tokens));
+    // Store as 16-char hex string — fixed size, human-readable in debug logs.
+    char buf[17];
+    snprintf(buf, sizeof(buf), "%016llx", (unsigned long long)h);
+    return std::string(buf, 16);
 }
 
 void touch_locked(std::unordered_map<std::string,

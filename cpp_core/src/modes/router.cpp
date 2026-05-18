@@ -87,17 +87,25 @@ json run_router(const ModeContext& ctx) {
     const std::string classifier_policy = mode_module::option_string(
         cfg, "classifier_policy", "standard");
     meta["classifier_policy"] = classifier_policy;
+    // Check all agents in parallel to avoid N×1s sequential HTTP round-trips.
+    const size_t n = ctx.agents.size();
+    std::vector<std::future<bool>> ready_futures;
+    ready_futures.reserve(n);
+    for (const auto& a : ctx.agents)
+        ready_futures.push_back(std::async(std::launch::async,
+            [&a]() { return endpoint_ready(a); }));
+
     std::vector<Agent> reachable_agents;
     json excluded_unreachable = json::array();
-    reachable_agents.reserve(ctx.agents.size());
-    for (const auto& a : ctx.agents) {
-        if (endpoint_ready(a)) {
-            reachable_agents.push_back(a);
+    reachable_agents.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        if (ready_futures[i].get()) {
+            reachable_agents.push_back(ctx.agents[i]);
         } else {
-            excluded_unreachable.push_back(a.name);
-            agent_health::record(a.name, false);
-            std::cerr << "🔌 [router] excluding unreachable agent '" << a.name
-                      << "' on port " << a.port << std::endl;
+            excluded_unreachable.push_back(ctx.agents[i].name);
+            agent_health::record(ctx.agents[i].name, false);
+            std::cerr << "🔌 [router] excluding unreachable agent '" << ctx.agents[i].name
+                      << "' on port " << ctx.agents[i].port << std::endl;
         }
     }
     if (!excluded_unreachable.empty()) {

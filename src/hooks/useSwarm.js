@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { submitPrompt, fetchHistory, checkHealth } from '../api/swarmApi';
+import { useState, useCallback, useRef } from 'react';
+import { submitPromptStream, fetchHistory, checkHealth } from '../api/swarmApi';
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
@@ -11,50 +11,64 @@ export function useSwarm() {
   const [history, setHistory] = useState([]);
   const [online, setOnline] = useState(false);
 
-  const submit = useCallback(async (prompt, temperature = 0.7, opts = {}) => {
+  const cancelRef = useRef(null);
+
+  const submit = useCallback((prompt, temperature = 0.7, opts = {}) => {
+    // Cancel any in-flight stream before starting a new one.
+    if (cancelRef.current) { cancelRef.current(); cancelRef.current = null; }
+
     setLoading(true);
     setError(null);
     setResponses({});
     setFinalAnswer(null);
     setLastMeta(null);
-    try {
-      const requestOpts = { ...opts };
-      if (opts.followup && !requestOpts.sessionId && currentSession?.sessionId) {
-        requestOpts.sessionId = currentSession.sessionId;
-      }
-      if (opts.followup && !requestOpts.parentRunId && currentSession?.runId) {
-        requestOpts.parentRunId = currentSession.runId;
-      }
-      const result = await submitPrompt(prompt, temperature, requestOpts);
-      // submitPrompt returns { mode, agents, final, meta }; store the flat
-      // agents map so existing consumers (AgentGrid, handleSaveCode, history
-      // selection) keep seeing the same shape as before.
-      const merged = { ...(result.agents || {}) };
-      // In router mode the classifier (e.g. foreman) doesn't appear in
-      // `agents` because it didn't answer the user prompt — it produced the
-      // routing plan. Surface that plan under the classifier's tile so the
-      // user can see why the selected agents were chosen.
-      const classifier = result?.meta?.classifier;
-      const classifierRaw = result?.meta?.classifier_raw;
-      if (classifier && classifierRaw && merged[classifier] == null) {
-        merged[classifier] = classifierRaw;
-      }
-      setResponses(merged);
-      setFinalAnswer(result.final || null);
-      setLastMeta(result.meta || null);
-      if (result?.meta?.session_id && result?.meta?.run_id) {
-        setCurrentSession({
-          sessionId: result.meta.session_id,
-          runId: result.meta.run_id,
-        });
-      }
-      return result;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
+
+    const requestOpts = { ...opts };
+    if (opts.followup && !requestOpts.sessionId && currentSession?.sessionId) {
+      requestOpts.sessionId = currentSession.sessionId;
     }
+    if (opts.followup && !requestOpts.parentRunId && currentSession?.runId) {
+      requestOpts.parentRunId = currentSession.runId;
+    }
+
+    // Accumulate per-agent text locally so the functional setState below
+    // never reads stale closure state.
+    const assembled = {};
+
+    return new Promise((resolve, reject) => {
+      cancelRef.current = submitPromptStream(prompt, temperature, requestOpts, {
+        onToken(agent, delta) {
+          assembled[agent] = (assembled[agent] || '') + delta;
+          // Shallow-clone so React sees a new reference and re-renders.
+          setResponses({ ...assembled });
+        },
+        onAgentDone(agent) {
+          // Ensure the final assembled text is committed even if no tokens fired.
+          setResponses(prev => (assembled[agent] !== undefined ? { ...prev, [agent]: assembled[agent] } : prev));
+        },
+        onSelected({ classifier, agents: picked }) {
+          // Surface router classifier name in meta for downstream consumers.
+          setLastMeta(prev => ({ ...(prev || {}), classifier, selected: picked }));
+        },
+        onDone() {
+          setLoading(false);
+          cancelRef.current = null;
+          const result = { agents: { ...assembled }, final: null, meta: null };
+          resolve(result);
+        },
+        onError(agent, message) {
+          console.error('[useSwarm] stream error:', agent, message);
+          if (!agent) {
+            // Transport-level error — surface to UI.
+            setError(message);
+            setLoading(false);
+            cancelRef.current = null;
+            reject(new Error(message));
+          }
+          // Per-agent errors are non-fatal; other agents may still finish.
+        },
+      });
+    });
   }, [currentSession]);
 
   const loadHistory = useCallback(async () => {

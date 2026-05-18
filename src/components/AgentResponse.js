@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import AgentEditorModal from './AgentEditorModal';
 
-function AgentResponse({ name, response, color = '#00ff41', loading = false, port, model, engine,
-                         tokenStats = null, picked = false, pickable = false, onPick = null }) {
+const AgentResponse = React.memo(function AgentResponse({
+  name, response, color = '#00ff41', loading = false, port, model, engine,
+  tokenStats = null, picked = false, pickable = false, onPick = null,
+}) {
   const [showModal, setShowModal] = useState(false);
 
   const getStatusClass = () => {
@@ -87,6 +89,6 @@ function AgentResponse({ name, response, color = '#00ff41', loading = false, por
       )}
     </>
   );
-}
+});
 
 export default AgentResponse;

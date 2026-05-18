@@ -79,22 +79,42 @@ std::string assemble_fit(const std::string& prefix,
 
     size_t room = max_total - overhead;
 
-    // Initial proportional cap per body.
-    for (auto& b : bodies) {
-        size_t share = bodies.empty() ? room : room / bodies.size();
-        if (b.size() > share && share > 128)
-            b = truncate_note(b, std::max<size_t>(share, 256));
-    }
+    // Single-pass proportional trim: compute each body's fair share of the
+    // available room, then truncate in one shot. Bodies smaller than their
+    // share are left untouched; excess bytes from short bodies are distributed
+    // to longer ones via a second pass over the remainder.
+    {
+        size_t n = bodies.size();
+        if (n == 0) n = 1;
+        size_t total_body = 0;
+        for (const auto& b : bodies) total_body += b.size();
 
-    int guard = 0;
-    while (total_len() > max_total && guard < 8000) {
-        ++guard;
-        auto it = std::max_element(bodies.begin(), bodies.end(),
-            [](const std::string& a, const std::string& b) { return a.size() < b.size(); });
-        if (it->size() <= 128) break;
-        size_t tgt = it->size() * 9 / 10;
-        if (tgt < 128) tgt = 128;
-        *it = truncate_note(*it, tgt);
+        if (total_body > room) {
+            // Proportional allocation: each body gets room * (its_size / total).
+            // Use two passes to reclaim slack from bodies already under their quota.
+            std::vector<size_t> alloc(bodies.size());
+            size_t claimed = 0;
+            for (size_t i = 0; i < bodies.size(); ++i) {
+                alloc[i] = (room * bodies[i].size()) / total_body;
+                alloc[i] = std::max<size_t>(alloc[i], 128);
+                claimed += std::min(bodies[i].size(), alloc[i]);
+            }
+            // Second pass: redistribute leftover room to bodies still over quota.
+            size_t slack = room > claimed ? room - claimed : 0;
+            if (slack > 0) {
+                for (size_t i = 0; i < bodies.size() && slack > 0; ++i) {
+                    if (bodies[i].size() > alloc[i]) {
+                        size_t extra = std::min(slack, bodies[i].size() - alloc[i]);
+                        alloc[i] += extra;
+                        slack -= extra;
+                    }
+                }
+            }
+            for (size_t i = 0; i < bodies.size(); ++i) {
+                if (bodies[i].size() > alloc[i])
+                    bodies[i] = truncate_note(bodies[i], alloc[i]);
+            }
+        }
     }
 
     std::string out;
