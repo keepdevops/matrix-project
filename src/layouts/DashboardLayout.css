@@ -1,0 +1,121 @@
+.dl-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 100%;
+}
+
+/* ── Stats bar ── */
+.dl-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  background: #0d1117;
+  border-bottom: 1px solid #21262d;
+  flex-wrap: wrap;
+}
+
+.dl-stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  background: #161b22;
+  min-width: 72px;
+}
+.dl-stat-tile--accent {
+  border-color: #238636;
+  background: #0f2a1a;
+}
+.dl-stat-tile--accent .dl-stat-value { color: #3fb950; }
+
+.dl-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e6edf3;
+  line-height: 1.2;
+}
+.dl-stat-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #8b949e;
+  margin-top: 0.1rem;
+}
+.dl-stat-sub {
+  font-size: 0.6rem;
+  color: #6e7681;
+  margin-top: 0.05rem;
+}
+
+.dl-stats-pressure {
+  margin-left: auto;
+}
+
+/* ── Main grid ── */
+.dl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  flex: 1;
+  min-height: 0;
+  align-items: start;
+}
+
+/* ── Cards ── */
+.dl-col-chat,
+.dl-col-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dl-card {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.dl-card--grow {
+  flex: 1;
+}
+
+.dl-card-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #8b949e;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.1rem;
+}
+
+.dl-panel-overlay {
+  padding: 0.75rem 1.25rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Responsive: stack columns on narrow viewports */
+@media (max-width: 900px) {
+  .dl-grid { grid-template-columns: 1fr; }
+  .dl-stats-pressure { margin-left: 0; }
+}
+
+/* Light theme */
+body[data-theme="light"] .dl-stats-bar  { background: #f6f5f0; border-color: #d0d7de; }
+body[data-theme="light"] .dl-stat-tile  { background: #ffffff; border-color: #d0d7de; }
+body[data-theme="light"] .dl-stat-tile--accent { background: #dafbe1; border-color: #2da44e; }
+body[data-theme="light"] .dl-stat-tile--accent .dl-stat-value { color: #1a7f37; }
+body[data-theme="light"] .dl-stat-value { color: #24292f; }
+body[data-theme="light"] .dl-stat-label { color: #57606a; }
+body[data-theme="light"] .dl-stat-sub   { color: #8c959f; }
+body[data-theme="light"] .dl-card       { background: #ffffff; border-color: #d0d7de; }
+body[data-theme="light"] .dl-card-title { color: #57606a; border-color: #d0d7de; }
