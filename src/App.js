@@ -48,6 +48,7 @@ function App() {
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [cacheStatus, setCacheStatus] = useState('idle');
   const [useRag, setUseRag]           = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState(null);
 
   const [theme, setTheme] = useState(() => {
     try {
@@ -147,6 +148,7 @@ function App() {
   };
 
   const handleSubmit = useCallback(async (prompt, temperature, opts = {}) => {
+    setPendingPrompt(prompt);
     try {
       const autoOpts = { ...opts };
       if (currentSession?.sessionId && !opts.followup && !opts.qualityPass) {
@@ -161,6 +163,8 @@ function App() {
       loadHistory();
     } catch (err) {
       console.error('Submission failed:', err);
+    } finally {
+      setPendingPrompt(null);
     }
   }, [submit, loadHistory, currentSession, activeMode, useRag]);
 
@@ -190,6 +194,16 @@ function App() {
     setFinalAnswer(null);
     setLastMeta(null);
   };
+
+  const handleSwitchSession = useCallback((sessionId) => {
+    const entries = history.filter(e => e._session_id === sessionId);
+    if (!entries.length) return;
+    const last = entries[entries.length - 1];
+    setCurrentSession({ sessionId, runId: last._run_id });
+    setResponses({});
+    setFinalAnswer(last._final || null);
+    setLastMeta(null);
+  }, [history]);
 
   const handleSendBestContinue = async (temperature = 0.2) => {
     if (!flatPickAgent || !responses[flatPickAgent]) return;
@@ -292,8 +306,10 @@ function App() {
             responses={responses}
             finalAnswer={finalAnswer}
             loading={loading}
+            pendingPrompt={pendingPrompt}
             onFollowUp={handleFollowUp}
             onClear={handleClearSession}
+            onSwitchSession={handleSwitchSession}
           />
           <FinalAnswerPanel text={finalAnswer} />
           <RagSources rag={lastMeta?.rag} />

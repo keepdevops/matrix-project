@@ -1,16 +1,29 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode',
   '_session_id', '_run_id']);
 
-// For flat/router modes that produce no synthesized final, surface the
-// longest agent response as a representative summary.
 function bestAgentText(entry) {
   let best = '';
   for (const [k, v] of Object.entries(entry)) {
     if (!METADATA_KEYS.has(k) && typeof v === 'string' && v.length > best.length) best = v;
   }
   return best || null;
+}
+
+// Group history entries by session_id, returning [{sessionId, firstPrompt, timestamp, count}]
+function buildSessionList(history) {
+  const map = new Map();
+  for (const e of history) {
+    const sid = e._session_id;
+    if (!sid) continue;
+    if (!map.has(sid)) {
+      map.set(sid, { sessionId: sid, firstPrompt: e.prompt || '', timestamp: e.timestamp, count: 0 });
+    }
+    map.get(sid).count++;
+  }
+  // Most recent first
+  return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 }
 
 function AgentExpander({ entry }) {
@@ -68,21 +81,43 @@ function Turn({ entry, finalAnswer }) {
   );
 }
 
-function ReplyBox({ onSubmit, loading, disabled }) {
+// Pending turn: shown immediately when a prompt is in-flight, before history refreshes.
+function PendingTurn({ prompt }) {
+  return (
+    <div className="ct-turn ct-turn--pending">
+      <div className="ct-bubble ct-bubble--user">
+        <span className="ct-bubble-label">YOU</span>
+        <span className="ct-bubble-text">{prompt}</span>
+      </div>
+      <div className="ct-bubble ct-bubble--swarm">
+        <span className="ct-bubble-label">SWARM</span>
+        <span className="ct-thinking">thinking…</span>
+      </div>
+    </div>
+  );
+}
+
+function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
   const [text, setText] = useState('');
   const [includeFinal, setIncludeFinal] = useState(true);
   const [includeOriginal, setIncludeOriginal] = useState(true);
+  const [includePrevious, setIncludePrevious] = useState(false);
   const textareaRef = useRef(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
     if (!text.trim() || loading || disabled) return;
     const include = [];
     if (includeOriginal) include.push('original_prompt');
     if (includeFinal) include.push('final');
+    if (includePrevious && lastEntry) {
+      // include the best agent key from the last turn
+      const agentKey = Object.keys(lastEntry).find(k => !METADATA_KEYS.has(k) && lastEntry[k]);
+      if (agentKey) include.push(agentKey);
+    }
     onSubmit(text.trim(), { include, max_context_chars: 20000 });
     setText('');
-  };
+  }, [text, loading, disabled, includeOriginal, includeFinal, includePrevious, lastEntry, onSubmit]);
 
   useEffect(() => {
     if (!loading) textareaRef.current?.focus();
@@ -99,6 +134,10 @@ function ReplyBox({ onSubmit, loading, disabled }) {
           <input type="checkbox" checked={includeFinal} onChange={e => setIncludeFinal(e.target.checked)} />
           final answer
         </label>
+        <label className="ct-toggle" title="Include the most recent agent response in context">
+          <input type="checkbox" checked={includePrevious} onChange={e => setIncludePrevious(e.target.checked)} />
+          previous turn
+        </label>
       </div>
       <div className="ct-reply-row">
         <textarea
@@ -107,7 +146,7 @@ function ReplyBox({ onSubmit, loading, disabled }) {
           rows={2}
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder="Follow up…"
+          placeholder="Follow up… (Enter to send, Shift+Enter for newline)"
           disabled={loading || disabled}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
@@ -125,8 +164,55 @@ function ReplyBox({ onSubmit, loading, disabled }) {
   );
 }
 
+function SessionSwitcher({ history, currentSessionId, onSwitch }) {
+  const [open, setOpen] = useState(false);
+  const sessions = buildSessionList(history);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  if (sessions.length <= 1) return null;
+
+  return (
+    <div className="ct-session-switcher" ref={ref}>
+      <button
+        className="ct-session-switch-btn"
+        onClick={() => setOpen(v => !v)}
+        title="Switch to a previous session"
+      >
+        ▾ sessions ({sessions.length})
+      </button>
+      {open && (
+        <div className="ct-session-list">
+          {sessions.map(s => (
+            <button
+              key={s.sessionId}
+              className={`ct-session-item${s.sessionId === currentSessionId ? ' ct-session-item--active' : ''}`}
+              onClick={() => { onSwitch(s.sessionId); setOpen(false); }}
+            >
+              <span className="ct-session-item-prompt">
+                {s.firstPrompt.length > 48 ? s.firstPrompt.slice(0, 48) + '…' : s.firstPrompt}
+              </span>
+              <span className="ct-session-item-meta">
+                {s.count} turn{s.count !== 1 ? 's' : ''} · {s.sessionId.slice(-6)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ConversationThread({
-  history, sessionId, responses, finalAnswer, loading, onFollowUp, onClear,
+  history, sessionId, responses, finalAnswer, loading, pendingPrompt,
+  onFollowUp, onClear, onSwitchSession,
 }) {
   const bottomRef = useRef(null);
   const turns = sessionId
@@ -135,19 +221,27 @@ export default function ConversationThread({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [turns.length, loading]);
+  }, [turns.length, loading, pendingPrompt]);
 
   if (!sessionId) return null;
 
-  // Determine which history entry holds the final answer for the latest completed turn.
-  // We only pass finalAnswer to the most-recent turn so it can show the live synthesized text.
   const latestTurnIdx = turns.length - 1;
+  const lastEntry = latestTurnIdx >= 0 ? turns[latestTurnIdx] : null;
+
+  // Show pending turn when loading and the prompt isn't in history yet
+  const latestInHistory = lastEntry?.prompt;
+  const showPending = loading && pendingPrompt && pendingPrompt !== latestInHistory;
 
   return (
     <section className="conversation-thread">
       <header className="ct-header">
         <span className="ct-title">CONVERSATION</span>
         <span className="ct-session-id">{sessionId.slice(-8)}</span>
+        <SessionSwitcher
+          history={history}
+          currentSessionId={sessionId}
+          onSwitch={onSwitchSession}
+        />
         <button className="ct-clear-btn" onClick={onClear} title="Clear session">✕ new session</button>
       </header>
       <div className="ct-turns">
@@ -158,7 +252,8 @@ export default function ConversationThread({
             finalAnswer={i === latestTurnIdx && !loading ? finalAnswer : null}
           />
         ))}
-        {loading && (
+        {showPending && <PendingTurn prompt={pendingPrompt} />}
+        {loading && !showPending && (
           <div className="ct-bubble ct-bubble--swarm">
             <span className="ct-bubble-label">SWARM</span>
             <span className="ct-thinking">thinking…</span>
@@ -166,7 +261,12 @@ export default function ConversationThread({
         )}
         <div ref={bottomRef} />
       </div>
-      <ReplyBox onSubmit={onFollowUp} loading={loading} disabled={!sessionId} />
+      <ReplyBox
+        onSubmit={onFollowUp}
+        loading={loading}
+        disabled={!sessionId}
+        lastEntry={lastEntry}
+      />
     </section>
   );
 }

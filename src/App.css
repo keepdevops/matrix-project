@@ -506,6 +506,51 @@ h1 {
 }
 .ct-clear-btn:hover { color: #f77; border-color: #f77; }
 
+/* Session switcher */
+.ct-session-switcher { position: relative; }
+.ct-session-switch-btn {
+  font-size: 0.65rem;
+  color: #555;
+  background: none;
+  border: 1px solid #222;
+  border-radius: 3px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.ct-session-switch-btn:hover { color: #aaa; border-color: #444; }
+.ct-session-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  background: #0d1a0d;
+  border: 1px solid #1a2a1a;
+  border-radius: 4px;
+  min-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.ct-session-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #111;
+  cursor: pointer;
+  text-align: left;
+}
+.ct-session-item:hover { background: rgba(0,255,65,0.05); }
+.ct-session-item--active { background: rgba(0,255,65,0.08); }
+.ct-session-item-prompt { font-size: 0.75rem; color: #ccd; }
+.ct-session-item-meta   { font-size: 0.62rem; color: #444; font-family: monospace; }
+
+/* Pending turn (optimistic display while stream is in-flight) */
+.ct-turn--pending { opacity: 0.7; }
+
 .ct-turns {
   max-height: 420px;
   overflow-y: auto;
