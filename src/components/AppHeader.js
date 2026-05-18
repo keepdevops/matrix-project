@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ModeSelector from './ModeSelector';
 import KvPressureGauge from './KvPressureGauge';
+import { LAYOUTS, THEMES } from '../layouts/registry';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 
@@ -20,6 +21,7 @@ export default function AppHeader({
   cacheStatus,
   showConfigPanel,
   theme,
+  layout,
   historyCount,
   onModeChange,
   onClearCache,
@@ -29,9 +31,14 @@ export default function AppHeader({
   onOpenRagAdmin,
   onOpenCachePanel,
   onOpenHelp,
-  onToggleTheme,
+  onSetTheme,
+  onSetLayout,
 }) {
   const engines = getRunningEngines(activeAgents);
+  const [showAppearance, setShowAppearance] = useState(false);
+
+  const layoutEntries = Object.entries(LAYOUTS);
+  const themeEntries  = Object.entries(THEMES);
 
   return (
     <header>
@@ -74,29 +81,58 @@ export default function AppHeader({
         <button className="help-button" onClick={onOpenConverter} title="Convert GGUF → MLX">
           ⚙ Convert
         </button>
-        <button
-          className="help-button"
-          onClick={onOpenRagAdmin}
-          title="Upload/manage RAG documents"
-        >
+        <button className="help-button" onClick={onOpenRagAdmin} title="Upload/manage RAG documents">
           RAG DOCS
         </button>
-        <button
-          className="help-button"
-          onClick={onOpenCachePanel}
-          title="Inspect and manage the response cache"
-        >
+        <button className="help-button" onClick={onOpenCachePanel} title="Inspect and manage the response cache">
           CACHE
         </button>
         <button className="help-button" onClick={onOpenHelp}>?</button>
-        <button
-          className="theme-toggle-button"
-          onClick={onToggleTheme}
-          aria-label="Toggle theme"
-          title="Toggle light/dark mode"
-        >
-          {theme === 'dark' ? '☀ Light' : '☾ Dark'}
-        </button>
+
+        <div className="appearance-picker" style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            className="theme-toggle-button"
+            onClick={() => setShowAppearance(v => !v)}
+            aria-label="Layout and theme"
+            title="Pick layout and theme"
+          >
+            {THEMES[theme]?.label ?? '☾ Dark'} {layoutEntries.length > 1 ? `· ${LAYOUTS[layout]?.label ?? 'Default'}` : ''}
+          </button>
+          {showAppearance && (
+            <div className="appearance-dropdown" style={{
+              position: 'absolute', right: 0, top: '100%', zIndex: 200,
+              background: 'var(--panel-bg, #161b22)', border: '1px solid #30363d',
+              borderRadius: 6, padding: '0.5rem', minWidth: 160,
+            }}>
+              <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Theme</div>
+              {themeEntries.map(([id, { label }]) => (
+                <button
+                  key={id}
+                  className={`appearance-option${theme === id ? ' active' : ''}`}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: 'inherit', padding: '0.3rem 0.5rem', cursor: 'pointer', borderRadius: 4, fontWeight: theme === id ? 700 : 400 }}
+                  onClick={() => { onSetTheme(id); setShowAppearance(false); }}
+                >
+                  {label}
+                </button>
+              ))}
+              {layoutEntries.length > 1 && (
+                <>
+                  <div style={{ fontSize: '0.7rem', opacity: 0.6, margin: '0.6rem 0 0.4rem', textTransform: 'uppercase' }}>Layout</div>
+                  {layoutEntries.map(([id, { label }]) => (
+                    <button
+                      key={id}
+                      className={`appearance-option${layout === id ? ' active' : ''}`}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: 'inherit', padding: '0.3rem 0.5rem', cursor: 'pointer', borderRadius: 4, fontWeight: layout === id ? 700 : 400 }}
+                      onClick={() => { onSetLayout(id); setShowAppearance(false); }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

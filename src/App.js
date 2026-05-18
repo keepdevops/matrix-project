@@ -3,22 +3,9 @@ import './App.css';
 import './themes/light.css';
 import { useSwarm } from './hooks/useSwarm';
 import { useCoordinatorState } from './hooks/useCoordinatorState';
+import { useLayoutPreference } from './hooks/useLayoutPreference';
 import { clearKvCache } from './api/swarmApi';
-import AppHeader from './components/AppHeader';
-import PromptInput from './components/PromptInput';
-import AgentGrid from './components/AgentGrid';
-import MetricsStrip from './components/MetricsStrip';
-import SwarmConfig from './components/SwarmConfig';
-import ModelConverter from './components/ModelConverter';
-import HelpModal from './components/HelpModal';
-import FinalAnswerPanel from './components/FinalAnswerPanel';
-import RagSources from './components/RagSources';
-import RagAdmin from './components/RagAdmin';
-import CachePanel from './components/CachePanel';
-import PressureCluster from './components/PressureCluster';
-import PipelineStageOutputs from './components/PipelineStageOutputs';
-import CompareVariantsPanel from './components/CompareVariantsPanel';
-import ConversationThread from './components/ConversationThread';
+import { LAYOUTS } from './layouts/registry';
 import { extractCodeBlock } from './utils/codeExtractor';
 import { qualityPassContextPolicy } from './utils/qualityPassContext';
 
@@ -38,37 +25,20 @@ function App() {
     flatPickAgent, setFlatPickAgent, refreshModes, refreshAgents, handleModeChange,
   } = useCoordinatorState(online);
 
-  const [showHistory, setShowHistory]     = useState(false);
-  const [showConfig, setShowConfig]       = useState(true);
-  const [deployPending, setDeployPending] = useState(false);
-  const [showHelp, setShowHelp]           = useState(false);
+  const { layout, theme, setLayout, setTheme } = useLayoutPreference();
+
+  const [showHistory, setShowHistory]       = useState(false);
+  const [showConfig, setShowConfig]         = useState(true);
+  const [deployPending, setDeployPending]   = useState(false);
+  const [showHelp, setShowHelp]             = useState(false);
   const [showConverter, setShowConverter]   = useState(false);
-  const [showRagAdmin, setShowRagAdmin]   = useState(false);
+  const [showRagAdmin, setShowRagAdmin]     = useState(false);
   const [showCachePanel, setShowCachePanel] = useState(false);
   const [selectedPrompt, setSelectedPrompt]           = useState(null);
   const [selectedTemperature, setSelectedTemperature] = useState(null);
   const [cacheStatus, setCacheStatus] = useState('idle');
   const [useRag, setUseRag]           = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState(null);
-
-  const [theme, setTheme] = useState(() => {
-    try {
-      const saved = localStorage.getItem('swarm-matrix-theme');
-      if (saved === 'light' || saved === 'dark') return saved;
-    } catch (err) {
-      console.error('Failed to read theme from localStorage:', err);
-    }
-    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  });
-
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-    try {
-      localStorage.setItem('swarm-matrix-theme', theme);
-    } catch (err) {
-      console.error('Failed to persist theme:', err);
-    }
-  }, [theme]);
 
   useEffect(() => {
     checkStatus();
@@ -182,18 +152,9 @@ function App() {
     });
   }, [handleSubmit, activeMode]);
 
-  const handlePromptConsumed = useCallback(() => setSelectedPrompt(null), []);
-
   const handleFollowUp = async (text, contextPolicy) => {
     await handleSubmit(text, 0.5, { followup: true, contextPolicy });
     loadHistory();
-  };
-
-  const handleClearSession = () => {
-    setCurrentSession(null);
-    setResponses({});
-    setFinalAnswer(null);
-    setLastMeta(null);
   };
 
   const handleSwitchSession = useCallback((sessionId) => {
@@ -222,137 +183,51 @@ function App() {
     );
   };
 
-  const excludedBreaker = lastMeta?.excluded_unhealthy || [];
-  const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
+  const LayoutComponent = (LAYOUTS[layout] ?? LAYOUTS.default).component;
 
   return (
-    <div className="matrix-container">
-      <AppHeader
-        online={online}
-        activeAgents={activeAgents}
-        modes={modes}
-        activeMode={activeMode}
-        kvReadings={kvReadings}
-        kvFetchFailed={kvFetchFailed}
-        cacheStatus={cacheStatus}
-        showConfigPanel={showConfigPanel}
-        theme={theme}
-        historyCount={history.length}
-        onModeChange={handleModeChange}
-        onClearCache={handleClearCache}
-        onToggleConfig={() => setShowConfig(v => !v)}
-        onToggleHistory={() => setShowHistory(v => !v)}
-        onOpenConverter={() => setShowConverter(v => !v)}
-        onOpenRagAdmin={() => setShowRagAdmin(true)}
-        onOpenCachePanel={() => setShowCachePanel(true)}
-        onOpenHelp={() => setShowHelp(true)}
-        onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-      />
-
-      {showConverter && (
-        <div style={{ padding: '1rem 1.5rem', maxWidth: 860, margin: '0 auto' }}>
-          <ModelConverter standalone />
-        </div>
-      )}
-
-      {!showConverter && showConfigPanel && <SwarmConfig onDeployed={handleDeployed} />}
-
-      {showHistory && history.length > 0 && (
-        <div className="history-dropdown">
-          {history.slice(-10).reverse().map((entry, index) => (
-            <div key={index} className="history-item" onClick={() => handleHistorySelect(entry)}>
-              <span className="history-prompt">
-                {entry.prompt?.substring(0, 50)}{entry.prompt?.length > 50 ? '...' : ''}
-              </span>
-              <span className="history-time">
-                {entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!showConfigPanel && (
-        <>
-          <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
-          <PromptInput
-            onSubmit={handleSubmit}
-            loading={loading}
-            disabled={!online}
-            externalPrompt={selectedPrompt}
-            externalTemperature={selectedTemperature}
-            onPromptConsumed={handlePromptConsumed}
-            canContinue={Boolean(currentSession?.sessionId)}
-            onQualityPass={handleQualityPass}
-            useRag={useRag}
-            onUseRagChange={setUseRag}
-            activeAgents={activeAgents}
-            backend={backend}
-            onBackendChange={switchBackend}
-          />
-          {excludedBreaker.length > 0 && (
-            <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">
-              Skipped (circuit breaker open):{' '}
-              <strong>{excludedBreaker.join(', ')}</strong>. Cooldown ~30s after failures — see PER-MODE ROSTER health or coordinator logs.
-            </div>
-          )}
-          {error && (
-            <div className="error-banner">
-              {error.includes('Coordinator offline')
-                ? 'Swarm not running — open CONFIGURE and click LAUNCH SWARM.'
-                : `ERROR: ${error}`}
-            </div>
-          )}
-          <ConversationThread
-            history={history}
-            sessionId={currentSession?.sessionId}
-            responses={responses}
-            finalAnswer={finalAnswer}
-            loading={loading}
-            pendingPrompt={pendingPrompt}
-            onFollowUp={handleFollowUp}
-            onClear={handleClearSession}
-            onSwitchSession={handleSwitchSession}
-          />
-          <FinalAnswerPanel text={finalAnswer} />
-          <RagSources rag={lastMeta?.rag} />
-          <MetricsStrip envelope={{ meta: lastMeta }} />
-          <PipelineStageOutputs stageOutputs={stageOutputs} />
-          <AgentGrid
-            activeAgents={activeAgents}
-            responses={responses}
-            loading={loading}
-            timings={lastMeta?.timings || {}}
-            onSaveCode={handleSaveCode}
-            flatPickMode={activeMode === 'flat'}
-            pickedFlatAgent={flatPickAgent}
-            onPickFlatAgent={setFlatPickAgent}
-            onExpandProgrammer={(instruction) => handleSubmit(instruction, 0.2, {
-              followup: true,
-              contextPolicy: {
-                include: ['original_prompt', 'final', 'programmer'],
-                target_agent: 'programmer',
-                max_context_chars: 24000,
-              },
-            })}
-          />
-          {activeMode === 'flat' && Object.keys(responses).length > 0 && (
-            <CompareVariantsPanel
-              activeAgents={activeAgents}
-              responses={responses}
-              loading={loading}
-              flatPickAgent={flatPickAgent}
-              onPickAgent={setFlatPickAgent}
-              onSendBest={() => handleSendBestContinue(0.2)}
-            />
-          )}
-        </>
-      )}
-
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {showRagAdmin && <RagAdmin onClose={() => setShowRagAdmin(false)} />}
-      {showCachePanel && <CachePanel onClose={() => setShowCachePanel(false)} />}
-    </div>
+    <LayoutComponent
+      // coordinator
+      online={online} activeAgents={activeAgents} modes={modes} activeMode={activeMode}
+      kvReadings={kvReadings} kvFetchFailed={kvFetchFailed}
+      // swarm
+      responses={responses} finalAnswer={finalAnswer} loading={loading} error={error}
+      history={history} lastMeta={lastMeta} currentSession={currentSession}
+      backend={backend} switchBackend={switchBackend}
+      // ui state
+      showConfig={showConfig} showHistory={showHistory}
+      showConfigPanel={showConfigPanel} deployPending={deployPending}
+      showHelp={showHelp} showConverter={showConverter}
+      showRagAdmin={showRagAdmin} showCachePanel={showCachePanel}
+      cacheStatus={cacheStatus} useRag={useRag} pendingPrompt={pendingPrompt}
+      flatPickAgent={flatPickAgent}
+      excludedBreaker={lastMeta?.excluded_unhealthy || []}
+      stageOutputs={Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : []}
+      selectedPrompt={selectedPrompt} selectedTemperature={selectedTemperature}
+      // theme + layout
+      theme={theme} layout={layout} onSetTheme={setTheme} onSetLayout={setLayout}
+      // handlers
+      onModeChange={handleModeChange}
+      onClearCache={handleClearCache}
+      onToggleConfig={() => setShowConfig(v => !v)}
+      onToggleHistory={() => setShowHistory(v => !v)}
+      onOpenConverter={() => setShowConverter(v => !v)}
+      onOpenRagAdmin={() => setShowRagAdmin(v => !v)}
+      onOpenCachePanel={() => setShowCachePanel(v => !v)}
+      onOpenHelp={() => setShowHelp(v => !v)}
+      onDeployed={handleDeployed}
+      onHistorySelect={handleHistorySelect}
+      onSubmit={handleSubmit}
+      onQualityPass={handleQualityPass}
+      onPromptConsumed={() => setSelectedPrompt(null)}
+      onFollowUp={handleFollowUp}
+      onClearSession={() => { setCurrentSession(null); setResponses({}); setFinalAnswer(null); setLastMeta(null); }}
+      onSwitchSession={handleSwitchSession}
+      onSaveCode={handleSaveCode}
+      onPickFlatAgent={setFlatPickAgent}
+      onSendBestContinue={handleSendBestContinue}
+      onUseRagChange={setUseRag}
+    />
   );
 }
 
