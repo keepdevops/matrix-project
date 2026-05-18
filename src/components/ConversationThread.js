@@ -99,25 +99,19 @@ function PendingTurn({ prompt }) {
 
 function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
   const [text, setText] = useState('');
-  const [includeFinal, setIncludeFinal] = useState(true);
-  const [includeOriginal, setIncludeOriginal] = useState(true);
-  const [includePrevious, setIncludePrevious] = useState(false);
   const textareaRef = useRef(null);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     if (!text.trim() || loading || disabled) return;
-    const include = [];
-    if (includeOriginal) include.push('original_prompt');
-    if (includeFinal) include.push('final');
-    if (includePrevious && lastEntry) {
-      // include the best agent key from the last turn
+    const include = ['original_prompt', 'final'];
+    if (lastEntry) {
       const agentKey = Object.keys(lastEntry).find(k => !METADATA_KEYS.has(k) && lastEntry[k]);
       if (agentKey) include.push(agentKey);
     }
     onSubmit(text.trim(), { include, max_context_chars: 20000 });
     setText('');
-  }, [text, loading, disabled, includeOriginal, includeFinal, includePrevious, lastEntry, onSubmit]);
+  }, [text, loading, disabled, lastEntry, onSubmit]);
 
   useEffect(() => {
     if (!loading) textareaRef.current?.focus();
@@ -125,20 +119,6 @@ function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
 
   return (
     <form className="ct-reply-form" onSubmit={handleSubmit}>
-      <div className="ct-context-toggles">
-        <label className="ct-toggle">
-          <input type="checkbox" checked={includeOriginal} onChange={e => setIncludeOriginal(e.target.checked)} />
-          original prompt
-        </label>
-        <label className="ct-toggle">
-          <input type="checkbox" checked={includeFinal} onChange={e => setIncludeFinal(e.target.checked)} />
-          final answer
-        </label>
-        <label className="ct-toggle" title="Include the most recent agent response in context">
-          <input type="checkbox" checked={includePrevious} onChange={e => setIncludePrevious(e.target.checked)} />
-          previous turn
-        </label>
-      </div>
       <div className="ct-reply-row">
         <textarea
           ref={textareaRef}
