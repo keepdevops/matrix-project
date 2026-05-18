@@ -1,13 +1,17 @@
 #include "agent_stream.h"
 #include "agent_metrics.h"
 #include "agent_client.h"
-#include "http_client_pool.h"
+#include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
 #include "utf8_sanitize.h"
 
 #include <chrono>
+#include <deque>
 #include <iostream>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 
 using json = nlohmann::json;
@@ -15,9 +19,51 @@ using json = nlohmann::json;
 namespace agent_stream {
 namespace {
 
-// Separate pool instance for streaming connections (long-lived, held open
-// for the entire token stream) vs. the non-streaming pool in agent_client.cpp.
-static HttpClientPool g_stream_pool;
+// Streaming-specific client pool — separate from the non-streaming pool in
+// agent_client.cpp because streaming connections are long-lived (held open
+// for the entire token stream) and non-streaming ones are short-lived.
+static constexpr int STREAM_POOL_MAX = 4;
+struct StreamClientPool {
+    struct PortClients {
+        std::deque<std::unique_ptr<httplib::Client>> idle;
+        std::mutex mu;
+    };
+    std::map<int, std::unique_ptr<PortClients>> ports;
+    std::mutex map_mu;
+
+    std::unique_ptr<httplib::Client> checkout(int port, int read_timeout_secs) {
+        {
+            std::lock_guard<std::mutex> lk(map_mu);
+            if (!ports.count(port)) ports[port] = std::make_unique<PortClients>();
+        }
+        PortClients* pc = ports[port].get();
+        {
+            std::lock_guard<std::mutex> lk(pc->mu);
+            if (!pc->idle.empty()) {
+                auto cli = std::move(pc->idle.front());
+                pc->idle.pop_front();
+                cli->set_read_timeout(read_timeout_secs);
+                return cli;
+            }
+        }
+        auto cli = std::make_unique<httplib::Client>("127.0.0.1", port);
+        cli->set_keep_alive(true);
+        cli->set_connection_timeout(5);
+        cli->set_read_timeout(read_timeout_secs);
+        return cli;
+    }
+
+    void checkin(int port, std::unique_ptr<httplib::Client> cli) {
+        std::lock_guard<std::mutex> lk(map_mu);
+        auto it = ports.find(port);
+        if (it == ports.end()) return;
+        PortClients* pc = it->second.get();
+        std::lock_guard<std::mutex> lk2(pc->mu);
+        if ((int)pc->idle.size() < STREAM_POOL_MAX)
+            pc->idle.push_back(std::move(cli));
+    }
+};
+static StreamClientPool g_stream_pool;
 
 // Fast-path extractor for delta.content from an OpenAI-style SSE chunk.
 // Avoids full JSON parse for the common case (ASCII/Latin text, no \u escapes).
@@ -186,7 +232,24 @@ std::string stream_llama(const Agent& agent,
         drain_frames(buf, on_chunk, accumulated, done);
     }
     auto t_end = std::chrono::steady_clock::now();
-    strip_template_leakage(accumulated);
+    // Trim any chat-template marker that slipped past the server-side stop.
+    {
+        static const char* markers[] = {
+            "<|im_end|>", "<|im_start|>",
+            "<|eot_id|>", "<|start_header_id|>",
+            "<|endoftext|>",
+        };
+        size_t cut = std::string::npos;
+        for (const char* m : markers) {
+            size_t pos = accumulated.find(m);
+            if (pos != std::string::npos && pos < cut) cut = pos;
+        }
+        if (cut != std::string::npos) accumulated.erase(cut);
+        while (!accumulated.empty() &&
+               (accumulated.back() == '\n' || accumulated.back() == ' ' ||
+                accumulated.back() == '\t'))
+            accumulated.pop_back();
+    }
     if (!accumulated.empty()) {
         kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
         // Approximate token count from word count — llama-server's SSE chunks

@@ -114,22 +114,6 @@ function normalizeArchitectResponse(raw) {
   return { mode: null, agents: raw || {}, final: null, meta: {} };
 }
 
-function buildRequestBody(prompt, temperature, opts) {
-  const body = { prompt, temperature };
-  if (opts.sessionId)   body.session_id    = opts.sessionId;
-  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
-  if (opts.followup)    body.followup      = true;
-  if (opts.qualityPass) body.quality_pass  = true;
-  if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
-  if (opts.useRag)      body.use_rag       = true;
-  if (opts.ragTopK)     body.rag_top_k     = opts.ragTopK;
-  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore))
-    body.rag_min_score = opts.ragMinScore;
-  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
-    body.rag_agents = opts.ragAgents;
-  return body;
-}
-
 /**
  * Submit a prompt via SSE streaming. Calls back on each event as agents respond.
  * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError }
@@ -138,7 +122,19 @@ function buildRequestBody(prompt, temperature, opts) {
 export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
   const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession } = callbacks;
   const controller = new AbortController();
-  const body = buildRequestBody(prompt, temperature, opts);
+
+  const body = { prompt, temperature };
+  if (opts.sessionId) body.session_id = opts.sessionId;
+  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
+  if (opts.followup) body.followup = true;
+  if (opts.qualityPass) body.quality_pass = true;
+  if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
+  if (opts.useRag) body.use_rag = true;
+  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
+  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore))
+    body.rag_min_score = opts.ragMinScore;
+  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
+    body.rag_agents = opts.ragAgents;
 
   (async () => {
     let res;
@@ -216,7 +212,20 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
  * Submit a prompt to all agents via the coordinator
  */
 export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
-  const body = buildRequestBody(prompt, temperature, opts);
+  const body = { prompt, temperature };
+  if (opts.sessionId) body.session_id = opts.sessionId;
+  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
+  if (opts.followup) body.followup = true;
+  if (opts.qualityPass) body.quality_pass = true;
+  if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
+  if (opts.useRag) body.use_rag = true;
+  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
+  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore)) {
+    body.rag_min_score = opts.ragMinScore;
+  }
+  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0) {
+    body.rag_agents = opts.ragAgents;
+  }
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
     headers: {

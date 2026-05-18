@@ -1,7 +1,7 @@
 #include "agent_client.h"
 #include "agent_health.h"
 #include "agent_metrics.h"
-#include "http_client_pool.h"
+#include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
 #include "mlx_inflight.h"
@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -17,6 +18,26 @@
 #include <thread>
 
 using json = nlohmann::json;
+
+// Strip any chat-template turn markers that leaked past EOS (defensive — even
+// with a stop[] list, the stop string itself may be emitted before halt).
+// Cuts the response at the first marker we recognise.
+static std::string strip_template_leakage(std::string s) {
+    static const char* markers[] = {
+        "<|im_end|>", "<|im_start|>",
+        "<|eot_id|>", "<|start_header_id|>",
+        "<|endoftext|>",
+    };
+    size_t cut = std::string::npos;
+    for (const char* m : markers) {
+        size_t pos = s.find(m);
+        if (pos != std::string::npos && pos < cut) cut = pos;
+    }
+    if (cut != std::string::npos) s.erase(cut);
+    while (!s.empty() && (s.back() == '\n' || s.back() == ' ' || s.back() == '\t'))
+        s.pop_back();
+    return s;
+}
 
 // Per-port concurrency limiter driven by Agent::max_concurrency.
 // max_concurrency == 0  → unlimited (no lock taken).
@@ -51,7 +72,53 @@ struct PortSemaphore {
 
 static std::map<int, std::unique_ptr<PortSemaphore>> port_semaphores;
 
-static HttpClientPool g_client_pool;
+// HTTP client pool — reuses TCP connections across calls to the same port.
+// Each client is only used by one thread at a time (checked out / returned).
+// Pool is bounded to MAX_POOL_PER_PORT to avoid accumulating idle sockets.
+static constexpr int MAX_POOL_PER_PORT = 4;
+struct ClientPool {
+    struct PortClients {
+        std::deque<std::unique_ptr<httplib::Client>> idle;
+        std::mutex mu;
+    };
+    std::map<int, std::unique_ptr<PortClients>> ports;
+    std::mutex map_mu;
+
+    std::unique_ptr<httplib::Client> checkout(int port, int read_timeout_secs) {
+        {
+            std::lock_guard<std::mutex> map_lk(map_mu);
+            if (ports.find(port) == ports.end())
+                ports[port] = std::make_unique<PortClients>();
+        }
+        PortClients* pc = ports[port].get();
+        {
+            std::lock_guard<std::mutex> lk(pc->mu);
+            if (!pc->idle.empty()) {
+                auto cli = std::move(pc->idle.front());
+                pc->idle.pop_front();
+                cli->set_read_timeout(read_timeout_secs);
+                return cli;
+            }
+        }
+        auto cli = std::make_unique<httplib::Client>("127.0.0.1", port);
+        cli->set_keep_alive(true);
+        cli->set_connection_timeout(5);
+        cli->set_read_timeout(read_timeout_secs);
+        return cli;
+    }
+
+    void checkin(int port, std::unique_ptr<httplib::Client> cli) {
+        std::lock_guard<std::mutex> map_lk(map_mu);
+        auto it = ports.find(port);
+        if (it == ports.end()) return;
+        PortClients* pc = it->second.get();
+        std::lock_guard<std::mutex> lk(pc->mu);
+        if ((int)pc->idle.size() < MAX_POOL_PER_PORT)
+            pc->idle.push_back(std::move(cli));
+        // else drop — pool is full; client destructor closes the socket
+    }
+};
+static ClientPool g_client_pool;
 
 void init_port_concurrency(const std::vector<Agent>& agents) {
     for (const auto& a : agents) {
@@ -109,8 +176,8 @@ static AttemptResult call_agent_once(const Agent& agent,
         if (res && res->status == 200) {
             auto j = json::parse(sanitize_invalid_utf8(res->body));
             if (j.contains("choices") && !j["choices"].empty()) {
-                out.text = sanitize_invalid_utf8(j["choices"][0]["message"]["content"].get<std::string>());
-                strip_template_leakage(out.text);
+                out.text = strip_template_leakage(
+                    sanitize_invalid_utf8(j["choices"][0]["message"]["content"].get<std::string>()));
             }
             if (agent.engine == "llama") {
                 kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
