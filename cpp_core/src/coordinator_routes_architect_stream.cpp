@@ -2,10 +2,12 @@
 #include "coordinator_routes_internal.h"
 #include "modes/pipeline_prompts.h"
 #include "modes/router_selected_parse.h"
+#include "session_store.h"
 #include "synthesis_budget.h"
 #include "synthesis_tiered.h"
 #include "utf8_sanitize.h"
 
+#include <chrono>
 #include <unordered_set>
 
 void register_coordinator_routes_architect_stream(httplib::Server& svr, CoordinatorState& st) {
@@ -13,9 +15,15 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
     svr.Post("/api/architect/stream", [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::string user_prompt;
+        std::string req_session_id;
+        std::string req_parent_run_id;
+        double temperature = 0.7;
         try {
             auto j = json::parse(req.body);
-            user_prompt = j.value("prompt", "");
+            user_prompt       = j.value("prompt", "");
+            req_session_id    = j.value("session_id", std::string(""));
+            req_parent_run_id = j.value("parent_run_id", std::string(""));
+            temperature       = j.value("temperature", 0.7);
         } catch (...) {
             user_prompt = req.body;
         }
@@ -24,6 +32,9 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
             res.set_content("{\"error\":\"empty prompt\"}", "application/json");
             return;
         }
+
+        if (req_session_id.empty()) req_session_id = session_new_id("sess");
+        const std::string run_id = session_new_id("run");
 
         const std::string mode_name = modes::active();
         json cfg_for_mode;
@@ -44,8 +55,14 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
         auto cancel      = std::make_shared<std::atomic<bool>>(false);
         agent_metrics::reset();
 
+        auto session_id_snap     = std::make_shared<std::string>(req_session_id);
+        auto run_id_snap         = std::make_shared<std::string>(run_id);
+        auto parent_run_id_snap  = std::make_shared<std::string>(req_parent_run_id);
+        auto temperature_snap    = std::make_shared<double>(temperature);
+
         res.set_chunked_content_provider("text/event-stream",
-            [agents_snap, prompt_snap, cfg_snap, mode_snap, cancel]
+            [agents_snap, prompt_snap, cfg_snap, mode_snap, cancel,
+             session_id_snap, run_id_snap, parent_run_id_snap, temperature_snap, &st]
             (size_t /*offset*/, httplib::DataSink& sink) -> bool {
                 std::mutex sink_mu;
                 auto write_event = [&](const std::string& event,
@@ -274,6 +291,42 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
 
                 json metrics = agent_metrics::snapshot();
                 write_event("metrics", metrics.dump());
+
+                // Persist history + session (mirrors coordinator_routes_dispatch.cpp).
+                {
+                    long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count();
+                    json entry = json::object();
+                    for (const auto& [name, text] : outputs) entry[name] = text;
+                    entry["prompt"]      = *prompt_snap;
+                    entry["temperature"] = *temperature_snap;
+                    entry["timestamp"]   = ms;
+                    entry["_session_id"] = *session_id_snap;
+                    entry["_run_id"]     = *run_id_snap;
+                    entry["_mode"]       = *mode_snap;
+                    {
+                        std::lock_guard<std::mutex> lock(st.history_mutex);
+                        st.history.push_back(entry);
+                        coordinator_save_history(st);
+                    }
+                    {
+                        std::lock_guard<std::mutex> lock(st.sessions_mutex);
+                        json run = {
+                            {"run_id",        *run_id_snap},
+                            {"parent_run_id", *parent_run_id_snap},
+                            {"prompt",        *prompt_snap},
+                            {"mode",          *mode_snap},
+                            {"agents",        entry},
+                            {"timestamp",     ms}
+                        };
+                        session_append_run(st.sessions, *session_id_snap, run);
+                        coordinator_save_sessions(st);
+                    }
+                    write_event("session", json({
+                        {"session_id", *session_id_snap},
+                        {"run_id",     *run_id_snap}
+                    }).dump());
+                }
 
                 {
                     std::lock_guard<std::mutex> lock(sink_mu);

@@ -50,6 +50,9 @@ export function useSwarm() {
           // Surface router classifier name in meta for downstream consumers.
           setLastMeta(prev => ({ ...(prev || {}), classifier, selected: picked }));
         },
+        onSession({ session_id, run_id }) {
+          if (session_id) setCurrentSession({ sessionId: session_id, runId: run_id });
+        },
         onDone() {
           setLoading(false);
           cancelRef.current = null;

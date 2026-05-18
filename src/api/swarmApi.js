@@ -136,7 +136,7 @@ function buildRequestBody(prompt, temperature, opts) {
  * Returns a cancel function.
  */
 export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
-  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError } = callbacks;
+  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession } = callbacks;
   const controller = new AbortController();
   const body = buildRequestBody(prompt, temperature, opts);
 
@@ -175,6 +175,7 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
       else if (eventName === 'selected') onSelected?.(data);
       else if (eventName === 'stage') onStage?.(data);
       else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent);
+      else if (eventName === 'session') onSession?.(data);
       else if (eventName === 'done') onDone?.();
       else if (eventName === 'error') {
         console.error('[stream] agent error:', data);
