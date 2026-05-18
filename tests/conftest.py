@@ -163,6 +163,16 @@ def matrix(tmp_path, monkeypatch):
         log_fp.close()
         for m in mocks.values():
             m.stop()
+        # Wait for the port to be fully released before the next test binds it.
+        end = time.time() + 5.0
+        while time.time() < end:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(0.1)
+                try:
+                    s.connect(('127.0.0.1', COORD_PORT))
+                    time.sleep(0.1)  # still bound — keep waiting
+                except OSError:
+                    break            # port free
 
 
 @pytest.fixture
@@ -217,3 +227,12 @@ def matrix_subset_with_source(tmp_path):
         log_fp.close()
         for m in mocks.values():
             m.stop()
+        end = time.time() + 5.0
+        while time.time() < end:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(0.1)
+                try:
+                    s.connect(('127.0.0.1', COORD_PORT))
+                    time.sleep(0.1)
+                except OSError:
+                    break
