@@ -90,6 +90,8 @@ def _build_backends(swarm: dict) -> dict:
 async def handle_stream(request: web.Request) -> web.StreamResponse:
     try:
         body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError(f"expected JSON object, got {type(body).__name__}")
     except Exception as exc:
         logger.error("mlx-coord: bad JSON in /stream: %s", exc)
         raise web.HTTPBadRequest(reason="invalid JSON")
@@ -146,6 +148,8 @@ async def handle_stream(request: web.Request) -> web.StreamResponse:
 async def handle_submit(request: web.Request) -> web.Response:
     try:
         body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError(f"expected JSON object, got {type(body).__name__}")
     except Exception as exc:
         logger.error("mlx-coord: bad JSON in /submit: %s", exc)
         raise web.HTTPBadRequest(reason="invalid JSON")
@@ -199,6 +203,8 @@ async def handle_modes(request: web.Request) -> web.Response:
 async def handle_set_mode(request: web.Request) -> web.Response:
     try:
         body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError(f"expected JSON object, got {type(body).__name__}")
     except Exception as exc:
         logger.error("mlx-coord: bad JSON in set_mode: %s", exc)
         raise web.HTTPBadRequest(reason="invalid JSON")
@@ -212,6 +218,8 @@ async def handle_set_mode(request: web.Request) -> web.Response:
 async def handle_session_clear(request: web.Request) -> web.Response:
     try:
         body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError(f"expected JSON object, got {type(body).__name__}")
     except Exception as exc:
         logger.error("mlx-coord: bad JSON in session/clear: %s", exc)
         raise web.HTTPBadRequest(reason="invalid JSON")
