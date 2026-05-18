@@ -35,11 +35,20 @@ export function useCoordinatorState(online) {
   const refreshAgents = () =>
     fetchAgents()
       .then(agents => {
-        setActiveAgents(agents.map(a => ({
+        const next = agents.map(a => ({
           ...a,
           model:   a.model   || agentMeta[a.name]?.model   || null,
           backend: a.backend || agentMeta[a.name]?.backend || null,
-        })));
+        }));
+        // Only update state when the agent list actually changed — avoids
+        // creating a new array reference every 10s which re-renders PromptInput
+        // and drops keystrokes mid-typing.
+        setActiveAgents(prev => {
+          if (prev.length === next.length &&
+              prev.every((a, i) => a.name === next[i].name && a.backend === next[i].backend))
+            return prev;
+          return next;
+        });
       })
       .catch(() => {});
 
