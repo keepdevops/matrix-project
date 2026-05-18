@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './App.css';
 import './themes/light.css';
 import { useSwarm } from './hooks/useSwarm';
@@ -146,7 +146,7 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSubmit = async (prompt, temperature, opts = {}) => {
+  const handleSubmit = useCallback(async (prompt, temperature, opts = {}) => {
     try {
       const autoOpts = { ...opts };
       if (currentSession?.sessionId && !opts.followup && !opts.qualityPass) {
@@ -162,9 +162,9 @@ function App() {
     } catch (err) {
       console.error('Submission failed:', err);
     }
-  };
+  }, [submit, loadHistory, currentSession, activeMode, useRag]);
 
-  const handleQualityPass = async (temperature = 0.2) => {
+  const handleQualityPass = useCallback(async (temperature = 0.2) => {
     const instruction = [
       'Review the previous output for compile errors, duplicate files/functions,',
       'missing implementation, unsafe numeric types, and mismatch with the original prompt.',
@@ -175,7 +175,9 @@ function App() {
       qualityPass: true,
       contextPolicy: qualityPassContextPolicy(activeMode || 'pipeline'),
     });
-  };
+  }, [handleSubmit, activeMode]);
+
+  const handlePromptConsumed = useCallback(() => setSelectedPrompt(null), []);
 
   const handleFollowUp = async (text, contextPolicy) => {
     await handleSubmit(text, 0.5, { followup: true, contextPolicy });
@@ -264,7 +266,7 @@ function App() {
             disabled={!online}
             externalPrompt={selectedPrompt}
             externalTemperature={selectedTemperature}
-            onPromptConsumed={() => setSelectedPrompt(null)}
+            onPromptConsumed={handlePromptConsumed}
             canContinue={Boolean(currentSession?.sessionId)}
             onQualityPass={handleQualityPass}
             useRag={useRag}

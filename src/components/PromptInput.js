@@ -239,4 +239,4 @@ function PromptInput({
   );
 }
 
-export default PromptInput;
+export default React.memo(PromptInput);
