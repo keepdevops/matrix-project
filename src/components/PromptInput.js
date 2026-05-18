@@ -13,6 +13,8 @@ function PromptInput({
   useRag = false,
   onUseRagChange,
   activeAgents = [],
+  backend = 'llama',
+  onBackendChange,
 }) {
   const ragHealth = useRagHealth(true);
   const ragDown = !ragHealth.loading && !ragHealth.ok;
@@ -219,6 +221,41 @@ function PromptInput({
             )}
           </details>
         )}
+        <div
+          className="backend-toggle"
+          title="llama — parallel llama-server fleet  |  mlx — serialized MLX specialist"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem' }}
+        >
+          <button
+            type="button"
+            onClick={() => onBackendChange?.('llama')}
+            disabled={loading || disabled}
+            style={{
+              padding: '0.15rem 0.55rem',
+              borderRadius: '3px 0 0 3px',
+              border: '1px solid var(--color-border, #444)',
+              background: backend === 'llama' ? 'var(--color-accent, #58a6ff)' : 'transparent',
+              color: backend === 'llama' ? '#000' : 'inherit',
+              cursor: 'pointer',
+              fontWeight: backend === 'llama' ? 600 : 400,
+            }}
+          >llama</button>
+          <button
+            type="button"
+            onClick={() => onBackendChange?.('mlx')}
+            disabled={loading || disabled}
+            style={{
+              padding: '0.15rem 0.55rem',
+              borderRadius: '0 3px 3px 0',
+              border: '1px solid var(--color-border, #444)',
+              borderLeft: 'none',
+              background: backend === 'mlx' ? 'var(--color-accent, #58a6ff)' : 'transparent',
+              color: backend === 'mlx' ? '#000' : 'inherit',
+              cursor: 'pointer',
+              fontWeight: backend === 'mlx' ? 600 : 400,
+            }}
+          >mlx</button>
+        </div>
         <button
           type="submit"
           className="submit-button"

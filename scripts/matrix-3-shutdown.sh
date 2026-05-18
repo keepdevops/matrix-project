@@ -100,6 +100,8 @@ kill_process_by_pattern "llama-server" "llama-server"
 kill_process_by_pattern "mlx_lm" "mlx_lm"
 kill_process_by_pattern "mlx-lm" "mlx-lm"
 kill_process_on_port 8001 "RAG ingest sidecar"
+kill_process_by_pattern "orchestration.mlx_coordinator.service" "MLX coordinator"
+kill_process_on_port 3003 "MLX coordinator (port fallback)"
 
 # This prevented KeepAlive restarts in the background
 # Disable the launchd agent permanently

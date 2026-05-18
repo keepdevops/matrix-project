@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { submitPromptStream, fetchHistory, checkHealth } from '../api/swarmApi';
+import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth } from '../api/swarmApi';
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
@@ -10,6 +10,23 @@ export function useSwarm() {
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
   const [online, setOnline] = useState(false);
+  const [backend, setBackend] = useState(() =>
+    (typeof window !== 'undefined' && localStorage.getItem('swarm.backend')) || 'llama'
+  );
+
+  const switchBackend = useCallback((next) => {
+    if (next !== 'llama' && next !== 'mlx') return;
+    setBackend(next);
+    try { localStorage.setItem('swarm.backend', next); } catch (err) {
+      console.error('[useSwarm] persist backend failed:', err);
+    }
+    // Clear MLX session when switching away so stale cache is freed server-side.
+    if (next === 'llama' && currentSession?.sessionId) {
+      clearMlxSession(currentSession.sessionId).catch(err =>
+        console.error('[useSwarm] mlx session clear failed:', err)
+      );
+    }
+  }, [currentSession]);
 
   const cancelRef = useRef(null);
 
@@ -35,8 +52,10 @@ export function useSwarm() {
     // never reads stale closure state.
     const assembled = {};
 
+    const streamFn = backend === 'mlx' ? submitPromptStreamMlx : submitPromptStream;
+
     return new Promise((resolve, reject) => {
-      cancelRef.current = submitPromptStream(prompt, temperature, requestOpts, {
+      cancelRef.current = streamFn(prompt, temperature, requestOpts, {
         onToken(agent, delta) {
           assembled[agent] = (assembled[agent] || '') + delta;
           // Shallow-clone so React sees a new reference and re-renders.
@@ -72,7 +91,7 @@ export function useSwarm() {
         },
       });
     });
-  }, [currentSession]);
+  }, [currentSession, backend]);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -111,6 +130,8 @@ export function useSwarm() {
     setFinalAnswer,
     setLastMeta,
     setCurrentSession,
+    backend,
+    switchBackend,
   };
 }
 

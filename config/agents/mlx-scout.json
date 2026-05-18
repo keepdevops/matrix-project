@@ -1,6 +1,8 @@
 {
+  "agent_id": "mlx-scout",
   "name": "mlx-scout",
   "engine": "mlx",
+  "coordinator": "mlx",
   "model": "/Users/Shared/llama/models/mlx/MLX/Llama-3.2-1B-Instruct-4bit",
   "port": 8083,
   "server_group": "mlx-scout",

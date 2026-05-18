@@ -98,13 +98,33 @@ def run_launch() -> int:
             print("FATAL: react-scripts patch failed — run npm install")
             return 3
 
+    mlx_coord_port = int(env.get("MLX_COORD_PORT", "3003"))
+    stale_mlx = lsof_pids_on_port(mlx_coord_port)
+    if stale_mlx:
+        print(f"Stopping stale MLX coordinator (pid={stale_mlx}) ...")
+        survivors = kill_pids(stale_mlx)
+        if survivors:
+            logger.error("stale MLX coordinator pids still alive: %s", survivors)
+        else:
+            time.sleep(0.3)
+
+    print("Starting MLX coordinator ...")
+    import sys
+    mlx_pid = _spawn(
+        [sys.executable, "-m", "orchestration.mlx_coordinator.service",
+         "--port", str(mlx_coord_port)],
+        logs / "mlx_coordinator.log", env,
+    )
+    with pid_file.open("a") as f:
+        f.write(f"{mlx_pid}\n")
+
     print("Starting UI (npm start) ...")
     npm = shutil.which("npm") or "npm"
     ui_pid = _spawn([npm, "start"], logs / "ui.log", env)
     with pid_file.open("a") as f:
         f.write(f"{ui_pid}\n")
 
-    print(f"proxy pid={proxy_pid}  ui pid={ui_pid}")
+    print(f"proxy pid={proxy_pid}  mlx-coord pid={mlx_pid}  ui pid={ui_pid}")
     print("SWARM MATRIX started -> http://localhost:3000")
     print("=" * 60)
     return 0

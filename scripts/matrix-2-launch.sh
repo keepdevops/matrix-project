@@ -81,6 +81,20 @@ for i in {1..15}; do
   echo -n "."; sleep 0.5
 done
 
+echo "Starting MLX coordinator..."
+MLX_COORD_PORT="${MLX_COORD_PORT:-3003}"
+python -m orchestration.mlx_coordinator.service \
+  --port "$MLX_COORD_PORT" \
+  > "$ROOT/logs/mlx_coordinator.log" 2>&1 &
+echo $! >> "$PID_FILE"
+for i in {1..15}; do
+  if curl -sf "http://localhost:${MLX_COORD_PORT}/api/mlx/health" > /dev/null 2>&1; then
+    echo " MLX coordinator ready."
+    break
+  fi
+  echo -n "."; sleep 0.5
+done
+
 echo "SWARM MATRIX started -> localhost:3000"
 echo "=========================================================="
 

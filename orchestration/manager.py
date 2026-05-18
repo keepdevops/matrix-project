@@ -50,6 +50,10 @@ class AgentConfig(BaseModel):
     read_timeout_secs: int | None = None
     max_concurrency: int | None = None
 
+    # Routing barrier: "mlx" means this agent is owned by the Python MLX coordinator,
+    # not the C++ coordinator. The C++ side skips these agents at configure time.
+    coordinator: str | None = None
+
     # Future fields (Phase 4): RAG config.
     rag: dict[str, Any] | None = None
 

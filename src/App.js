@@ -30,6 +30,7 @@ function App() {
     submit, loadHistory, checkStatus,
     setResponses, setFinalAnswer, lastMeta, setLastMeta,
     currentSession, setCurrentSession,
+    backend, switchBackend,
   } = useSwarm();
 
   const {
@@ -286,6 +287,8 @@ function App() {
             useRag={useRag}
             onUseRagChange={setUseRag}
             activeAgents={activeAgents}
+            backend={backend}
+            onBackendChange={switchBackend}
           />
           {excludedBreaker.length > 0 && (
             <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">

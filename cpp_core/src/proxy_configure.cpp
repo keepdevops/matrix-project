@@ -49,6 +49,9 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
     }
 
     for (auto& a : agents) {
+        // Hard barrier: agents owned by the Python MLX coordinator are invisible here.
+        if (a.value("coordinator", "") == "mlx") continue;
+
         std::string model = a["model"].get<std::string>();
         std::string sg    = a.value("server_group", "");
         // backend resolution order: explicit "backend" field → "engine" field → infer from extension
