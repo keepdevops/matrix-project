@@ -67,6 +67,12 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                     if (a.name == synth_name) { synth_agent = &a; break; }
                 }
 
+                // Flush threshold: write a batched token event after this many
+                // chars accumulate. Keeps mutex acquisitions low (one per ~128
+                // bytes vs. one per token) while staying well below human
+                // reading speed for visible latency.
+                static constexpr size_t TOKEN_BATCH_BYTES = 128;
+
                 auto stream_parallel = [&](const std::vector<const Agent*>& parallel_agents,
                                            std::map<std::string, std::string>& outputs) {
                     std::mutex out_mu;
@@ -76,19 +82,30 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                         threads.emplace_back([a, prompt_snap, cancel,
                                               &write_event, &outputs, &out_mu]() {
                             std::string assembled;
+                            std::string batch;
+
+                            auto flush_batch = [&]() {
+                                if (batch.empty()) return;
+                                json payload = {{"agent", a->name}, {"delta", batch}};
+                                write_event("token", payload.dump());
+                                batch.clear();
+                            };
+
                             auto on_chunk = [&](const std::string& delta) {
                                 assembled += delta;
-                                json payload = {{"agent", a->name}, {"delta", delta}};
-                                write_event("token", payload.dump());
+                                batch    += delta;
+                                if (batch.size() >= TOKEN_BATCH_BYTES) flush_batch();
                             };
                             try {
                                 agent_stream::stream_agent(*a, a->system_prompt,
                                                            *prompt_snap, on_chunk,
                                                            cancel.get());
                             } catch (const std::exception& e) {
+                                flush_batch();
                                 json err = {{"agent", a->name}, {"error", e.what()}};
                                 write_event("error", err.dump());
                             }
+                            flush_batch(); // emit any remaining buffered tokens
                             {
                                 std::lock_guard<std::mutex> lk(out_mu);
                                 outputs[a->name] = assembled;
