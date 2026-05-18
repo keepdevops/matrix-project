@@ -23,6 +23,12 @@ function normalizeApiBase() {
 const API_BASE = normalizeApiBase();
 
 /**
+ * Base URL for the Python MLX coordinator (hard barrier — never reaches C++).
+ * Default: /api/mlx (same-origin via Nginx), or override with REACT_APP_MLX_API_BASE.
+ */
+const MLX_API_BASE = (process.env.REACT_APP_MLX_API_BASE || '/api/mlx').replace(/\/+$/, '');
+
+/**
  * Base URL for the RAG ingest sidecar (orchestration/rag/service.py).
  * Default: http://localhost:8001 — set REACT_APP_RAG_INGEST_BASE to override.
  */
@@ -209,6 +215,95 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
 }
 
 /**
+ * Submit a prompt to the Python MLX coordinator via SSE streaming.
+ * Drop-in replacement for submitPromptStream when backend="mlx".
+ * callbacks: { onToken, onAgentDone, onDone, onError }
+ */
+export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
+  const { onToken, onAgentDone, onDone, onError } = callbacks;
+  const controller = new AbortController();
+
+  const body = { prompt, temperature };
+  if (opts.sessionId) body.session_id = opts.sessionId;
+  if (opts.params) body.params = opts.params;
+
+  (async () => {
+    let res;
+    try {
+      res = await fetch(`${MLX_API_BASE}/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('[mlx-stream] fetch failed:', err);
+        onError?.(null, err.message);
+      }
+      return;
+    }
+    if (!res.ok) {
+      const msg = await res.text().catch(() => `HTTP ${res.status}`);
+      console.error('[mlx-stream] non-ok response:', msg);
+      onError?.(null, msg);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { onDone?.(); break; }
+        buf += decoder.decode(value, { stream: true });
+        const blocks = buf.split('\n\n');
+        buf = blocks.pop();
+        for (const block of blocks) {
+          if (!block.trim()) continue;
+          let eventName = 'message';
+          let dataStr = '';
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+            else if (line.startsWith('data: ')) dataStr = line.slice(6);
+          }
+          let data;
+          try { data = JSON.parse(dataStr); } catch { data = dataStr; }
+          if (eventName === 'token') onToken?.(data.agent_id, data.text);
+          else if (eventName === 'agent_end') onAgentDone?.(data.agent_id);
+          else if (eventName === 'done') onDone?.();
+          else if (eventName === 'error') {
+            console.error('[mlx-stream] error:', data);
+            onError?.(data.agent_id, data.error);
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('[mlx-stream] read error:', err);
+        onError?.(null, err.message);
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+/** Clear an MLX session cache. Pass sessionId to clear one, omit to clear all. */
+export async function clearMlxSession(sessionId) {
+  const body = sessionId ? { session_id: sessionId } : {};
+  const res = await fetch(`${MLX_API_BASE}/session/clear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`mlx session clear failed (${res.status})`);
+  return res.json();
+}
+
+/**
  * Submit a prompt to all agents via the coordinator
  */
 export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
@@ -251,7 +346,8 @@ export async function fetchModes() {
   return coalesce('modes', async () => {
     const response = await fetch(`${API_BASE}/modes`);
     if (!response.ok) throw new Error(`Failed to fetch modes: ${response.status}`);
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   });
 }
 
@@ -391,7 +487,14 @@ export async function fetchAgentHealth() {
 export async function fetchModeAgents(name) {
   const response = await fetch(`${API_BASE}/modes/${encodeURIComponent(name)}/agents`);
   if (!response.ok) throw new Error(`Failed to fetch mode agents: ${response.status}`);
-  return response.json();
+  const data = await response.json();
+  if (!data || typeof data !== 'object') return { agents: [], available: [], stale: [] };
+  return {
+    ...data,
+    agents:    Array.isArray(data.agents)    ? data.agents    : [],
+    available: Array.isArray(data.available) ? data.available : [],
+    stale:     Array.isArray(data.stale)     ? data.stale     : [],
+  };
 }
 
 /**

@@ -18,7 +18,7 @@ const ORG_PREFIXES = [
 
 function guessHfRepo(filename) {
   // Strip path and extension, remove quantization suffix like -Q4_K_M or -q4_0
-  const base = filename.replace(/\.gguf$/i, '').replace(/-[Qq]\d[^-]*(_[A-Z0-9]+)*$/, '');
+  const base = filename.replace(/\.gguf$/i, '').replace(/(-[Qq]\d[^-]*|-IQ\d[^-]*)(_[A-Z0-9]+)*$/, '');
   for (const [re, org] of ORG_PREFIXES) {
     if (re.test(base)) return `${org}/${base}`;
   }
@@ -26,7 +26,7 @@ function guessHfRepo(filename) {
 }
 
 function guessOutputName(filename) {
-  const base = filename.replace(/\.gguf$/i, '').replace(/-[Qq]\d[^-]*(_[A-Z0-9]+)*$/, '');
+  const base = filename.replace(/\.gguf$/i, '').replace(/(-[Qq]\d[^-]*|-IQ\d[^-]*)(_[A-Z0-9]+)*$/, '');
   return base;
 }
 

@@ -7,10 +7,71 @@ verify which agent produced which output.
 Failure injection: pass `fail=True` to make every request return HTTP 500.
 Useful for exercising the circuit breaker.
 
-Records the prompts it received in `.prompts_received` for assertion."""
+Records the prompts it received in `.prompts_received` for assertion.
+
+KV pressure support: set `.kv` to a KvState instance to serve realistic
+/props, /slots, and /metrics responses for pressure_snapshot tests."""
 import json
 import threading
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import List
+
+
+@dataclass
+class SlotState:
+    """Per-slot KV cache state, mirrors llama-server /slots response fields."""
+    is_processing: bool = False
+    cache_tokens: int = 0
+
+
+@dataclass
+class KvState:
+    """Configurable KV pressure state served on /props, /slots, /metrics."""
+    n_ctx: int = 4096
+    slots: List[SlotState] = field(default_factory=lambda: [SlotState()])
+
+    @property
+    def total_slots(self) -> int:
+        return len(self.slots)
+
+    @property
+    def slots_busy(self) -> int:
+        return sum(1 for s in self.slots if s.is_processing)
+
+    @property
+    def kv_used_tokens(self) -> int:
+        return sum(s.cache_tokens for s in self.slots)
+
+    @property
+    def usage_ratio(self) -> float:
+        total_capacity = self.n_ctx * self.total_slots
+        if total_capacity == 0:
+            return 0.0
+        return min(1.0, self.kv_used_tokens / total_capacity)
+
+    def props_json(self) -> dict:
+        return {
+            "total_slots": self.total_slots,
+            "default_generation_settings": {"n_ctx": self.n_ctx},
+        }
+
+    def slots_json(self) -> list:
+        return [
+            {"is_processing": s.is_processing, "cache_tokens": s.cache_tokens}
+            for s in self.slots
+        ]
+
+    def metrics_text(self) -> str:
+        lines = [
+            f"llamacpp:kv_cache_usage_ratio {self.usage_ratio:.6f}",
+            f"llamacpp:kv_cache_tokens {self.kv_used_tokens}",
+            f"llamacpp:requests_processing {self.slots_busy}",
+            "llamacpp:n_decode_total 0",
+            "llamacpp:prompt_tokens_total 0",
+            "llamacpp:tokens_predicted_total 0",
+        ]
+        return "\n".join(lines) + "\n"
 
 
 class MockAgent:
@@ -25,6 +86,8 @@ class MockAgent:
         # when consumed. Used to test retry-on-transient-failure: e.g. set to
         # 1 and verify the second attempt succeeds without surfacing an error.
         self.fail_first_n: int = 0
+        # Optional KV pressure state — if set, /props /slots /metrics are served.
+        self.kv: KvState | None = None
         self._server: HTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -34,6 +97,37 @@ class MockAgent:
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args, **kwargs):
                 pass  # silence default access log
+
+            def _send_json(self, obj, status=200):
+                body = json.dumps(obj).encode('utf-8')
+                self.send_response(status)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self):
+                kv = agent.kv
+                if kv is None:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                if self.path == '/props':
+                    self._send_json(kv.props_json())
+                elif self.path == '/slots':
+                    self._send_json(kv.slots_json())
+                elif self.path == '/metrics':
+                    body = kv.metrics_text().encode('utf-8')
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                elif self.path == '/v1/models':
+                    self._send_json({"object": "list", "data": [{"id": agent.name}]})
+                else:
+                    self.send_response(404)
+                    self.end_headers()
 
             def do_POST(self):
                 length = int(self.headers.get('Content-Length', 0))

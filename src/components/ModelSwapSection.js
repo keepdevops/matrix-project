@@ -56,8 +56,8 @@ export default function ModelSwapSection({ onRedeployed }) {
   const dirtyCount = Object.keys(overrides).length + Object.keys(extraOverrides).length;
 
   const currentExtraArgs = (a) => {
-    if (a.name in extraOverrides) return extraOverrides[a.name];
-    return Array.isArray(a.extra_args) ? a.extra_args.join(' ') : (a.extra_args || '');
+    if (a.name in extraOverrides) return typeof extraOverrides[a.name] === 'string' ? extraOverrides[a.name] : '';
+    return Array.isArray(a.extra_args) ? a.extra_args.join(' ') : (typeof a.extra_args === 'string' ? a.extra_args : '');
   };
   const handleExtraChange = (name, value) => setExtraOverrides(prev => ({ ...prev, [name]: value }));
 
@@ -67,7 +67,9 @@ export default function ModelSwapSection({ onRedeployed }) {
     if (!newPath || newPath === a.model) return;
     const cur  = models.find(m => m.path === a.model);
     const next = models.find(m => m.path === newPath);
-    if (cur?.size_bytes > 0 && next?.size_bytes > 0 && next.size_bytes > cur.size_bytes) {
+    if (!next?.size_bytes) {
+      memoryWarnings[a.name] = `Unknown size — verify Metal pool capacity before deploying`;
+    } else if (cur?.size_bytes > 0 && next.size_bytes > cur.size_bytes) {
       const diffGB = ((next.size_bytes - cur.size_bytes) / 1e9).toFixed(1);
       const nextGB = (next.size_bytes / 1e9).toFixed(1);
       memoryWarnings[a.name] = `+${diffGB} GB larger (${nextGB} GB) — may exceed Metal pool`;

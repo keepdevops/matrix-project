@@ -31,6 +31,7 @@ export default function ModeRosterPanel() {
   const [stageContextChars, setStageContextChars] = useState('');
   const [busy, setBusy]       = useState(false);
   const [error, setError]     = useState(null);
+  const [staleAgents, setStaleAgents] = useState([]);
   const [savedAt, setSavedAt] = useState(null);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function ModeRosterPanel() {
     (async () => {
       try {
         setError(null);
+        setStaleAgents([]);
         const data = await fetchModeAgents(activeTab);
         if (cancelled) return;
         setSelected(data.explicit ? (data.agents || []) : []);
@@ -99,7 +101,7 @@ export default function ModeRosterPanel() {
         setPipelineOrder(ord);
         setUsePipelineOrder(ord.length > 0);
         if (Array.isArray(data.stale) && data.stale.length) {
-          setError(`Configured but not deployed: ${data.stale.join(', ')} — save to drop, or redeploy.`);
+          setStaleAgents(data.stale);
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -122,7 +124,7 @@ export default function ModeRosterPanel() {
 
   const save = async () => {
     if (!activeTab) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setStaleAgents([]);
     try {
       const opts = {};
       const parsed = parseInt(maxSelect, 10);
@@ -265,7 +267,12 @@ export default function ModeRosterPanel() {
           Clear override
         </button>
         {error && <span style={{ color: '#ff7777', fontSize: '0.8rem' }}>{error}</span>}
-        {!error && savedAt && (
+        {!error && staleAgents.length > 0 && (
+          <span style={{ color: '#ffaa44', fontSize: '0.8rem' }}>
+            ⚠ Not deployed: {staleAgents.join(', ')} — save to drop, or redeploy
+          </span>
+        )}
+        {!error && !staleAgents.length && savedAt && (
           <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>
             saved {new Date(savedAt).toLocaleTimeString()}
           </span>

@@ -59,6 +59,15 @@ export function computeRiskEstimate(roles, selected, roleModels, models) {
     groups[key].maxContext = Math.max(groups[key].maxContext, roleContext);
   }
 
+  // Sum MLX model weights from size_bytes (Metal memory — not captured by RAM_MODEL_GB
+  // which only accounts for the two loaded llama models).
+  const mlxModelRamGb = Object.values(groups)
+    .filter(g => g.engine === 'mlx')
+    .reduce((sum, g) => {
+      const meta = models.find(m => m.path === g.modelPath);
+      return sum + (meta?.size_bytes > 0 ? meta.size_bytes / 1e9 : 0);
+    }, 0);
+
   const computed = Object.values(groups).map(g => {
     const parallel    = g.agents.length;
     const perAgentCtx = g.maxContext;
@@ -87,7 +96,7 @@ export function computeRiskEstimate(roles, selected, roleModels, models) {
   });
 
   const totalKvGb   = computed.reduce((sum, g) => sum + g.kvGb, 0);
-  const totalRamGb  = RAM_MODEL_GB + RAM_OS_GB + totalKvGb;
+  const totalRamGb  = RAM_MODEL_GB + RAM_OS_GB + totalKvGb + mlxModelRamGb;
   const band        = getRiskBand(totalRamGb);
 
   // Block if any group explicitly blocked, or if total RAM would OOM.
@@ -104,6 +113,7 @@ export function computeRiskEstimate(roles, selected, roleModels, models) {
     totalScore: totalRamGb,   // kept for API compat; now represents estimated GB
     totalRamGb,
     totalKvGb,
+    mlxModelRamGb,
     band,
     blockedGroups,
     warnGroups,
@@ -123,6 +133,11 @@ export function RiskCard({ riskEstimate, engine, isMixedBackends, activeBackends
         ~<strong>{e.totalRamGb != null ? e.totalRamGb.toFixed(1) : '—'}</strong> GB
         &nbsp;({RAM_TOTAL_GB}GB budget — warn at {RAM_WARN_GB}GB, block at {RAM_BLOCK_GB}GB)
       </div>
+      {e.mlxModelRamGb > 0 && (
+        <div className="swarm-risk-hint">
+          Includes ~{e.mlxModelRamGb.toFixed(1)}GB MLX model weights in Metal memory
+        </div>
+      )}
       {isMixedBackends && (
         <div className="swarm-risk-mixed">
           Mixed backend plan: {activeBackends.join(' + ')}
