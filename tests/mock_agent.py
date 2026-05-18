@@ -136,12 +136,17 @@ class MockAgent:
                     payload = json.loads(body)
                 except json.JSONDecodeError:
                     payload = {}
+                if not isinstance(payload, dict):
+                    payload = {}
                 # Extract last user message for the reply template.
                 user_msg = ''
-                for m in reversed(payload.get('messages', [])):
-                    if m.get('role') == 'user':
-                        user_msg = m.get('content', '')
-                        break
+                messages = payload.get('messages', [])
+                if isinstance(messages, list):
+                    for m in reversed(messages):
+                        if isinstance(m, dict) and m.get('role') == 'user':
+                            content = m.get('content', '')
+                            user_msg = content if isinstance(content, str) else ''
+                            break
                 agent.prompts_received.append(user_msg)
 
                 should_fail = agent.fail or agent.fail_first_n > 0
