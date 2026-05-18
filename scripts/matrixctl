@@ -129,6 +129,10 @@ def main() -> int:
     up = sub.add_parser("up", help="Bring up pgvector + sidecar + proxy + UI")
     up.add_argument("--no-rag", action="store_true",
                     help="Skip pgvector + ingest sidecar (proxy + UI only).")
+    up.add_argument("--no-index", action="store_true",
+                    help="Skip auto-indexing the repo on startup.")
+    up.add_argument("--index-path", type=Path, default=None,
+                    help="Directory to auto-index (default: repo root).")
 
     dn = sub.add_parser("down", help="Stop UI/proxy/coordinator/workers/sidecar")
     dn.add_argument("--full", action="store_true",
@@ -162,7 +166,7 @@ def main() -> int:
     if args.cmd == "shutdown":
         return run_shutdown()
     if args.cmd == "up":
-        return run_up(no_rag=args.no_rag)
+        return run_up(no_rag=args.no_rag, no_index=args.no_index, index_path=args.index_path)
     if args.cmd == "down":
         return run_down(full=args.full)
 

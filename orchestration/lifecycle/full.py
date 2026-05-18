@@ -87,7 +87,22 @@ def _sidecar_up() -> int:
     return 0
 
 
-def run_up(no_rag: bool = False) -> int:
+def _auto_index(index_path: Path) -> None:
+    """Kick off background re-index of index_path using the mlx embedder."""
+    matrixctl = REPO / "scripts" / "matrixctl"
+    logs = REPO / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    log_fp = open(logs / "rag-autoindex.log", "ab")
+    cmd = [sys.executable, str(matrixctl), "rag", "index", str(index_path), "--embedder", "mlx"]
+    proc = subprocess.Popen(
+        cmd, cwd=REPO, env=os.environ.copy(),
+        stdout=log_fp, stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    print(f"  auto-index pid={proc.pid} indexing {index_path} → logs/rag-autoindex.log")
+
+
+def run_up(no_rag: bool = False, no_index: bool = False, index_path: Path | None = None) -> int:
     print("=" * 60)
     print("SWARM MATRIX up" + (" (no-rag)" if no_rag else ""))
     if not no_rag:
@@ -97,6 +112,10 @@ def run_up(no_rag: bool = False) -> int:
         rc = _sidecar_up()
         if rc != 0:
             return rc
+        if not no_index:
+            target = index_path or REPO
+            print(f"Auto-indexing {target} in background ...")
+            _auto_index(target)
     return run_launch()
 
 
