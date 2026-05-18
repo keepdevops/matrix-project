@@ -19,9 +19,18 @@ from backends.base import GenerateRequest, HealthStatus, InferenceBackend, Token
 
 logger = logging.getLogger(__name__)
 
-# Per-port inflight counters shared across all MlxBackend instances.
+# Per-port inflight counters and serialization semaphores.
 _inflight: dict[int, int] = {}
 _inflight_lock = asyncio.Lock()
+_port_semaphores: dict[int, asyncio.Semaphore] = {}
+_semaphores_lock = asyncio.Lock()
+
+
+async def _get_semaphore(port: int) -> asyncio.Semaphore:
+    async with _semaphores_lock:
+        if port not in _port_semaphores:
+            _port_semaphores[port] = asyncio.Semaphore(1)
+        return _port_semaphores[port]
 
 
 async def _inc(port: int) -> None:
@@ -80,6 +89,12 @@ class MlxBackend(InferenceBackend):
         if req.stop:
             payload["stop"] = list(req.stop)
 
+        sem = await _get_semaphore(self.port)
+        async with sem:
+            async for chunk in self._do_generate(req, messages, payload):
+                yield chunk
+
+    async def _do_generate(self, req: GenerateRequest, messages: list, payload: dict) -> AsyncIterator[TokenChunk]:
         await _inc(self.port)
         t_start = time.monotonic()
         completion_tokens = 0
@@ -113,6 +128,10 @@ class MlxBackend(InferenceBackend):
                         completion_tokens += 1
                         yield TokenChunk(text=text)
 
+        except asyncio.TimeoutError:
+            logger.error("mlx-backend %s: request timed out", self.agent_id)
+            yield TokenChunk(text="[timeout]", done=True)
+            return
         except aiohttp.ClientError as exc:
             logger.error("mlx-backend %s: connection error: %s", self.agent_id, exc)
             yield TokenChunk(text=f"[connection error: {exc}]", done=True)

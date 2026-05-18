@@ -34,10 +34,13 @@ class Session:
 class SessionStore:
     """Thread-safe (asyncio) store for MLX chat sessions."""
 
-    def __init__(self, max_idle_secs: int = 300) -> None:
+    def __init__(self, max_idle_secs: int = 300, max_sessions: int = 50,
+                 max_messages: int = 100) -> None:
         self._sessions: dict[str, Session] = {}
         self._lock: asyncio.Lock | None = None  # created lazily inside the event loop
         self.max_idle_secs = max_idle_secs
+        self.max_sessions = max_sessions
+        self.max_messages = max_messages
 
     def _get_lock(self) -> asyncio.Lock:
         if self._lock is None:
@@ -47,6 +50,11 @@ class SessionStore:
     async def get_or_create(self, session_id: str) -> Session:
         async with self._get_lock():
             if session_id not in self._sessions:
+                if len(self._sessions) >= self.max_sessions:
+                    lru = min(self._sessions.values(), key=lambda s: s.last_used)
+                    evicted = self._sessions.pop(lru.session_id)
+                    logger.info("mlx-session: LRU evict %s (cap=%d)", lru.session_id, self.max_sessions)
+                    _free_cache(evicted)
                 self._sessions[session_id] = Session(session_id=session_id)
                 logger.info("mlx-session: created %s", session_id)
             sess = self._sessions[session_id]
@@ -56,6 +64,8 @@ class SessionStore:
     async def append_message(self, session_id: str, role: str, content: str) -> None:
         sess = await self.get_or_create(session_id)
         sess.messages.append({"role": role, "content": content})
+        if len(sess.messages) > self.max_messages:
+            sess.messages = sess.messages[-self.max_messages:]
 
     async def get_messages(self, session_id: str) -> list[dict[str, str]]:
         async with self._get_lock():
