@@ -29,6 +29,7 @@ rag_embed_test
 cpp_core/.clangd
 
 # Local runtime state
+.mlx_coord_state.json
 history.json.migrated
 history.json
 sessions.json
