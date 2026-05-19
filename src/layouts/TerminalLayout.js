@@ -25,6 +25,7 @@ function StatusLine({ online, activeMode, activeAgents, layout, theme, onSetLayo
         value={layout}
         onChange={e => onSetLayout(e.target.value)}
         title="Layout"
+        aria-label="Layout"
       >
         {Object.entries(LAYOUTS).map(([id, { label }]) => (
           <option key={id} value={id}>{label}</option>
@@ -35,6 +36,7 @@ function StatusLine({ online, activeMode, activeAgents, layout, theme, onSetLayo
         value={theme}
         onChange={e => onSetTheme(e.target.value)}
         title="Theme"
+        aria-label="Theme"
       >
         {Object.entries(THEMES).map(([id, { label }]) => (
           <option key={id} value={id}>{label}</option>
