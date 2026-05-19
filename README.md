@@ -79,19 +79,28 @@ it with Matrix Swarm for parallel planning + deep execution.
   - **LLAMA** — `llama-server` from llama.cpp; loads `.gguf` files; uses
     `--parallel N` so same-model agents share one process. Supports KV-cache clear.
   - **MLX** — `mlx_lm.server` (Apple Silicon / Metal); loads model directories;
-    typically faster per-token on M-series.
+    typically faster per-token on M-series. Routes through a dedicated Python
+    coordinator on `:3003` with per-server request serialisation and session caps.
   - **vLLM** — 4 servers via Docker Model Runner on ports 8080–8083
     (Qwen2.5-14B, Llama-3.2-3B, DeepSeek-Coder-V2, Phi-4-mini).
 - **Per-agent model override** — point any agent at any model file/dir from the
   CONFIGURE panel.
+- **Multi-turn conversation threads** — sessions auto-continue after the first
+  BROADCAST. The `ConversationThread` panel shows the full turn history.
+  Session state is persisted in `sessions.json` and reset by CLEAR KV.
+- **Five UI layouts** — switch between default, dashboard (metrics-first),
+  terminal (dense), minimal (single-column), and sidebar (roster + content)
+  via the header switcher or `?layout=<name>` in the URL.
+- **Visual layout editor** — flow, freeform, and grid editing modes with
+  localStorage persistence for custom dashboard arrangements.
 - **CodeMirror response viewer** — auto-language-detect, edit, copy, save. Each
   card has an expand (⤢) button for a full-screen editor.
 - **Auto code extraction** — the `programmer` agent's first code block is pulled
   into a syntax-highlighted CODE OUTPUT pane below the grid (C++, Go, Python,
   JS, Rust, SQL, …).
 - **Broadcast history** — last 10 prompts and full responses, click to reload.
-- **CLEAR KV** — drop llama-server KV cache and restart MLX servers between
-  unrelated prompts.
+- **CLEAR KV** — drop llama-server KV cache, restart MLX servers, and reset
+  conversation session state between unrelated prompts.
 - **SAVE CODE** — export every agent's code blocks to one timestamped file.
 - **Pre-built swarm configs** — `swarm-config.json` (generated; see below),
   plus authored variants `swarm-config-16gb.json`, `swarm-config-32gb.json`,
@@ -130,6 +139,9 @@ it with Matrix Swarm for parallel planning + deep execution.
   `meta.timings { agent: { calls, total_ms, completion_tokens } }` and
   `meta.wall_ms`. The `MetricsStrip` component renders this as a per-agent
   bar chart below FINAL ANSWER. Themeable via the existing light/dark toggle.
+- **RAG (opt-in)** — pgvector-backed retrieval injects relevant codebase
+  chunks into the prompt before dispatch. Per-agent targeting, a coordinator
+  hook for the C++ path, and a `matrixctl rag` CLI for indexing and querying.
 - **Integration test suite** — `bash tests/run.sh` runs ~30 end-to-end tests
   against a coordinator wired to mock agents (no real models needed). Covers
   every mode, streaming, breaker, presets, retry/skip, prompt editing.
