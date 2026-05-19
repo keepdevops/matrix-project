@@ -12,6 +12,23 @@
 #include <map>
 #include <set>
 #include <cstdlib>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+static bool is_port_available(int port) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return false;
+    int opt = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    struct sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    bool ok = bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == 0;
+    close(fd);
+    return ok;
+}
 
 static std::string join(const std::vector<std::string>& v) {
     std::string r;
@@ -62,15 +79,25 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
                            : std::string(ends_with_gguf(model) ? "llama" : "mlx");
         std::string key;
         int fixed_port = a.contains("port") ? a["port"].get<int>() : -1;
+        // Resolve preferred port: use fixed_port only if it is actually free.
+        // If the preferred port is already taken by the OS, fall back to auto-assign
+        // so the server can still start on the next available port.
+        auto pick_port = [&](int preferred) -> int {
+            if (preferred > 0 && is_port_available(preferred) && !fixed_ports.count(preferred))
+                return preferred;
+            while (fixed_ports.count(next_port) || !is_port_available(next_port)) ++next_port;
+            return next_port++;
+        };
         if (bk == "docker") key = "docker:shared";
         else if (bk == "docker-vllm" && fixed_port > 0) key = "docker-vllm:" + std::to_string(fixed_port);
         else if ((bk == "mlx" || bk == "vllm") && fixed_port > 0) key = bk + ":" + std::to_string(fixed_port);
         else key = bk + ":" + model + ":" + sg;
         if (!key_to_port.count(key)) {
             if (bk == "docker") key_to_port[key] = PROXY_CONFIGURE_DOCKER_PORT;
-            else if ((bk == "docker-vllm" || bk == "mlx" || bk == "vllm") && fixed_port > 0) key_to_port[key] = fixed_port;
+            else if (bk == "docker-vllm" || bk == "mlx" || bk == "vllm")
+                key_to_port[key] = pick_port(fixed_port);
             else {
-                while (fixed_ports.count(next_port)) ++next_port;
+                while (fixed_ports.count(next_port) || !is_port_available(next_port)) ++next_port;
                 key_to_port[key] = next_port++;
             }
         }
