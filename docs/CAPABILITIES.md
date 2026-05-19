@@ -409,20 +409,7 @@ The C++ coordinator handles llama.cpp and vLLM agents; the proxy routes to the c
 
 ---
 
-## 12. Conversation / session management
-
-Matrix Swarm supports multi-turn conversations per agent session.
-
-- Each broadcast optionally continues an existing session (auto-continued from the UI after the first prompt).
-- The `ConversationThread` component shows the full turn history in a collapsible panel.
-- Session state persists in `sessions.json`; each session has an ID, agent roster, and message history.
-- The streaming route emits a `session` SSE event carrying `{session_id}` before the first token so the UI can wire follow-ups to the correct session.
-- `POST /api/architect/stream` with `{session_id}` continues the thread; without it a new session is created.
-- CLEAR KV resets session state for all MLX servers (llama.cpp KV cache is cleared separately).
-
----
-
-## 13. RAG (Retrieval-Augmented Generation)
+## 12. RAG (Retrieval-Augmented Generation)
 
 ### CLI indexing
 
