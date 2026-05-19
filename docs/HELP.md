@@ -32,14 +32,16 @@ python3 scripts/matrixctl launch
 | **CONFIGURE** | Open swarm panel. Choose engine, agents, models; edit system prompts (✏️); click LAUNCH SWARM. |
 | **PER-MODE ROSTER** | (Inside CONFIGURE.) Which agents participate per mode; pipeline order; synthesizer; max_select for router. |
 | **PRESETS** | Save mode + roster bundle under a name; apply in one click. |
-| **CLEAR KV** | Wipe KV cache on llama agents and restart MLX servers. Do this before every new major prompt. |
+| **CLEAR KV** | Wipe KV cache on llama agents, restart MLX servers, and reset conversation session state. Do this before every new major prompt. |
 | **HISTORY (N)** | Last 10 broadcasts; click any to reload prompt + responses. |
 | **Temperature** | Default 0.20. Keep 0.10–0.25 for code; 0.40–0.70 for brainstorming. |
 | **BROADCAST / Cmd+Enter** | Send prompt under active mode. |
+| **ConversationThread** | Collapsible panel showing the multi-turn session history. Sessions auto-continue after the first BROADCAST. |
+| **Layout switcher** | Cycle between default / dashboard / terminal / minimal / sidebar layouts, or use `?layout=<name>` in the URL. |
 | **RUN METRICS** | Per-agent ms + token bars below FINAL ANSWER. |
 | **⤢ on a card** | Open that agent's full response in a CodeMirror editor. |
 | **SAVE CODE** | Export all code blocks to a timestamped file. |
-| **?** | This in-app help modal. |
+| **?** | In-app help modal; links to full docs. |
 
 ---
 
@@ -93,10 +95,12 @@ python3 scripts/matrixctl launch
 | Issue | Fix |
 |---|---|
 | UI shows OFFLINE | Click CONFIGURE → LAUNCH SWARM. Check `logs/coordinator.log` if it fails. |
-| Agents seem stuck / contradicting | Click CLEAR KV to reset all inference state. |
+| Agents seem stuck / contradicting | Click CLEAR KV to reset inference state and conversation session. |
+| Session not continuing | CLEAR KV was clicked (resets sessions) — BROADCAST again to start a new session. |
 | Only one agent responds in router mode | `foreman` system prompt may need tuning — edit it with ✏️ in CONFIGURE. |
 | Pipeline output is garbage after stage 2 | A stage failed; check `meta.errors[]` in the API response. The coordinator skips the bad stage automatically. |
 | MLX server not starting | Ensure `mlx_lm` is installed (`pip install mlx-lm`) and `MATRIX_MLX_PYTHON` points to the right interpreter. |
+| RAG returns no results | Check `bash scripts/rag-docker-compose.sh status`; re-index with `python3 scripts/matrixctl rag index . --embedder hash --force`. |
 | Out of VRAM / KV overflow | Reduce active agents to 5–7. Click CLEAR KV between prompts. |
 
 ---
@@ -107,6 +111,11 @@ python3 scripts/matrixctl launch
 |---|---|
 | `Cmd+Enter` | BROADCAST |
 | `Shift+Enter` | Insert newline in prompt box |
+| `⌘/Ctrl+Enter` | Validate (standalone config editor) |
+| `⌘/Ctrl+S` | Download config when valid; re-validate otherwise (standalone editor) |
+| `⌘/Ctrl+G` | Go to line (standalone editor) |
+| `⌘/Ctrl+F` | Find (standalone editor) |
+| `⌘/Ctrl+Z` / `⌘/Ctrl+Shift+Z` | Undo / redo (standalone editor) |
 
 ---
 
