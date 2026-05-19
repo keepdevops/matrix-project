@@ -14,10 +14,10 @@ function HelpModal({ onClose }) {
           <div className="help-section">
             <h3>Quick Start</h3>
             <div className="help-steps">
-              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>bash scripts/matrix-1-check.sh</code> for a pre-flight check, then <code>bash scripts/matrix-2-launch.sh</code> to start the proxy and UI. Shut down with <code>bash scripts/matrix-3-shutdown.sh</code></span></div>
+              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>python3 scripts/matrixctl check</code> for a pre-flight check, then <code>python3 scripts/matrixctl launch</code> to start the proxy, UI, and MLX coordinator. Shut down with <code>python3 scripts/matrixctl shutdown</code></span></div>
               <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX / vLLM) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
               <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span style={{color:'#648FFF'}}>ONLINE</span> (header may show the engine in use, e.g. MLX)</span></div>
-              <div className="help-step"><span className="help-step-n">4</span><span>Pick an orchestration <strong>MODE</strong> (flat / pipeline / router) from the header dropdown</span></div>
+              <div className="help-step"><span className="help-step-n">4</span><span>Pick an orchestration <strong>MODE</strong> (flat / pipeline / cascade / router) from the header dropdown</span></div>
               <div className="help-step"><span className="help-step-n">5</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
               <div className="help-step"><span className="help-step-n">6</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below; click <strong>⤢</strong> on any card for a full-screen CodeMirror editor</span></div>
             </div>
@@ -37,7 +37,7 @@ function HelpModal({ onClose }) {
               <dt>PRESETS</dt>
               <dd>Save the active mode's current settings (mode + roster + synthesizer + max_select) under a name like <em>design-review</em> or <em>router-fast</em>. <strong>Apply</strong> swaps modes and loads the bundle in one click; ✕ deletes. Survives restart and (with <code>MATRIX_SOURCE_CONFIG</code> set) UI redeploy.</dd>
               <dt>CLEAR KV</dt>
-              <dd>Clears state on all agents: erases the KV cache on llama-server agents and restarts MLX servers to clear conversation history. Useful when agents seem stuck, produce repetitive output, or after switching to a completely different task.</dd>
+              <dd>Clears state on all agents: erases the KV cache on llama-server agents, restarts MLX servers, and resets conversation session state. Use before every new major prompt and whenever agents seem stuck or produce repetitive output.</dd>
               <dt>HISTORY (N)</dt>
               <dd>Shows your last 10 broadcasts. Click any entry to reload the prompt and all agent responses exactly as they were. N shows the total number of entries stored.</dd>
               <dt>?</dt>
@@ -123,6 +123,12 @@ function HelpModal({ onClose }) {
               <dd>First prompt fills KV with context. A second prompt without clearing can leave half the agents seeing contradictory instructions.</dd>
               <dt>5–7 agents is the sweet spot for coding</dt>
               <dd>Running large swarms (12–16 agents) risks VRAM exhaustion and KV token budget overflow — only do that for high-level exploration.</dd>
+              <dt>Use cascade for best-of-N</dt>
+              <dd>Run 4–6 agents in parallel and let the synthesizer pick the strongest parts of each response — best of flat (parallelism) plus a single coherent final answer.</dd>
+              <dt>Save presets for recurring workflows</dt>
+              <dd>Once you find a good mode + roster combination, save it as a preset. One click restores the full bundle on the next session.</dd>
+              <dt>Tune foreman for router mode</dt>
+              <dd>The foreman system prompt is the main lever on classification quality. Edit it live with ✏️ in CONFIGURE — changes take effect on the next dispatch.</dd>
               <dt>SAVE CODE after each successful round</dt>
               <dd>The SAVE CODE button below the agent grid exports all code blocks from every agent into a single timestamped file.</dd>
               <dt>MLX on Apple Silicon</dt>
@@ -160,6 +166,8 @@ function HelpModal({ onClose }) {
             <h3>Streaming SSE</h3>
             <p><code>POST /api/architect/stream</code> dispatches under the active mode and emits Server-Sent Events as work progresses:</p>
             <dl>
+              <dt>session</dt>
+              <dd><code>{`{ session_id }`}</code> fires before the first token; the UI uses this to wire follow-up BROADCASTs to the same conversation thread.</dd>
               <dt>token / agent_done</dt>
               <dd>One <code>token</code> event per delta from each agent; one <code>agent_done</code> per agent on completion.</dd>
               <dt>stage (pipeline)</dt>
