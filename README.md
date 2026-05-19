@@ -24,6 +24,8 @@ extracts code from their responses in a React UI.
 | Multi-agent orchestration | **Yes (16+)** | No | No | No |
 | Mix backends per agent | **MLX + llama.cpp + vLLM** | No | No | No |
 | Coordinator modes | **Flat · Pipeline · Cascade · Router** | — | — | — |
+| Multi-turn conversation | **Yes (per-session threads)** | Yes | Yes | Yes |
+| RAG / codebase context | **Yes (pgvector, per-agent)** | Yes | Yes | Partial |
 | Open source | **Yes** | No | Yes | Yes |
 
 ### vs. MCP / agent frameworks
@@ -35,8 +37,10 @@ extracts code from their responses in a React UI.
 | Backends | **MLX + llama.cpp + vLLM mixable per agent** | Any | LangChain ecosystem | Multiple + local | Ollama / local | Any |
 | Pre-built agents | **16+ specialised** | User-defined | Graph nodes | Dynamic | Single + tools | Fixed dev team |
 | Orchestration | **Flat · Pipeline · Cascade · Router** | Sequential / hierarchical | Graph (loops, branches) | Message-based | Tool-loop | Pipeline |
-| UI | **Real-time React + code editor** | CLI | Visualisation tools | AutoGen Studio | VS Code-like | CLI |
-| Hardware tuning | **Apple Silicon + CUDA presets** | Neutral | Neutral | Neutral | Good | Neutral |
+| Multi-turn sessions | **Yes (ConversationThread)** | Yes | Yes | Yes | Yes | Limited |
+| RAG | **Yes (pgvector, per-agent targeting)** | Optional | Optional | Optional | Yes | Optional |
+| UI | **Real-time React + layouts + code editor** | CLI | Visualisation tools | AutoGen Studio | VS Code-like | CLI |
+| Hardware tuning | **Apple Silicon (MLX) + CUDA presets** | Neutral | Neutral | Neutral | Good | Neutral |
 | Time to first prompt | **`npm i -g`, then `matrix`** | Python crew kickoff | Graph definition | Convo setup | Docker + web UI | Python setup |
 
 **Pick Matrix Swarm** when you want privacy, multi-backend mixing, and instant
@@ -54,8 +58,14 @@ it with Matrix Swarm for parallel planning + deep execution.
                                 │  ├─ per-mode rosters    │
                                 │  ├─ presets · breaker   │
                                 │  ├─ SSE streaming       │
+                                │  ├─ conversation threads│
                                 │  └─▶ N agent backends   │
                                 │      (llama / mlx / vllm)│
+                                └──────────────┬──────────┘
+                                               │ MLX agents
+                                ┌──────────────▼──────────┐
+                                │  MLX coordinator (Py)   │
+                                │  :3003  · serialised    │
                                 └─────────────────────────┘
 ```
 
