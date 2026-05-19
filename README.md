@@ -270,14 +270,18 @@ Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` 
 
 ```
 src/                React UI (App, components, hooks, api)
-cpp_core/src/       C++ coordinator + proxy + modes (flat/pipeline/router)
-                    (formerly src2/ — moved in the reorg branch)
+  ├─ components/    Agent cards, modals, metrics, roster, RAG admin, …
+  ├─ layouts/       Layout variants: default/dashboard/terminal/minimal/sidebar
+  └─ editor/        Visual layout editor (flow/freeform/grid) with persistence
+cpp_core/src/       C++ coordinator + proxy + modes (flat/pipeline/cascade/router)
 backends/           Python InferenceBackend ABC + per-engine adapters
                     (llama_cpp, mlx, vllm)
 orchestration/      Python control plane
   ├─ manager.py     SwarmFactory: loads config/agents/*.json (Pydantic)
+  ├─ mlx_coordinator/  Python MLX coordinator (port 3003) — serialised MLX
+  │                    inference, session management, service helpers
   ├─ modes/         Plugin modes: flat/pipeline/cascade/router +
-                    speculative/map_reduce/critic_debate/tree_of_thought
+  │                 speculative/map_reduce/critic_debate/tree_of_thought
   ├─ telemetry/     structlog JSON logging + Prometheus /metrics
   └─ rag/           pgvector chunker / embedder / store / retrieve
 config/
@@ -286,14 +290,18 @@ config/
 docker/pgvector/    docker-compose for Postgres+pgvector (RAG)
 scripts/
   ├─ matrixctl              Unified Python CLI (check/launch/shutdown/rag)
-  ├─ matrix-1-check.sh      Legacy wrappers (matrixctl currently shells out)
-  ├─ matrix-2-launch.sh
-  ├─ matrix-3-shutdown.sh
-  ├─ build_cpp_binaries.sh  C++ build (now points at cpp_core/src)
-  └─ migrate_swarm_config.py  Split swarm-config.json -> config/agents/
+  ├─ build_cpp_binaries.sh  C++ build (targets cpp_core/src)
+  ├─ build_swarm_config.py  Merge config/agents/*.json → swarm-config.json
+  ├─ migrate_swarm_config.py  Split legacy swarm-config.json → config/agents/
+  └─ rag-docker-compose.sh  pgvector stack wrapper (up/down/psql/nuke/…)
+docs/               Documentation
+  ├─ SETUP.md       Prerequisites, build, first-run walkthrough
+  ├─ HELP.md        Quick-reference: controls, modes, agents, issues
+  ├─ USER_MANUAL.md End-to-end usage guide
+  └─ CAPABILITIES.md  Full API, SSE events, env vars, internals reference
 public/             CRA static assets, models.json fallback
-swarm-config*.json  Pre-tuned agent/model layouts (still read by the live
-                    C++ coordinator — removed once it consumes config/agents/)
+tools/              Standalone swarm-config guardrailed editor (HTML)
+swarm-config*.json  Pre-tuned agent/model layouts read by the C++ coordinator
 production/         Optional nginx UI (not required for dev)
 ```
 
