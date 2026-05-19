@@ -14,7 +14,7 @@ Step-by-step instructions to get from a fresh clone to a running swarm.
 | Python ≥ 3.10 | Used by `matrixctl`, orchestration, RAG, and MLX coordinator. |
 | `llama-server` on `PATH` | Build from [llama.cpp](https://github.com/ggerganov/llama.cpp) or install via Homebrew. |
 | `mlx_lm` (Apple Silicon only) | `pip install mlx-lm` in your active environment. |
-| Docker Desktop (vLLM only) | With Docker Model Runner enabled for GPU-accelerated vLLM servers. |
+| Docker Desktop (vLLM or RAG) | Model Runner for GPU-accelerated vLLM servers; pgvector container for RAG. |
 | GGUF or MLX model files | See [Model paths](#model-paths) below. |
 
 ---
@@ -75,8 +75,6 @@ Sets `MATRIX_MODEL_DIR`, `MATRIX_LLAMA_SERVER`, `MATRIX_MLX_PYTHON`, and conda/v
 
 ```bash
 python3 scripts/matrixctl check
-# or (legacy wrapper)
-bash scripts/matrix-1-check.sh
 ```
 
 Verifies:
@@ -105,8 +103,6 @@ Pre-built variants (`swarm-config-16gb.json`, `swarm-config-32gb.json`, `swarm-c
 
 ```bash
 python3 scripts/matrixctl launch
-# or (legacy)
-bash scripts/matrix-2-launch.sh
 ```
 
 Starts:
@@ -122,8 +118,6 @@ Open `http://localhost:3000` → **CONFIGURE** → choose engine + agents → **
 
 ```bash
 python3 scripts/matrixctl shutdown
-# or
-bash scripts/matrix-3-shutdown.sh
 ```
 
 ---
@@ -142,16 +136,26 @@ The `environment.yml` pins `mlx-lm`, `pydantic`, `structlog`, `psycopg2`, and ot
 ## 10. RAG setup (optional)
 
 ```bash
-# Start pgvector
-docker compose -f docker/pgvector/docker-compose.yml up -d
+# Start pgvector (convenience wrapper)
+bash scripts/rag-docker-compose.sh up
 
-# Wait for Postgres to be ready, then index the codebase
+# Index a directory (auto-runs on `matrixctl launch` when container is running)
 python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+
+# Index multiple directories
+python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+
+# Re-index after code changes
+python3 scripts/matrixctl rag index . --embedder hash --force
+
+# Query the index
+python3 scripts/matrixctl rag query "kv router" --embedder hash
+python3 scripts/matrixctl rag query "session management" --top-k 5 --embedder hash
 ```
 
-`matrixctl up` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
+`matrixctl launch` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
 
-Convenience wrapper: `bash scripts/rag-docker-compose.sh up|down|restart|logs|status|psql|nuke`.
+`scripts/rag-docker-compose.sh` subcommands: `up`, `down`, `restart`, `logs`, `status`, `wait` (blocks until `pg_isready`), `psql` (shell into `matrix_rag`), `nuke` (down + volume wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
 
 ---
 
@@ -187,4 +191,4 @@ Runs ~30 integration tests against mock agents (no real models needed, ~30 s). A
 | MLX server not responding | Check `logs/mlx_coordinator.log`; ensure `mlx_lm` is installed in the active Python env. |
 | vLLM containers not starting | Open Docker Desktop → Model Runner; verify GPU is available. |
 | Build fails: missing headers | Run `xcode-select --install`; ensure `clang++` supports C++17. |
-| Tests fail on port reuse | Run `bash scripts/matrix-3-shutdown.sh` first, then re-run `bash tests/run.sh`. |
+| Tests fail on port reuse | Run `python3 scripts/matrixctl shutdown` first, then re-run `bash tests/run.sh`. |

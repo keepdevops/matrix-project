@@ -175,7 +175,7 @@ Presets save the active mode's current configuration (mode, roster, synthesizer,
 
 **Delete:** Click ✕ next to any preset.
 
-Presets survive coordinator restarts. With `MATRIX_SOURCE_CONFIG` set, they also survive UI redeploy.
+Presets survive coordinator restarts. With `MATRIX_SOURCE_CONFIG` set, they also survive UI redeploy — `proxy_configure` reads `coordinator.presets` from the source config on each deploy.
 
 API: `GET/PUT/DELETE /api/presets/<name>`, `POST /api/presets/<name>/apply`.
 
@@ -197,11 +197,34 @@ API: `PUT /api/agents/<name>/prompt {system_prompt}`.
 
 When RAG is enabled and the pgvector container is running, the coordinator retrieves relevant chunks from the indexed codebase and prepends them to the prompt before dispatch.
 
+### Indexing
+
+```bash
+# Start pgvector
+bash scripts/rag-docker-compose.sh up
+
+# Index a directory
+python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+
+# Index multiple directories
+python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+
+# Re-index after code changes
+python3 scripts/matrixctl rag index . --embedder hash --force
+
+# Query to verify
+python3 scripts/matrixctl rag query "kv router" --top-k 5 --embedder hash
+```
+
+`matrixctl launch` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
+
 ### Enable in config
 
 ```json
 "rag": { "enabled": true, "top_k": 3, "min_score": 1.0, "embedder": "hash" }
 ```
+
+`min_score` is a cosine distance ceiling (0 = identical, 1 = orthogonal). Use `1.0` (no filter) for the `hash` embedder; `~0.6` for semantic embedders.
 
 ### Request-level toggle
 
@@ -294,11 +317,19 @@ bash scripts/open-swarmconfig-editor.sh
 open tools/swarmconfig-editor.html
 ```
 
-Enforces before export: strict JSON + schema checks, unique/safe agent names, duplicate backend+port collision checks, model/path guardrails (blocks `..`, shell metacharacters). Export is disabled until all blocking errors are fixed.
+**Validation enforced before export:** strict JSON + schema checks, unique/safe agent names, duplicate backend+port collision detection, model/path guardrails (blocks `..`, shell metacharacters). Export is disabled until all blocking errors are resolved. Downloaded file is saved as `swarm-config.validated.json`.
 
-Features: format/minify, copy all / copy validated, drag-and-drop JSON, find/replace, word wrap, font size, light/dark theme, session restore via `localStorage`, undo/redo, JSON merge, agent rename, preset storage, path check, agent sidebar jump links, schema cheat sheet.
+**Editing features:** format/minify, copy all / copy validated, drag-and-drop JSON, find/replace, word wrap, font size, light/dark theme, session restore via `localStorage`, undo/redo, JSON merge (agents by name; coordinator/ui deep-merge), agent rename across all roster lists, browser-side presets, path check via File System Access API, agent sidebar jump links, collapsible schema cheat sheet.
 
-Keyboard shortcuts: **⌘/Ctrl+Enter** validate, **⌘/Ctrl+S** download (when valid), **⌘/Ctrl+G** go-to-line, **⌘/Ctrl+F** find.
+**Keyboard shortcuts:**
+
+| Shortcut | Action |
+|---|---|
+| **⌘/Ctrl+Enter** | Validate |
+| **⌘/Ctrl+S** | Download when valid; re-validate otherwise |
+| **⌘/Ctrl+G** | Go to line |
+| **⌘/Ctrl+F** | Find |
+| **⌘/Ctrl+Z** / **⌘/Ctrl+Shift+Z** | Undo / redo |
 
 ---
 
