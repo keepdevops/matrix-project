@@ -110,11 +110,14 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
                           << "in agent config to suppress." << std::endl;
                 ctx = g.ctx_cap;
             }
+            // --fit off: llama.cpp b8763 has a contiguity assert bug in the
+            // automatic param-fitting path (ggml_reshape_2d); disable it.
             std::vector<std::string> args = {
                 "-m", g.model, "-c", std::to_string(ctx), "--port", ps,
                 "--n-gpu-layers", std::to_string(g.gpu_layers),
                 "--parallel", std::to_string(g.names.size()),
-                "--metrics", "--slot-save-path", g_env.matrix_slots_dir
+                "--metrics", "--slot-save-path", g_env.matrix_slots_dir,
+                "--fit", "off"
             };
             if (g.flash_attn) {
                 args.push_back("--flash-attn"); args.push_back("on");

@@ -3,6 +3,7 @@ import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistor
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
+  const [agentErrors, setAgentErrors] = useState({});
   const [finalAnswer, setFinalAnswer] = useState(null);
   const [lastMeta, setLastMeta] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
@@ -37,6 +38,7 @@ export function useSwarm() {
     setLoading(true);
     setError(null);
     setResponses({});
+    setAgentErrors({});
     setFinalAnswer(null);
     setLastMeta(null);
 
@@ -86,8 +88,10 @@ export function useSwarm() {
             setLoading(false);
             cancelRef.current = null;
             reject(new Error(message));
+          } else {
+            // Per-agent errors are non-fatal; record for card display.
+            setAgentErrors(prev => ({ ...prev, [agent]: message }));
           }
-          // Per-agent errors are non-fatal; other agents may still finish.
         },
       });
     });
@@ -116,6 +120,7 @@ export function useSwarm() {
 
   return {
     responses,
+    agentErrors,
     finalAnswer,
     lastMeta,
     currentSession,

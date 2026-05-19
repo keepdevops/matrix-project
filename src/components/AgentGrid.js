@@ -1,6 +1,7 @@
 import React from 'react';
 import AgentResponse from './AgentResponse';
 import CodeDisplay from './CodeDisplay';
+import { SkeletonAgentCard } from './Skeleton';
 import { getAgentColor } from '../utils/agentColors';
 import { extractCodeBlock } from '../utils/codeExtractor';
 
@@ -12,7 +13,11 @@ const modelDisplayName = (m) => {
 };
 
 function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
-                     flatPickMode = false, pickedFlatAgent = null, onPickFlatAgent = null }) {
+                     flatPickMode = false, pickedFlatAgent = null, onPickFlatAgent = null,
+                     agentErrors = {} }) {
+  // Show skeleton cards while the first submission is in flight (no responses yet).
+  const isInitialLoad = loading && Object.keys(responses).length === 0;
+
   const hasAnyCode = activeAgents.some(({ name }) => {
     const r = responses[name];
     if (!r) return false;
@@ -42,6 +47,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
         picked={isPicked}
         pickable={isPickable}
         onPick={isPickable ? () => onPickFlatAgent(name) : null}
+        agentError={agentErrors[name] || null}
       />
     );
   };
@@ -49,7 +55,9 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
   return (
     <>
       <div className="agents-grid">
-        {activeAgents.map(renderCard)}
+        {isInitialLoad
+          ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
+          : activeAgents.map(renderCard)}
       </div>
 
       {programmerResp && (

@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import './themes/light.css';
+import { useToast } from './components/ToastManager';
 import { useSwarm } from './hooks/useSwarm';
 import { useCoordinatorState } from './hooks/useCoordinatorState';
 import { useLayoutPreference } from './hooks/useLayoutPreference';
@@ -12,8 +13,11 @@ import { qualityPassContextPolicy } from './utils/qualityPassContext';
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode', '_session_id', '_run_id']);
 
 function App() {
+  const showToast = useToast();
+  const prevError = useRef(null);
+
   const {
-    responses, finalAnswer, loading, error, history, online,
+    responses, agentErrors, finalAnswer, loading, error, history, online,
     submit, loadHistory, checkStatus,
     setResponses, setFinalAnswer, lastMeta, setLastMeta,
     currentSession, setCurrentSession,
@@ -58,6 +62,7 @@ function App() {
   const handleDeployed = () => {
     setShowConfig(false);
     setDeployPending(true);
+    showToast('Swarm launching — waiting for health check…', 'info');
     const pollId = setInterval(async () => {
       const isOnline = await checkStatus();
       if (isOnline) {
@@ -65,6 +70,7 @@ function App() {
         setDeployPending(false);
         refreshAgents();
         loadHistory();
+        showToast('Swarm online', 'success');
       }
     }, 2000);
     setTimeout(() => { clearInterval(pollId); setDeployPending(false); }, 90000);
@@ -86,13 +92,26 @@ function App() {
     setShowHistory(false);
   };
 
+  // Surface transport-level stream errors as toasts instead of an inline banner.
+  useEffect(() => {
+    if (error && error !== prevError.current) {
+      const msg = error.includes('Coordinator offline')
+        ? 'Swarm not running — open CONFIGURE and click LAUNCH SWARM.'
+        : `ERROR: ${error}`;
+      showToast(msg, 'error');
+    }
+    prevError.current = error;
+  }, [error, showToast]);
+
   const handleClearCache = async () => {
     setCacheStatus('clearing');
     try {
       await clearKvCache();
       setCacheStatus('cleared');
+      showToast('KV cache cleared', 'success');
     } catch {
       setCacheStatus('failed');
+      showToast('Cache clear failed', 'error');
     } finally {
       setTimeout(() => setCacheStatus('idle'), 2000);
     }
@@ -186,48 +205,127 @@ function App() {
   const LayoutComponent = (LAYOUTS[layout] ?? LAYOUTS.default).component;
 
   return (
-    <LayoutComponent
-      // coordinator
-      online={online} activeAgents={activeAgents} modes={modes} activeMode={activeMode}
-      kvReadings={kvReadings} kvFetchFailed={kvFetchFailed}
-      // swarm
-      responses={responses} finalAnswer={finalAnswer} loading={loading} error={error}
-      history={history} lastMeta={lastMeta} currentSession={currentSession}
-      backend={backend} switchBackend={switchBackend}
-      // ui state
-      showConfig={showConfig} showHistory={showHistory}
-      showConfigPanel={showConfigPanel} deployPending={deployPending}
-      showHelp={showHelp} showConverter={showConverter}
-      showRagAdmin={showRagAdmin} showCachePanel={showCachePanel}
-      cacheStatus={cacheStatus} useRag={useRag} pendingPrompt={pendingPrompt}
-      flatPickAgent={flatPickAgent}
-      excludedBreaker={lastMeta?.excluded_unhealthy || []}
-      stageOutputs={Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : []}
-      selectedPrompt={selectedPrompt} selectedTemperature={selectedTemperature}
-      // theme + layout
-      theme={theme} layout={layout} onSetTheme={setTheme} onSetLayout={setLayout}
-      // handlers
-      onModeChange={handleModeChange}
-      onClearCache={handleClearCache}
-      onToggleConfig={() => setShowConfig(v => !v)}
-      onToggleHistory={() => setShowHistory(v => !v)}
-      onOpenConverter={() => setShowConverter(v => !v)}
-      onOpenRagAdmin={() => setShowRagAdmin(v => !v)}
-      onOpenCachePanel={() => setShowCachePanel(v => !v)}
-      onOpenHelp={() => setShowHelp(v => !v)}
-      onDeployed={handleDeployed}
-      onHistorySelect={handleHistorySelect}
-      onSubmit={handleSubmit}
-      onQualityPass={handleQualityPass}
-      onPromptConsumed={() => setSelectedPrompt(null)}
-      onFollowUp={handleFollowUp}
-      onClearSession={() => { setCurrentSession(null); setResponses({}); setFinalAnswer(null); setLastMeta(null); }}
-      onSwitchSession={handleSwitchSession}
-      onSaveCode={handleSaveCode}
-      onPickFlatAgent={setFlatPickAgent}
-      onSendBestContinue={handleSendBestContinue}
-      onUseRagChange={setUseRag}
-    />
+    <div className="matrix-container">
+      <AppHeader
+        online={online}
+        activeAgents={activeAgents}
+        modes={modes}
+        activeMode={activeMode}
+        kvReadings={kvReadings}
+        kvFetchFailed={kvFetchFailed}
+        cacheStatus={cacheStatus}
+        showConfigPanel={showConfigPanel}
+        theme={theme}
+        historyCount={history.length}
+        onModeChange={handleModeChange}
+        onClearCache={handleClearCache}
+        onToggleConfig={() => setShowConfig(v => !v)}
+        onToggleHistory={() => setShowHistory(v => !v)}
+        onOpenConverter={() => setShowConverter(v => !v)}
+        onOpenRagAdmin={() => setShowRagAdmin(true)}
+        onOpenCachePanel={() => setShowCachePanel(true)}
+        onOpenHelp={() => setShowHelp(true)}
+        onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+      />
+
+      {showConverter && (
+        <div style={{ padding: '1rem 1.5rem', maxWidth: 860, margin: '0 auto' }}>
+          <ModelConverter standalone />
+        </div>
+      )}
+
+      {!showConverter && showConfigPanel && <SwarmConfig onDeployed={handleDeployed} />}
+
+      {showHistory && history.length > 0 && (
+        <div className="history-dropdown">
+          {history.slice(-10).reverse().map((entry, index) => (
+            <div key={index} className="history-item" onClick={() => handleHistorySelect(entry)}>
+              <span className="history-prompt">
+                {entry.prompt?.substring(0, 50)}{entry.prompt?.length > 50 ? '...' : ''}
+              </span>
+              <span className="history-time">
+                {entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!showConfigPanel && (
+        <>
+          <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
+          <PromptInput
+            onSubmit={handleSubmit}
+            loading={loading}
+            disabled={!online}
+            externalPrompt={selectedPrompt}
+            externalTemperature={selectedTemperature}
+            onPromptConsumed={handlePromptConsumed}
+            canContinue={Boolean(currentSession?.sessionId)}
+            onQualityPass={handleQualityPass}
+            useRag={useRag}
+            onUseRagChange={setUseRag}
+            activeAgents={activeAgents}
+            backend={backend}
+            onBackendChange={switchBackend}
+          />
+          {excludedBreaker.length > 0 && (
+            <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">
+              Skipped (circuit breaker open):{' '}
+              <strong>{excludedBreaker.join(', ')}</strong>. Cooldown ~30s after failures — see PER-MODE ROSTER health or coordinator logs.
+            </div>
+          )}
+          <ConversationThread
+            history={history}
+            sessionId={currentSession?.sessionId}
+            responses={responses}
+            finalAnswer={finalAnswer}
+            loading={loading}
+            pendingPrompt={pendingPrompt}
+            onFollowUp={handleFollowUp}
+            onClear={handleClearSession}
+            onSwitchSession={handleSwitchSession}
+          />
+          <FinalAnswerPanel text={finalAnswer} />
+          <RagSources rag={lastMeta?.rag} />
+          <MetricsStrip envelope={{ meta: lastMeta }} />
+          <PipelineStageOutputs stageOutputs={stageOutputs} />
+          <AgentGrid
+            activeAgents={activeAgents}
+            responses={responses}
+            agentErrors={agentErrors}
+            loading={loading}
+            timings={lastMeta?.timings || {}}
+            onSaveCode={handleSaveCode}
+            flatPickMode={activeMode === 'flat'}
+            pickedFlatAgent={flatPickAgent}
+            onPickFlatAgent={setFlatPickAgent}
+            onExpandProgrammer={(instruction) => handleSubmit(instruction, 0.2, {
+              followup: true,
+              contextPolicy: {
+                include: ['original_prompt', 'final', 'programmer'],
+                target_agent: 'programmer',
+                max_context_chars: 24000,
+              },
+            })}
+          />
+          {activeMode === 'flat' && Object.keys(responses).length > 0 && (
+            <CompareVariantsPanel
+              activeAgents={activeAgents}
+              responses={responses}
+              loading={loading}
+              flatPickAgent={flatPickAgent}
+              onPickAgent={setFlatPickAgent}
+              onSendBest={() => handleSendBestContinue(0.2)}
+            />
+          )}
+        </>
+      )}
+
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showRagAdmin && <RagAdmin onClose={() => setShowRagAdmin(false)} />}
+      {showCachePanel && <CachePanel onClose={() => setShowCachePanel(false)} />}
+    </div>
   );
 }
 

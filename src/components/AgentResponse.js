@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import AgentEditorModal from './AgentEditorModal';
+import AgentMarkdown from './AgentMarkdown';
 
 const AgentResponse = React.memo(function AgentResponse({
   name, response, color = '#00ff41', loading = false, port, model, engine,
   tokenStats = null, picked = false, pickable = false, onPick = null,
+  agentError = null,
 }) {
   const [showModal, setShowModal] = useState(false);
 
   const getStatusClass = () => {
+    if (agentError) return 'status-error';
     if (loading) return 'status-loading';
     if (response) return 'status-ready';
     return 'status-idle';
   };
 
   const getStatusText = () => {
+    if (agentError) return 'FAILED';
     if (loading) return 'PROCESSING';
     if (response) return 'COMPLETE';
     return 'READY';
@@ -65,14 +69,19 @@ const AgentResponse = React.memo(function AgentResponse({
           </div>
         )}
         <div className="agent-content">
-          {loading ? (
+          {agentError ? (
+            <div className="agent-error-banner">
+              <span className="agent-error-icon">✕</span>
+              <span className="agent-error-msg">{agentError}</span>
+            </div>
+          ) : loading ? (
             <div className="loading-spinner">
               <span className="spinner-dot">.</span>
               <span className="spinner-dot">.</span>
               <span className="spinner-dot">.</span>
             </div>
           ) : response ? (
-            <pre className="response-text">{response}</pre>
+            <AgentMarkdown text={response} />
           ) : (
             <span className="idle-text">Awaiting broadcast...</span>
           )}

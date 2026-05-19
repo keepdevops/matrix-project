@@ -2363,3 +2363,91 @@ h1 {
 .preset-row-delete:hover:not(:disabled) {
   background: var(--preset-row-delete-hover, rgba(255, 80, 80, 0.15));
 }
+
+/* ========== Error Boundary ========== */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  color: var(--color-text-body, #c9d1d9);
+  text-align: center;
+  padding: 2rem;
+}
+.error-boundary-icon {
+  font-size: 2.5rem;
+  color: var(--color-warn, #FFB000);
+}
+.error-boundary-title {
+  font-size: 1.2rem;
+  color: var(--color-text-primary, #00ff41);
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+.error-boundary-msg {
+  color: var(--color-text-muted, #8b949e);
+  margin: 0;
+  font-size: 0.9rem;
+}
+.error-boundary-reload {
+  background: transparent;
+  border: 1px solid var(--color-primary, #00ff41);
+  color: var(--color-primary, #00ff41);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 8px 20px;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  transition: background 200ms ease;
+}
+.error-boundary-reload:hover {
+  background: rgba(0, 255, 65, 0.1);
+}
+.error-boundary-detail {
+  margin-top: 0.5rem;
+}
+.error-boundary-toggle {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #8b949e);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.error-boundary-stack {
+  text-align: left;
+  font-size: 0.72rem;
+  color: var(--color-error, #ff4b2b);
+  background: var(--color-bg-surface, #161b22);
+  border: 1px solid var(--color-border, #333);
+  padding: 0.8rem;
+  max-width: 700px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-top: 0.5rem;
+}
+
+/* ========== Agent Error Banner ========== */
+.agent-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  background: var(--color-error-dim, rgba(255,75,43,0.12));
+  border: 1px solid var(--color-error-border, rgba(255,75,43,0.4));
+  border-radius: var(--radius-sm, 4px);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--color-error, #ff4b2b);
+}
+.agent-error-icon { flex-shrink: 0; }
+.agent-error-msg  { flex: 1; word-break: break-word; }
+
+/* ========== Agent status-error ========== */
+.agent-status.status-error {
+  color: var(--color-error, #ff4b2b);
+  border-color: var(--color-error, #ff4b2b);
+}

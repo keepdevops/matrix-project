@@ -24,6 +24,7 @@ import {
 } from './SwarmConfig.helpers';
 import { computeRiskEstimate, RiskCard } from './SwarmConfig.risk';
 import { useDeploy } from './SwarmConfig.deploy';
+import { DeployProgress } from './DeployProgress';
 
 // Pre-started vLLM servers. Even when no agents are bound to a port, we want
 // the UI to show the slot so users can see what's available.
@@ -315,28 +316,7 @@ export default function SwarmConfig({ onDeployed }) {
           <ModeRosterPanel />
           <PresetsPanel />
 
-          {status === 'error' && (
-            <>
-              <div className="swarm-config-error">{statusMsg}</div>
-              {logTail && logTail.length > 0 && (
-                <div className="swarm-config-logs">
-                  <div className="swarm-config-logs-title">
-                    Recent server logs (agent_logs/*.log)
-                    {(engine === 'mlx' || engine === 'vllm') && ' — look for Python tracebacks or "No such file" above'}
-                  </div>
-                  {logTail.map(({ port, lines }) => (
-                    <div key={port} className="swarm-config-log-block">
-                      <div className="swarm-config-log-port">:{port}.log</div>
-                      <pre className="swarm-config-log-pre">{lines.join('\n') || '(empty)'}</pre>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          {status === 'deploying' && (
-            <div className="swarm-config-deploying">{statusMsg}</div>
-          )}
+          <DeployProgress status={status} statusMsg={statusMsg} logTail={logTail} />
 
           <button
             className={`swarm-deploy-btn ${status}`}
