@@ -380,6 +380,8 @@ Config shape:
 
 ## Coordinator HTTP API (cheat sheet)
 
+C++ coordinator on `:8000`. See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for the full reference.
+
 | Method · Path | Purpose |
 |---|---|
 | `GET  /api/health` | Liveness check. |
@@ -388,13 +390,14 @@ Config shape:
 | `POST /api/modes/active {mode}` | Switch active mode. |
 | `GET  /api/modes/<name>/agents` | Per-mode roster + synthesizer + max_select. |
 | `PUT  /api/modes/<name>/agents {agents, synthesizer?, max_select?}` | Edit roster. |
-| `GET  /api/presets` · `PUT /api/presets/<name>` · `DELETE /api/presets/<name>` · `POST /api/presets/<name>/apply` | CRUD + apply for named bundles. |
-| `PUT  /api/agents/<name>/prompt {system_prompt}` | Edit any agent's system prompt; clears response cache; persists. |
+| `GET  /api/presets` · `PUT /api/presets/<name>` · `DELETE /api/presets/<name>` · `POST /api/presets/<name>/apply` | Preset CRUD + apply. |
+| `PUT  /api/agents/<name>/prompt {system_prompt}` | Live system-prompt edit; clears response cache; persists to active + source config. |
 | `GET  /api/health/agents` | Per-agent circuit-breaker snapshot. |
 | `GET  /api/pressure` | Per-port KV / queue pressure. |
-| `POST /api/architect {prompt, temperature?}` | Dispatch under active mode → envelope `{mode, agents, final, meta}`. |
-| `POST /api/architect/stream {prompt}` | Same dispatch as SSE. Events: `token`, `agent_done`, `stage` (pipeline), `selected` (router), `synthesis_start` (cascade/pipeline), `metrics`, `done`. |
-| `POST /api/clear-cache` | Clear all KV slots. |
+| `POST /api/architect {prompt, temperature?, use_rag?, rag_top_k?, session_id?}` | Dispatch under active mode → `{mode, agents, final, meta}`. |
+| `POST /api/architect/stream {prompt, session_id?}` | SSE dispatch. Events: `session`, `token`, `agent_done`, `stage` (pipeline), `selected` (router), `synthesis_start` (cascade/pipeline), `metrics`, `done`. |
+| `POST /api/clear-cache` | Clear all KV slots and reset MLX session state. |
+| `POST /api/cache/clear` · `POST /api/cache/config` · `GET /api/cache` | Response cache management. |
 
 ### Persistence model
 
