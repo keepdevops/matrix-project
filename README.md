@@ -284,10 +284,14 @@ production/         Optional nginx UI (not required for dev)
 
 ### matrixctl quickstart
 
-```
-# Status / lifecycle (wrap the legacy scripts for now)
+```bash
+# Pre-flight: verify ports, binaries, and models
 python3 scripts/matrixctl check
+
+# Start proxy (:3002), React UI (:3000), and MLX coordinator (:3003)
 python3 scripts/matrixctl launch
+
+# Stop everything
 python3 scripts/matrixctl shutdown
 
 # RAG over pgvector (requires Docker)
