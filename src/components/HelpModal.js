@@ -192,7 +192,21 @@ function HelpModal({ onClose }) {
           <div className="help-section">
             <h3>Launch</h3>
             <code className="help-code">python3 scripts/matrixctl check && python3 scripts/matrixctl launch</code>
-            <p>Check verifies ports, binaries, and models. Launch starts the proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured. Use <code>python3 scripts/matrixctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>. See <strong>docs/SETUP.md</strong> and <strong>docs/USER_MANUAL.md</strong> for full documentation.</p>
+            <p>Check verifies ports, binaries, and models. Launch starts the proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured. Use <code>python3 scripts/matrixctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>.</p>
+          </div>
+
+          <div className="help-section">
+            <h3>Documentation</h3>
+            <dl>
+              <dt><a href="https://github.com/keepdevops/matrix-project/blob/main/docs/SETUP.md" target="_blank" rel="noreferrer">docs/SETUP.md</a></dt>
+              <dd>Prerequisites, C++ build, model paths, first-run walkthrough, troubleshooting.</dd>
+              <dt><a href="https://github.com/keepdevops/matrix-project/blob/main/docs/HELP.md" target="_blank" rel="noreferrer">docs/HELP.md</a></dt>
+              <dd>Quick-reference: UI controls, modes, agent roles, common issues, keyboard shortcuts.</dd>
+              <dt><a href="https://github.com/keepdevops/matrix-project/blob/main/docs/USER_MANUAL.md" target="_blank" rel="noreferrer">docs/USER_MANUAL.md</a></dt>
+              <dd>End-to-end guide: swarm configuration, orchestration modes, conversation threads, presets, RAG, layouts, metrics, and best practices.</dd>
+              <dt><a href="https://github.com/keepdevops/matrix-project/blob/main/docs/CAPABILITIES.md" target="_blank" rel="noreferrer">docs/CAPABILITIES.md</a></dt>
+              <dd>Full API reference: every endpoint, SSE events, env vars, circuit breaker, MLX coordinator, session management, and RAG internals.</dd>
+            </dl>
           </div>
 
         </div>
