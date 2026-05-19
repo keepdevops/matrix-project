@@ -369,12 +369,11 @@ runtime prompt editing.
 
 ## Documentation
 
-- **[docs/CAPABILITIES.md](docs/CAPABILITIES.md)** — full reference for
-  modes, presets, prompt editing, streaming SSE, circuit breaker, retry
-  semantics, metrics envelope, persistence model, every HTTP endpoint, and
-  every env var.
-- **In-app help (?)** — same content as this README plus a streaming SSE
-  cheat sheet.
+- **[docs/SETUP.md](docs/SETUP.md)** — prerequisites, build steps, model paths, first-run walkthrough, and troubleshooting.
+- **[docs/HELP.md](docs/HELP.md)** — quick-reference: UI controls, modes, agent roles, common issues.
+- **[docs/USER_MANUAL.md](docs/USER_MANUAL.md)** — end-to-end usage guide: configuring swarms, orchestration modes, conversation threads, presets, RAG, layouts, metrics, resilience, and best practices.
+- **[docs/CAPABILITIES.md](docs/CAPABILITIES.md)** — full API reference: every endpoint, SSE event taxonomy, env vars, circuit breaker constants, MLX coordinator, session management, layouts, and RAG internals.
+- **In-app help (?)** — quick-start, UI controls, agent roles, and tips without leaving the browser.
 
 ## License
 

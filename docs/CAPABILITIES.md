@@ -346,9 +346,90 @@ in ~30 s.
 | `MATRIX_COORDINATOR_PORT` | `8000` | Coordinator listen port. Tests use 18000. |
 | `MATRIX_PROXY_PORT` | `3002` | Proxy listen port. |
 | `MATRIX_UI_PORT` | `3000` | React dev server port. |
+| `MATRIX_MLX_COORDINATOR_PORT` | `3003` | Python MLX coordinator port (hard backend barrier — all MLX inference routes here). |
 | `MATRIX_ACTIVE_CONFIG` | `~/.matrix/run/matrix-active-config.json` | Where the proxy stages the deployed config. |
 | `MATRIX_SOURCE_CONFIG` | (unset) | If set, coordinator mirrors per-mode + preset edits to this path so they survive UI redeploy. |
 | `MATRIX_MODEL_DIR` | `/Users/Shared/llama/models` (Darwin) | Root for model paths. Agent profiles under `config/agents/*.json` reference models via `${MATRIX_MODEL_DIR}/...`; the loader (`orchestration/manager.py`) and `scripts/build_swarm_config.py` expand the variable at load time and fail loudly on unresolved `${VAR}`. Also scanned by the proxy for model discovery. |
 | `MATRIX_LLAMA_SERVER` | (resolved from PATH) | Path to `llama-server` binary. |
 | `MATRIX_MLX_PYTHON` | (resolved) | Python interpreter that has `mlx_lm` installed. |
 | `MATRIX_SYNTHESIS_MAX_PROMPT_TOKENS` | `1400` | Approximate max prompt size for pipeline/cascade/stream **synthesis** (concatenated agent outputs). Lower if synthesizer uses a small `--ctx-size`; raise when you increase model context. |
+| `RAG_DSN` | (unset) | PostgreSQL DSN for the pgvector RAG store. Overrides the compiled-in default. |
+
+---
+
+## 11. MLX coordinator (Python, port 3003)
+
+A **hard backend barrier** separates llama.cpp and MLX inference paths. All MLX agents route through the Python MLX coordinator (`orchestration/mlx_coordinator/`) rather than the C++ coordinator.
+
+Key behaviours:
+- Requests **serialise** on a per-server semaphore (MLX servers handle one request at a time).
+- A configurable session-size cap prevents unbounded KV growth on long conversations.
+- Timeout handling per request; failed requests surface errors without blocking the pool.
+- `service_helpers.py` provides reusable helpers: health checks, server lifecycle, session management.
+
+The C++ coordinator handles llama.cpp and vLLM agents; the proxy routes to the correct coordinator based on agent backend type. Mixed swarms (LLAMA + MLX) use both coordinators simultaneously.
+
+---
+
+## 12. Conversation / session management
+
+Matrix Swarm supports multi-turn conversations per agent session.
+
+- Each broadcast optionally continues an existing session (auto-continued from the UI after the first prompt).
+- The `ConversationThread` component shows the full turn history in a collapsible panel.
+- Session state persists in `sessions.json`; each session has an ID, agent roster, and message history.
+- The streaming route emits a `session` SSE event carrying `{session_id}` before the first token so the UI can wire follow-ups to the correct session.
+- `POST /api/architect/stream` with `{session_id}` continues the thread; without it a new session is created.
+- CLEAR KV resets session state for all MLX servers (llama.cpp KV cache is cleared separately).
+
+---
+
+## 13. UI layouts
+
+The React UI ships with four layout variants selectable via the URL (e.g. `?layout=dashboard`) or the layout switcher in the header:
+
+| Layout | Description |
+|--------|-------------|
+| `default` | Standard grid — agent cards fill the viewport. |
+| `dashboard` | Metrics-first: RUN METRICS strip is promoted above the card grid. |
+| `terminal` | Dense monospace view; cards shrink to show more agents at once. |
+| `minimal` | Single-column stripped-down view for low-resolution or embedded use. |
+| `sidebar` | Agent roster sidebar on the left; main content on the right. |
+
+Layout selection is URL-based (`?layout=<name>`) and persists across reloads. The `registry.js` maps layout names to components; adding a new layout requires only a registry entry.
+
+A **visual layout editor** (`src/editor/`) provides flow, freeform, and grid editing modes with localStorage persistence — intended for power users arranging custom dashboards.
+
+---
+
+## 14. RAG (Retrieval-Augmented Generation)
+
+### CLI indexing
+
+```bash
+# Start pgvector
+docker compose -f docker/pgvector/docker-compose.yml up -d
+
+# Index a directory
+python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+
+# Query
+python3 scripts/matrixctl rag query "kv router" --embedder hash
+```
+
+`matrixctl up` auto-indexes the repo when the pgvector container is running.
+
+### Per-agent RAG targeting
+
+Set `"use_rag": true` on individual agents in `swarm-config.json` to inject RAG context only for those agents. The `rag_top_k` field controls chunk count per agent.
+
+### Coordinator RAG hook
+
+When `swarm-config.json` carries `"rag": {"enabled": true}`, the C++ coordinator runs a cosine-distance ANN query and prepends a `<context source="rag">…</context>` block to the prompt before mode dispatch. Hit metadata appears in `meta.rag`.
+
+| Embedder | Recommended `min_score` | Notes |
+|---|---|---|
+| `hash` (default) | `1.0` (no filter) | Distances cluster near 1.0 — stricter values drop all hits. |
+| MLX / `bge` / semantic | `~0.6` | True neighbors land at 0.1–0.5; noise at 0.8+. |
+
+Config shape: `"rag": { "enabled": true, "top_k": 3, "min_score": 1.0, "embedder": "hash" }`

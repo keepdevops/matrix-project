@@ -174,9 +174,25 @@ function HelpModal({ onClose }) {
           </div>
 
           <div className="help-section">
+            <h3>Conversation Threads</h3>
+            <dl>
+              <dt>Multi-turn sessions</dt>
+              <dd>After the first BROADCAST the UI auto-continues the session on subsequent sends. The <strong>ConversationThread</strong> panel (collapsible) shows the full turn history. Sessions are identified by <code>session_id</code> and persisted across reloads. Click CLEAR KV to reset session state and start fresh.</dd>
+            </dl>
+          </div>
+
+          <div className="help-section">
+            <h3>UI Layouts</h3>
+            <dl>
+              <dt>Layout switcher</dt>
+              <dd>Select a layout from the header switcher or append <code>?layout=&lt;name&gt;</code> to the URL. Available layouts: <strong>default</strong> (standard grid), <strong>dashboard</strong> (metrics-first), <strong>terminal</strong> (dense monospace), <strong>minimal</strong> (single-column), <strong>sidebar</strong> (roster left, content right). The layout persists in the URL across reloads.</dd>
+            </dl>
+          </div>
+
+          <div className="help-section">
             <h3>Launch</h3>
-            <code className="help-code">bash scripts/matrix-1-check.sh && bash scripts/matrix-2-launch.sh</code>
-            <p>Step 1 verifies ports, binaries, and models. Step 2 starts the proxy (:3002) and React UI (:3000). Use <code>bash scripts/matrix-3-shutdown.sh</code> to stop. Build the C++ binaries with <code>bash scripts/build_cpp_binaries.sh</code>. All swarm configuration is done from the browser. See <strong>README.md</strong> for full documentation.</p>
+            <code className="help-code">python3 scripts/matrixctl check && python3 scripts/matrixctl launch</code>
+            <p>Check verifies ports, binaries, and models. Launch starts the proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured. Use <code>python3 scripts/matrixctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>. See <strong>docs/SETUP.md</strong> and <strong>docs/USER_MANUAL.md</strong> for full documentation.</p>
           </div>
 
         </div>
