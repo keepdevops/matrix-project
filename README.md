@@ -227,18 +227,24 @@ Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` 
 - **PER-MODE ROSTER** (inside CONFIGURE) — pick which agents participate in
   each mode. Synthesizer dropdown for pipeline + cascade. `max_select` slider
   for router. Save active state as a named **PRESET**, apply later in one click.
-- **CLEAR KV** — wipe agent state between unrelated prompts.
+- **CLEAR KV** — wipe KV cache on llama agents and restart MLX servers; also
+  resets conversation session state.
 - **HISTORY (N)** — recall any of the last 10 broadcasts and their responses.
 - **Temperature** — default `0.20`. Stay in `0.10–0.25` for code; `0.40–0.70`
   only for open-ended brainstorming.
 - **BROADCAST / Cmd+Enter** — send the prompt under the active mode.
+  `Shift+Enter` inserts a newline.
+- **ConversationThread** — collapsible panel showing the multi-turn session
+  history. Sessions auto-continue after the first BROADCAST.
+- **Layout switcher** — cycle between default / dashboard / terminal / minimal
+  / sidebar layouts, or append `?layout=<name>` to the URL.
 - **RUN METRICS** — per-agent ms + token bars below FINAL ANSWER after every
   dispatch.
 - **🔴 circuit breaker open** banner appears in PER-MODE ROSTER when any
   agent has tripped; cooldown counts down in seconds.
 - **⤢ on a card** — open that agent's full response in a CodeMirror editor.
 - **SAVE CODE** — dump all extracted code to a timestamped file.
-- **?** — in-app help modal with the same content as this section.
+- **?** — in-app help modal; links to full docs.
 
 ## Tips
 
