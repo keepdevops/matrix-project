@@ -212,11 +212,12 @@ and a collapsible **schema cheat sheet**.
 | Script | What it does |
 |---|---|
 | `npm start` | React dev server on `:3000` |
-| `npm run proxy` | Node proxy on `:3002` |
-| `npm run launch` | `bash scripts/launch_matrix.sh` (legacy alias) |
-| `npm run shutdown` | `bash scripts/shutdown_matrix.sh` |
-| `npm run build:coordinator` | Build the C++ coordinator |
-| `npm test` | Run the smoke test once |
+| `npm run build` | Production React build |
+| `npm run build:bin` | Build C++ coordinator + proxy (`scripts/build_cpp_binaries.sh`) |
+| `npm run stage:dist` | Bundle for npm publish (`scripts/stage-dist.sh`) |
+| `npm test` | Run the component test suite once (no watch) |
+
+Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` — see [matrixctl quickstart](#matrixctl-quickstart).
 
 ## UI cheat sheet
 
