@@ -1,6 +1,21 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
 
+static std::string url_decode(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '%' && i + 2 < s.size()) {
+            char hex[3] = {s[i+1], s[i+2], '\0'};
+            char* end;
+            long v = std::strtol(hex, &end, 16);
+            if (end == hex + 2) { out += static_cast<char>(v); i += 2; continue; }
+        }
+        out += (s[i] == '+') ? ' ' : s[i];
+    }
+    return out;
+}
+
 void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState& st) {
     // 4d. Mode st.presets — named bundles of (mode, st.agents, synthesizer, max_select).
     // Saved to coordinator.presets in the config file; survive restart + redeploy.
@@ -10,10 +25,10 @@ void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState&
         res.set_content(st.presets.dump(), "application/json");
     });
 
-    svr.Put(R"(/api/presets/([A-Za-z0-9_\-]+))",
+    svr.Put(R"(/api/presets/([^/]+))",
             [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        const std::string name = req.matches[1];
+        const std::string name = url_decode(req.matches[1]);
         try {
             auto body = json::parse(req.body);
             if (!body.contains("mode") || !body["mode"].is_string()
@@ -56,10 +71,10 @@ void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState&
         }
     });
 
-    svr.Delete(R"(/api/presets/([A-Za-z0-9_\-]+))",
+    svr.Delete(R"(/api/presets/([^/]+))",
                [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        const std::string name = req.matches[1];
+        const std::string name = url_decode(req.matches[1]);
         bool removed = false;
         {
             std::lock_guard<std::mutex> lk(st.presets_mutex);
@@ -76,10 +91,10 @@ void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState&
 
     // POST /api/presets/<name>/apply — copy preset into st.modes_config[<mode>],
     // set that mode active, and persist. Idempotent.
-    svr.Post(R"(/api/presets/([A-Za-z0-9_\-]+)/apply)",
+    svr.Post(R"(/api/presets/([^/]+)/apply)",
              [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        const std::string name = req.matches[1];
+        const std::string name = url_decode(req.matches[1]);
         json bundle;
         {
             std::lock_guard<std::mutex> lk(st.presets_mutex);
