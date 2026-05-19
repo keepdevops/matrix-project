@@ -158,16 +158,17 @@ it with Matrix Swarm for parallel planning + deep execution.
 
 ## Requirements
 
-- macOS (Apple Silicon recommended for MLX).
-- Node ≥ 18 < 23, npm ≥ 9.
-- C++17 toolchain (clang) for building `coordinator` and `proxy`.
-- For LLAMA: `llama-server` from llama.cpp on `PATH`.
-- For MLX: `pip install mlx-lm` (Apple Silicon).
-- For vLLM: Docker Desktop with Model Runner.
-- GGUF / MLX models on disk. Agent profiles reference models via
-  `${MATRIX_MODEL_DIR}/...` (defaults to `/Users/Shared/llama/models` on
-  macOS via `scripts/matrix-env.sh`). Override the root by exporting
-  `MATRIX_MODEL_DIR=/some/path`, or override per-agent in the UI.
+- **macOS** (Apple Silicon recommended; Intel Macs can run LLAMA-only swarms).
+- **Node ≥ 18 < 23, npm ≥ 9** — React UI and proxy.
+- **Python ≥ 3.10** — `matrixctl`, orchestration layer, MLX coordinator, and RAG pipeline.
+- **C++17 toolchain (clang)** — `xcode-select --install` builds `coordinator` and `proxy`.
+- **For LLAMA**: `llama-server` from llama.cpp on `PATH`.
+- **For MLX**: `pip install mlx-lm` (Apple Silicon only). The Python MLX coordinator runs on `:3003` and handles all MLX inference with per-server serialisation.
+- **For vLLM**: Docker Desktop with Model Runner enabled (GPU-accelerated containers on ports 8080–8083).
+- **For RAG**: Docker Desktop for the pgvector container (`docker compose -f docker/pgvector/docker-compose.yml up -d`).
+- **GGUF / MLX model files on disk.** Agent profiles reference models via `${MATRIX_MODEL_DIR}/...` (defaults to `/Users/Shared/llama/models` via `scripts/matrix-env.sh`). Override with `export MATRIX_MODEL_DIR=/your/path`, or set per-agent in the UI.
+
+See **[docs/SETUP.md](docs/SETUP.md)** for a full prerequisites walkthrough and troubleshooting guide.
 
 ## Quick start
 
