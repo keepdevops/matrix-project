@@ -200,35 +200,45 @@ agents are deployed.
 
 ## Standalone swarm-config editor
 
-Use the standalone guardrailed editor when you want to edit `swarm-config.json`
-outside the main React UI:
+A self-contained guardrailed editor for `swarm-config.json` — useful when you
+want to validate or restructure a config file outside the main React UI, or
+before deploying to a new machine.
 
 ```bash
-open tools/swarmconfig-editor.html
-# or
 bash scripts/open-swarmconfig-editor.sh
+# or open directly
+open tools/swarmconfig-editor.html
 ```
 
-What it enforces before export:
-- strict JSON + schema checks (`root.agents[]`, required agent fields, numeric ranges)
-- unique/safe agent names and duplicate backend+port collision checks
-- model/path guardrails (blocks unsafe sequences like `..`, shell metacharacters)
+**Validation enforced before export:**
+- Strict JSON + schema checks (`root.agents[]`, required agent fields, numeric ranges)
+- Unique/safe agent names; duplicate backend+port collision detection
+- Model/path guardrails (blocks `..`, shell metacharacters, and other unsafe sequences)
 
-Export is disabled until all blocking errors are fixed. The downloaded file is
-normalized and saved as `swarm-config.validated.json`.
+Export is disabled until all blocking errors are resolved. The downloaded file is
+normalised and saved as `swarm-config.validated.json`.
 
-Editor UX includes format/minify, copy all / copy validated, drag-and-drop JSON,
-find/replace, word wrap, font size, light/dark theme, session restore via
-`localStorage`, a toolbar validation chip, and shortcuts: **⌘/Ctrl+Enter** validate,
-**⌘/Ctrl+S** download when valid (otherwise re-validate), **⌘/Ctrl+G** go-to-line,
-**⌘/Ctrl+F** find.
+**Editing features:**
+- Format / minify, copy all / copy validated, drag-and-drop JSON load
+- Find/replace, go-to-line, word wrap, font size, light/dark theme
+- Session restore via `localStorage` (survives page reload)
+- Undo/redo for programmatic edits (toolbar + **⌘/Ctrl+Z** / **⌘/Ctrl+Shift+Z**)
+- Merge JSON — agents merge by name; `coordinator`/`ui` blocks deep-merge
+- Rename agent — updates name across roster, router, and pipeline lists
+- Browser-side presets for frequently used config snippets
+- Path check — basename match via File System Access API after picking a models folder
+- Agent sidebar with jump links to each agent block
+- Collapsible schema cheat sheet
 
-Additional tools: **undo/redo** for programmatic edits (toolbar + **⌘/Ctrl+Z** /
-**⌘/Ctrl+Shift+Z** when the stack has entries); **merge JSON** (agents merge by
-name, coordinator/ui deep-merge); **rename agent** across roster + router/pipeline
-lists; **presets** stored in the browser; **path check** after picking a models
-folder (basename match via File System Access API); **agent sidebar** jump links;
-and a collapsible **schema cheat sheet**.
+**Keyboard shortcuts:**
+
+| Shortcut | Action |
+|---|---|
+| **⌘/Ctrl+Enter** | Validate |
+| **⌘/Ctrl+S** | Download when valid; re-validate otherwise |
+| **⌘/Ctrl+G** | Go to line |
+| **⌘/Ctrl+F** | Find |
+| **⌘/Ctrl+Z** / **⌘/Ctrl+Shift+Z** | Undo / redo (when stack has entries) |
 
 ## NPM scripts
 
