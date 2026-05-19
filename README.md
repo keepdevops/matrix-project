@@ -364,29 +364,43 @@ wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
 Conda env: `conda env update -n mlx-env -f environment.yml`.
 Tests: `pytest tests/modes tests/telemetry tests/rag`.
 
-**Coordinator RAG hook (opt-in)**: when `swarm-config.json` carries a
-top-level `"rag"` block with `"enabled": true`, `POST /api/architect` accepts
-`"use_rag": true` (and optional `"rag_top_k": N`). The C++ coordinator embeds
-the prompt with the same hash embedder as `matrixctl rag` (see
-`cpp_core/src/rag_embed.cpp` — byte-matched against
-`orchestration/rag/embed.py:HashEmbedder` via `tests/cpp/rag_embed_test.cpp`),
-runs the cosine-distance ANN query against `chunks`, and prepends a
-`<context source="rag">…</context>` block to the prompt before mode dispatch.
-Hit metadata appears under `meta.rag` in the response. `RAG_DSN` env
-overrides the DSN. Only the `hash` embedder is wired into the coordinator;
-the MLX/bge path remains Python-only (CLI).
+### Coordinator RAG hook (opt-in)
 
-Config shape:
+When `swarm-config.json` carries a top-level `"rag"` block with `"enabled": true`,
+the C++ coordinator injects retrieved context into every dispatch:
+
+1. Embeds the prompt using the hash embedder (`cpp_core/src/rag_embed.cpp`,
+   byte-matched against `orchestration/rag/embed.py:HashEmbedder`).
+2. Runs a cosine-distance ANN query against the `chunks` table in pgvector.
+3. Prepends a `<context source="rag">…</context>` block to the prompt before
+   mode dispatch.
+
+Hit metadata appears under `meta.rag` in the response envelope. Override the
+DSN with `RAG_DSN=postgresql://...`. Only the `hash` embedder is wired into
+the C++ coordinator; the MLX/bge semantic path remains Python-only (CLI).
+
+**Per-agent targeting:** set `"use_rag": true` on individual agents in
+`swarm-config.json` to inject RAG context only for those roles.
+
+**Request-level override:**
+
+```json
+POST /api/architect { "prompt": "...", "use_rag": true, "rag_top_k": 5 }
+```
+
+**Config shape:**
+
 ```json
 "rag": { "enabled": true, "top_k": 3, "min_score": 1.0, "embedder": "hash" }
 ```
 
-`min_score` is a **cosine distance ceiling** — a hit is kept when `distance <= min_score` (0 = identical, 1 = orthogonal, 2 = opposite). Recommended values:
+`min_score` is a **cosine distance ceiling** — a hit is kept when
+`distance <= min_score` (0 = identical, 1 = orthogonal, 2 = opposite).
 
 | Embedder | Recommended `min_score` | Notes |
 |---|---|---|
-| `hash` (default) | `1.0` (no filter) | Hash embeddings have no semantic meaning; distances cluster near 1.0. Anything stricter drops every hit. |
-| MLX / `bge` / semantic | `~0.6` | True neighbors land at 0.1–0.5, noise at 0.8+. Tighten per-prompt via the UI slider. |
+| `hash` (default) | `1.0` (no filter) | Distances cluster near 1.0 — anything stricter drops every hit. |
+| MLX / `bge` / semantic | `~0.6` | True neighbors land at 0.1–0.5; noise at 0.8+. Tighten per-prompt via the UI slider. |
 
 ## Coordinator HTTP API (cheat sheet)
 
