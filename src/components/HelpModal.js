@@ -164,7 +164,7 @@ function HelpModal({ onClose }) {
 
           <div className="help-section">
             <h3>Streaming SSE</h3>
-            <p><code>POST /api/architect/stream</code> dispatches under the active mode and emits Server-Sent Events as work progresses:</p>
+            <p><code>POST /api/architect/stream {`{prompt, session_id?}`}</code> dispatches under the active mode and emits Server-Sent Events as work progresses:</p>
             <dl>
               <dt>session</dt>
               <dd><code>{`{ session_id }`}</code> fires before the first token; the UI uses this to wire follow-up BROADCASTs to the same conversation thread.</dd>
