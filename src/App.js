@@ -165,7 +165,7 @@ function App() {
     setResponses({});
     setFinalAnswer(last._final || null);
     setLastMeta(null);
-  }, [history]);
+  }, [history, setCurrentSession, setResponses, setFinalAnswer, setLastMeta]);
 
   const handleSendBestContinue = async (temperature = 0.2) => {
     if (!flatPickAgent || !responses[flatPickAgent]) return;
