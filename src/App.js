@@ -9,6 +9,21 @@ import { clearKvCache } from './api/swarmApi';
 import { LAYOUTS } from './layouts/registry';
 import { extractCodeBlock } from './utils/codeExtractor';
 import { qualityPassContextPolicy } from './utils/qualityPassContext';
+import AppHeader from './components/AppHeader';
+import SwarmConfig from './components/SwarmConfig';
+import ModelConverter from './components/ModelConverter';
+import PressureCluster from './components/PressureCluster';
+import PromptInput from './components/PromptInput';
+import ConversationThread from './components/ConversationThread';
+import FinalAnswerPanel from './components/FinalAnswerPanel';
+import RagSources from './components/RagSources';
+import MetricsStrip from './components/MetricsStrip';
+import PipelineStageOutputs from './components/PipelineStageOutputs';
+import AgentGrid from './components/AgentGrid';
+import CompareVariantsPanel from './components/CompareVariantsPanel';
+import HelpModal from './components/HelpModal';
+import RagAdmin from './components/RagAdmin';
+import CachePanel from './components/CachePanel';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode', '_session_id', '_run_id']);
 
@@ -200,6 +215,16 @@ function App() {
         },
       },
     );
+  };
+
+  const excludedBreaker = lastMeta?.excluded_unhealthy || [];
+  const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
+  const handlePromptConsumed = () => setSelectedPrompt(null);
+  const handleClearSession = () => {
+    setCurrentSession(null);
+    setResponses({});
+    setFinalAnswer(null);
+    setLastMeta(null);
   };
 
   const LayoutComponent = (LAYOUTS[layout] ?? LAYOUTS.default).component;
