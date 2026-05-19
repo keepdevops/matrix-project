@@ -6,7 +6,6 @@ import { useSwarm } from './hooks/useSwarm';
 import { useCoordinatorState } from './hooks/useCoordinatorState';
 import { useLayoutPreference } from './hooks/useLayoutPreference';
 import { clearKvCache } from './api/swarmApi';
-import { LAYOUTS } from './layouts/registry';
 import { extractCodeBlock } from './utils/codeExtractor';
 import { qualityPassContextPolicy } from './utils/qualityPassContext';
 import AppHeader from './components/AppHeader';
@@ -44,7 +43,7 @@ function App() {
     flatPickAgent, setFlatPickAgent, refreshModes, refreshAgents, handleModeChange,
   } = useCoordinatorState(online);
 
-  const { layout, theme, setLayout, setTheme } = useLayoutPreference();
+  const { theme, setTheme } = useLayoutPreference();
 
   const [showHistory, setShowHistory]       = useState(false);
   const [showConfig, setShowConfig]         = useState(true);
@@ -226,8 +225,6 @@ function App() {
     setFinalAnswer(null);
     setLastMeta(null);
   };
-
-  const LayoutComponent = (LAYOUTS[layout] ?? LAYOUTS.default).component;
 
   return (
     <div className="matrix-container">
