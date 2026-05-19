@@ -422,25 +422,7 @@ Matrix Swarm supports multi-turn conversations per agent session.
 
 ---
 
-## 13. UI layouts
-
-The React UI ships with five layout variants selectable via the URL (e.g. `?layout=dashboard`) or the layout switcher in the header:
-
-| Layout | Description |
-|--------|-------------|
-| `default` | Standard grid — agent cards fill the viewport. |
-| `dashboard` | Metrics-first: RUN METRICS strip is promoted above the card grid. |
-| `terminal` | Dense monospace view; cards shrink to show more agents at once. |
-| `minimal` | Single-column stripped-down view for low-resolution or embedded use. |
-| `sidebar` | Agent roster sidebar on the left; main content on the right. |
-
-Layout selection is URL-based (`?layout=<name>`) and persists across reloads. The `registry.js` maps layout names to components; adding a new layout requires only a registry entry.
-
-A **visual layout editor** (`src/editor/`) provides flow, freeform, and grid editing modes with localStorage persistence — intended for power users arranging custom dashboards.
-
----
-
-## 14. RAG (Retrieval-Augmented Generation)
+## 13. RAG (Retrieval-Augmented Generation)
 
 ### CLI indexing
 
