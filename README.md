@@ -440,11 +440,21 @@ C++ coordinator on `:8000`. See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for
 
 ### Persistence model
 
-Per-mode rosters and presets live in the active config file (the one passed
-via `--config`). Set `MATRIX_SOURCE_CONFIG=<path>` in the coordinator's
-environment to also mirror to a user-editable source — your edits then
-survive a UI redeploy because `proxy_configure` reads `coordinator.modes`
-and `coordinator.presets` from source.
+| What | Where | Lifetime |
+|---|---|---|
+| Per-mode rosters, presets | Active config (`--config <path>`, default `~/.matrix/run/matrix-active-config.json`) | Survives coordinator restart. |
+| Per-mode rosters, presets (durable) | Source config (`MATRIX_SOURCE_CONFIG=<path>`, e.g. `swarm-config.json`) | Survives UI redeploy — `proxy_configure` reads `coordinator.modes` + `coordinator.presets` from source on each deploy. |
+| Agent system prompts | Both active + source config on every `PUT /api/agents/<name>/prompt` | Immediate + durable when `MATRIX_SOURCE_CONFIG` is set. |
+| Conversation sessions | `sessions.json` in the project root | Persists across restarts; cleared per-session by CLEAR KV. |
+| Response cache | In-memory; managed via `/api/cache/*` | Cleared on coordinator restart or explicit `POST /api/cache/clear`. |
+| RAG index | pgvector `chunks` table (Docker container) | Persists across restarts; re-index with `matrixctl rag index`. |
+
+Set `MATRIX_SOURCE_CONFIG` to make mode/preset/prompt edits survive a UI redeploy:
+
+```bash
+export MATRIX_SOURCE_CONFIG=/path/to/swarm-config.json
+python3 scripts/matrixctl launch
+```
 
 ## Tests
 
