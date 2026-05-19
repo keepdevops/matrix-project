@@ -53,7 +53,7 @@ Every `POST /api/architect` response is shaped as:
 }
 ```
 
-`Mode.run` in C++ (`src2/modes/mode.h`) defines this contract. Session continuation and follow-ups reuse the same envelope on each run.
+`Mode.run` in C++ (`cpp_core/src/modes/mode.h`) defines this contract. Session continuation and follow-ups reuse the same envelope on each run.
 
 ### Per-mode config keys (`coordinator.modes.<mode>`)
 
@@ -69,7 +69,7 @@ Every `POST /api/architect` response is shaped as:
 | `max_select` | router | Max agents the classifier may choose. |
 | `classifier_policy` | router | Hint text for the classifier (`code`, `debug`, `docs`, `ops`, …). |
 
-The namespace `mode_module` in C++ (`src2/mode_module.h`) holds **shared helpers** (preset text, policy snippets). It is not the `Mode` struct — each mode still registers a `modes::register_mode({...})` entry.
+The namespace `mode_module` in C++ (`cpp_core/src/mode_module.h`) holds **shared helpers** (preset text, policy snippets). It is not the `Mode` struct — each mode still registers a `modes::register_mode({...})` entry.
 
 ### Stable `meta` fields (debugging / UI)
 
@@ -85,7 +85,7 @@ The namespace `mode_module` in C++ (`src2/mode_module.h`) holds **shared helpers
 
 On boot the coordinator logs **`[config] …`** for malformed types (for example `agents` not an array of strings, invalid `max_select`). An unknown **key** under `coordinator.modes` (a name that does not match a registered mode) produces a warning but the file still loads.
 
-- C++: `src2/config/coordinator_config_validate.cpp`
+- C++: `cpp_core/src/config/coordinator_config_validate.cpp`
 - UI reference (doc only): `src/config/coordinatorSchema.js`
 
 ### Optional config HTTP service (`matrix_config_service`)
@@ -198,19 +198,21 @@ a textarea editor with char/word counter and "Revert to default".
 
 ## 4. Streaming dispatch (SSE)
 
-`POST /api/architect/stream {prompt}` runs the same dispatch as
+`POST /api/architect/stream {prompt, session_id?}` runs the same dispatch as
 `/api/architect` but emits Server-Sent Events. The event taxonomy depends on
 the active mode:
 
 | Mode | Event sequence |
 |---|---|
-| flat | `token*` `agent_done*` `metrics` `done` |
-| cascade | `token*` `agent_done*` `synthesis_start` `token*` `agent_done` `metrics` `done` |
-| pipeline | (`stage` `token*` `agent_done`)<sup>×N</sup> [`synthesis_start` `token*` `agent_done`] `metrics` `done` |
-| router | `selected` `token*` `agent_done*` `metrics` `done` |
+| all | `session` (first) … |
+| flat | `session` `token*` `agent_done*` `metrics` `done` |
+| cascade | `session` `token*` `agent_done*` `synthesis_start` `token*` `agent_done` `metrics` `done` |
+| pipeline | `session` (`stage` `token*` `agent_done`)<sup>×N</sup> [`synthesis_start` `token*` `agent_done`] `metrics` `done` |
+| router | `session` `selected` `token*` `agent_done*` `metrics` `done` |
 
 Event payloads:
 
+- `session` — `{session_id}` — fires before the first token; the UI uses this to wire follow-up BROADCASTs to the correct conversation thread.
 - `token` — `{agent, delta}`
 - `agent_done` — `{agent}`
 - `stage` — `{step, total, agent}` (pipeline only)
@@ -299,14 +301,16 @@ count but fine for relative comparison.
 
 ## 7. Persistence
 
-Config writes target two files:
-
-| File | Purpose | Lifetime |
+| What | Where | Lifetime |
 |---|---|---|
-| `--config <path>` (the **active** config) | What the coordinator reads on startup. Usually `/tmp/matrix-active-config.json`. | Process restart. |
-| `MATRIX_SOURCE_CONFIG=<path>` (the **source** config) | The user-editable canonical config. Usually `swarm-config.json` in the project root. | Survives UI redeploy because `proxy_configure` reads `coordinator.modes` and `coordinator.presets` from source. |
+| Per-mode rosters, presets | Active config (`--config <path>`, default `~/.matrix/run/matrix-active-config.json`) | Survives coordinator restart. |
+| Per-mode rosters, presets (durable) | Source config (`MATRIX_SOURCE_CONFIG=<path>`, e.g. `swarm-config.json`) | Survives UI redeploy — `proxy_configure` reads `coordinator.modes` + `coordinator.presets` from source on each deploy. |
+| Agent system prompts | Both active + source config on every `PUT /api/agents/<name>/prompt` | Immediate + durable when `MATRIX_SOURCE_CONFIG` is set. |
+| Conversation sessions | `sessions.json` in the project root | Persists across restarts; cleared per-session by CLEAR KV. |
+| Response cache | In-memory; managed via `/api/cache/*` | Cleared on coordinator restart or explicit `POST /api/cache/clear`. |
+| RAG index | pgvector `chunks` table (Docker container) | Persists across restarts; re-index with `matrixctl rag index`. |
 
-If the env var is unset, only the active config is written — fine for
+If `MATRIX_SOURCE_CONFIG` is unset, only the active config is written — fine for
 manual launches but per-mode edits will vanish on the next UI redeploy.
 
 ---
@@ -320,12 +324,12 @@ manual launches but per-mode edits will vanish on the next UI redeploy.
 | `GET  /api/modes` · `GET /api/modes/active` · `POST /api/modes/active` | List / read / set active mode. |
 | `GET  /api/modes/<name>/agents` · `PUT /api/modes/<name>/agents` | Per-mode roster + synthesizer + max_select. |
 | `GET  /api/presets` · `PUT /api/presets/<name>` · `DELETE /api/presets/<name>` · `POST /api/presets/<name>/apply` | Preset CRUD + apply. |
-| `PUT  /api/agents/<name>/prompt` | Live system-prompt edit. |
-| `GET  /api/health/agents` | Per-agent breaker state. |
+| `PUT  /api/agents/<name>/prompt {system_prompt}` | Live system-prompt edit; clears response cache; persists to active + source config. |
+| `GET  /api/health/agents` | Per-agent circuit-breaker snapshot. |
 | `GET  /api/pressure` | Per-port KV / queue pressure. |
-| `POST /api/architect` | Non-streaming dispatch. |
-| `POST /api/architect/stream` | Streaming SSE dispatch. |
-| `POST /api/clear-cache` | Clear all KV slots. |
+| `POST /api/architect {prompt, temperature?, use_rag?, rag_top_k?, session_id?}` | Non-streaming dispatch → `{mode, agents, final, meta}`. |
+| `POST /api/architect/stream {prompt, session_id?}` | Streaming SSE dispatch. First event is always `session {session_id}`. |
+| `POST /api/clear-cache` | Clear all KV slots and reset MLX session state. |
 | `POST /api/cache/clear` · `POST /api/cache/config` · `GET /api/cache` | Response cache management. |
 
 Coordinator port defaults to 8000; override with `MATRIX_COORDINATOR_PORT`.
@@ -335,24 +339,41 @@ Coordinator port defaults to 8000; override with `MATRIX_COORDINATOR_PORT`.
 ## 9. Tests
 
 ```bash
+# C++ coordinator integration suite (mock agents, no real models, ~30 s)
 bash tests/run.sh                          # full suite
-bash tests/run.sh -k breaker               # filter
+bash tests/run.sh -k breaker               # filter by name
+bash tests/run.sh -x                       # stop on first failure
 bash tests/run.sh tests/test_streaming.py  # one file
+
+# Python unit + integration tests
+pytest tests/modes tests/telemetry tests/rag
+
+# MLX coordinator tests
+pytest tests/mlx_coordinator
+
+# Chaos suite (fault injection for llama-server + MLX coordinator)
+pytest tests/test_chaos.py
 ```
 
-The harness (`tests/conftest.py::matrix`) starts 4 mock agents on isolated
-ports and the real coordinator on port 18000. No real models needed — runs
-in ~30 s.
+The C++ harness (`tests/conftest.py`) starts mock agents on isolated ports and
+runs the real coordinator binary on port 18000. No real models needed — runs in ~30 s.
 
 | File | Coverage |
 |---|---|
 | `test_modes.py` | Each mode's dispatch shape, roster overrides, synthesis, router classification + filtering. |
-| `test_streaming.py` | SSE event taxonomy per mode, breaker × stream interaction. |
-| `test_breaker.py` | 3-failure trip, exclusion in `meta.excluded_unhealthy`. |
+| `test_streaming.py` | SSE event taxonomy per mode (including `session` event), breaker × stream interaction. |
+| `test_breaker.py` | 3-failure trip, cooldown, exclusion in `meta.excluded_unhealthy`. |
 | `test_presets.py` | CRUD + apply + unknown-agent dropping. |
 | `test_resilience.py` | Retry-on-transient, pipeline skip-with-warning, cascade filtering. |
 | `test_metrics.py` | `meta.timings` populates, reset between dispatches, streaming `metrics` event. |
 | `test_prompts.py` | Live prompt edit takes effect on next dispatch. |
+| `test_kv_pressure.py` | KV / queue pressure endpoint and router load hint. |
+| `test_chaos.py` | Fault injection for llama-server + MLX coordinator (timeouts, crashes, port conflicts). |
+| `test_build_swarm_config.py` | Config generation from `config/agents/*.json`. |
+| `tests/mlx_coordinator/` | MLX coordinator serialisation, session management, service helpers. |
+| `tests/modes/` | Python orchestration mode plugins (flat/pipeline/cascade/router + speculative/map_reduce/…). |
+| `tests/rag/` | pgvector chunker, embedder, store, retrieve, hash embedder byte-match. |
+| `tests/telemetry/` | structlog JSON output, Prometheus `/metrics` endpoint. |
 
 ---
 
@@ -403,7 +424,7 @@ Matrix Swarm supports multi-turn conversations per agent session.
 
 ## 13. UI layouts
 
-The React UI ships with four layout variants selectable via the URL (e.g. `?layout=dashboard`) or the layout switcher in the header:
+The React UI ships with five layout variants selectable via the URL (e.g. `?layout=dashboard`) or the layout switcher in the header:
 
 | Layout | Description |
 |--------|-------------|
@@ -424,17 +445,29 @@ A **visual layout editor** (`src/editor/`) provides flow, freeform, and grid edi
 ### CLI indexing
 
 ```bash
-# Start pgvector
-docker compose -f docker/pgvector/docker-compose.yml up -d
+# Start pgvector (convenience wrapper)
+bash scripts/rag-docker-compose.sh up
 
-# Index a directory
+# Index a directory (auto-runs on `matrixctl launch` when container is running)
 python3 scripts/matrixctl rag index ./cpp_core --embedder hash
 
-# Query
+# Index multiple directories
+python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+
+# Re-index after code changes
+python3 scripts/matrixctl rag index . --embedder hash --force
+
+# Query the index
 python3 scripts/matrixctl rag query "kv router" --embedder hash
+python3 scripts/matrixctl rag query "session management" --top-k 5 --embedder hash
 ```
 
-`matrixctl up` auto-indexes the repo when the pgvector container is running.
+`matrixctl launch` auto-indexes the repo when the pgvector container is running.
+Override the DSN with `RAG_DSN=postgresql://...`.
+
+`scripts/rag-docker-compose.sh` subcommands: `up`, `down`, `restart`, `logs`,
+`status`, `wait` (blocks until `pg_isready`), `psql` (shell into `matrix_rag`),
+`nuke` (down + volume wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
 
 ### Per-agent RAG targeting
 
