@@ -90,19 +90,36 @@ On boot the coordinator logs **`[config] …`** for malformed types (for example
 
 ### Optional config HTTP service (`matrix_config_service`)
 
-Separate process that **owns** one `swarm-config.json` path:
+A separate process that **owns** one `swarm-config.json` path, useful for
+multi-process setups, CI pipelines, or shared config across machines.
 
-| Endpoint | Method | Behavior |
-|----------|--------|----------|
-| `/health` | GET | `{"status":"ok"}` |
-| `/api/v1/config` | GET | Full JSON document |
-| `/api/v1/config` | PUT | Replace document (shallow validation + atomic write) |
+**Build** (produced by `bash scripts/build_cpp_binaries.sh` when CMake finds its sources):
 
-Port: `--port` or `MATRIX_CONFIG_SERVICE_PORT` (default **8011**).
+```bash
+./build/matrix_config_service --config /path/to/swarm-config.json --port 8011
+```
 
-Run `./matrix_config_service --config /path/to/swarm-config.json`.
+**Endpoints:**
 
-When **`MATRIX_SWARM_CONFIG_SERVICE=http://host:port`** is set, the coordinator loads startup config with **`GET /api/v1/config`** instead of reading `--config` from disk, and persists **modes + presets** with **GET → merge → PUT** (agent rows / prompts still use local `--config` dual-write unless you point everything at shared storage).
+| Method | Path | Behaviour |
+|--------|------|-----------|
+| `GET` | `/health` | `{"status":"ok"}` liveness check. |
+| `GET` | `/api/v1/config` | Return the full JSON document. |
+| `PUT` | `/api/v1/config` | Replace the document (shallow validation + atomic write). |
+
+Port: `--port` flag or `MATRIX_CONFIG_SERVICE_PORT` env var (default **8011**).
+
+**Coordinator integration:**
+
+Set `MATRIX_SWARM_CONFIG_SERVICE=http://host:8011` in the coordinator's environment:
+- Startup: coordinator loads config via `GET /api/v1/config` instead of reading `--config` from disk.
+- Mode / preset edits: coordinator merges changes back via `GET → merge → PUT`.
+- Agent rows and system prompts still dual-write to the local `--config` path unless you point everything at the shared service.
+
+```bash
+export MATRIX_SWARM_CONFIG_SERVICE=http://localhost:8011
+python3 scripts/matrixctl launch
+```
 
 ### Pipeline staging prompt
 
