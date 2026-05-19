@@ -349,17 +349,32 @@ python3 scripts/matrixctl launch
 
 # Stop everything
 python3 scripts/matrixctl shutdown
-
-# RAG over pgvector (requires Docker)
-docker compose -f docker/pgvector/docker-compose.yml up -d
-python3 scripts/matrixctl rag index ./cpp_core --embedder hash
-python3 scripts/matrixctl rag query "kv router" --embedder hash
 ```
 
-Convenience wrapper for the pgvector stack: `scripts/rag-docker-compose.sh`
-exposes `up`, `down`, `restart`, `logs`, `status`, `wait` (blocks on
-`pg_isready`), `psql` (shell into `matrix_rag`), and `nuke` (down + volume
-wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
+**RAG (requires Docker + pgvector):**
+
+```bash
+# Start the pgvector container (or use the convenience wrapper)
+bash scripts/rag-docker-compose.sh up
+
+# Index a directory (auto-runs on `matrixctl launch` when container is running)
+python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+
+# Index multiple directories
+python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+
+# Query the index
+python3 scripts/matrixctl rag query "kv router" --embedder hash
+python3 scripts/matrixctl rag query "session management" --top-k 5 --embedder hash
+
+# Re-index after code changes
+python3 scripts/matrixctl rag index . --embedder hash --force
+```
+
+`scripts/rag-docker-compose.sh` wraps the pgvector stack with subcommands:
+`up`, `down`, `restart`, `logs`, `status`, `wait` (blocks until `pg_isready`),
+`psql` (shell into `matrix_rag`), and `nuke` (down + volume wipe).
+Auto-detects `docker compose` vs legacy `docker-compose`.
 
 Conda env: `conda env update -n mlx-env -f environment.yml`.
 Tests: `pytest tests/modes tests/telemetry tests/rag`.
