@@ -157,22 +157,23 @@ bash scripts/build_cpp_binaries.sh
 source scripts/matrix-env.sh
 
 # 3. Pre-flight check (ports, binaries, models)
-bash scripts/matrix-1-check.sh
+python3 scripts/matrixctl check
 
-# 4. Launch — starts proxy (:3002) and React UI (:3000)
-bash scripts/matrix-2-launch.sh
+# 4. Launch — starts proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured
+python3 scripts/matrixctl launch
 
 # 5. Open http://localhost:3000
 #    → CONFIGURE → choose engine + agents → LAUNCH SWARM
 #    → wait for ONLINE → type prompt → BROADCAST (Cmd+Enter)
 
 # 6. Stop everything
-bash scripts/matrix-3-shutdown.sh
+python3 scripts/matrixctl shutdown
 ```
 
 The coordinator listens on `:8000` once **LAUNCH SWARM** has been clicked in
 the UI. The proxy on `:3002` fronts both the coordinator API and the
-inference servers.
+inference servers. The MLX coordinator runs separately on `:3003` when MLX
+agents are deployed.
 
 ## Standalone swarm-config editor
 
