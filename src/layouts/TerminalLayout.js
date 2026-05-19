@@ -240,7 +240,6 @@ export default function TerminalLayout({
       {showConfigPanel && (
         <div className="tl-config-overlay">
           <SwarmConfig onDeployed={onDeployed} />
-          <button className="tl-close-config" onClick={onToggleConfig}>✕ close</button>
         </div>
       )}
     </div>
