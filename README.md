@@ -410,16 +410,40 @@ and `coordinator.presets` from source.
 ## Tests
 
 ```bash
-bash tests/run.sh                 # full integration suite (~30 tests, ~30s)
+# C++ coordinator integration suite (mock agents, no real models, ~30 s)
+bash tests/run.sh                 # full suite
 bash tests/run.sh -k breaker      # filter by name
 bash tests/run.sh -x              # stop on first failure
+
+# Python unit + integration tests
+pytest tests/modes tests/telemetry tests/rag
+
+# MLX coordinator tests
+pytest tests/mlx_coordinator
+
+# Chaos suite (llama-server + MLX coordinator fault injection)
+pytest tests/test_chaos.py
 ```
 
-The suite spins up mock agents (Python stdlib HTTP) on isolated ports and
-runs the real coordinator binary against them. Covers: every mode's dispatch
-shape, streaming SSE event taxonomy, circuit-breaker trip + exclusion,
-preset CRUD + apply, retry-on-transient-failure, pipeline skip-with-warning,
-runtime prompt editing.
+The C++ integration harness (`tests/conftest.py`) spins up mock agents on
+isolated ports and runs the real coordinator binary — no real models needed.
+
+| File | Coverage |
+|---|---|
+| `test_modes.py` | Dispatch shape for all four modes, roster overrides, synthesis. |
+| `test_streaming.py` | SSE event taxonomy per mode, breaker × stream interaction. |
+| `test_breaker.py` | 3-failure trip, cooldown, exclusion in `meta.excluded_unhealthy`. |
+| `test_presets.py` | CRUD + apply + unknown-agent dropping. |
+| `test_resilience.py` | Retry-on-transient, pipeline skip-with-warning, cascade filtering. |
+| `test_metrics.py` | `meta.timings` population, reset between dispatches, streaming `metrics` event. |
+| `test_prompts.py` | Live prompt edit takes effect on next dispatch. |
+| `test_kv_pressure.py` | KV / queue pressure endpoint and router load hint. |
+| `test_chaos.py` | Fault injection for llama-server + MLX coordinator (timeouts, crashes, port conflicts). |
+| `test_build_swarm_config.py` | Config generation from `config/agents/*.json`. |
+| `tests/mlx_coordinator/` | MLX coordinator serialisation, session management, service helpers. |
+| `tests/modes/` | Python orchestration mode plugins (flat/pipeline/cascade/router + speculative/map_reduce/…). |
+| `tests/rag/` | pgvector chunker, embedder, store, retrieve, hash embedder byte-match. |
+| `tests/telemetry/` | structlog JSON output, Prometheus `/metrics` endpoint. |
 
 ## Documentation
 
