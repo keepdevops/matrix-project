@@ -1,0 +1,139 @@
+.fe-root {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Side panel palette ── */
+.fe-palette {
+  width: 180px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.fe-palette-header {
+  padding: 10px 12px 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.fe-palette-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fe-add-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font);
+  text-align: left;
+  width: 100%;
+}
+.fe-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fe-add-btn--active { border-color: var(--accent); color: var(--accent); opacity: 0.5; cursor: default; }
+
+/* ── Canvas ── */
+.fe-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(0,255,65,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,65,0.03) 1px, transparent 1px),
+    #0a0a0a;
+  background-size: 40px 40px;
+  cursor: default;
+}
+
+/* ── Panel ── */
+.fe-panel {
+  position: absolute;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.fe-panel:hover { border-color: var(--accent); }
+.fe-panel--dragging { box-shadow: var(--accent-glow), 0 4px 20px rgba(0,0,0,0.6); border-color: var(--accent); opacity: 0.95; }
+
+.fe-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #161616;
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+.fe-panel-header:active { cursor: grabbing; }
+
+.fe-panel-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.fe-panel-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 3px;
+  line-height: 1;
+  border-radius: 3px;
+}
+.fe-panel-btn:hover { color: var(--accent); }
+.fe-panel-btn--remove:hover { color: var(--red); }
+
+.fe-panel-body {
+  height: calc(100% - 30px);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fe-panel-preview {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font);
+  text-align: center;
+  padding: 8px;
+}
+
+/* ── Resize handle ── */
+.fe-resize {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 40%, var(--border2) 40%, var(--border2) 60%, transparent 60%,
+    transparent 70%, var(--border2) 70%, var(--border2) 90%, transparent 90%);
+}
+.fe-resize:hover { background: linear-gradient(135deg, transparent 40%, var(--accent) 40%, var(--accent) 60%, transparent 60%,
+  transparent 70%, var(--accent) 70%, var(--accent) 90%, transparent 90%); }

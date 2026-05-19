@@ -1,0 +1,89 @@
+.flow-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Toolbar ── */
+.flow-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.flow-toolbar-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+
+.flow-toolbar-spacer { flex: 1; }
+
+.flow-derived {
+  font-size: 11px;
+  color: var(--accent);
+  padding: 3px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  background: var(--accent-dim);
+}
+
+/* ── React Flow container ── */
+.flow-canvas {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* override react flow bg */
+.flow-canvas .react-flow__background { background: #0a0a0a; }
+.flow-canvas .react-flow__edge-path { stroke: #00cc33; }
+.flow-canvas .react-flow__connection-path { stroke: #00ff41; }
+.flow-canvas .react-flow__handle {
+  background: #00ff41;
+  border: 2px solid #0a0a0a;
+  width: 10px;
+  height: 10px;
+}
+
+/* ── Agent node ── */
+.agent-node {
+  background: #141a14;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 120px;
+  font-family: var(--font, monospace);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.agent-node:hover, .agent-node--selected {
+  border-color: #00ff41;
+  box-shadow: 0 0 8px rgba(0,255,65,0.3);
+}
+
+.agent-node-role {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #558855;
+  margin-bottom: 4px;
+}
+
+.agent-node-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #00ff41;
+  text-transform: capitalize;
+}
+
+.agent-node-port {
+  font-size: 9px;
+  color: #445544;
+  margin-top: 2px;
+}

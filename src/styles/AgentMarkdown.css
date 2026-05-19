@@ -1,0 +1,83 @@
+.agent-markdown {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+  color: var(--color-text-body);
+  overflow-wrap: break-word;
+}
+
+.agent-markdown p {
+  margin: 0 0 0.6em;
+}
+.agent-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.agent-markdown h1,
+.agent-markdown h2,
+.agent-markdown h3 {
+  color: var(--color-primary);
+  margin: 0.8em 0 0.3em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.agent-markdown h1 { font-size: 1.1em; }
+.agent-markdown h2 { font-size: 1em; }
+.agent-markdown h3 { font-size: 0.9em; }
+
+.agent-markdown ul,
+.agent-markdown ol {
+  padding-left: 1.4em;
+  margin: 0 0 0.6em;
+}
+.agent-markdown li {
+  margin-bottom: 0.2em;
+}
+
+.agent-markdown blockquote {
+  border-left: 2px solid var(--color-primary-dim);
+  margin: 0.5em 0;
+  padding: 0.2em 0.8em;
+  color: var(--color-text-muted);
+}
+
+.agent-markdown a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.agent-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 0.6em;
+  font-size: 0.9em;
+}
+.agent-markdown th,
+.agent-markdown td {
+  border: 1px solid var(--color-border);
+  padding: 4px 8px;
+  text-align: left;
+}
+.agent-markdown th {
+  background: var(--color-bg-elevated);
+  color: var(--color-primary);
+}
+
+.agent-md-inline-code {
+  background: var(--color-bg-elevated);
+  color: var(--color-primary-dim);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+}
+
+.agent-md-pre {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  padding: var(--space-sm);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+}

@@ -1,0 +1,94 @@
+.deploy-progress {
+  margin-top: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.deploy-progress-bar-track {
+  height: 4px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.deploy-progress-bar-fill {
+  height: 100%;
+  width: 40%;
+  background: var(--color-primary);
+  border-radius: var(--radius-sm);
+  animation: deploy-slide 1.6s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--color-primary-glow);
+}
+
+@keyframes deploy-slide {
+  0%   { transform: translateX(-100%); width: 40%; }
+  50%  { width: 60%; }
+  100% { transform: translateX(350%); width: 40%; }
+}
+
+.deploy-progress--error .deploy-progress-bar-fill {
+  background: var(--color-error);
+  animation: none;
+  width: 100%;
+}
+
+.deploy-steps {
+  display: flex;
+  gap: var(--space-md);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+.deploy-step {
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+.deploy-step--active {
+  color: var(--color-primary);
+  text-shadow: 0 0 6px var(--color-primary-glow);
+}
+.deploy-step--done {
+  color: var(--color-primary-dim);
+}
+
+.deploy-status-msg {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+.deploy-status-msg--error {
+  color: var(--color-error);
+}
+
+.deploy-log-details {
+  margin-top: var(--space-xs);
+}
+.deploy-log-summary {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.deploy-log-block {
+  margin-top: var(--space-sm);
+}
+.deploy-log-port {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+  font-family: var(--font-mono);
+}
+.deploy-log-pre {
+  font-size: 0.7rem;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  padding: var(--space-sm);
+  overflow-x: auto;
+  max-height: 200px;
+  color: var(--color-text-body);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+}

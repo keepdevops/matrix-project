@@ -1,0 +1,148 @@
+.editor-root {
+  --bg:           #0a0a0a;
+  --bg-panel:     #111;
+  --bg-slot:      #161616;
+  --accent:       #00ff41;
+  --accent-dim:   rgba(0, 255, 65, 0.10);
+  --accent-glow:  0 0 10px rgba(0, 255, 65, 0.35);
+  --border:       #2a2a2a;
+  --border2:      #333;
+  --font:         'JetBrains Mono', 'Fira Code', monospace;
+  --text:         #e0e0e0;
+  --text-dim:     #666;
+  --text-green:   #00ff41;
+  --red:          #ff4444;
+  --amber:        #ffb700;
+
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+/* ── Top bar ── */
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 48px;
+  background: #0d0d0d;
+  border-bottom: 1px solid var(--accent);
+  flex-shrink: 0;
+}
+
+.editor-brand {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.editor-brand-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.editor-topbar-spacer { flex: 1; }
+
+.editor-name-input {
+  background: #1a1a1a;
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font);
+  width: 180px;
+}
+.editor-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--accent-glow);
+}
+
+.editor-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text-dim);
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font);
+  white-space: nowrap;
+}
+.editor-btn:hover { border-color: var(--accent); color: var(--accent); }
+.editor-btn--primary {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.editor-btn--primary:hover { background: rgba(0,255,65,0.18); }
+
+.editor-back-link {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.editor-back-link:hover { color: var(--accent); }
+
+/* ── Mode tabs ── */
+.editor-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: #0d0d0d;
+}
+
+.editor-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.editor-tab:hover { color: var(--text); }
+.editor-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Canvas area ── */
+.editor-canvas {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Toast ── */
+.editor-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #1a1a1a;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--font);
+  z-index: 9999;
+  box-shadow: var(--accent-glow);
+  animation: toast-in 0.15s ease;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
