@@ -248,15 +248,23 @@ Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` 
 
 ## Tips
 
-- 5–7 agents is the sweet spot for coding swarms; 12–16 agents risks VRAM /
-  KV-token exhaustion.
-- CLEAR KV before every new major prompt — first prompt fills KV with context;
-  a second prompt without clearing can leave half the agents reading
-  contradictory instructions.
-- On Apple Silicon, mix standard LLAMA agents with `mlx-coder` to compare
-  Metal-optimised inference against llama.cpp on the same broadcast.
-- Use `pipeline` mode for "architect → programmer → reviewer" style chains and
-  `router` mode when only a subset of agents is relevant per prompt.
+- **5–7 agents is the sweet spot for coding swarms.** 12–16 agents risks VRAM /
+  KV-token exhaustion — reserve large swarms for high-level exploration.
+- **CLEAR KV before every new major prompt.** The first prompt fills KV with
+  context; a second unrelated prompt without clearing can leave agents reading
+  contradictory instructions. CLEAR KV also resets MLX conversation state.
+- **Temperature 0.10–0.25 for code.** Higher values cause agents to contradict
+  each other or hallucinate new classes across a large parallel swarm.
+- **Use `pipeline` for multi-step generation** (architect → programmer →
+  reviewer) and `router` when only a subset of agents is relevant per prompt.
+- **Use `cascade` for best-of-N.** Run agents in parallel then let the
+  synthesizer pick the strongest parts of each response.
+- **Save presets for recurring workflows.** Once you find a good mode + roster
+  combination, save it as a preset to apply in one click next session.
+- **Tune `foreman` for router quality.** The foreman system prompt is the main
+  lever on classification quality — edit it live with ✏️ in CONFIGURE.
+- **Mix LLAMA and MLX on Apple Silicon.** Add an MLX agent to a LLAMA swarm to
+  compare Metal-optimised inference against llama.cpp on the same broadcast.
 
 ## Repository layout
 
