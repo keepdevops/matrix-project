@@ -9,10 +9,12 @@
 > **The local-first multi-agent coding swarm.** Privacy-first, no cloud, no API keys —
 > turns your Apple Silicon or NVIDIA box into a 16-agent dev team.
 
-A multi-agent local-LLM workbench. Broadcasts a single prompt to many specialised
-agents (architect, programmer, security, reviewer, …) running in parallel against
-local inference servers (llama.cpp, MLX, vLLM), then collects, displays, and
-extracts code from their responses in a React UI.
+A multi-agent local-LLM workbench. Dispatches prompts to 16+ specialised agents
+(architect, programmer, security, reviewer, …) across four orchestration modes
+(flat, pipeline, cascade, router) against local inference servers (llama.cpp,
+MLX, vLLM). Supports multi-turn conversation threads, pgvector RAG context
+injection, five UI layouts, per-agent circuit breakers, and a live metrics
+dashboard — all in a React UI with no cloud dependency.
 
 ## How it compares
 
@@ -43,8 +45,9 @@ extracts code from their responses in a React UI.
 | Hardware tuning | **Apple Silicon (MLX) + CUDA presets** | Neutral | Neutral | Neutral | Good | Neutral |
 | Time to first prompt | **`npm i -g`, then `matrix`** | Python crew kickoff | Graph definition | Convo setup | Docker + web UI | Python setup |
 
-**Pick Matrix Swarm** when you want privacy, multi-backend mixing, and instant
-specialised coding agents on local hardware. **Pick CrewAI / LangGraph / AutoGen**
+**Pick Matrix Swarm** when you want privacy, multi-backend mixing, multi-turn
+conversation threads, and instant specialised coding agents on local hardware —
+with no cloud dependency and no API keys. **Pick CrewAI / LangGraph / AutoGen**
 when you need a programmable framework for non-coding workflows or custom agent
 logic. **Pick OpenDevin** for deep terminal-driven autonomous coding — or combine
 it with Matrix Swarm for parallel planning + deep execution.
