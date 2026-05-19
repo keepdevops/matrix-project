@@ -137,8 +137,10 @@ it with Matrix Swarm for parallel planning + deep execution.
   CONFIGURE opens a textarea editor for that agent's `system_prompt`. Saves
   to active + source config; clears the response cache. The most useful lever
   on router quality is `foreman`'s system prompt.
-- **Streaming SSE dispatch** — `/api/architect/stream` honours the active
-  mode. Pipeline emits `stage` events; router emits a `selected` event;
+- **Streaming SSE dispatch** — `/api/architect/stream {prompt, session_id?}`
+  honours the active mode. The first event is always `session {session_id}`,
+  used by the UI to wire follow-up BROADCASTs to the correct conversation
+  thread. Pipeline emits `stage` events; router emits a `selected` event;
   cascade and pipeline emit `synthesis_start` when the reducer kicks in.
   A final `metrics` event carries per-agent timings.
 - **Per-agent circuit breaker** — three failures in 60s open the breaker for
