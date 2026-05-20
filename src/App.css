@@ -8,6 +8,8 @@ body {
   background-color: #0d1117;
   font-family: 'JetBrains Mono', monospace;
   color: #00ff41;
+  --panel-bg: #161b22;
+  --panel-border: #30363d;
 }
 
 .matrix-container {

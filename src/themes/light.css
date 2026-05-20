@@ -5,6 +5,8 @@
 body[data-theme="light"] {
   background-color: #f6f5f0;
   color: #0f3d24;
+  --panel-bg: #ffffff;
+  --panel-border: #d8d6cc;
 }
 
 body[data-theme="light"] h1 {

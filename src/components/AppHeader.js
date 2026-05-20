@@ -101,7 +101,7 @@ export default function AppHeader({
           {showAppearance && (
             <div className="appearance-dropdown" style={{
               position: 'absolute', right: 0, top: '100%', zIndex: 200,
-              background: 'var(--panel-bg, #161b22)', border: '1px solid #30363d',
+              background: 'var(--panel-bg, #161b22)', border: '1px solid var(--panel-border, #30363d)',
               borderRadius: 6, padding: '0.5rem', minWidth: 160,
             }}>
               <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Theme</div>
