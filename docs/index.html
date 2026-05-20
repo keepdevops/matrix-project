@@ -35,13 +35,13 @@
                 Run 16+ AI coding agents locally — in parallel, on your hardware.
             </p>
             <p class="subhead">
-                Run MLX and llama.cpp <strong>simultaneously</strong> on Apple Silicon, or vLLM on Linux/CUDA — across three coordinator modes (Flat, Pipeline, Router). No cloud, no API keys, no data leaves your machine.
+                Run MLX and llama.cpp <strong>simultaneously</strong> on Apple Silicon, or vLLM on Linux/CUDA — across four coordinator modes (Flat, Pipeline, Cascade, Router). No cloud, no API keys, no data leaves your machine.
             </p>
 
             <div class="npm-badge">
                 <strong>npm</strong>
                 <span>@keepdevops/matrix</span>
-                <span style="color:var(--accent);">• <span class="npm-version">v2.0.3</span></span>
+                <span style="color:var(--accent);">• <span class="npm-version">v2.0.8</span></span>
             </div>
 
             <div class="badges">
@@ -96,9 +96,9 @@
                 <span class="chip">DevOps</span>
                 <span class="chip">Reviewer</span>
                 <span class="chip">Tester</span>
-                <span class="chip">Researcher</span>
+                <span class="chip">Optimizer</span>
                 <span class="chip">Debugger</span>
-                <span class="chip">Refactorer</span>
+                <span class="chip">Frontend</span>
                 <span class="chip">Documenter</span>
                 <span class="chip">+ 6 more</span>
             </div>
@@ -147,7 +147,7 @@
             <div class="row">
                 <div class="node">Coordinator</div>
             </div>
-            <div class="arrow">↓ Flat / Pipeline / Router</div>
+            <div class="arrow">↓ Flat / Pipeline / Cascade / Router</div>
             <div class="row">
                 <div class="node">Architect</div>
                 <div class="node">Programmer</div>
@@ -193,7 +193,7 @@
                 <ul>
                     <li>16+ specialized agents (Architect, Programmer, DevOps, Security, etc.)</li>
                     <li>Run <strong>MLX + llama.cpp concurrently</strong> on Apple Silicon, or <strong>vLLM</strong> on Linux/CUDA (via Docker Model Runner) — mix backends per agent</li>
-                    <li>Three coordinator modes: <strong>Flat</strong> (broadcast), <strong>Pipeline</strong> (sequential), <strong>Router</strong> (smart dispatch)</li>
+                    <li>Four coordinator modes: <strong>Flat</strong> (broadcast), <strong>Pipeline</strong> (sequential), <strong>Cascade</strong> (mixture-of-agents), <strong>Router</strong> (smart dispatch)</li>
                     <li>Real-time code extraction &amp; editing</li>
                 </ul>
             </div>
@@ -226,7 +226,7 @@
                 <tr><td>Runs fully local</td><td class="us yes">Yes</td><td class="no">No</td><td>Optional</td><td>Optional</td></tr>
                 <tr><td>Multi-agent orchestration</td><td class="us yes">Yes (16+)</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
                 <tr><td>Mix backends per agent</td><td class="us yes">MLX + llama.cpp + vLLM</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-                <tr><td>Coordinator modes</td><td class="us yes">Flat · Pipeline · Router</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Coordinator modes</td><td class="us yes">Flat · Pipeline · Cascade · Router</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
                 <tr><td>Open source</td><td class="us yes">Yes</td><td class="no">No</td><td>Yes</td><td>Yes</td></tr>
             </tbody>
         </table>
@@ -253,7 +253,7 @@
                 <tr><td>Local-first</td><td class="us yes">Yes (air-gapped)</td><td>Optional (Ollama)</td><td>Optional</td><td>Optional</td><td>Strong (sandboxed terminal)</td><td>Optional</td></tr>
                 <tr><td>Backend support</td><td class="us">MLX + llama.cpp + vLLM, mixable per agent</td><td>Any (incl. local)</td><td>LangChain ecosystem</td><td>Multiple + local</td><td>Ollama / local</td><td>Any</td></tr>
                 <tr><td># of agents</td><td class="us">16+ pre-built</td><td>User-defined roles</td><td>Nodes in graph</td><td>Dynamic conversational</td><td>Single main + tools</td><td>Fixed dev team roles</td></tr>
-                <tr><td>Orchestration</td><td class="us">Flat · Pipeline · Router</td><td>Sequential / hierarchical</td><td>Graph (loops, branches, state)</td><td>Message-based chats</td><td>Loop with tools</td><td>Pipeline (spec → code → test)</td></tr>
+                <tr><td>Orchestration</td><td class="us">Flat · Pipeline · Cascade · Router</td><td>Sequential / hierarchical</td><td>Graph (loops, branches, state)</td><td>Message-based chats</td><td>Loop with tools</td><td>Pipeline (spec → code → test)</td></tr>
                 <tr><td>UI</td><td class="us">Real-time React UI + code editing</td><td>CLI + basic</td><td>Visualization tools</td><td>AutoGen Studio</td><td>VS Code-like interface</td><td>CLI</td></tr>
                 <tr><td>Code execution</td><td class="us">Real-time extraction &amp; editing</td><td>Via tools</td><td>Via tools</td><td>Via tools</td><td>Full terminal sandbox</td><td>Generates artifacts</td></tr>
                 <tr><td>Ease of start</td><td class="us"><code>npm i -g</code> + <code>matrix run</code></td><td>Python crew kickoff</td><td>Graph definition</td><td>Conversational setup</td><td>Docker + web UI</td><td>Python setup</td></tr>
@@ -276,8 +276,8 @@
             <p>You bring your own GGUF (llama.cpp), MLX, or HuggingFace weights. Matrix Swarm doesn't ship models. Recommended starters: Llama 3, Qwen 2.5, DeepSeek-Coder.</p>
         </details>
         <details>
-            <summary>What's the difference between Flat, Pipeline, and Router?</summary>
-            <p><strong>Flat</strong> broadcasts your prompt to all agents in parallel. <strong>Pipeline</strong> chains them in a fixed sequence (e.g., Architect → Programmer → Reviewer). <strong>Router</strong> uses a small dispatcher model to pick the best agent per request.</p>
+            <summary>What's the difference between Flat, Pipeline, Cascade, and Router?</summary>
+            <p><strong>Flat</strong> broadcasts your prompt to all agents in parallel. <strong>Pipeline</strong> chains them in a fixed sequence (e.g., Architect → Programmer → Reviewer). <strong>Cascade</strong> is mixture-of-agents: parallel broadcast plus a synthesizer that consolidates every response into one final answer. <strong>Router</strong> uses a classifier agent (foreman) to pick the best agents per request.</p>
         </details>
         <details>
             <summary>Is anything sent to the cloud?</summary>
@@ -303,7 +303,7 @@
             <a href="https://github.com/keepdevops/matrix-project" target="_blank" rel="noopener">GitHub</a>
             <a href="https://www.npmjs.com/package/@keepdevops/matrix" target="_blank" rel="noopener">npm</a>
         </div>
-        <div>© 2026 coficube · Matrix Swarm is open source · <span class="npm-version">v2.0.3</span></div>
+        <div>© 2026 coficube · Matrix Swarm is open source · <span class="npm-version">v2.0.8</span></div>
     </footer>
 
     <script>
