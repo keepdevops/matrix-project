@@ -96,7 +96,7 @@ export default function AppHeader({
             aria-label="Layout and theme"
             title="Pick layout and theme"
           >
-            {THEMES[theme]?.label ?? '☾ Dark'} {layoutEntries.length > 1 ? `· ${LAYOUTS[layout]?.label ?? 'Default'}` : ''}
+            {THEMES[theme]?.label ?? '☾ Dark'}
           </button>
           {showAppearance && (
             <div className="appearance-dropdown" style={{
@@ -115,21 +115,6 @@ export default function AppHeader({
                   {label}
                 </button>
               ))}
-              {layoutEntries.length > 1 && (
-                <>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.6, margin: '0.6rem 0 0.4rem', textTransform: 'uppercase' }}>Layout</div>
-                  {layoutEntries.map(([id, { label }]) => (
-                    <button
-                      key={id}
-                      className={`appearance-option${layout === id ? ' active' : ''}`}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: 'inherit', padding: '0.3rem 0.5rem', cursor: 'pointer', borderRadius: 4, fontWeight: layout === id ? 700 : 400 }}
-                      onClick={() => { onSetLayout(id); setShowAppearance(false); }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </>
-              )}
             </div>
           )}
         </div>

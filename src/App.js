@@ -241,7 +241,7 @@ function App() {
         historyCount={history.length}
         onModeChange={handleModeChange}
         onClearCache={handleClearCache}
-        onToggleConfig={() => setShowConfig(v => !v)}
+        onToggleConfig={() => { setShowConverter(false); setShowConfig(v => !v); }}
         onToggleHistory={() => setShowHistory(v => !v)}
         onOpenConverter={() => setShowConverter(v => !v)}
         onOpenRagAdmin={() => setShowRagAdmin(true)}
