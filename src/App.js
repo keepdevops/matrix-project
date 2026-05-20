@@ -247,7 +247,7 @@ function App() {
         onOpenRagAdmin={() => setShowRagAdmin(true)}
         onOpenCachePanel={() => setShowCachePanel(true)}
         onOpenHelp={() => setShowHelp(true)}
-        onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+        onSetTheme={setTheme}
       />
 
       {showConverter && (
