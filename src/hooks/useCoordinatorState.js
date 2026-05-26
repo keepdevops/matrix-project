@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   fetchAgents,
   fetchKvPressure,
@@ -23,16 +23,17 @@ export function useCoordinatorState(online) {
     if (activeMode !== 'flat') setFlatPickAgent(null);
   }, [activeMode]);
 
-  const refreshModes = () =>
+  const refreshModes = useCallback(() =>
     fetchModes()
       .then(list => {
-        setModes(list);
         const cur = list.find(m => m.active);
+        setModes(list);
         if (cur) setActiveModeState(cur.name);
       })
-      .catch(err => console.error('useCoordinatorState: refreshModes failed:', err));
+      .catch(err => console.error('useCoordinatorState: refreshModes failed:', err)),
+  []);
 
-  const refreshAgents = () =>
+  const refreshAgents = useCallback(() =>
     fetchAgents()
       .then(agents => {
         const next = agents.map(a => ({
@@ -50,7 +51,8 @@ export function useCoordinatorState(online) {
           return next;
         });
       })
-      .catch(err => console.error('useCoordinatorState: refreshAgents failed:', err));
+      .catch(err => console.error('useCoordinatorState: refreshAgents failed:', err)),
+  [agentMeta]);
 
   const handleModeChange = async (name) => {
     try {
@@ -107,8 +109,7 @@ export function useCoordinatorState(online) {
   // Refresh agents + modes when coordinator comes online
   useEffect(() => {
     if (online) { refreshModes(); refreshAgents(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online]);
+  }, [online, refreshModes, refreshAgents]);
 
   return {
     activeAgents,
