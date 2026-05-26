@@ -5,6 +5,7 @@ import { useToast } from './components/ToastManager';
 import { useSwarm } from './hooks/useSwarm';
 import { useCoordinatorState } from './hooks/useCoordinatorState';
 import { useLayoutPreference } from './hooks/useLayoutPreference';
+import { useSwarmPolling } from './hooks/useSwarmPolling';
 import { clearKvCache } from './api/swarmApi';
 import { extractCodeBlock } from './utils/codeExtractor';
 import { qualityPassContextPolicy } from './utils/qualityPassContext';
@@ -58,18 +59,7 @@ function App() {
   const [useRag, setUseRag]           = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState(null);
 
-  useEffect(() => {
-    checkStatus();
-    loadHistory();
-    refreshAgents();
-    refreshModes();
-    const interval = setInterval(() => {
-      checkStatus();
-      if (online) { refreshAgents(); refreshModes(); }
-    }, 10000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkStatus, loadHistory]);
+  useSwarmPolling({ checkStatus, loadHistory, refreshAgents, refreshModes, online });
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
