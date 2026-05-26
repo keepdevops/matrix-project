@@ -2,7 +2,7 @@
 # Build (from repo root): docker compose -f production/docker-compose.prod.yml build
 # Run:  see production/docker-compose.prod.yml
 
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 

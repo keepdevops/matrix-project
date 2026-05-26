@@ -1,5 +1,5 @@
 # Development: hot-reload React (npm start). Mount source via docker-compose.
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
