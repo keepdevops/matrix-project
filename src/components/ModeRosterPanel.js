@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  fetchModes,
-  fetchModeAgents,
-  setModeAgents,
-  fetchAgents,
-  fetchAgentHealth,
-} from '../api/swarmApi';
+import { fetchModes, fetchModeAgents, fetchAgents } from '../api/swarmApi';
 import RosterGrid from './RosterGrid';
 import PipelineOrderEditor from './PipelineOrderEditor';
 import ModeOptions from './ModeOptions';
+import { useModeHealth } from '../hooks/useModeHealth';
+import { useModeSave } from '../hooks/useModeSave';
 
-// Per-mode agent roster editor. Lets the user pick which agents participate
-// in pipeline / router / cascade (flat mode ignores roster — full swarm).
-// Persists via PUT /api/modes/<name>/agents on the coordinator.
 export default function ModeRosterPanel() {
   const [modes, setModes]               = useState([]);
   const [activeTab, setActiveTab]       = useState(null);
@@ -25,35 +18,14 @@ export default function ModeRosterPanel() {
   const [pipelinePreset, setPipelinePreset]   = useState('');
   const [synthesisPolicy, setSynthesisPolicy] = useState('summary');
   const [classifierPolicy, setClassifierPolicy] = useState('standard');
-  const [health, setHealth]             = useState({});
   const [pipelineOrder, setPipelineOrder]       = useState([]);
   const [usePipelineOrder, setUsePipelineOrder] = useState(false);
   const [stageContextChars, setStageContextChars] = useState('');
-  const [busy, setBusy]       = useState(false);
-  const [error, setError]     = useState(null);
-  const [staleAgents, setStaleAgents] = useState([]);
-  const [savedAt, setSavedAt] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const tick = () => {
-      fetchAgentHealth().then(snap => {
-        if (cancelled) return;
-        const out = {};
-        Object.entries(snap || {}).forEach(([k, v]) => {
-          if (k !== '__config') out[k] = v;
-        });
-        setHealth(out);
-      }).catch(() => {});
-    };
-    tick();
-    const id = setInterval(tick, 5000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-
-  const tripped = Object.entries(health)
-    .filter(([, v]) => v && v.tripped)
-    .map(([name, v]) => ({ name, cooldown_s: Math.ceil((v.cooldown_remaining_ms || 0) / 1000) }));
+  const { tripped } = useModeHealth();
+  const { busy, error, staleAgents, savedAt, save, clearOverride } = useModeSave({
+    setSelected, setExplicit, setPipelineOrder, setUsePipelineOrder,
+  });
 
   const loadModes = useCallback(async () => {
     try {
@@ -64,7 +36,7 @@ export default function ModeRosterPanel() {
         setActiveTab((m.find(x => x.active) || m[0]).name);
       }
     } catch (e) {
-      setError(e.message);
+      console.error('ModeRosterPanel: loadModes failed:', e);
     }
   }, [activeTab]);
 
@@ -84,8 +56,6 @@ export default function ModeRosterPanel() {
     let cancelled = false;
     (async () => {
       try {
-        setError(null);
-        setStaleAgents([]);
         const data = await fetchModeAgents(activeTab);
         if (cancelled) return;
         setSelected(data.explicit ? (data.agents || []) : []);
@@ -100,21 +70,18 @@ export default function ModeRosterPanel() {
         const ord = Array.isArray(data.order) ? data.order : [];
         setPipelineOrder(ord);
         setUsePipelineOrder(ord.length > 0);
-        if (Array.isArray(data.stale) && data.stale.length) {
-          setStaleAgents(data.stale);
-        }
       } catch (e) {
-        if (!cancelled) setError(e.message);
+        if (!cancelled) { setSelected([]); setExplicit(false); }
+        console.error('ModeRosterPanel: fetchModeAgents failed:', e);
       }
     })();
     return () => { cancelled = true; };
   }, [activeTab]);
 
   const isPipeline = activeTab === 'pipeline';
-
-  const addAgent   = name => setSelected(prev => (isPipeline || !prev.includes(name)) ? [...prev, name] : prev);
-  const removeAt   = index => setSelected(prev => prev.filter((_, i) => i !== index));
-  const moveAgent  = (index, dir) => setSelected(prev => {
+  const addAgent  = name => setSelected(prev => (isPipeline || !prev.includes(name)) ? [...prev, name] : prev);
+  const removeAt  = index => setSelected(prev => prev.filter((_, i) => i !== index));
+  const moveAgent = (index, dir) => setSelected(prev => {
     const j = index + dir;
     if (j < 0 || j >= prev.length) return prev;
     const next = prev.slice();
@@ -122,66 +89,10 @@ export default function ModeRosterPanel() {
     return next;
   });
 
-  const save = async () => {
-    if (!activeTab) return;
-    setBusy(true); setError(null); setStaleAgents([]);
-    try {
-      const opts = {};
-      const parsed = parseInt(maxSelect, 10);
-      if (activeTab === 'router' && Number.isInteger(parsed) && parsed >= 1) opts.maxSelect = parsed;
-      if (activeTab === 'pipeline' || activeTab === 'cascade') opts.synthesizer = synthesizer || '';
-      if (activeTab === 'flat')     opts.variant_policy    = variantPolicy;
-      if (activeTab === 'pipeline') opts.preset            = pipelinePreset;
-      if (activeTab === 'cascade')  opts.synthesis_policy  = synthesisPolicy;
-      if (activeTab === 'router')   opts.classifier_policy = classifierPolicy;
-      if (activeTab === 'pipeline' && usePipelineOrder) {
-        opts.order = pipelineOrder.length ? pipelineOrder : null;
-      }
-      if (activeTab === 'pipeline' && stageContextChars !== '') {
-        const scc = parseInt(stageContextChars, 10);
-        if (Number.isInteger(scc) && scc > 0) opts.stage_context_chars = scc;
-      }
-      const res = await setModeAgents(activeTab, selected, opts);
-      const savedAgents = Array.isArray(res?.agents) ? res.agents : [];
-      setSelected(savedAgents);
-      setExplicit(savedAgents.length > 0);
-      if (activeTab === 'pipeline' && usePipelineOrder && res
-          && Object.prototype.hasOwnProperty.call(res, 'order')) {
-        if (res.order === null || res.order === undefined) {
-          setPipelineOrder([]); setUsePipelineOrder(false);
-        } else if (Array.isArray(res.order)) {
-          setPipelineOrder(res.order);
-          setUsePipelineOrder(res.order.length > 0);
-        }
-      }
-      setSavedAt(Date.now());
-      const skipped = [];
-      if (Array.isArray(res?.unknown) && res.unknown.length) skipped.push(`agents: ${res.unknown.join(', ')}`);
-      if (res?.unknown_order?.length) skipped.push(`order: ${res.unknown_order.join(', ')}`);
-      setError(skipped.length ? `Skipped (not deployed) — ${skipped.join('; ')}` : null);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const clearOverride = async () => {
-    setBusy(true); setError(null);
-    try {
-      const extra = activeTab === 'pipeline' ? { order: null } : {};
-      const res = await setModeAgents(activeTab, [], extra);
-      const savedAgents = Array.isArray(res?.agents) ? res.agents : [];
-      setSelected(savedAgents);
-      setExplicit(savedAgents.length > 0);
-      if (activeTab === 'pipeline') { setPipelineOrder([]); setUsePipelineOrder(false); }
-      setSavedAt(Date.now());
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const handleSave = () => save(activeTab, selected, {
+    maxSelect, synthesizer, variantPolicy, pipelinePreset,
+    synthesisPolicy, classifierPolicy, usePipelineOrder, pipelineOrder, stageContextChars,
+  });
 
   if (!modes.length) {
     return (
@@ -257,11 +168,11 @@ export default function ModeRosterPanel() {
       )}
 
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', alignItems: 'center' }}>
-        <button onClick={save} disabled={busy} className="swarm-deploy-btn"
+        <button onClick={handleSave} disabled={busy} className="swarm-deploy-btn"
                 style={{ padding: '0.3rem 0.8rem' }}>
           {busy ? 'Saving…' : 'Save'}
         </button>
-        <button onClick={clearOverride}
+        <button onClick={() => clearOverride(activeTab)}
                 disabled={busy || (!explicit && selected.length === 0)}
                 style={{ padding: '0.3rem 0.8rem' }}>
           Clear override
