@@ -1,26 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { setAgentTokens } from '../api/swarmApi';
-
-// Per-agent token-budget editor. Shows max_tokens (runtime — applies to next
-// inference call) and context (persisted, takes effect on next deploy) for
-// every agent in the loaded swarm config. Saves one row at a time via
-// PUT /api/agents/<name>/tokens.
-//
-// Why this matters: changing max_tokens used to require hand-editing the
-// swarm-config.json file and restarting the swarm. With this panel a user
-// can bump architect/programmer output caps when code is getting truncated
-// mid-generation, without leaving the UI.
-
-const MIN_MAX_TOKENS = 64;
-const MAX_MAX_TOKENS = 131072;
-const MIN_CONTEXT = 512;
-const MAX_CONTEXT = 262144;
-const MIN_TIMEOUT = 30;
-const MAX_TIMEOUT = 7200;
-const MIN_GPU_LAYERS = 0;
-const MAX_GPU_LAYERS = 999;
-const MIN_CONCURRENCY = 1;
-const MAX_CONCURRENCY = 64;
+import TokenBudgetGrid, {
+  MIN_MAX_TOKENS, MAX_MAX_TOKENS,
+  MIN_CONTEXT, MAX_CONTEXT,
+  MIN_TIMEOUT, MAX_TIMEOUT,
+  MIN_GPU_LAYERS, MAX_GPU_LAYERS,
+  MIN_CONCURRENCY, MAX_CONCURRENCY,
+} from './TokenBudgetGrid';
 
 function clamp(n, lo, hi) {
   if (!Number.isFinite(n)) return lo;
@@ -28,10 +14,10 @@ function clamp(n, lo, hi) {
 }
 
 export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
-  const [drafts, setDrafts] = useState({}); // { name: { max_tokens, context, read_timeout_secs } }
-  const [busy, setBusy] = useState({});      // { name: bool }
-  const [errors, setErrors] = useState({});  // { name: string }
-  const [notices, setNotices] = useState({}); // { name: string } — e.g. auto-bump info
+  const [drafts, setDrafts] = useState({});
+  const [busy, setBusy] = useState({});
+  const [errors, setErrors] = useState({});
+  const [notices, setNotices] = useState({});
   const [showAll, setShowAll] = useState(false);
 
   const safeRoles = Array.isArray(roles) ? roles : [];
@@ -41,10 +27,7 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
     : safeRoles.filter(r => selectedSet.has(r.name));
 
   const setDraft = (name, key, value) => {
-    setDrafts(prev => ({
-      ...prev,
-      [name]: { ...(prev[name] || {}), [key]: value },
-    }));
+    setDrafts(prev => ({ ...prev, [name]: { ...(prev[name] || {}), [key]: value } }));
   };
 
   const effective = (role, key) => {
@@ -56,8 +39,7 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
   const isDirty = (role) => {
     const d = drafts[role.name];
     if (!d) return false;
-    const dm = d.max_tokens, dc = d.context, dt = d.read_timeout_secs;
-    const dg = d.gpu_layers, dmc = d.max_concurrency;
+    const { max_tokens: dm, context: dc, read_timeout_secs: dt, gpu_layers: dg, max_concurrency: dmc } = d;
     return (
       (dm !== undefined && dm !== '' && Number(dm) !== role.max_tokens) ||
       (dc !== undefined && dc !== '' && Number(dc) !== role.context) ||
@@ -81,21 +63,16 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
   const saveOne = async (role) => {
     const d = drafts[role.name] || {};
     const patch = {};
-    if (d.max_tokens !== undefined && d.max_tokens !== '') {
+    if (d.max_tokens !== undefined && d.max_tokens !== '')
       patch.max_tokens = clamp(Number(d.max_tokens), MIN_MAX_TOKENS, MAX_MAX_TOKENS);
-    }
-    if (d.context !== undefined && d.context !== '') {
+    if (d.context !== undefined && d.context !== '')
       patch.context = clamp(Number(d.context), MIN_CONTEXT, MAX_CONTEXT);
-    }
-    if (d.read_timeout_secs !== undefined && d.read_timeout_secs !== '') {
+    if (d.read_timeout_secs !== undefined && d.read_timeout_secs !== '')
       patch.read_timeout_secs = clamp(Number(d.read_timeout_secs), MIN_TIMEOUT, MAX_TIMEOUT);
-    }
-    if (d.gpu_layers !== undefined && d.gpu_layers !== '') {
+    if (d.gpu_layers !== undefined && d.gpu_layers !== '')
       patch.gpu_layers = clamp(Number(d.gpu_layers), MIN_GPU_LAYERS, MAX_GPU_LAYERS);
-    }
-    if (d.max_concurrency !== undefined && d.max_concurrency !== '' && role.max_concurrency !== undefined) {
+    if (d.max_concurrency !== undefined && d.max_concurrency !== '' && role.max_concurrency !== undefined)
       patch.max_concurrency = clamp(Number(d.max_concurrency), MIN_CONCURRENCY, MAX_CONCURRENCY);
-    }
     if (Object.keys(patch).length === 0) return;
 
     setBusy(prev => ({ ...prev, [role.name]: true }));
@@ -103,11 +80,8 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
     setNotices(prev => ({ ...prev, [role.name]: '' }));
     try {
       const resp = await setAgentTokens(role.name, patch);
-      // Apply server response (which may contain auto-bumped read_timeout_secs)
       const applied = { ...patch };
-      if (Number.isFinite(resp?.read_timeout_secs)) {
-        applied.read_timeout_secs = resp.read_timeout_secs;
-      }
+      if (Number.isFinite(resp?.read_timeout_secs)) applied.read_timeout_secs = resp.read_timeout_secs;
       if (resp?.read_timeout_auto_bumped) {
         setNotices(prev => ({
           ...prev,
@@ -115,15 +89,9 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
         }));
       }
       if (onRolesChange) {
-        onRolesChange(prev => prev.map(r =>
-          r.name === role.name ? { ...r, ...applied } : r
-        ));
+        onRolesChange(prev => prev.map(r => r.name === role.name ? { ...r, ...applied } : r));
       }
-      setDrafts(prev => {
-        const next = { ...prev };
-        delete next[role.name];
-        return next;
-      });
+      setDrafts(prev => { const next = { ...prev }; delete next[role.name]; return next; });
     } catch (e) {
       setErrors(prev => ({ ...prev, [role.name]: e.message }));
     } finally {
@@ -132,12 +100,10 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
   };
 
   const dirtyRoles = visibleRoles.filter(isDirty);
-
   if (safeRoles.length === 0) return null;
 
   const saveAll = async () => {
     for (const r of dirtyRoles) {
-      // sequential to keep error reporting per-agent and not overload the proxy
       // eslint-disable-next-line no-await-in-loop
       await saveOne(r);
     }
@@ -157,17 +123,10 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
       }}>
         <span>Σ ctx: <strong>{totalContext.toLocaleString()}</strong></span>
         <span>Σ out: <strong>{totalMaxTokens.toLocaleString()}</strong></span>
-        <span style={{ opacity: 0.6 }}>
-          showing {visibleRoles.length}/{safeRoles.length}
-        </span>
+        <span style={{ opacity: 0.6 }}>showing {visibleRoles.length}/{safeRoles.length}</span>
         {selectedSet && selectedSet.size > 0 && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={showAll}
-              onChange={e => setShowAll(e.target.checked)}
-              style={{ margin: 0 }}
-            />
+            <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} style={{ margin: 0 }} />
             <span>show all</span>
           </label>
         )}
@@ -184,110 +143,16 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
         )}
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 4.5rem 4.5rem 3.75rem 3.25rem 3.25rem 3.25rem',
-        columnGap: '0.4rem',
-        rowGap: '0.15rem',
-        fontSize: '0.78rem',
-        alignItems: 'center',
-        lineHeight: 1.2,
-      }}>
-        <div style={{ opacity: 0.55, fontSize: '0.72rem' }}>agent</div>
-        <div style={{ opacity: 0.55, fontSize: '0.72rem' }}>ctx</div>
-        <div style={{ opacity: 0.55, fontSize: '0.72rem' }}>max_tok</div>
-        <div style={{ opacity: 0.55, fontSize: '0.72rem' }} title="HTTP read timeout (seconds). Auto-bumped when max_tokens is raised past 4096.">to (s)</div>
-        <div style={{ opacity: 0.55, fontSize: '0.72rem' }} title="GPU layers offloaded. Takes effect on next deploy.">gpu</div>
-        <div style={{ opacity: 0.55, fontSize: '0.72rem' }} title="Max concurrent requests for this agent.">conc</div>
-        <div />
-        {visibleRoles.map(role => {
-          const dirty = isDirty(role);
-          const err = errors[role.name];
-          const note = notices[role.name];
-          const isBusy = !!busy[role.name];
-          const ctxVal = drafts[role.name]?.context ?? role.context ?? '';
-          const mtVal = drafts[role.name]?.max_tokens ?? role.max_tokens ?? '';
-          const toVal = drafts[role.name]?.read_timeout_secs ?? role.read_timeout_secs ?? '';
-          const gpuVal = drafts[role.name]?.gpu_layers ?? role.gpu_layers ?? '';
-          const concVal = drafts[role.name]?.max_concurrency ?? role.max_concurrency ?? '';
-          const inputStyle = {
-            padding: '0.05rem 0.25rem',
-            fontSize: '0.78rem',
-            width: '100%',
-            lineHeight: 1.2,
-          };
-          const saveStyle = {
-            padding: '0.05rem 0.3rem',
-            fontSize: '0.72rem',
-            border: err ? '1px solid #ff5555' : undefined,
-            background: !err && note ? '#1a3a1a' : undefined,
-            color: !err && note ? '#9ec99e' : undefined,
-          };
-          const tooltip = err
-            ? `${role.name} :${role.port} — ${err}`
-            : note
-              ? `${role.name} :${role.port} — ${note}`
-              : `port :${role.port}`;
-          return (
-            <React.Fragment key={role.name}>
-              <div
-                title={tooltip}
-                style={{
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  color: err ? '#ff8888' : (note ? '#9ec99e' : undefined),
-                }}
-              >
-                {role.name}
-                {err && <span style={{ marginLeft: '0.25rem' }}>⚠</span>}
-                {!err && note && <span style={{ marginLeft: '0.25rem' }}>✓</span>}
-              </div>
-              <input
-                type="number" min={MIN_CONTEXT} max={MAX_CONTEXT} step={512}
-                value={ctxVal}
-                onChange={e => setDraft(role.name, 'context', e.target.value)}
-                disabled={isBusy} style={inputStyle}
-              />
-              <input
-                type="number" min={MIN_MAX_TOKENS} max={MAX_MAX_TOKENS} step={64}
-                value={mtVal}
-                onChange={e => setDraft(role.name, 'max_tokens', e.target.value)}
-                disabled={isBusy} style={inputStyle}
-              />
-              <input
-                type="number" min={MIN_TIMEOUT} max={MAX_TIMEOUT} step={30}
-                value={toVal}
-                onChange={e => setDraft(role.name, 'read_timeout_secs', e.target.value)}
-                disabled={isBusy} style={inputStyle}
-                title="HTTP read timeout (s). Leave blank to let the server auto-pick when raising max_tokens."
-              />
-              <input
-                type="number" min={MIN_GPU_LAYERS} max={MAX_GPU_LAYERS} step={1}
-                value={gpuVal}
-                onChange={e => setDraft(role.name, 'gpu_layers', e.target.value)}
-                disabled={isBusy} style={inputStyle}
-                title="GPU layers offloaded to VRAM. Takes effect on next deploy."
-              />
-              <input
-                type="number" min={MIN_CONCURRENCY} max={MAX_CONCURRENCY} step={1}
-                value={concVal}
-                onChange={e => setDraft(role.name, 'max_concurrency', e.target.value)}
-                disabled={isBusy || role.max_concurrency === undefined} style={inputStyle}
-                title={role.max_concurrency === undefined ? 'Not configurable for this agent' : 'Max concurrent requests'}
-                placeholder={role.max_concurrency === undefined ? '—' : ''}
-              />
-              <button
-                onClick={() => saveOne(role)}
-                disabled={!dirty || isBusy}
-                style={saveStyle}
-                title={err || note || (dirty ? 'Save changes' : 'No changes')}
-              >
-                {isBusy ? '…' : 'Save'}
-              </button>
-            </React.Fragment>
-          );
-        })}
-      </div>
-
+      <TokenBudgetGrid
+        visibleRoles={visibleRoles}
+        drafts={drafts}
+        errors={errors}
+        notices={notices}
+        busy={busy}
+        isDirty={isDirty}
+        setDraft={setDraft}
+        saveOne={saveOne}
+      />
     </div>
   );
 }
