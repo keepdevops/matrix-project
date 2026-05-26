@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 import './themes/light.css';
 import { useToast } from './components/ToastManager';
@@ -6,9 +6,9 @@ import { useSwarm } from './hooks/useSwarm';
 import { useCoordinatorState } from './hooks/useCoordinatorState';
 import { useLayoutPreference } from './hooks/useLayoutPreference';
 import { useSwarmPolling } from './hooks/useSwarmPolling';
+import { useSubmitHandlers } from './hooks/useSubmitHandlers';
+import { useSessionHandlers } from './hooks/useSessionHandlers';
 import { clearKvCache } from './api/swarmApi';
-import { extractCodeBlock } from './utils/codeExtractor';
-import { qualityPassContextPolicy } from './utils/qualityPassContext';
 import AppHeader from './components/AppHeader';
 import SwarmConfig from './components/SwarmConfig';
 import ModelConverter from './components/ModelConverter';
@@ -24,8 +24,6 @@ import CompareVariantsPanel from './components/CompareVariantsPanel';
 import HelpModal from './components/HelpModal';
 import RagAdmin from './components/RagAdmin';
 import CachePanel from './components/CachePanel';
-
-const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode', '_session_id', '_run_id']);
 
 function App() {
   const showToast = useToast();
@@ -46,20 +44,31 @@ function App() {
 
   const { theme, setTheme } = useLayoutPreference();
 
-  const [showHistory, setShowHistory]       = useState(false);
   const [showConfig, setShowConfig]         = useState(true);
   const [deployPending, setDeployPending]   = useState(false);
   const [showHelp, setShowHelp]             = useState(false);
   const [showConverter, setShowConverter]   = useState(false);
   const [showRagAdmin, setShowRagAdmin]     = useState(false);
   const [showCachePanel, setShowCachePanel] = useState(false);
-  const [selectedPrompt, setSelectedPrompt]           = useState(null);
-  const [selectedTemperature, setSelectedTemperature] = useState(null);
-  const [cacheStatus, setCacheStatus] = useState('idle');
-  const [useRag, setUseRag]           = useState(false);
-  const [pendingPrompt, setPendingPrompt] = useState(null);
+  const [cacheStatus, setCacheStatus]       = useState('idle');
+  const [useRag, setUseRag]                 = useState(false);
 
   useSwarmPolling({ checkStatus, loadHistory, refreshAgents, refreshModes, online });
+
+  const {
+    showHistory, setShowHistory,
+    selectedPrompt, setSelectedPrompt,
+    selectedTemperature,
+    handleHistorySelect, handleSwitchSession, handleClearSession,
+  } = useSessionHandlers({ setResponses, setFinalAnswer, setLastMeta, setCurrentSession, history });
+
+  const {
+    pendingPrompt, handleSubmit, handleQualityPass,
+    handleFollowUp, handleSendBestContinue, handleSaveCode,
+  } = useSubmitHandlers({
+    submit, loadHistory, currentSession, activeMode, useRag,
+    responses, activeAgents, flatPickAgent,
+  });
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
@@ -80,33 +89,6 @@ function App() {
     setTimeout(() => { clearInterval(pollId); setDeployPending(false); }, 90000);
   };
 
-  const handleHistorySelect = entry => {
-    const resps = {};
-    Object.keys(entry).forEach(k => {
-      if (!METADATA_KEYS.has(k)) resps[k] = entry[k] || null;
-    });
-    setResponses(resps);
-    setFinalAnswer(entry._final || null);
-    setLastMeta(null);
-    if (entry._session_id && entry._run_id) {
-      setCurrentSession({ sessionId: entry._session_id, runId: entry._run_id });
-    }
-    setSelectedPrompt(entry.prompt || '');
-    setSelectedTemperature(entry.temperature ?? 0.7);
-    setShowHistory(false);
-  };
-
-  // Surface transport-level stream errors as toasts instead of an inline banner.
-  useEffect(() => {
-    if (error && error !== prevError.current) {
-      const msg = error.includes('Coordinator offline')
-        ? 'Swarm not running — open CONFIGURE and click LAUNCH SWARM.'
-        : `ERROR: ${error}`;
-      showToast(msg, 'error');
-    }
-    prevError.current = error;
-  }, [error, showToast]);
-
   const handleClearCache = async () => {
     setCacheStatus('clearing');
     try {
@@ -121,100 +103,19 @@ function App() {
     }
   };
 
-  const handleSaveCode = () => {
-    const sections = [];
-    activeAgents.forEach(({ name }) => {
-      const resp = responses[name];
-      if (!resp) return;
-      const { code, language } = extractCodeBlock(resp);
-      if (!code || code.trim().length < 10) return;
-      sections.push(`// === ${name.toUpperCase()} (${language}) ===\n\n${code}`);
-    });
-    if (!sections.length) return;
-    const separator = '\n\n// ────────────────────────────────────────────\n\n';
-    const blob = new Blob([sections.join(separator)], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `swarm-matrix-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleSubmit = useCallback(async (prompt, temperature, opts = {}) => {
-    setPendingPrompt(prompt);
-    try {
-      const autoOpts = { ...opts };
-      if (currentSession?.sessionId && !opts.followup && !opts.qualityPass) {
-        const hasFinal = ['pipeline', 'cascade'].includes(activeMode);
-        autoOpts.followup = true;
-        autoOpts.contextPolicy = autoOpts.contextPolicy || {
-          include: hasFinal ? ['original_prompt', 'final'] : ['original_prompt'],
-          max_context_chars: 20000,
-        };
-      }
-      await submit(prompt, temperature, { useRag, ...autoOpts });
-      loadHistory();
-    } catch (err) {
-      console.error('Submission failed:', err);
-    } finally {
-      setPendingPrompt(null);
+  // Surface transport-level stream errors as toasts instead of an inline banner.
+  useEffect(() => {
+    if (error && error !== prevError.current) {
+      const msg = error.includes('Coordinator offline')
+        ? 'Swarm not running — open CONFIGURE and click LAUNCH SWARM.'
+        : `ERROR: ${error}`;
+      showToast(msg, 'error');
     }
-  }, [submit, loadHistory, currentSession, activeMode, useRag]);
-
-  const handleQualityPass = useCallback(async (temperature = 0.2) => {
-    const instruction = [
-      'Review the previous output for compile errors, duplicate files/functions,',
-      'missing implementation, unsafe numeric types, and mismatch with the original prompt.',
-      'Produce a corrected final answer.',
-    ].join(' ');
-    await handleSubmit(instruction, temperature, {
-      followup: true,
-      qualityPass: true,
-      contextPolicy: qualityPassContextPolicy(activeMode || 'pipeline'),
-    });
-  }, [handleSubmit, activeMode]);
-
-  const handleFollowUp = async (text, contextPolicy) => {
-    await handleSubmit(text, 0.5, { followup: true, contextPolicy });
-    loadHistory();
-  };
-
-  const handleSwitchSession = useCallback((sessionId) => {
-    const entries = history.filter(e => e._session_id === sessionId);
-    if (!entries.length) return;
-    const last = entries[entries.length - 1];
-    setCurrentSession({ sessionId, runId: last._run_id });
-    setResponses({});
-    setFinalAnswer(last._final || null);
-    setLastMeta(null);
-  }, [history, setCurrentSession, setResponses, setFinalAnswer, setLastMeta]);
-
-  const handleSendBestContinue = async (temperature = 0.2) => {
-    if (!flatPickAgent || !responses[flatPickAgent]) return;
-    await handleSubmit(
-      'Refine and finalize the selected variant. Address gaps, risks, and production readiness.',
-      temperature,
-      {
-        followup: true,
-        contextPolicy: {
-          include: ['original_prompt', 'final', flatPickAgent],
-          target_agent: flatPickAgent,
-          max_context_chars: 30000,
-        },
-      },
-    );
-  };
+    prevError.current = error;
+  }, [error, showToast]);
 
   const excludedBreaker = lastMeta?.excluded_unhealthy || [];
   const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
-  const handlePromptConsumed = () => setSelectedPrompt(null);
-  const handleClearSession = () => {
-    setCurrentSession(null);
-    setResponses({});
-    setFinalAnswer(null);
-    setLastMeta(null);
-  };
 
   return (
     <div className="matrix-container">
@@ -272,7 +173,7 @@ function App() {
             disabled={!online}
             externalPrompt={selectedPrompt}
             externalTemperature={selectedTemperature}
-            onPromptConsumed={handlePromptConsumed}
+            onPromptConsumed={() => setSelectedPrompt(null)}
             canContinue={Boolean(currentSession?.sessionId)}
             onQualityPass={handleQualityPass}
             useRag={useRag}
