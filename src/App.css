@@ -207,7 +207,7 @@ h1 {
   font-size: 0.75rem;
   font-family: inherit;
   letter-spacing: 0.04em;
-  background: rgba(0, 255, 65, 0.04);
+  background: var(--color-primary-tint-xs);
 }
 
 .kv-gauge--err {
@@ -229,7 +229,7 @@ h1 {
   gap: 2px;
   width: 96px;
   height: 10px;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--color-overlay-dark);
   border: 1px solid rgba(0, 255, 65, 0.2);
   border-radius: 2px;
   overflow: hidden;
@@ -237,7 +237,7 @@ h1 {
 
 .kv-gauge-seg {
   height: 100%;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-white-overlay);
   position: relative;
 }
 
@@ -437,7 +437,7 @@ h1 {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: rgba(0,255,65,0.04);
+  background: var(--color-primary-tint-xs);
   border-bottom: 1px solid var(--border-color, var(--color-border-green));
 }
 
@@ -505,7 +505,7 @@ h1 {
   text-align: left;
 }
 .ct-session-item:hover { background: rgba(0,255,65,0.05); }
-.ct-session-item--active { background: rgba(0,255,65,0.08); }
+.ct-session-item--active { background: var(--color-primary-tint-sm); }
 .ct-session-item-prompt { font-size: 0.75rem; color: var(--color-text-light); }
 .ct-session-item-meta   { font-size: 0.62rem; color: var(--color-text-hint); font-family: monospace; }
 
@@ -759,7 +759,7 @@ h1 {
   font-size: 0.68rem;
   color: var(--agent-color, var(--color-primary));
   opacity: 0.75;
-  border-bottom: 1px solid rgba(0, 255, 65, 0.08);
+  border-bottom: 1px solid var(--color-primary-tint-sm);
   font-family: monospace;
   letter-spacing: 0.04em;
 }
@@ -882,12 +882,6 @@ h1 {
   white-space: pre-wrap;
 }
 
-.code-display-header {
-  background: var(--color-bg-surface);
-  padding: 8px 15px;
-  border-bottom: 1px solid var(--color-border);
-}
-
 .code-language {
   color: var(--color-warn);
   font-size: 0.8rem;
@@ -897,6 +891,7 @@ h1 {
 /* ========== CodeMirror Overrides ========== */
 .cm-editor {
   outline: none !important;
+  background-color: var(--color-bg-base) !important;
 }
 
 .cm-scroller {
@@ -962,7 +957,7 @@ h1 {
 }
 
 .swarm-role-row.active {
-  background: rgba(0, 255, 65, 0.04);
+  background: var(--color-primary-tint-xs);
   border-color: var(--color-border-dim);
 }
 
@@ -1047,7 +1042,7 @@ h1 {
 .swarm-profile-btn.active {
   color: var(--color-primary);
   border-color: var(--color-primary);
-  background: rgba(0, 255, 65, 0.08);
+  background: var(--color-primary-tint-sm);
 }
 
 .swarm-profile-note {
@@ -1081,7 +1076,7 @@ h1 {
 .swarm-mode-tab.active {
   color: var(--color-primary);
   border-color: var(--color-primary);
-  background: rgba(0, 255, 65, 0.08);
+  background: var(--color-primary-tint-sm);
 }
 
 /* ModelSwapSection */
@@ -1480,7 +1475,7 @@ h1 {
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  background: rgba(0,0,0,0.4);
+  background: var(--color-overlay-dark);
   color: var(--color-text-body);
 }
 
@@ -1561,7 +1556,7 @@ h1 {
 
 .swarm-engine-btn:hover:not(.disabled) {
   color: var(--color-text-body);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-white-overlay);
 }
 
 .swarm-engine-btn.disabled {
@@ -1575,7 +1570,7 @@ h1 {
 }
 
 .swarm-engine-btn.active.engine-mlx {
-  background: rgba(0, 255, 65, 0.08);
+  background: var(--color-primary-tint-sm);
   color: var(--color-primary);
 }
 
@@ -1639,7 +1634,7 @@ h1 {
 .help-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--color-overlay-modal);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -1896,11 +1891,6 @@ h1 {
   color: var(--color-bg-base);
   border-color: var(--color-warn);
   font-weight: bold;
-}
-
-/* Ensure CodeMirror fits the container */
-.cm-editor {
-  background-color: var(--color-bg-base) !important;
 }
 
 /* ========== Pipeline Stage Grouping ========== */

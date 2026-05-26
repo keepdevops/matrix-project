@@ -76,13 +76,20 @@
   --color-primary-muted: #b0d0b0; /* soft green text (swarm bubbles) */
 
   /* Colors — primary tints/hovers */
-  --color-primary-light: #33ff66;                 /* lighter primary for hover glow */
-  --color-primary-hover: rgba(0, 255, 65, 0.1);   /* subtle hover bg */
-  --color-primary-tint:  rgba(0, 255, 65, 0.05);  /* very subtle surface tint */
+  --color-primary-light: #33ff66;                   /* lighter primary for hover glow */
+  --color-primary-hover: rgba(0, 255, 65, 0.1);     /* subtle hover bg */
+  --color-primary-tint:  rgba(0, 255, 65, 0.05);    /* very subtle surface tint */
+  --color-primary-tint-xs: rgba(0, 255, 65, 0.04);  /* near-invisible tint (header/panel rows) */
+  --color-primary-tint-sm: rgba(0, 255, 65, 0.08);  /* light tint (active rows, profile btn) */
 
   /* Colors — accent tints/hovers */
   --color-accent-hover:  rgba(100, 143, 255, 0.12); /* accent hover bg */
   --color-accent-active: rgba(100, 143, 255, 0.2);  /* active/selected bg */
+
+  /* Colors — overlays */
+  --color-overlay-modal: rgba(0, 0, 0, 0.75);  /* modal backdrop */
+  --color-overlay-dark:  rgba(0, 0, 0, 0.4);   /* dark track/log backgrounds */
+  --color-white-overlay: rgba(255, 255, 255, 0.04); /* faint white on dark surfaces */
 
   /* Colors — text (darker grades) */
   --color-text-dim:   #666;     /* dimmer than muted */

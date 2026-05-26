@@ -30,7 +30,7 @@ export function useCoordinatorState(online) {
         const cur = list.find(m => m.active);
         if (cur) setActiveModeState(cur.name);
       })
-      .catch(() => {});
+      .catch(err => console.error('useCoordinatorState: refreshModes failed:', err));
 
   const refreshAgents = () =>
     fetchAgents()
@@ -50,7 +50,7 @@ export function useCoordinatorState(online) {
           return next;
         });
       })
-      .catch(() => {});
+      .catch(err => console.error('useCoordinatorState: refreshAgents failed:', err));
 
   const handleModeChange = async (name) => {
     try {

@@ -180,7 +180,7 @@ export default function ModelConverter({ models: modelsProp, onConversionDone, s
 
   const handleDone = () => {
     invalidateModelsCache();
-    fetchModels().then(setModels).catch(() => {});
+    fetchModels().then(setModels).catch(err => console.error('ModelConverter: failed to refresh models after conversion:', err));
     if (onConversionDone) onConversionDone();
   };
 
