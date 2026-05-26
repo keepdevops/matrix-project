@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 import AgentResponse from './AgentResponse';
 import CodeDisplay from './CodeDisplay';
 import { SkeletonAgentCard } from './Skeleton';
@@ -65,9 +66,9 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
           <div className="code-output-header">
             <h2 className="section-title">CODE OUTPUT</h2>
             {hasAnyCode && (
-              <button className="save-code-btn" onClick={onSaveCode}>
+              <Button variant="outline-primary" size="xs" onClick={onSaveCode}>
                 SAVE CODE
-              </button>
+              </Button>
             )}
           </div>
           <div className="editor-frame">

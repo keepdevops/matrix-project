@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SwarmEditor from './SwarmEditor';
 import { normalizeLanguage } from '../utils/codeExtractor';
+import Button from './Button';
 
 const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
   const [isEditable, setIsEditable] = useState(false);
@@ -58,24 +59,26 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
         </div>
 
         <div className="code-toolbar">
-          <button
-            className={`toolbar-btn ${isEditable ? 'active' : ''}`}
+          <Button
+            variant="ghost"
+            size="xs"
+            className={isEditable ? 'active' : ''}
             onClick={() => setIsEditable(!isEditable)}
           >
             {isEditable ? '🔒 LOCK' : '📝 EDIT'}
-          </button>
+          </Button>
 
-          <button className="toolbar-btn" onClick={handleCopy}>
+          <Button variant="ghost" size="xs" onClick={handleCopy}>
             {copyFeedback === 'COPIED!' ? '✅ ' : '📋 '}{copyFeedback}
-          </button>
+          </Button>
 
-          <button className="toolbar-btn" onClick={handleSave}>
+          <Button variant="ghost" size="xs" onClick={handleSave}>
             💾 SAVE
-          </button>
+          </Button>
 
-          <button className="toolbar-btn" onClick={() => fileInputRef.current?.click()}>
+          <Button variant="ghost" size="xs" onClick={() => fileInputRef.current?.click()}>
             📂 OPEN
-          </button>
+          </Button>
         </div>
       </header>
 

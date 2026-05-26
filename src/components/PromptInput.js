@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useRagHealth from '../hooks/useRagHealth';
+import Button from './Button';
 
 function PromptInput({
   onSubmit,
@@ -224,54 +225,42 @@ function PromptInput({
         <div
           className="backend-toggle"
           title="llama — parallel llama-server fleet  |  mlx — serialized MLX specialist"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem' }}
         >
-          <button
+          <Button
             type="button"
+            variant={backend === 'llama' ? 'outline-accent' : 'ghost'}
+            size="xs"
             onClick={() => onBackendChange?.('llama')}
             disabled={loading || disabled}
-            style={{
-              padding: '0.15rem 0.55rem',
-              borderRadius: '3px 0 0 3px',
-              border: '1px solid var(--color-border, #444)',
-              background: backend === 'llama' ? 'var(--color-accent, #58a6ff)' : 'transparent',
-              color: backend === 'llama' ? '#000' : 'inherit',
-              cursor: 'pointer',
-              fontWeight: backend === 'llama' ? 600 : 400,
-            }}
-          >llama</button>
-          <button
+            style={{ borderRadius: 'var(--btn-radius) 0 0 var(--btn-radius)', fontWeight: backend === 'llama' ? 600 : 400 }}
+          >llama</Button>
+          <Button
             type="button"
+            variant={backend === 'mlx' ? 'outline-accent' : 'ghost'}
+            size="xs"
             onClick={() => onBackendChange?.('mlx')}
             disabled={loading || disabled}
-            style={{
-              padding: '0.15rem 0.55rem',
-              borderRadius: '0 3px 3px 0',
-              border: '1px solid var(--color-border, #444)',
-              borderLeft: 'none',
-              background: backend === 'mlx' ? 'var(--color-accent, #58a6ff)' : 'transparent',
-              color: backend === 'mlx' ? '#000' : 'inherit',
-              cursor: 'pointer',
-              fontWeight: backend === 'mlx' ? 600 : 400,
-            }}
-          >mlx</button>
+            style={{ borderRadius: '0 var(--btn-radius) var(--btn-radius) 0', borderLeft: 'none', fontWeight: backend === 'mlx' ? 600 : 400 }}
+          >mlx</Button>
         </div>
-        <button
+        <Button
+          variant="primary"
+          size="md"
           type="submit"
-          className="submit-button"
           disabled={loading || disabled || !prompt.trim()}
         >
           {loading ? 'BROADCASTING...' : 'BROADCAST'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline-accent"
+          size="md"
           type="button"
-          className="submit-button continue-button"
           disabled={loading || disabled || !canContinue}
           onClick={() => onQualityPass?.(temperature)}
           title={canContinue ? 'Review and correct the previous output in this session' : 'Run a broadcast first to start a session'}
         >
           QUALITY PASS
-        </button>
+        </Button>
       </div>
     </form>
   );

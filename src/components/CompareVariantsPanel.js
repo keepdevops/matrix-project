@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 
 export default function CompareVariantsPanel({
   activeAgents,
@@ -64,14 +65,15 @@ export default function CompareVariantsPanel({
         <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>
           Pick best variant in the grid (highlight), then continue refinement:
         </span>
-        <button
+        <Button
+          variant="outline-accent"
+          size="md"
           type="button"
-          className="submit-button continue-button"
           disabled={loading || !flatPickAgent}
           onClick={onSendBest}
         >
           SEND BEST TO CONTINUE
-        </button>
+        </Button>
       </div>
     </div>
   );

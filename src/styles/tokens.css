@@ -37,6 +37,63 @@
   --color-border-subtle: #21262d;
   --color-border-emphasis: #444;
 
+  /* Colors — extended surfaces */
+  --color-bg-deep: #0a0f14;       /* deepest modal/panel bg */
+  --color-bg-void: #000;          /* pure black (inputs, code) */
+  --color-bg-green-tint: #0d1a0d; /* dark green-tinted surface (session list) */
+  --color-bg-dark:  #0a0f0a;     /* near-black with green tint (reply, gauges) */
+  --color-bg-min:   #050505;     /* minimal near-black panel bg */
+  --color-bg-reply:  #030903;    /* reply form bg */
+  --color-bg-tile:   #030303;    /* agent tile body bg */
+  --color-bg-deploy: #0a0a0a;    /* deploy/status panel bg */
+  --color-bg-warn-tint:  #110800; /* amber-tinted error surface */
+  --color-bg-risk:   #0a0f14;    /* risk row bg (alias of bg-deep) */
+
+  /* Colors — borders (risk/panel specific) */
+  --color-border-risk: #2b2f36;  /* swarm risk card border */
+  --color-border-stage: #2a3340; /* pipeline stage badge border */
+
+  /* Colors — cyan (deploy status, port labels) */
+  --color-cyan: #0af;
+
+  /* Colors — text (specialty shades) */
+  --color-text-light: #ccd;      /* light blue-gray text */
+
+  /* Colors — borders (fine grades) */
+  --color-border-faint: #111;    /* near-invisible separators */
+  --color-border-green: #1a2a1a; /* green-tinted dark border */
+  --color-border-panel: #2a3341; /* swarm/panel borders */
+
+  /* Colors — orange (configure, vllm engine) */
+  --color-orange: #FE6100;
+  --color-vllm:   #FF6B35;
+
+  /* Colors — semantic variants */
+  --color-error-light:  #ff8877; /* softened error text */
+  --color-error-dark:   #330000; /* very dark error bg */
+  --color-warn-dark:    #442200; /* very dark warn bg */
+  --color-warn-border-dark: #aa4400; /* dark warn border */
+  --color-primary-muted: #b0d0b0; /* soft green text (swarm bubbles) */
+
+  /* Colors — primary tints/hovers */
+  --color-primary-light: #33ff66;                 /* lighter primary for hover glow */
+  --color-primary-hover: rgba(0, 255, 65, 0.1);   /* subtle hover bg */
+  --color-primary-tint:  rgba(0, 255, 65, 0.05);  /* very subtle surface tint */
+
+  /* Colors — accent tints/hovers */
+  --color-accent-hover:  rgba(100, 143, 255, 0.12); /* accent hover bg */
+  --color-accent-active: rgba(100, 143, 255, 0.2);  /* active/selected bg */
+
+  /* Colors — text (darker grades) */
+  --color-text-dim:   #666;     /* dimmer than muted */
+  --color-text-faint: #555;     /* near-invisible secondary text */
+  --color-text-hint:  #444;     /* timestamps, session IDs */
+  --color-text-stage: #444d58;  /* pipeline stage labels */
+
+  /* Colors — borders (finer grades) */
+  --color-border-dim:  #222;    /* very subtle separators */
+  --color-border-code: #30363d; /* code-panel borders (GitHub-style) */
+
   /* KV gauge (also used by PressureCluster) */
   --kv-ok: #00ff41;
   --kv-warn: #ffae00;
@@ -64,6 +121,43 @@
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
+
+  /* Buttons */
+  --btn-font: var(--font-mono);
+  --btn-radius: var(--radius-sm);
+  --btn-transition: var(--transition-fast);
+
+  --btn-pad-xs: 2px 7px;
+  --btn-pad-sm: 4px 12px;
+  --btn-pad-md: 8px 20px;
+  --btn-pad-lg: 10px 28px;
+
+  --btn-font-xs: var(--font-size-xs);
+  --btn-font-sm: var(--font-size-sm);
+  --btn-font-md: var(--font-size-md);
+
+  --btn-primary-bg:       var(--color-primary);
+  --btn-primary-color:    var(--color-text-inverse);
+  --btn-primary-border:   var(--color-primary);
+  --btn-primary-hover-bg: var(--color-primary-dim);
+
+  --btn-outline-primary-color:  var(--color-primary);
+  --btn-outline-primary-border: var(--color-primary);
+
+  --btn-outline-accent-color:  var(--color-accent);
+  --btn-outline-accent-border: var(--color-accent);
+
+  --btn-outline-warn-color:  var(--color-warn);
+  --btn-outline-warn-border: var(--color-warn);
+
+  --btn-ghost-color:  var(--color-text-body);
+  --btn-ghost-border: var(--color-border);
+
+  --btn-outline-orange-color:  var(--color-orange);
+  --btn-outline-orange-border: var(--color-orange);
+
+  --btn-outline-error-color:  var(--color-error);
+  --btn-outline-error-border: var(--color-error);
 
   /* Skeleton shimmer */
   --skeleton-base: #1c2128;

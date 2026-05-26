@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import Button from './Button';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode',
   '_session_id', '_run_id']);
@@ -32,9 +33,9 @@ function AgentExpander({ entry }) {
   if (!agentKeys.length) return null;
   return (
     <div className="ct-agent-expander">
-      <button className="ct-expand-btn" onClick={() => setOpen(v => !v)}>
+      <Button variant="ghost" size="xs" className="ct-expand-btn" onClick={() => setOpen(v => !v)}>
         {open ? '▼' : '▶'} {agentKeys.length} agent{agentKeys.length !== 1 ? 's' : ''}
-      </button>
+      </Button>
       {open && (
         <div className="ct-agent-tiles">
           {agentKeys.map(k => (
@@ -132,13 +133,14 @@ function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
           }}
         />
-        <button
+        <Button
           type="submit"
-          className="ct-reply-btn"
+          variant="outline-primary"
+          size="xs"
           disabled={loading || disabled || !text.trim()}
         >
           {loading ? '…' : 'SEND'}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -161,13 +163,14 @@ function SessionSwitcher({ history, currentSessionId, onSwitch }) {
 
   return (
     <div className="ct-session-switcher" ref={ref}>
-      <button
-        className="ct-session-switch-btn"
+      <Button
+        variant="ghost"
+        size="xs"
         onClick={() => setOpen(v => !v)}
         title="Switch to a previous session"
       >
         ▾ sessions ({sessions.length})
-      </button>
+      </Button>
       {open && (
         <div className="ct-session-list">
           {sessions.map(s => (
@@ -222,7 +225,7 @@ export default function ConversationThread({
           currentSessionId={sessionId}
           onSwitch={onSwitchSession}
         />
-        <button className="ct-clear-btn" onClick={onClear} title="Clear session">✕ new session</button>
+        <Button variant="ghost" size="xs" onClick={onClear} title="Clear session">✕ new session</Button>
       </header>
       <div className="ct-turns">
         {turns.map((entry, i) => (

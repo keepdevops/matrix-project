@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchCacheStats, clearCache, setCacheConfig } from '../api/swarmApi';
+import Button from './Button';
 
 function StatRow({ label, value }) {
   return (
@@ -98,12 +99,12 @@ export default function CachePanel({ onClose }) {
       <div style={modal}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <strong style={{ fontSize: '0.9rem', letterSpacing: '0.05em' }}>RESPONSE CACHE</strong>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'inherit', opacity: 0.6 }}>✕</button>
+          <Button variant="ghost" size="xs" onClick={onClose} style={{ opacity: 0.6 }}>✕</Button>
         </div>
 
         {loadErr && (
           <div style={{ color: '#ff8888', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-            {loadErr} <button onClick={load} style={{ marginLeft: '0.4rem', fontSize: '0.78rem' }}>retry</button>
+            {loadErr} <Button variant="ghost" size="xs" onClick={load} style={{ marginLeft: '0.4rem' }}>retry</Button>
           </div>
         )}
 
@@ -138,20 +139,18 @@ export default function CachePanel({ onClose }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button onClick={handleSaveConfig} disabled={cfgBusy} className="swarm-deploy-btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.8rem' }}>
+            <Button variant="primary" size="sm" onClick={handleSaveConfig} disabled={cfgBusy}>
               {cfgBusy ? 'Saving…' : 'Save config'}
-            </button>
+            </Button>
             {cfgMsg && <span style={{ fontSize: '0.78rem', color: cfgMsg.startsWith('Error') ? '#ff8888' : '#9ec99e' }}>{cfgMsg}</span>}
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', borderTop: '1px solid rgba(128,128,128,0.2)', paddingTop: '0.65rem' }}>
-          <button onClick={handleClear} disabled={clearBusy} className="swarm-deploy-btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.8rem' }}>
+          <Button variant="primary" size="sm" onClick={handleClear} disabled={clearBusy}>
             {clearBusy ? 'Clearing…' : 'Clear KV'}
-          </button>
-          <button onClick={load} style={{ padding: '0.2rem 0.5rem', fontSize: '0.78rem' }}>
-            Refresh
-          </button>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={load}>Refresh</Button>
           {clearMsg && <span style={{ fontSize: '0.78rem', color: clearMsg.startsWith('Error') ? '#ff8888' : '#9ec99e' }}>{clearMsg}</span>}
         </div>
       </div>

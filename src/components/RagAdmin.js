@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Button from './Button';
 import {
   ragIngestUpload,
   ragIngestJob,
@@ -171,13 +172,14 @@ function RagAdmin({ onClose }) {
                 style={{ display: 'none' }}
                 onChange={e => onFiles(e.target.files)}
               />
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={onPick}
                 disabled={busy || !health.ok}
-                className="submit-button"
               >
                 CHOOSE FILES
-              </button>
+              </Button>
               <div style={{ marginTop: '0.4rem', opacity: 0.7, fontSize: '0.85rem' }}>
                 or drop files here · max 25 MB · text/code allowlist
               </div>
@@ -233,26 +235,27 @@ function RagAdmin({ onClose }) {
                       <td>{d.chunks}</td>
                       <td>{fmtTime(d.latest)}</td>
                       <td>
-                        <button
-                          className="submit-button"
-                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                        <Button
+                          variant="outline-error"
+                          size="xs"
                           onClick={() => onDelete(d.source_path)}
                         >
                           DELETE
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={refresh}
-              className="submit-button"
               style={{ marginTop: '0.5rem' }}
             >
               REFRESH
-            </button>
+            </Button>
           </div>
         </div>
       </div>
