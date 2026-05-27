@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 
 export default function RosterGrid({ selected, available, isPipeline, onAdd, onRemove, onMove }) {
   const inactive = isPipeline ? available : available.filter(n => !selected.includes(n));
@@ -20,13 +21,11 @@ export default function RosterGrid({ selected, available, isPipeline, onAdd, onR
               <span style={{ flex: 1, fontSize: '0.85rem' }}>{name}</span>
               {isPipeline && (
                 <>
-                  <button onClick={() => onMove(i, -1)} disabled={i === 0}
-                          style={{ padding: '0 0.3rem' }}>↑</button>
-                  <button onClick={() => onMove(i, +1)} disabled={i === selected.length - 1}
-                          style={{ padding: '0 0.3rem' }}>↓</button>
+                  <Button variant="ghost" size="xs" onClick={() => onMove(i, -1)} disabled={i === 0}>↑</Button>
+                  <Button variant="ghost" size="xs" onClick={() => onMove(i, +1)} disabled={i === selected.length - 1}>↓</Button>
                 </>
               )}
-              <button onClick={() => onRemove(i)} style={{ padding: '0 0.3rem' }}>✕</button>
+              <Button variant="ghost" size="xs" onClick={() => onRemove(i)}>✕</Button>
             </div>
           ))}
         </div>
@@ -39,10 +38,9 @@ export default function RosterGrid({ selected, available, isPipeline, onAdd, onR
             <div style={{ opacity: 0.5, fontSize: '0.8rem' }}>— all selected —</div>
           )}
           {inactive.map(name => (
-            <button key={name} onClick={() => onAdd(name)}
-                    style={{ textAlign: 'left', padding: '0.2rem 0.4rem', fontSize: '0.85rem' }}>
+            <Button key={name} variant="ghost" size="sm" onClick={() => onAdd(name)}>
               + {name}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -23,19 +24,23 @@ export class ErrorBoundary extends React.Component {
         <div className="error-boundary-icon">⚠</div>
         <h2 className="error-boundary-title">Something went wrong</h2>
         <p className="error-boundary-msg">The UI hit an unexpected error.</p>
-        <button
+        <Button
+          variant="outline-primary"
+          size="md"
           className="error-boundary-reload"
           onClick={() => window.location.reload()}
         >
           ↺ Reload app
-        </button>
+        </Button>
         <div className="error-boundary-detail">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             className="error-boundary-toggle"
             onClick={() => this.setState(s => ({ open: !s.open }))}
           >
             {open ? '▾' : '▸'} Show error details
-          </button>
+          </Button>
           {open && (
             <pre className="error-boundary-stack">
               {error.message}

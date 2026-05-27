@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Button from './Button';
 import { fetchModes, fetchModeAgents, fetchAgents } from '../api/swarmApi';
 import RosterGrid from './RosterGrid';
 import PipelineOrderEditor from './PipelineOrderEditor';
@@ -126,13 +127,19 @@ export default function ModeRosterPanel() {
 
       <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
         {modes.map(m => (
-          <button key={m.name} onClick={() => setActiveTab(m.name)}
-                  className="swarm-deploy-btn"
-                  style={{ padding: '0.25rem 0.6rem',
-                           opacity: activeTab === m.name ? 1 : 0.55,
-                           fontWeight: activeTab === m.name ? 700 : 400 }}>
+          <Button
+            key={m.name}
+            variant="ghost"
+            size="sm"
+            className="swarm-deploy-btn"
+            onClick={() => setActiveTab(m.name)}
+            style={{
+              opacity: activeTab === m.name ? 1 : 0.55,
+              fontWeight: activeTab === m.name ? 700 : 400,
+            }}
+          >
             {m.name}{m.active ? ' ●' : ''}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -166,15 +173,17 @@ export default function ModeRosterPanel() {
       )}
 
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', alignItems: 'center' }}>
-        <button onClick={handleSave} disabled={busy} className="swarm-deploy-btn"
-                style={{ padding: '0.3rem 0.8rem' }}>
+        <Button variant="outline-primary" size="sm" onClick={handleSave} disabled={busy}>
           {busy ? 'Saving…' : 'Save'}
-        </button>
-        <button onClick={() => clearOverride(activeTab)}
-                disabled={busy || (!explicit && selected.length === 0)}
-                style={{ padding: '0.3rem 0.8rem' }}>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => clearOverride(activeTab)}
+          disabled={busy || (!explicit && selected.length === 0)}
+        >
           Clear override
-        </button>
+        </Button>
         {error && <span style={{ color: '#ff7777', fontSize: '0.8rem' }}>{error}</span>}
         {!error && staleAgents.length > 0 && (
           <span style={{ color: '#ffaa44', fontSize: '0.8rem' }}>

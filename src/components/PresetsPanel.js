@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Button from './Button';
 import {
   fetchPresets,
   savePreset,
@@ -109,14 +110,14 @@ export default function PresetsPanel() {
           onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
           style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.85rem' }}
         />
-        <button
+        <Button
+          variant="outline-primary"
+          size="sm"
           onClick={handleSave}
           disabled={busy || !newName.trim()}
-          className="swarm-deploy-btn"
-          style={{ padding: '0.25rem 0.7rem' }}
         >
           Save active as preset
-        </button>
+        </Button>
       </div>
 
       {presetEntries.length === 0 && (
@@ -135,20 +136,24 @@ export default function PresetsPanel() {
                 {Number.isInteger(bundle.max_select) && ` · max=${bundle.max_select}`}
               </div>
             </div>
-            <button
+            <Button
+              variant="outline-primary"
+              size="sm"
+              className="preset-row-apply"
               onClick={() => handleApply(name)}
               disabled={busy}
-              className="swarm-deploy-btn preset-row-apply"
             >
               Apply
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline-error"
+              size="xs"
+              className="preset-row-delete"
               onClick={() => handleDelete(name)}
               disabled={busy}
-              className="preset-row-delete"
             >
               ✕
-            </button>
+            </Button>
           </div>
         ))}
       </div>

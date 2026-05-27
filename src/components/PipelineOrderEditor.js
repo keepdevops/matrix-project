@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 
 function presetStageOrder(preset, agentNames) {
   const avail = new Set(agentNames);
@@ -62,12 +63,12 @@ export default function PipelineOrderEditor({
               <div key={`${name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <span style={{ opacity: 0.55, width: '1.5rem' }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
-                <button type="button" style={{ padding: '0 0.25rem' }}
-                        disabled={i === 0} onClick={() => moveStage(i, -1)}>↑</button>
-                <button type="button" style={{ padding: '0 0.25rem' }}
-                        disabled={i === pipelineOrder.length - 1} onClick={() => moveStage(i, 1)}>↓</button>
-                <button type="button" style={{ padding: '0 0.25rem' }}
-                        onClick={() => setPipelineOrder(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                <Button variant="ghost" size="xs" type="button"
+                        disabled={i === 0} onClick={() => moveStage(i, -1)}>↑</Button>
+                <Button variant="ghost" size="xs" type="button"
+                        disabled={i === pipelineOrder.length - 1} onClick={() => moveStage(i, 1)}>↓</Button>
+                <Button variant="ghost" size="xs" type="button"
+                        onClick={() => setPipelineOrder(prev => prev.filter((_, j) => j !== i))}>✕</Button>
               </div>
             ))}
           </div>
@@ -83,15 +84,18 @@ export default function PipelineOrderEditor({
               <option value="">— role —</option>
               {available.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
-            <button type="button" className="swarm-deploy-btn"
-                    style={{ padding: '0.15rem 0.45rem' }}
-                    disabled={!pipelinePreset}
-                    onClick={() => {
-                      setPipelineOrder(presetStageOrder(pipelinePreset, available));
-                      setUsePipelineOrder(true);
-                    }}>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              type="button"
+              disabled={!pipelinePreset}
+              onClick={() => {
+                setPipelineOrder(presetStageOrder(pipelinePreset, available));
+                setUsePipelineOrder(true);
+              }}
+            >
               Apply preset to stage order
-            </button>
+            </Button>
           </div>
         </>
       )}

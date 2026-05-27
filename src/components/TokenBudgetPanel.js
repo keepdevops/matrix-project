@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import Button from './Button';
 import { setAgentTokens } from '../api/swarmApi';
 import TokenBudgetGrid, {
   MIN_MAX_TOKENS, MAX_MAX_TOKENS,
@@ -138,14 +139,14 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
         )}
         <span style={{ flex: 1 }} />
         {dirtyRoles.length > 0 && (
-          <button
+          <Button
+            variant="outline-primary"
+            size="xs"
             onClick={saveAll}
-            className="swarm-deploy-btn"
-            style={{ padding: '0.15rem 0.5rem', fontSize: '0.74rem' }}
             disabled={Object.values(busy).some(Boolean)}
           >
             Save all ({dirtyRoles.length})
-          </button>
+          </Button>
         )}
       </div>
 

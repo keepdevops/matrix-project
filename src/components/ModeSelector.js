@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Button from './Button';
 
 function ModeSelector({ modes, active, onChange, disabled }) {
   const [open, setOpen] = useState(false);
@@ -23,19 +24,23 @@ function ModeSelector({ modes, active, onChange, disabled }) {
 
   return (
     <div className="mode-selector" ref={rootRef}>
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         className={`mode-button ${open ? 'active' : ''}`}
         onClick={() => setOpen(v => !v)}
         disabled={disabled || !hasModes}
         title="Coordinator orchestration mode"
       >
         MODE: {activeLabel.toUpperCase()} ▾
-      </button>
+      </Button>
       {open && hasModes && (
         <div className="mode-popover" role="menu" aria-label="Orchestration modes">
           {modes.map((m) => (
-            <button
+            <Button
               key={m.name}
+              variant="ghost"
+              size="sm"
               className={`mode-option ${m.name === active ? 'selected' : ''}`}
               onClick={() => handlePick(m.name)}
               role="menuitem"
@@ -44,7 +49,7 @@ function ModeSelector({ modes, active, onChange, disabled }) {
               {m.description && (
                 <div className="mode-option-desc">{m.description}</div>
               )}
-            </button>
+            </Button>
           ))}
         </div>
       )}

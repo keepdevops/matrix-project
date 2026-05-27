@@ -176,8 +176,10 @@ const SessionSwitcher = memo(function SessionSwitcher({ history, currentSessionI
       {open && (
         <div className="ct-session-list">
           {sessions.map(s => (
-            <button
+            <Button
               key={s.sessionId}
+              variant="ghost"
+              size="xs"
               className={`ct-session-item${s.sessionId === currentSessionId ? ' ct-session-item--active' : ''}`}
               onClick={() => { onSwitch(s.sessionId); setOpen(false); }}
             >
@@ -187,7 +189,7 @@ const SessionSwitcher = memo(function SessionSwitcher({ history, currentSessionI
               <span className="ct-session-item-meta">
                 {s.count} turn{s.count !== 1 ? 's' : ''} · {s.sessionId.slice(-6)}
               </span>
-            </button>
+            </Button>
           ))}
         </div>
       )}

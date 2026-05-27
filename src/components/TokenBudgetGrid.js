@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 
 export const MIN_MAX_TOKENS = 64;
 export const MAX_MAX_TOKENS = 131072;
@@ -40,13 +41,6 @@ export default function TokenBudgetGrid({ visibleRoles, drafts, errors, notices,
         const gpuVal = drafts[role.name]?.gpu_layers ?? role.gpu_layers ?? '';
         const concVal = drafts[role.name]?.max_concurrency ?? role.max_concurrency ?? '';
         const inputStyle = { padding: '0.05rem 0.25rem', fontSize: '0.78rem', width: '100%', lineHeight: 1.2 };
-        const saveStyle = {
-          padding: '0.05rem 0.3rem',
-          fontSize: '0.72rem',
-          border: err ? '1px solid #ff5555' : undefined,
-          background: !err && note ? '#1a3a1a' : undefined,
-          color: !err && note ? '#9ec99e' : undefined,
-        };
         const tooltip = err
           ? `${role.name} :${role.port} — ${err}`
           : note
@@ -99,14 +93,16 @@ export default function TokenBudgetGrid({ visibleRoles, drafts, errors, notices,
               title={role.max_concurrency === undefined ? 'Not configurable for this agent' : 'Max concurrent requests'}
               placeholder={role.max_concurrency === undefined ? '—' : ''}
             />
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => saveOne(role)}
               disabled={!dirty || isBusy}
-              style={saveStyle}
               title={err || note || (dirty ? 'Save changes' : 'No changes')}
+              style={err ? { borderColor: 'var(--color-error)' } : note ? { borderColor: 'var(--color-primary)' } : undefined}
             >
               {isBusy ? '…' : 'Save'}
-            </button>
+            </Button>
           </React.Fragment>
         );
       })}

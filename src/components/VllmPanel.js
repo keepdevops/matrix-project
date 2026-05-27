@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Button from './Button';
 import { startVllmServers, fetchLogs } from '../api/swarmApi';
 
 const VLLM_PORTS = [8080, 8081, 8082, 8083];
@@ -66,7 +67,9 @@ export default function VllmPanel() {
         </>
       )}
 
-      <button
+      <Button
+        variant="outline-primary"
+        size="md"
         className={`vllm-start-btn${vllmStatus === 'starting' ? ' starting' : ''}${vllmStatus === 'ready' ? ' ready' : ''}`}
         onClick={handleStart}
         disabled={vllmStatus === 'starting' || vllmStatus === 'ready'}
@@ -74,7 +77,7 @@ export default function VllmPanel() {
         {vllmStatus === 'starting' ? 'STARTING...'
           : vllmStatus === 'ready' ? 'SERVERS READY'
           : 'START VLLM SERVERS'}
-      </button>
+      </Button>
     </div>
   );
 }

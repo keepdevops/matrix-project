@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 import { getAgentColor } from '../utils/agentColors';
 
 function HelpModal({ onClose }) {
@@ -7,7 +8,7 @@ function HelpModal({ onClose }) {
       <div className="help-modal" onClick={e => e.stopPropagation()}>
         <div className="help-header">
           <span>Swarm Matrix — help</span>
-          <button className="help-close" onClick={onClose}>✕</button>
+          <Button variant="ghost" size="xs" className="help-close" onClick={onClose}>✕</Button>
         </div>
         <div className="help-body">
 

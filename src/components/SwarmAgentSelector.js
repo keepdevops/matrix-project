@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 import {
   ENGINES,
   PROFILE_SAFE,
@@ -24,8 +25,10 @@ export default function SwarmAgentSelector({
             const count = models.filter(m => m.backend === e.backend).length;
             const isDisabled = count === 0 || isAppleSiliconDisabled;
             return (
-              <button
+              <Button
                 key={e.id}
+                variant="ghost"
+                size="sm"
                 className={`swarm-engine-btn engine-${e.id}${engine === e.id ? ' active' : ''}${isDisabled ? ' disabled' : ''}`}
                 onClick={() => !isDisabled && onEngineChange(e.id)}
                 title={
@@ -36,7 +39,7 @@ export default function SwarmAgentSelector({
               >
                 {e.label}
                 <span className="engine-count">{count}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -60,15 +63,17 @@ export default function SwarmAgentSelector({
             [PROFILE_MAX,      'MAX',      'Max spread: select all available roles with smallest available llama models'],
             [PROFILE_MIXED,    'MIXED',    'Mixed: llama for core coding roles, MLX for support roles when available'],
           ].map(([id, label, title]) => (
-            <button
+            <Button
               key={id}
+              variant="ghost"
+              size="sm"
               className={`swarm-profile-btn ${activeProfile === id ? 'active' : ''}`}
               onClick={() => onApplyProfile(id)}
               type="button"
               title={title}
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -87,14 +92,15 @@ export default function SwarmAgentSelector({
               />
               <span className="swarm-role-name">{role.name}</span>
             </label>
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               type="button"
               title={role.description ? `${role.description}\n\nClick to edit system prompt` : `Edit ${role.name}'s system prompt`}
               onClick={() => onEditAgent(role)}
-              style={{ padding: '0 0.4rem', fontSize: '0.85rem' }}
             >
               ✏️
-            </button>
+            </Button>
             {models.length > 0 && (
               <select
                 className="swarm-model-select"

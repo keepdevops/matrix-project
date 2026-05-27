@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import Button from './Button';
 import '../styles/Toast.css';
 
 const ToastContext = createContext(null);
@@ -14,7 +15,7 @@ function Toast({ id, message, type, onDismiss }) {
     <div className={`toast toast--${type}`} role="status" aria-live="polite">
       <span className="toast-icon">{ICONS[type]}</span>
       <span className="toast-msg">{message}</span>
-      <button className="toast-close" onClick={() => onDismiss(id)} aria-label="Dismiss">✕</button>
+      <Button variant="ghost" size="xs" className="toast-close" onClick={() => onDismiss(id)} aria-label="Dismiss">✕</Button>
     </div>
   );
 }
