@@ -100,7 +100,7 @@ function PendingTurn({ prompt }) {
   );
 }
 
-function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
+const ReplyBox = memo(function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
 
@@ -146,7 +146,7 @@ function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
       </div>
     </form>
   );
-}
+});
 
 const SessionSwitcher = memo(function SessionSwitcher({ history, currentSessionId, onSwitch }) {
   const [open, setOpen] = useState(false);
@@ -200,9 +200,10 @@ export default function ConversationThread({
   onFollowUp, onClear, onSwitchSession,
 }) {
   const bottomRef = useRef(null);
-  const turns = sessionId
-    ? history.filter(e => e._session_id === sessionId)
-    : [];
+  const turns = useMemo(
+    () => sessionId ? history.filter(e => e._session_id === sessionId) : [],
+    [history, sessionId]
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

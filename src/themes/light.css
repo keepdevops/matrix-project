@@ -32,28 +32,28 @@ body[data-theme="light"] select,
 body[data-theme="light"] pre,
 body[data-theme="light"] code { background: #ecebe4; color: #0f3d24; }
 
-/* Matrix-green elements -> darker green */
+/* Action buttons — blue, distinguishable from green success indicators under CVD */
 body[data-theme="light"] .history-button,
 body[data-theme="light"] .help-button,
 body[data-theme="light"] .configure-button,
 body[data-theme="light"] .save-code-button,
 body[data-theme="light"] .submit-button {
-  border-color: #008c2a;
-  color: #008c2a;
+  border-color: #1a56db;
+  color: #1a56db;
 }
 
 body[data-theme="light"] .history-button:hover,
 body[data-theme="light"] .help-button:hover,
 body[data-theme="light"] .configure-button:hover,
 body[data-theme="light"] .save-code-button:hover {
-  background: rgba(0, 140, 42, 0.08);
+  background: rgba(26, 86, 219, 0.08);
 }
 
 body[data-theme="light"] .submit-button {
-  background: #008c2a;
+  background: #1a56db;
   color: #ffffff;
 }
-body[data-theme="light"] .submit-button:hover { background: #00a832; }
+body[data-theme="light"] .submit-button:hover { background: #2563eb; }
 body[data-theme="light"] .submit-button:disabled { background: #c4c2b8; color: #6a6a75; border-color: #c4c2b8; }
 
 /* Theme toggle button */
@@ -69,8 +69,8 @@ body[data-theme="light"] .submit-button:disabled { background: #c4c2b8; color: #
   transition: background 0.2s;
 }
 .theme-toggle-button:hover { background: rgba(0, 255, 65, 0.1); }
-body[data-theme="light"] .theme-toggle-button { color: #008c2a; }
-body[data-theme="light"] .theme-toggle-button:hover { background: rgba(0, 140, 42, 0.08); }
+body[data-theme="light"] .theme-toggle-button { color: #1a56db; }
+body[data-theme="light"] .theme-toggle-button:hover { background: rgba(26, 86, 219, 0.08); }
 
 /* Status / accents: keep blue/red/purple but soften backgrounds */
 body[data-theme="light"] .status-online { color: #1a56db; border-color: #1a56db; }
@@ -134,8 +134,8 @@ body[data-theme="light"] .toolbar-btn {
 }
 body[data-theme="light"] .toolbar-btn:hover {
   background: #ecebe4;
-  border-color: #008c2a;
-  color: #008c2a;
+  border-color: #1a56db;
+  color: #1a56db;
 }
 body[data-theme="light"] .toolbar-btn.active {
   background: #d97706;
@@ -200,9 +200,9 @@ body[data-theme="light"] .swarm-profile-btn:hover {
   color: #1a1a1f;
 }
 body[data-theme="light"] .swarm-profile-btn.active {
-  color: #008c2a;
-  border-color: #008c2a;
-  background: rgba(0, 140, 42, 0.1);
+  color: #1a56db;
+  border-color: #1a56db;
+  background: rgba(26, 86, 219, 0.1);
 }
 body[data-theme="light"] .swarm-profile-note { color: #6a6a75; }
 
@@ -217,7 +217,7 @@ body[data-theme="light"] .layout-model { color: #6a6a75; }
 body[data-theme="light"] .layout-empty { color: #6a6a75; }
 body[data-theme="light"] .layout-engine-llama { color: #b45309; }
 body[data-theme="light"] .layout-engine-mlx   { color: #008c2a; }
-body[data-theme="light"] .layout-engine-vllm  { color: #C04A00; }
+body[data-theme="light"] .layout-engine-vllm  { color: #c2410c; }
 
 /* Risk card */
 body[data-theme="light"] .swarm-risk-card {
@@ -286,12 +286,12 @@ body[data-theme="light"] .swarm-config-log-pre {
 
 /* Deploy button */
 body[data-theme="light"] .swarm-deploy-btn {
-  background: #008c2a;
+  background: #1a56db;
   color: #ffffff;
 }
 body[data-theme="light"] .swarm-deploy-btn:hover:not(:disabled) {
-  background: #00a832;
-  box-shadow: 0 0 12px rgba(0, 140, 42, 0.3);
+  background: #2563eb;
+  box-shadow: 0 0 12px rgba(26, 86, 219, 0.3);
 }
 body[data-theme="light"] .swarm-deploy-btn:disabled {
   background: #c4c2b8;
@@ -321,8 +321,8 @@ body[data-theme="light"] .swarm-engine-btn.active.engine-mlx {
   color: #008c2a;
 }
 body[data-theme="light"] .swarm-engine-btn.active.engine-vllm {
-  background: rgba(192, 74, 0, 0.12);
-  color: #C04A00;
+  background: rgba(194, 65, 12, 0.12);
+  color: #c2410c;
 }
 body[data-theme="light"] .swarm-engine-in-use { color: #6d28d9; }
 body[data-theme="light"] .swarm-engine-in-use strong { color: #5b21b6; }
@@ -376,5 +376,5 @@ body[data-theme="light"] .preset-row-delete {
 }
 body[data-theme="light"] .preset-row-delete:hover:not(:disabled) {
   background: rgba(220, 38, 38, 0.1);
-  color: #C04A00;
+  color: #b91c1c;
 }
