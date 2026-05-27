@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Button from './Button';
 import { startConversion, pollConversion, fetchModels, invalidateModelsCache } from '../api/swarmApi';
 
 // Guess the HuggingFace repo ID from a GGUF filename.
@@ -87,10 +88,9 @@ function ConvertRow({ model, onDone }) {
         </span>
         {done
           ? <span style={{ color: '#00ff41', fontSize: '0.75rem' }}>✓ converted</span>
-          : <button onClick={() => setOpen(o => !o)} disabled={busy}
-                    style={{ fontSize: '0.72rem', padding: '2px 8px', cursor: 'pointer' }}>
+          : <Button variant="ghost" size="xs" onClick={() => setOpen(o => !o)} disabled={busy}>
               → MLX
-            </button>
+            </Button>
         }
       </div>
 
@@ -151,15 +151,12 @@ function ConvertRow({ model, onDone }) {
             )}
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={start} disabled={busy || !hfRepo || !outputName}
-                      style={{ fontSize: '0.8rem', padding: '4px 12px', cursor: 'pointer' }}>
+              <Button variant="outline-primary" size="sm" onClick={start} disabled={busy || !hfRepo || !outputName}>
                 {busy ? 'Converting…' : 'Start'}
-              </button>
-              <button onClick={() => { setOpen(false); setJob(null); setError(null); }}
-                      disabled={busy}
-                      style={{ fontSize: '0.8rem', padding: '4px 8px', cursor: 'pointer' }}>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setOpen(false); setJob(null); setError(null); }} disabled={busy}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>

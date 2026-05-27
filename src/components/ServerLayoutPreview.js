@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 import VllmPanel from './VllmPanel';
 import ModeRosterPanel from './ModeRosterPanel';
 import PresetsPanel from './PresetsPanel';
@@ -50,13 +51,15 @@ export default function ServerLayoutPreview({
 
       <DeployProgress status={status} statusMsg={statusMsg} logTail={logTail} />
 
-      <button
+      <Button
+        variant="outline-primary"
+        size="md"
         className={`swarm-deploy-btn ${status}`}
         onClick={onDeploy}
         disabled={!canDeploy || status === 'deploying'}
       >
         {status === 'deploying' ? 'LAUNCHING...' : 'LAUNCH SWARM'}
-      </button>
+      </Button>
     </div>
   );
 }

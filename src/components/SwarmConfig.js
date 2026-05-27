@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Button from './Button';
 import {
   fetchSwarmConfig,
   fetchModels,
@@ -135,13 +136,14 @@ export default function SwarmConfig({ onDeployed }) {
           </div>
           <code className="swarm-offline-cmd">bash scripts/launch_matrix.sh</code>
           <div className="swarm-offline-detail">{loadError}</div>
-          <button
-            className="swarm-deploy-btn"
+          <Button
+            variant="outline-primary"
+            size="md"
             style={{ marginTop: '1rem' }}
             onClick={() => { invalidateModelsCache(); setLoadRetries(r => r + 1); }}
           >
             RETRY
-          </button>
+          </Button>
         </div>
       </div>
     );

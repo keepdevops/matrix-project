@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Button from './Button';
 import AgentEditorModal from './AgentEditorModal';
 import AgentMarkdown from './AgentMarkdown';
 
@@ -37,7 +38,9 @@ const AgentResponse = React.memo(function AgentResponse({
             {getStatusText()}
           </span>
           {response && (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               className="agent-expand-btn"
               onClick={(e) => {
                 e.stopPropagation();
@@ -46,7 +49,7 @@ const AgentResponse = React.memo(function AgentResponse({
               title="Open in editor"
             >
               ⤢
-            </button>
+            </Button>
           )}
         </div>
         {(model || engine) && (

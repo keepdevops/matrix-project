@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Button from './Button';
 import { setAgentSystemPrompt, setAgentDescription } from '../api/swarmApi';
 
 // Edits an agent's system prompt at runtime. Persists to active + source
@@ -79,7 +80,7 @@ export default function AgentPromptModal({ agent, defaultPrompt, onClose, onSave
               :{agent.port}
             </span>
           </div>
-          <button onClick={onClose} style={{ padding: '0.2rem 0.5rem' }}>✕</button>
+          <Button variant="ghost" size="xs" onClick={onClose}>✕</Button>
         </div>
 
         <div style={{
@@ -124,30 +125,18 @@ export default function AgentPromptModal({ agent, defaultPrompt, onClose, onSave
             {text.length} chars · {text.split(/\s+/).filter(Boolean).length} words
           </span>
           {canResetDefault && (
-            <button
-              onClick={() => setText(defaultPrompt)}
-              disabled={busy}
-              style={{ padding: '0.25rem 0.6rem' }}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setText(defaultPrompt)} disabled={busy}>
               Revert to default
-            </button>
+            </Button>
           )}
           <span style={{ flex: 1 }} />
           {error && (
             <span style={{ color: '#ff7777', fontSize: '0.8rem' }}>{error}</span>
           )}
-          <button onClick={onClose} disabled={busy}
-                  style={{ padding: '0.25rem 0.7rem' }}>
-            Cancel
-          </button>
-          <button
-            onClick={save}
-            disabled={busy || !dirty}
-            className="swarm-deploy-btn"
-            style={{ padding: '0.25rem 0.7rem' }}
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="outline-primary" size="sm" onClick={save} disabled={busy || !dirty}>
             {busy ? 'Saving…' : 'Save'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

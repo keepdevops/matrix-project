@@ -149,7 +149,7 @@ function RagAdmin({ onClose }) {
             />
             RAG Documents
           </span>
-          <button className="help-close" onClick={onClose}>✕</button>
+          <Button variant="ghost" size="xs" className="help-close" onClick={onClose}>✕</Button>
         </div>
         <div className="help-body">
 
