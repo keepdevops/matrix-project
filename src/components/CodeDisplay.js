@@ -26,7 +26,10 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
       clearTimeout(copyTimerRef.current);
       copyTimerRef.current = setTimeout(() => setCopyFeedback('COPY'), 2000);
     } catch (err) {
-      console.error('Copy failed', err);
+      console.error('[CodeDisplay] clipboard write failed:', err);
+      setCopyFeedback('FAILED');
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyFeedback('COPY'), 2000);
     }
   };
 

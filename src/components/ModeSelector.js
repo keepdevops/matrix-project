@@ -32,7 +32,7 @@ function ModeSelector({ modes, active, onChange, disabled }) {
         MODE: {activeLabel.toUpperCase()} ▾
       </button>
       {open && hasModes && (
-        <div className="mode-popover" role="menu">
+        <div className="mode-popover" role="menu" aria-label="Orchestration modes">
           {modes.map((m) => (
             <button
               key={m.name}

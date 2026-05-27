@@ -63,7 +63,7 @@ export default function PresetsPanel() {
     setBusy(true); setError(null);
     try {
       const res = await applyPreset(name);
-      if (res.unknown && res.unknown.length) {
+      if (Array.isArray(res.unknown) && res.unknown.length) {
         setError(`Applied with skipped: ${res.unknown.join(', ')}`);
       }
       window.dispatchEvent(new CustomEvent('mode-roster-changed', {
