@@ -1044,6 +1044,9 @@ h1 {
   border-color: var(--color-primary);
   background: var(--color-primary-tint-sm);
 }
+.swarm-profile-btn.active::before {
+  content: '✓ ';
+}
 
 .swarm-profile-note {
   color: var(--color-text-muted);
@@ -1577,6 +1580,10 @@ h1 {
 .swarm-engine-btn.active.engine-vllm {
   background: rgba(255, 107, 53, 0.12);
   color: var(--color-vllm);
+}
+
+.swarm-engine-btn.active::before {
+  content: '✓ ';
 }
 
 .engine-count {
