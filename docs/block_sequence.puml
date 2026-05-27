@@ -1,0 +1,151 @@
+@startuml Matrix Swarm Block Sequence
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceBoxBorderColor #555
+skinparam participantBorderColor #555
+skinparam participantBackgroundColor #1e1e2e
+skinparam participantFontColor #cdd6f4
+skinparam sequenceArrowColor #89b4fa
+skinparam noteBorderColor #45475a
+skinparam noteBackgroundColor #313244
+skinparam noteFontColor #cdd6f4
+
+actor User
+
+box "Frontend" #1e1e2e
+  participant "PromptInput\nBlock 1" as PI
+  participant "useSubmitHandlers\nBlock 2" as SH
+  participant "useSwarm\nBlock 3 / 13" as SW
+  participant "streamApi\nBlock 12" as SA
+  participant "AgentGrid / UI\nBlock 14" as UI
+end box
+
+box "Infrastructure" #2d1e2e
+  participant "Proxy :3002\nBlock 4" as PX
+end box
+
+box "C++ Coordinator :8000" #1e2d1e
+  participant "Routes / Session\nBlock 5" as CR
+  participant "RAG Retrieve\nBlock 6" as RAG
+  participant "Roster Filter\nBlock 7" as RF
+  participant "Mode Dispatch\nBlock 8" as MD
+  participant "Agent Inference\nBlock 9" as AI
+  participant "Synthesis\nBlock 10" as SY
+  participant "Session Store\nBlock 11" as SS
+end box
+
+box "Inference Backends" #2d2d1e
+  participant "llama-server / vLLM" as LM
+  participant "MLX Coord :3003" as MLX
+end box
+
+== Request Phase ==
+
+User -> PI : enter prompt + options
+PI -> SH : onSubmit(prompt, temp, opts)
+SH -> SW : submit(prompt, temp, requestOpts)
+note right of SW: builds context_policy, followup flag
+SW -> SW : cancel in-flight stream\nreset state, setLoading=true
+SW -> SA : submitPromptStream()
+SA -> PX : POST /api/architect/stream
+PX -> CR : forward to :8000
+
+== Session & Context Phase ==
+
+CR -> CR : parse body
+CR --> SA : SSE: session {session_id, run_id}
+SA --> SW : onSession()
+
+alt followup=true
+  CR -> CR : session_build_continuation()\ninject prior history
+end
+
+alt use_rag=true
+  CR -> RAG : retrieve(prompt)
+  RAG -> RAG : embed + pgvector ANN query
+  RAG --> CR : top-k chunks as <context> block
+end
+
+CR -> RF : filter agents
+RF -> RF : load per-mode roster\nremove circuit-broken agents
+RF --> MD : filtered []Agent
+
+== Mode Dispatch Phase ==
+
+CR -> MD : mode.run(ModeContext)
+
+alt flat mode
+  MD -> AI : broadcast all agents (parallel)
+else pipeline mode
+  loop each stage
+    MD -> AI : run stage agent (sequential)
+    AI --> MD : stage output
+    MD --> SA : SSE: stage {step, total, agent}
+  end
+else cascade mode
+  MD -> AI : broadcast all agents (parallel)
+else router mode
+  MD -> AI : run classifier agent
+  AI --> MD : selected agent names
+  MD --> SA : SSE: selected {classifier, agents}
+  MD -> AI : dispatch selected agents (parallel)
+end
+
+== Inference & Streaming Phase ==
+
+AI -> LM : HTTP POST {prompt, temp}
+note right of AI
+  Circuit breaker:
+  3 failures/60s -> open 30s
+  TOKEN_BATCH_BYTES = 128
+end note
+LM --> AI : stream token chunks
+AI --> SA : SSE: token {agent, delta}
+SA --> SW : onToken(agent, delta)
+SW -> SW : assembled[agent].push(delta)\nscheduleFlush (RAF)
+SW --> UI : setResponses() once per frame
+
+AI --> SA : SSE: agent_done {agent}
+SA --> SW : onAgentDone(agent)
+SW -> SW : immediate flush, cancel RAF
+
+== Synthesis Phase ==
+
+opt synthesizer configured
+  MD -> SY : run synthesizer with all outputs
+  SY --> SA : SSE: synthesis_start {agent}
+  SY --> SA : SSE: token {agent, delta}
+  SA --> SW : onToken / onAgentDone
+end
+
+== Persistence & Completion Phase ==
+
+CR -> SS : append history entry
+SS --> CR : persisted to sessions.json
+CR --> SA : SSE: metrics {timings}
+CR --> SA : SSE: done
+SA --> SW : onDone()
+SW -> SW : setLoading=false
+SW --> UI : final state flush
+
+== Render Phase ==
+
+UI -> UI : AgentGrid - per-agent cards
+UI -> UI : FinalAnswerPanel - synthesized output
+UI -> UI : MetricsStrip - timing bars
+UI -> UI : ConversationThread - session history
+UI -> UI : RagSources - retrieved chunks
+
+== Alternate Path: MLX Agents ==
+
+note over SW, MLX
+  Agents with coordinator: "mlx" bypass the C++ path.
+  useSwarm selects submitPromptStreamMlx() -> POST /api/mlx/stream :3003
+  Python mode fallbacks (flat/pipeline/cascade/router)
+  MlxBackend -> mlx_lm.server (OpenAI-compat SSE)
+  Ports are serialized per-port (mutex) - requests queue.
+  Same SSE event taxonomy back to streamApi.
+end note
+
+@enduml
