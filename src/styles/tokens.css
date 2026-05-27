@@ -182,9 +182,6 @@
 }
 
 body[data-theme="light"] {
-  --color-primary: #008c2a;
-  --color-primary-dim: #006b20;
-  --color-primary-glow: rgba(0, 140, 42, 0.25);
   --color-bg-base: #f6f5f0;
   --color-bg-surface: #ffffff;
   --color-bg-elevated: #ecebe4;
