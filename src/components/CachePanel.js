@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchCacheStats, clearCache, setCacheConfig } from '../api/swarmApi';
 import Button from './Button';
 
@@ -23,6 +23,10 @@ export default function CachePanel({ onClose }) {
   const [draftEnabled, setDraftEnabled] = useState(true);
   const [draftTtl, setDraftTtl] = useState('');
   const [draftMax, setDraftMax] = useState('');
+  const draftTtlRef = useRef(draftTtl);
+  const draftMaxRef = useRef(draftMax);
+  useEffect(() => { draftTtlRef.current = draftTtl; }, [draftTtl]);
+  useEffect(() => { draftMaxRef.current = draftMax; }, [draftMax]);
 
   const load = useCallback(async () => {
     setLoadErr('');
@@ -30,13 +34,12 @@ export default function CachePanel({ onClose }) {
       const s = await fetchCacheStats();
       setStats(s);
       setDraftEnabled(s.enabled);
-      if (draftTtl === '') setDraftTtl(String(s.ttl_secs ?? ''));
-      if (draftMax === '') setDraftMax(String(s.max_entries ?? ''));
+      if (draftTtlRef.current === '') setDraftTtl(String(s.ttl_secs ?? ''));
+      if (draftMaxRef.current === '') setDraftMax(String(s.max_entries ?? ''));
     } catch (e) {
       console.error('[CachePanel] load failed:', e);
       setLoadErr(e.message);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { load(); }, [load]);
