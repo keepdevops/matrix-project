@@ -61,23 +61,27 @@ function RagAdmin({ onClose }) {
     const pending = uploads.filter(u => u.jobId && !TERMINAL.has(u.status));
     if (pending.length === 0) return undefined;
     const id = setInterval(async () => {
-      const updates = await Promise.all(pending.map(async u => {
-        try {
-          const j = await ragIngestJob(u.jobId);
-          return { jobId: u.jobId, status: j.status, chunks: j.chunks, error: j.error };
-        } catch (err) {
-          console.error('[rag-admin] poll failed:', err);
-          return { jobId: u.jobId, status: 'error', error: err.message };
-        }
-      }));
-      let anyTerminal = false;
-      setUploads(prev => prev.map(u => {
-        const upd = updates.find(x => x.jobId === u.jobId);
-        if (!upd) return u;
-        if (TERMINAL.has(upd.status)) anyTerminal = true;
-        return { ...u, ...upd };
-      }));
-      if (anyTerminal) refresh();
+      try {
+        const updates = await Promise.all(pending.map(async u => {
+          try {
+            const j = await ragIngestJob(u.jobId);
+            return { jobId: u.jobId, status: j.status, chunks: j.chunks, error: j.error };
+          } catch (err) {
+            console.error('[rag-admin] poll failed:', err);
+            return { jobId: u.jobId, status: 'error', error: err.message };
+          }
+        }));
+        let anyTerminal = false;
+        setUploads(prev => prev.map(u => {
+          const upd = updates.find(x => x.jobId === u.jobId);
+          if (!upd) return u;
+          if (TERMINAL.has(upd.status)) anyTerminal = true;
+          return { ...u, ...upd };
+        }));
+        if (anyTerminal) refresh();
+      } catch (err) {
+        console.error('[rag-admin] setInterval tick failed:', err);
+      }
     }, POLL_MS);
     return () => clearInterval(id);
   }, [uploads, refresh]);
