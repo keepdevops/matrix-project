@@ -31,6 +31,7 @@ body[data-theme="cvd-amber"] {
   --color-error: #7a4800;
   --color-error-dim: rgba(122, 72, 0, 0.12);
   --color-error-border: rgba(255, 183, 3, 0.38);
+  --color-orange: #FFB703;
   --color-purple: #a09060;
   --color-purple-dim: rgba(160, 144, 96, 0.15);
   --color-cyan: #d4a020;

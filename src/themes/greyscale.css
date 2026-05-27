@@ -30,6 +30,7 @@ body[data-theme="greyscale"] {
   --color-error: #f0f0f0;
   --color-error-dim: rgba(240, 240, 240, 0.12);
   --color-error-border: rgba(240, 240, 240, 0.35);
+  --color-orange: #b8b8b8;
   --color-purple: #b8b8b8;
   --color-purple-dim: rgba(184, 184, 184, 0.15);
   --color-cyan: #d8d8d8;
