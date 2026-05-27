@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import Button from './Button';
 
 const METADATA_KEYS = new Set(['prompt', 'temperature', 'timestamp', '_final', '_mode',
@@ -50,7 +50,7 @@ function AgentExpander({ entry }) {
   );
 }
 
-function Turn({ entry, finalAnswer }) {
+const Turn = memo(function Turn({ entry, finalAnswer }) {
   const synth = entry._final || finalAnswer || null;
   const fallback = !synth ? bestAgentText(entry) : null;
   const swarmText = synth || fallback;
@@ -80,7 +80,9 @@ function Turn({ entry, finalAnswer }) {
       <AgentExpander entry={entry} />
     </div>
   );
-}
+}, (prev, next) =>
+  prev.entry === next.entry && prev.finalAnswer === next.finalAnswer
+);
 
 // Pending turn: shown immediately when a prompt is in-flight, before history refreshes.
 function PendingTurn({ prompt }) {
@@ -146,9 +148,9 @@ function ReplyBox({ onSubmit, loading, disabled, lastEntry }) {
   );
 }
 
-function SessionSwitcher({ history, currentSessionId, onSwitch }) {
+const SessionSwitcher = memo(function SessionSwitcher({ history, currentSessionId, onSwitch }) {
   const [open, setOpen] = useState(false);
-  const sessions = buildSessionList(history);
+  const sessions = useMemo(() => buildSessionList(history), [history]);
   const ref = useRef(null);
 
   // Close on outside click
@@ -191,7 +193,7 @@ function SessionSwitcher({ history, currentSessionId, onSwitch }) {
       )}
     </div>
   );
-}
+});
 
 export default function ConversationThread({
   history, sessionId, responses, finalAnswer, loading, pendingPrompt,

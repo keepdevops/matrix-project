@@ -37,15 +37,16 @@ function PromptInput({
   });
 
   useEffect(() => {
-    try { localStorage.setItem('rag.top_k', String(ragTopK)); } catch (err) {
-      console.error('[rag] persist top_k failed:', err);
-    }
-  }, [ragTopK]);
-  useEffect(() => {
-    try { localStorage.setItem('rag.min_score', String(ragMinScore)); } catch (err) {
-      console.error('[rag] persist min_score failed:', err);
-    }
-  }, [ragMinScore]);
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem('rag.top_k', String(ragTopK));
+        localStorage.setItem('rag.min_score', String(ragMinScore));
+      } catch (err) {
+        console.error('[rag] persist params failed:', err);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [ragTopK, ragMinScore]);
 
   const onPromptConsumedRef = useRef(onPromptConsumed);
   useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; });
