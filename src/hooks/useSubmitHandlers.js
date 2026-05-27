@@ -42,10 +42,10 @@ export function useSubmitHandlers({
     });
   }, [handleSubmit, activeMode]);
 
-  const handleFollowUp = async (text, contextPolicy) => {
+  const handleFollowUp = useCallback(async (text, contextPolicy) => {
     await handleSubmit(text, 0.5, { followup: true, contextPolicy });
     loadHistory();
-  };
+  }, [handleSubmit, loadHistory]);
 
   const handleSendBestContinue = async (temperature = 0.2) => {
     if (!flatPickAgent || !responses[flatPickAgent]) return;

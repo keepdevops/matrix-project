@@ -17,5 +17,6 @@ export const THEMES = {
   light:     { label: '☀ Light' },
   overdrive: { label: '⚡ Overdrive' },
   synthwave: { label: '🌊 Synthwave' },
-  cobalt:    { label: '💎 Cobalt' },
+  cobalt:     { label: '💎 Cobalt' },
+  greyscale:  { label: '◈ Greyscale' },
 };
