@@ -196,7 +196,7 @@ body[data-theme="cvd-blue-orange"] .layout-engine-vllm  { color: #e8f0ff; }
 /* Risk cards — blue=low, amber=medium, dark-orange=high */
 body[data-theme="cvd-blue-orange"] .swarm-risk-card { background: #2e2e3e; border-color: #353550; border-left-color: #353550; }
 body[data-theme="cvd-blue-orange"] .swarm-risk-card.risk-low    { border-left-color: #4477bb; }
-body[data-theme="cvd-blue-orange"] .swarm-risk-card.risk-medium { border-left-color: #e8a020; }
+body[data-theme="cvd-blue-orange"] .swarm-risk-card.risk-medium { border-left-color: #e8a020; border-left-style: dashed; }
 body[data-theme="cvd-blue-orange"] .swarm-risk-card.risk-high   { border-left-color: #d45c00; }
 body[data-theme="cvd-blue-orange"] .swarm-risk-header { color: #7888aa; }
 body[data-theme="cvd-blue-orange"] .swarm-risk-badge.risk-low    { color: #6699cc; }

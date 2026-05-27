@@ -212,7 +212,8 @@ body[data-theme="cvd-amber"] .swarm-risk-hint { color: #504830; }
 body[data-theme="cvd-amber"] .swarm-risk-block {
   color: #FFB703;
   border-color: rgba(255, 183, 3, 0.38);
-  background: rgba(255, 183, 3, 0.08);
+  border-style: dashed;
+  background: rgba(255, 183, 3, 0.12);
 }
 body[data-theme="cvd-amber"] .swarm-risk-row { background: #181610; border-color: #302c22; }
 body[data-theme="cvd-amber"] .swarm-risk-model { color: #c8c0a8; }
