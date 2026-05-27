@@ -195,7 +195,7 @@ const SessionSwitcher = memo(function SessionSwitcher({ history, currentSessionI
   );
 });
 
-export default function ConversationThread({
+const ConversationThread = React.memo(function ConversationThread({
   history, sessionId, responses, finalAnswer, loading, pendingPrompt,
   onFollowUp, onClear, onSwitchSession,
 }) {
@@ -255,4 +255,6 @@ export default function ConversationThread({
       />
     </section>
   );
-}
+});
+
+export default ConversationThread;

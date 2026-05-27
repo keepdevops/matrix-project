@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import AppHeader from '../components/AppHeader';
 import PromptInput from '../components/PromptInput';
 import AgentGrid from '../components/AgentGrid';
@@ -26,7 +26,7 @@ function StatTile({ label, value, sub, accent }) {
   );
 }
 
-export default function DashboardLayout({
+function DashboardLayout({
   online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
   responses, finalAnswer, loading, error, history, lastMeta,
   currentSession, backend, switchBackend,
@@ -44,17 +44,20 @@ export default function DashboardLayout({
   onSaveCode, onPickFlatAgent, onSendBestContinue,
   onUseRagChange, selectedPrompt, selectedTemperature,
 }) {
-  const agentCount   = activeAgents.length;
+  const agentCount    = activeAgents.length;
   const responseCount = Object.keys(responses).length;
-  const avgMs = lastMeta?.timings
-    ? (() => {
-        const vals = Object.values(lastMeta.timings).map(t => t.total_ms).filter(Boolean);
-        return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-      })()
-    : null;
-  const kvPct = kvReadings?.length
-    ? Math.round(kvReadings.reduce((s, r) => s + (r.usage ?? 0), 0) / kvReadings.length * 100)
-    : null;
+  const avgMs = useMemo(() => {
+    if (!lastMeta?.timings) return null;
+    const vals = Object.values(lastMeta.timings).map(t => t.total_ms).filter(Boolean);
+    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+  }, [lastMeta]);
+  const kvPct = useMemo(
+    () => kvReadings?.length
+      ? Math.round(kvReadings.reduce((s, r) => s + (r.usage ?? 0), 0) / kvReadings.length * 100)
+      : null,
+    [kvReadings]
+  );
+  const recentHistory = useMemo(() => history.slice(-10).reverse(), [history]);
 
   return (
     <div className="dl-root">
@@ -118,8 +121,8 @@ export default function DashboardLayout({
 
       {showHistory && history.length > 0 && (
         <div className="history-dropdown">
-          {history.slice(-10).reverse().map((entry, i) => (
-            <div key={i} className="history-item" onClick={() => onHistorySelect(entry)}>
+          {recentHistory.map((entry, i) => (
+            <div key={entry._run_id || entry.timestamp || i} className="history-item" onClick={() => onHistorySelect(entry)}>
               <span className="history-prompt">
                 {entry.prompt?.substring(0, 50)}{entry.prompt?.length > 50 ? '…' : ''}
               </span>
@@ -206,3 +209,5 @@ export default function DashboardLayout({
     </div>
   );
 }
+
+export default React.memo(DashboardLayout);

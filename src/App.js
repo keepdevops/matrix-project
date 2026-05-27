@@ -76,6 +76,16 @@ function App() {
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const handleToggleConfig   = useCallback(() => { setShowConverter(false); setShowConfig(v => !v); }, []);
+  const handleToggleHistory  = useCallback(() => setShowHistory(v => !v), []);
+  const handleOpenConverter  = useCallback(() => setShowConverter(v => !v), []);
+  const handleOpenRagAdmin   = useCallback(() => setShowRagAdmin(true), []);
+  const handleOpenCachePanel = useCallback(() => setShowCachePanel(true), []);
+  const handleOpenHelp       = useCallback(() => setShowHelp(true), []);
+
   const handleDeployed = useCallback(() => {
     setShowConfig(false);
     setDeployPending(true);
@@ -90,7 +100,7 @@ function App() {
         showToast('Swarm online', 'success');
       }
     }, 2000);
-    setTimeout(() => { clearInterval(pollId); setDeployPending(false); }, 90000);
+    setTimeout(() => { if (mountedRef.current) { clearInterval(pollId); setDeployPending(false); } }, 90000);
   }, [checkStatus, refreshAgents, loadHistory, showToast]);
 
   const handleClearCache = useCallback(async () => {
@@ -147,12 +157,12 @@ function App() {
         historyCount={history.length}
         onModeChange={handleModeChange}
         onClearCache={handleClearCache}
-        onToggleConfig={() => { setShowConverter(false); setShowConfig(v => !v); }}
-        onToggleHistory={() => setShowHistory(v => !v)}
-        onOpenConverter={() => setShowConverter(v => !v)}
-        onOpenRagAdmin={() => setShowRagAdmin(true)}
-        onOpenCachePanel={() => setShowCachePanel(true)}
-        onOpenHelp={() => setShowHelp(true)}
+        onToggleConfig={handleToggleConfig}
+        onToggleHistory={handleToggleHistory}
+        onOpenConverter={handleOpenConverter}
+        onOpenRagAdmin={handleOpenRagAdmin}
+        onOpenCachePanel={handleOpenCachePanel}
+        onOpenHelp={handleOpenHelp}
         onSetTheme={setTheme}
       />
 
@@ -167,7 +177,7 @@ function App() {
       {showHistory && history.length > 0 && (
         <div className="history-dropdown">
           {recentHistory.map((entry, index) => (
-            <div key={index} className="history-item" onClick={() => handleHistorySelect(entry)}>
+            <div key={entry._run_id || entry.timestamp || index} className="history-item" onClick={() => handleHistorySelect(entry)}>
               <span className="history-prompt">
                 {entry.prompt?.substring(0, 50)}{entry.prompt?.length > 50 ? '...' : ''}
               </span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import ModeSelector from './ModeSelector';
 import KvPressureGauge from './KvPressureGauge';
 import { LAYOUTS, THEMES } from '../layouts/registry';
@@ -11,6 +11,9 @@ function getRunningEngines(agents) {
   agents.forEach(a => { if (a.backend) backends.add(a.backend); });
   return [...backends].map(b => ENGINE_LABELS[b] || b).filter(Boolean);
 }
+
+const LAYOUT_ENTRIES = Object.entries(LAYOUTS);
+const THEME_ENTRIES  = Object.entries(THEMES);
 
 export default function AppHeader({
   online,
@@ -35,11 +38,8 @@ export default function AppHeader({
   onSetTheme,
   onSetLayout,
 }) {
-  const engines = getRunningEngines(activeAgents);
+  const engines = useMemo(() => getRunningEngines(activeAgents), [activeAgents]);
   const [showAppearance, setShowAppearance] = useState(false);
-
-  const layoutEntries = Object.entries(LAYOUTS);
-  const themeEntries  = Object.entries(THEMES);
 
   return (
     <header>
@@ -109,7 +109,7 @@ export default function AppHeader({
               borderRadius: 6, padding: '0.5rem', minWidth: 160,
             }}>
               <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Theme</div>
-              {themeEntries.map(([id, { label }]) => (
+              {THEME_ENTRIES.map(([id, { label }]) => (
                 <Button
                   key={id}
                   variant="ghost"
