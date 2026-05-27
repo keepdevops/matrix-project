@@ -15,9 +15,9 @@
   --color-success: #00ff41;
   --color-warn: #FFB000;
   --color-warn-dim: rgba(255, 176, 0, 0.15);
-  --color-error: #ff4b2b;
-  --color-error-dim: rgba(255, 75, 43, 0.15);
-  --color-error-border: rgba(255, 75, 43, 0.4);
+  --color-error: #D55E00;           /* vermillion-orange: CVD-safe, distinct from green */
+  --color-error-dim: rgba(213, 94, 0, 0.15);
+  --color-error-border: rgba(213, 94, 0, 0.4);
   --color-info: #648FFF;
 
   /* Colors — surfaces */
@@ -69,8 +69,8 @@
   --color-vllm:   #FF6B35;
 
   /* Colors — semantic variants */
-  --color-error-light:  #ff8877; /* softened error text */
-  --color-error-dark:   #330000; /* very dark error bg */
+  --color-error-light:  #ffaa77; /* softened vermillion text */
+  --color-error-dark:   #2a1200; /* very dark vermillion bg */
   --color-warn-dark:    #442200; /* very dark warn bg */
   --color-warn-border-dark: #aa4400; /* dark warn border */
   --color-primary-muted: #b0d0b0; /* soft green text (swarm bubbles) */
@@ -104,7 +104,7 @@
   /* KV gauge (also used by PressureCluster) */
   --kv-ok: #00ff41;
   --kv-warn: #ffae00;
-  --kv-crit: #ff4136;
+  --kv-crit: #D55E00; /* vermillion: CVD-safe vs kv-ok green */
   --kv-label: #4a7a4a;
 
   /* Spacing */
@@ -173,8 +173,8 @@
   /* Toast */
   --toast-success-bg: rgba(0, 255, 65, 0.12);
   --toast-success-border: rgba(0, 255, 65, 0.4);
-  --toast-error-bg: rgba(255, 75, 43, 0.12);
-  --toast-error-border: rgba(255, 75, 43, 0.4);
+  --toast-error-bg: rgba(213, 94, 0, 0.12);
+  --toast-error-border: rgba(213, 94, 0, 0.4);
   --toast-warn-bg: rgba(255, 176, 0, 0.12);
   --toast-warn-border: rgba(255, 176, 0, 0.4);
   --toast-info-bg: rgba(100, 143, 255, 0.12);
@@ -200,4 +200,12 @@ body[data-theme="light"] {
   --skeleton-shine: #f0ede6;
   --toast-success-bg: rgba(0, 140, 42, 0.08);
   --toast-success-border: rgba(0, 140, 42, 0.35);
+  /* CVD-safe error: vermillion-orange, distinct from green on light bg */
+  --color-error: #C04A00;
+  --color-error-dim: rgba(192, 74, 0, 0.15);
+  --color-error-border: rgba(192, 74, 0, 0.4);
+  --color-error-light: #E06000;
+  --kv-crit: #C04A00;
+  --toast-error-bg: rgba(192, 74, 0, 0.10);
+  --toast-error-border: rgba(192, 74, 0, 0.4);
 }
