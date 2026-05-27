@@ -12,9 +12,6 @@ function getRunningEngines(agents) {
   return [...backends].map(b => ENGINE_LABELS[b] || b).filter(Boolean);
 }
 
-const LAYOUT_ENTRIES = Object.entries(LAYOUTS);
-const THEME_ENTRIES  = Object.entries(THEMES);
-
 export default function AppHeader({
   online,
   activeAgents,
@@ -39,6 +36,7 @@ export default function AppHeader({
   onSetLayout,
 }) {
   const engines = useMemo(() => getRunningEngines(activeAgents), [activeAgents]);
+  const themeEntries = useMemo(() => Object.entries(THEMES), []);
   const [showAppearance, setShowAppearance] = useState(false);
 
   return (
@@ -109,7 +107,7 @@ export default function AppHeader({
               borderRadius: 6, padding: '0.5rem', minWidth: 160,
             }}>
               <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Theme</div>
-              {THEME_ENTRIES.map(([id, { label }]) => (
+              {themeEntries.map(([id, { label }]) => (
                 <Button
                   key={id}
                   variant="ghost"
