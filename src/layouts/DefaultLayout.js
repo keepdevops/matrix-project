@@ -15,6 +15,15 @@ import PipelineStageOutputs from '../components/PipelineStageOutputs';
 import CompareVariantsPanel from '../components/CompareVariantsPanel';
 import ConversationThread from '../components/ConversationThread';
 
+const EXPAND_PROGRAMMER_OPTS = {
+  followup: true,
+  contextPolicy: {
+    include: ['original_prompt', 'final', 'programmer'],
+    target_agent: 'programmer',
+    max_context_chars: 24000,
+  },
+};
+
 export default function DefaultLayout({
   // coordinator state
   online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
@@ -142,14 +151,7 @@ export default function DefaultLayout({
             flatPickMode={activeMode === 'flat'}
             pickedFlatAgent={flatPickAgent}
             onPickFlatAgent={onPickFlatAgent}
-            onExpandProgrammer={(instruction) => onSubmit(instruction, 0.2, {
-              followup: true,
-              contextPolicy: {
-                include: ['original_prompt', 'final', 'programmer'],
-                target_agent: 'programmer',
-                max_context_chars: 24000,
-              },
-            })}
+            onExpandProgrammer={(instruction) => onSubmit(instruction, 0.2, EXPAND_PROGRAMMER_OPTS)}
           />
           {activeMode === 'flat' && Object.keys(responses).length > 0 && (
             <CompareVariantsPanel

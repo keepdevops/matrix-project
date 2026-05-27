@@ -8,6 +8,7 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
   const [editedCode, setEditedCode] = useState(initialCode);
   const [copyFeedback, setCopyFeedback] = useState('COPY');
   const fileInputRef = useRef(null);
+  const copyTimerRef = useRef(null);
 
   // Normalize language for file extensions and highlighting
   const language = normalizeLanguage(rawLanguage);
@@ -22,7 +23,8 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
     try {
       await navigator.clipboard.writeText(editedCode);
       setCopyFeedback('COPIED!');
-      setTimeout(() => setCopyFeedback('COPY'), 2000);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyFeedback('COPY'), 2000);
     } catch (err) {
       console.error('Copy failed', err);
     }

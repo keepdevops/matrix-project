@@ -16,6 +16,15 @@ import CompareVariantsPanel from '../components/CompareVariantsPanel';
 import ConversationThread from '../components/ConversationThread';
 import './SidebarLayout.css';
 
+const EXPAND_PROGRAMMER_OPTS = {
+  followup: true,
+  contextPolicy: {
+    include: ['original_prompt', 'final', 'programmer'],
+    target_agent: 'programmer',
+    max_context_chars: 24000,
+  },
+};
+
 export default function SidebarLayout({
   online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
   responses, finalAnswer, loading, error, history, lastMeta,
@@ -171,14 +180,7 @@ export default function SidebarLayout({
             flatPickMode={activeMode === 'flat'}
             pickedFlatAgent={flatPickAgent}
             onPickFlatAgent={onPickFlatAgent}
-            onExpandProgrammer={(instruction) => onSubmit(instruction, 0.2, {
-              followup: true,
-              contextPolicy: {
-                include: ['original_prompt', 'final', 'programmer'],
-                target_agent: 'programmer',
-                max_context_chars: 24000,
-              },
-            })}
+            onExpandProgrammer={(instruction) => onSubmit(instruction, 0.2, EXPAND_PROGRAMMER_OPTS)}
           />
 
           {activeMode === 'flat' && Object.keys(responses).length > 0 && (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import Button from './Button';
 import AgentResponse from './AgentResponse';
 import CodeDisplay from './CodeDisplay';
@@ -31,7 +31,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
     ? extractCodeBlock(programmerResp)
     : { code: null, language: null };
 
-  const renderCard = ({ name, port, model, backend, engine }) => {
+  const renderCard = useCallback(({ name, port, model, backend, engine }) => {
     const isPicked = flatPickMode && pickedFlatAgent === name;
     const isPickable = flatPickMode && responses[name] && !loading;
     return (
@@ -51,7 +51,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
         agentError={agentErrors[name] || null}
       />
     );
-  };
+  }, [responses, loading, timings, flatPickMode, pickedFlatAgent, onPickFlatAgent, agentErrors]);
 
   return (
     <>
