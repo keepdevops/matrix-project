@@ -14,7 +14,7 @@ export function useModeHealth() {
           if (k !== '__config') out[k] = v;
         });
         setHealth(out);
-      }).catch(() => {});
+      }).catch(err => console.warn('[useModeHealth] health fetch failed:', err));
     };
     tick();
     const id = setInterval(tick, 5000);
