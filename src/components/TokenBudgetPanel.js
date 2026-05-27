@@ -50,13 +50,19 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
   };
 
   const totalContext = useMemo(
-    () => visibleRoles.reduce((s, r) => s + (effective(r, 'context') || 0), 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => visibleRoles.reduce((s, r) => {
+      const d = drafts[r.name];
+      const val = d?.context !== undefined && d?.context !== '' ? Number(d.context) : r.context;
+      return s + (val || 0);
+    }, 0),
     [visibleRoles, drafts]
   );
   const totalMaxTokens = useMemo(
-    () => visibleRoles.reduce((s, r) => s + (effective(r, 'max_tokens') || 0), 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => visibleRoles.reduce((s, r) => {
+      const d = drafts[r.name];
+      const val = d?.max_tokens !== undefined && d?.max_tokens !== '' ? Number(d.max_tokens) : r.max_tokens;
+      return s + (val || 0);
+    }, 0),
     [visibleRoles, drafts]
   );
 
