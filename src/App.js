@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import './themes/light.css';
+import './themes/overdrive.css';
+import './themes/synthwave.css';
+import './themes/cobalt.css';
 import { useToast } from './components/ToastManager';
 import { useSwarm } from './hooks/useSwarm';
 import { useCoordinatorState } from './hooks/useCoordinatorState';

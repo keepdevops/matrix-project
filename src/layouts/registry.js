@@ -13,7 +13,9 @@ export const LAYOUTS = {
 };
 
 export const THEMES = {
-  dark:  { label: '☾ Dark' },
-  light: { label: '☀ Light' },
-  // terminal: { label: '⌨ Terminal', cssFile: '../themes/terminal.css' },
+  dark:      { label: '☾ Dark' },
+  light:     { label: '☀ Light' },
+  overdrive: { label: '⚡ Overdrive' },
+  synthwave: { label: '🌊 Synthwave' },
+  cobalt:    { label: '💎 Cobalt' },
 };
