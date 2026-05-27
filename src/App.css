@@ -25,23 +25,23 @@
 .btn.btn--primary { background: var(--btn-primary-bg); color: var(--btn-primary-color); border: 1px solid var(--btn-primary-border); }
 .btn.btn--primary:hover:not(:disabled) { background: var(--btn-primary-hover-bg); }
 
-.btn.btn--outline-primary { background: transparent; color: var(--btn-outline-primary-color); border: 1px solid var(--btn-outline-primary-border); }
+.btn.btn--outline-primary { background: transparent; color: var(--color-primary); border: 1px solid var(--color-primary); }
 .btn.btn--outline-primary:hover:not(:disabled) { background: var(--color-primary-glow); }
 
-.btn.btn--outline-accent { background: transparent; color: var(--btn-outline-accent-color); border: 1px solid var(--btn-outline-accent-border); }
+.btn.btn--outline-accent { background: transparent; color: var(--color-accent); border: 1px solid var(--color-accent); }
 .btn.btn--outline-accent:hover:not(:disabled) { background: var(--color-accent-dim); }
 
-.btn.btn--outline-warn { background: transparent; color: var(--btn-outline-warn-color); border: 1px solid var(--btn-outline-warn-border); }
+.btn.btn--outline-warn { background: transparent; color: var(--color-warn); border: 1px solid var(--color-warn); }
 .btn.btn--outline-warn:hover:not(:disabled) { background: var(--color-warn-dim); }
 
 .btn.btn--ghost { background: transparent; color: var(--btn-ghost-color); border: 1px solid var(--btn-ghost-border); }
 .btn.btn--ghost:hover:not(:disabled) { background: var(--color-bg-elevated); }
 
-.btn.btn--outline-orange { background: transparent; color: var(--btn-outline-orange-color); border: 1px solid var(--btn-outline-orange-border); }
+.btn.btn--outline-orange { background: transparent; color: var(--color-orange); border: 1px solid var(--color-orange); }
 .btn.btn--outline-orange:hover:not(:disabled) { background: rgba(254, 97, 0, 0.1); }
 .btn.btn--outline-orange.active { background: rgba(254, 97, 0, 0.15); border-color: var(--color-warn); color: var(--color-warn); }
 
-.btn.btn--outline-error { background: transparent; color: var(--btn-outline-error-color); border: 1px solid var(--btn-outline-error-border); }
+.btn.btn--outline-error { background: transparent; color: var(--color-error); border: 1px solid var(--color-error); }
 .btn--outline-error:hover:not(:disabled) { background: var(--color-error-dim); }
 
 /* ========== Base Styles ========== */
