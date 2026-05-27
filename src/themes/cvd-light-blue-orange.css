@@ -42,6 +42,9 @@ body[data-theme="cvd-light-blue-orange"] {
   --color-text-dim: #8090cc;
   --color-border-dim: #d4daef;
   --color-primary-tint-sm: rgba(21, 101, 192, 0.08);
+  --btn-ghost-color: #5560aa;
+  --btn-ghost-border: #bec6e8;
+  --color-orange: #e65100;
 }
 
 body[data-theme="cvd-light-blue-orange"] h1 {

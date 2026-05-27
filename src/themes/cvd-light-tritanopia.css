@@ -42,6 +42,9 @@ body[data-theme="cvd-light-tritanopia"] {
   --color-text-dim: #6aaeaa;
   --color-border-dim: #cce0dd;
   --color-primary-tint-sm: rgba(0, 105, 92, 0.08);
+  --btn-ghost-color: #3a6e68;
+  --btn-ghost-border: #b0ccc8;
+  --color-orange: #e64a19;
 }
 
 body[data-theme="cvd-light-tritanopia"] h1 {
