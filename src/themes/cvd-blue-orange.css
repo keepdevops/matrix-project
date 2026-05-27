@@ -123,7 +123,6 @@ body[data-theme="cvd-blue-orange"] .error-banner {
 }
 
 /* Agent expand modal */
-body[data-theme="cvd-blue-orange"] .help-overlay { background: rgba(0, 0, 0, 0.7); }
 body[data-theme="cvd-blue-orange"] .agent-editor-modal {
   background: #252530;
   border: 1px solid #353550;

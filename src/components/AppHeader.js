@@ -43,7 +43,8 @@ export default function AppHeader({
     <header>
       <h1>Swarm Matrix v{process.env.REACT_APP_VERSION || 'dev'}</h1>
       <div className="header-controls">
-        <span className={`status-indicator ${online ? 'status-online' : 'status-offline'}`}
+        <span role="status" aria-live="polite"
+              className={`status-indicator ${online ? 'status-online' : 'status-offline'}`}
               aria-label={online ? 'Status: online' : 'Status: offline'}>
           {online ? '● ONLINE' : '✕ OFFLINE'}
         </span>

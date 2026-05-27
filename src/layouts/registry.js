@@ -19,7 +19,7 @@ export const THEMES = {
   synthwave: { label: '🌊 Synthwave' },
   cobalt:            { label: '💎 Cobalt' },
   greyscale:         { label: '◈ Greyscale' },
-  'cvd-blue-orange': { label: '⬡ Blue & Orange' },
-  'cvd-teal-charcoal': { label: '⬡ Teal & Charcoal' },
-  'cvd-amber':       { label: '⬡ Amber' },
+  'cvd-blue-orange':   { label: '⬡ CVD: Protanopia/Deuteranopia' },
+  'cvd-teal-charcoal': { label: '⬡ CVD: Tritanopia' },
+  'cvd-amber':         { label: '⬡ CVD: Achromatopsia' },
 };

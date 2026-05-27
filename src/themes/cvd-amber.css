@@ -96,8 +96,8 @@ body[data-theme="cvd-amber"] .theme-toggle-button { color: #FFB703; }
 body[data-theme="cvd-amber"] .theme-toggle-button:hover { background: rgba(255, 183, 3, 0.09); }
 
 /* Status */
-body[data-theme="cvd-amber"] .status-online  { color: #c49000; border-color: #c49000; }
-body[data-theme="cvd-amber"] .status-offline { color: #FFB703; border-color: #FFB703; }
+body[data-theme="cvd-amber"] .status-online  { color: #9a7000; border-color: #9a7000; }
+body[data-theme="cvd-amber"] .status-offline { color: #FFB703; border-color: #FFB703; font-weight: bold; }
 body[data-theme="cvd-amber"] .engine-badge {
   color: #c8c0a8;
   background: rgba(255, 183, 3, 0.08);
@@ -123,7 +123,6 @@ body[data-theme="cvd-amber"] .error-banner {
 }
 
 /* Agent expand modal */
-body[data-theme="cvd-amber"] .help-overlay { background: rgba(0, 0, 0, 0.75); }
 body[data-theme="cvd-amber"] .agent-editor-modal {
   background: #181610;
   border: 1px solid #302c22;
@@ -203,7 +202,7 @@ body[data-theme="cvd-amber"] .swarm-risk-card.risk-low    { border-left-color: #
 body[data-theme="cvd-amber"] .swarm-risk-card.risk-medium { border-left-color: #c49000; }
 body[data-theme="cvd-amber"] .swarm-risk-card.risk-high   { border-left-color: #FFB703; }
 body[data-theme="cvd-amber"] .swarm-risk-header { color: #706840; }
-body[data-theme="cvd-amber"] .swarm-risk-badge.risk-low    { color: #9a7800; }
+body[data-theme="cvd-amber"] .swarm-risk-badge.risk-low    { color: #b89000; }
 body[data-theme="cvd-amber"] .swarm-risk-badge.risk-medium { color: #c49000; }
 body[data-theme="cvd-amber"] .swarm-risk-badge.risk-high   { color: #FFB703; }
 body[data-theme="cvd-amber"] .swarm-risk-score { color: #c8c0a8; }
@@ -262,7 +261,7 @@ body[data-theme="cvd-amber"] .swarm-engine-btn.active.engine-mlx   { background:
 body[data-theme="cvd-amber"] .swarm-engine-btn.active.engine-vllm  { background: rgba(240, 232, 208, 0.07); color: #f0e8d0; }
 body[data-theme="cvd-amber"] .swarm-engine-in-use { color: #FFB703; }
 body[data-theme="cvd-amber"] .swarm-engine-in-use strong { color: #f0e8d0; }
-body[data-theme="cvd-amber"] .swarm-engine-warn { color: #FFB703; }
+body[data-theme="cvd-amber"] .swarm-engine-warn { color: #c49000; }
 
 /* KV gauge */
 body[data-theme="cvd-amber"] .kv-gauge { background: #181610; border-color: #302c22; }
