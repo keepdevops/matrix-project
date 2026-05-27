@@ -32,13 +32,11 @@ export default function ModeRosterPanel() {
       const [m, a] = await Promise.all([fetchModes(), fetchAgents()]);
       setModes(m);
       setAvailable((a || []).map(x => x.name));
-      if (!activeTab && m.length) {
-        setActiveTab((m.find(x => x.active) || m[0]).name);
-      }
+      setActiveTab(prev => prev || (m.find(x => x.active) || m[0])?.name || null);
     } catch (e) {
-      console.error('ModeRosterPanel: loadModes failed:', e);
+      console.error('[ModeRosterPanel] loadModes failed:', e);
     }
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => { loadModes(); }, [loadModes]);
 
