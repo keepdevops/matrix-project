@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import './themes/light.css';
 import { useToast } from './components/ToastManager';
@@ -72,7 +72,7 @@ function App() {
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
-  const handleDeployed = () => {
+  const handleDeployed = useCallback(() => {
     setShowConfig(false);
     setDeployPending(true);
     showToast('Swarm launching — waiting for health check…', 'info');
@@ -87,9 +87,9 @@ function App() {
       }
     }, 2000);
     setTimeout(() => { clearInterval(pollId); setDeployPending(false); }, 90000);
-  };
+  }, [checkStatus, refreshAgents, loadHistory, showToast]);
 
-  const handleClearCache = async () => {
+  const handleClearCache = useCallback(async () => {
     setCacheStatus('clearing');
     try {
       await clearKvCache();
@@ -101,7 +101,7 @@ function App() {
     } finally {
       setTimeout(() => setCacheStatus('idle'), 2000);
     }
-  };
+  }, [showToast]);
 
   // Surface transport-level stream errors as toasts instead of an inline banner.
   useEffect(() => {
@@ -116,6 +116,17 @@ function App() {
 
   const excludedBreaker = lastMeta?.excluded_unhealthy || [];
   const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
+
+  const recentHistory = useMemo(() => history.slice(-10).reverse(), [history]);
+
+  const handleExpandProgrammer = useCallback((instruction) => handleSubmit(instruction, 0.2, {
+    followup: true,
+    contextPolicy: {
+      include: ['original_prompt', 'final', 'programmer'],
+      target_agent: 'programmer',
+      max_context_chars: 24000,
+    },
+  }), [handleSubmit]);
 
   return (
     <div className="matrix-container">
@@ -151,7 +162,7 @@ function App() {
 
       {showHistory && history.length > 0 && (
         <div className="history-dropdown">
-          {history.slice(-10).reverse().map((entry, index) => (
+          {recentHistory.map((entry, index) => (
             <div key={index} className="history-item" onClick={() => handleHistorySelect(entry)}>
               <span className="history-prompt">
                 {entry.prompt?.substring(0, 50)}{entry.prompt?.length > 50 ? '...' : ''}
@@ -213,14 +224,7 @@ function App() {
             flatPickMode={activeMode === 'flat'}
             pickedFlatAgent={flatPickAgent}
             onPickFlatAgent={setFlatPickAgent}
-            onExpandProgrammer={(instruction) => handleSubmit(instruction, 0.2, {
-              followup: true,
-              contextPolicy: {
-                include: ['original_prompt', 'final', 'programmer'],
-                target_agent: 'programmer',
-                max_context_chars: 24000,
-              },
-            })}
+            onExpandProgrammer={handleExpandProgrammer}
           />
           {activeMode === 'flat' && Object.keys(responses).length > 0 && (
             <CompareVariantsPanel

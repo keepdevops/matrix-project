@@ -50,22 +50,33 @@ export function useSwarm() {
       requestOpts.parentRunId = currentSession.runId;
     }
 
-    // Accumulate per-agent text locally so the functional setState below
-    // never reads stale closure state.
+    // Accumulate per-agent text locally so callbacks never read stale closure state.
+    // Tokens arrive as string arrays; join on flush so appends are O(1) not O(n²).
     const assembled = {};
 
     const streamFn = backend === 'mlx' ? submitPromptStreamMlx : submitPromptStream;
 
+    // RAF-throttle setResponses: flush at most once per animation frame.
+    let rafId = null;
+    const flushResponses = () => {
+      const snapshot = {};
+      for (const k of Object.keys(assembled)) snapshot[k] = assembled[k].join('');
+      setResponses(snapshot);
+      rafId = null;
+    };
+    const scheduleFlush = () => { if (!rafId) rafId = requestAnimationFrame(flushResponses); };
+
     return new Promise((resolve, reject) => {
       cancelRef.current = streamFn(prompt, temperature, requestOpts, {
         onToken(agent, delta) {
-          assembled[agent] = (assembled[agent] || '') + delta;
-          // Shallow-clone so React sees a new reference and re-renders.
-          setResponses({ ...assembled });
+          if (assembled[agent]) assembled[agent].push(delta);
+          else assembled[agent] = [delta];
+          scheduleFlush();
         },
         onAgentDone(agent) {
-          // Ensure the final assembled text is committed even if no tokens fired.
-          setResponses(prev => (assembled[agent] !== undefined ? { ...prev, [agent]: assembled[agent] } : prev));
+          // Flush immediately so the final text lands without waiting for next frame.
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          flushResponses();
         },
         onSelected({ classifier, agents: picked }) {
           // Surface router classifier name in meta for downstream consumers.
@@ -75,15 +86,18 @@ export function useSwarm() {
           if (session_id) setCurrentSession({ sessionId: session_id, runId: run_id });
         },
         onDone() {
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          flushResponses();
           setLoading(false);
           cancelRef.current = null;
-          const result = { agents: { ...assembled }, final: null, meta: null };
-          resolve(result);
+          const agents = {};
+          for (const k of Object.keys(assembled)) agents[k] = assembled[k].join('');
+          resolve({ agents, final: null, meta: null });
         },
         onError(agent, message) {
           console.error('[useSwarm] stream error:', agent, message);
           if (!agent) {
-            // Transport-level error — surface to UI.
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
             setError(message);
             setLoading(false);
             cancelRef.current = null;
