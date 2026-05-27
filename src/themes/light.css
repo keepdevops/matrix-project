@@ -74,7 +74,7 @@ body[data-theme="light"] .theme-toggle-button:hover { background: rgba(0, 140, 4
 
 /* Status / accents: keep blue/red/purple but soften backgrounds */
 body[data-theme="light"] .status-online { color: #1a56db; border-color: #1a56db; }
-body[data-theme="light"] .status-offline { color: #c1311f; border-color: #c1311f; }
+body[data-theme="light"] .status-offline { color: #C04A00; border-color: #C04A00; }
 body[data-theme="light"] .engine-badge {
   color: #6d28d9;
   background: rgba(109, 40, 217, 0.08);
@@ -95,9 +95,9 @@ body[data-theme="light"] .history-time { color: #6a6a75; }
 
 /* Error banner */
 body[data-theme="light"] .error-banner {
-  background: rgba(193, 49, 31, 0.08);
-  color: #c1311f;
-  border-color: #c1311f;
+  background: rgba(192, 74, 0, 0.08);
+  color: #C04A00;
+  border-color: #C04A00;
 }
 
 /* Agent expand modal (pop-out) */
@@ -114,7 +114,7 @@ body[data-theme="light"] .agent-editor-modal-header {
 body[data-theme="light"] .agent-editor-modal-name { color: var(--agent-color, #008c2a); }
 body[data-theme="light"] .agent-editor-modal-content { background: #ffffff; }
 body[data-theme="light"] .agent-editor-close { color: #6a6a75; }
-body[data-theme="light"] .agent-editor-close:hover { color: #c1311f; }
+body[data-theme="light"] .agent-editor-close:hover { color: #C04A00; }
 
 /* CodeMirror inside the pop-out */
 body[data-theme="light"] .code-display-container {
@@ -217,7 +217,7 @@ body[data-theme="light"] .layout-model { color: #6a6a75; }
 body[data-theme="light"] .layout-empty { color: #6a6a75; }
 body[data-theme="light"] .layout-engine-llama { color: #b45309; }
 body[data-theme="light"] .layout-engine-mlx   { color: #008c2a; }
-body[data-theme="light"] .layout-engine-vllm  { color: #c2410c; }
+body[data-theme="light"] .layout-engine-vllm  { color: #C04A00; }
 
 /* Risk card */
 body[data-theme="light"] .swarm-risk-card {
@@ -227,11 +227,11 @@ body[data-theme="light"] .swarm-risk-card {
 }
 body[data-theme="light"] .swarm-risk-card.risk-low { border-left-color: #008c2a; }
 body[data-theme="light"] .swarm-risk-card.risk-medium { border-left-color: #b45309; }
-body[data-theme="light"] .swarm-risk-card.risk-high { border-left-color: #c1311f; }
+body[data-theme="light"] .swarm-risk-card.risk-high { border-left-color: #C04A00; }
 body[data-theme="light"] .swarm-risk-header { color: #4a4a55; }
 body[data-theme="light"] .swarm-risk-badge.risk-low { color: #008c2a; }
 body[data-theme="light"] .swarm-risk-badge.risk-medium { color: #b45309; }
-body[data-theme="light"] .swarm-risk-badge.risk-high { color: #c1311f; }
+body[data-theme="light"] .swarm-risk-badge.risk-high { color: #C04A00; }
 body[data-theme="light"] .swarm-risk-score { color: #1a1a1f; }
 body[data-theme="light"] .swarm-risk-mixed {
   color: #1a56db;
@@ -240,9 +240,9 @@ body[data-theme="light"] .swarm-risk-mixed {
 }
 body[data-theme="light"] .swarm-risk-hint { color: #6a6a75; }
 body[data-theme="light"] .swarm-risk-block {
-  color: #c1311f;
-  border-color: rgba(193, 49, 31, 0.4);
-  background: rgba(193, 49, 31, 0.08);
+  color: #C04A00;
+  border-color: rgba(192, 74, 0, 0.4);
+  background: rgba(192, 74, 0, 0.08);
 }
 body[data-theme="light"] .swarm-risk-row {
   background: #ffffff;
@@ -255,10 +255,10 @@ body[data-theme="light"] .swarm-risk-warn { color: #b45309; }
 
 /* Offline / errors / logs */
 body[data-theme="light"] .swarm-config-offline {
-  background: rgba(193, 49, 31, 0.06);
-  border-color: rgba(193, 49, 31, 0.4);
+  background: rgba(192, 74, 0, 0.06);
+  border-color: rgba(192, 74, 0, 0.4);
 }
-body[data-theme="light"] .swarm-offline-title { color: #c1311f; }
+body[data-theme="light"] .swarm-offline-title { color: #C04A00; }
 body[data-theme="light"] .swarm-offline-msg { color: #1a1a1f; }
 body[data-theme="light"] .swarm-offline-cmd {
   color: #008c2a;
@@ -268,9 +268,9 @@ body[data-theme="light"] .swarm-offline-cmd {
 body[data-theme="light"] .swarm-offline-detail { color: #6a6a75; }
 
 body[data-theme="light"] .swarm-config-error {
-  background: rgba(193, 49, 31, 0.08);
-  border-color: #c1311f;
-  color: #c1311f;
+  background: rgba(192, 74, 0, 0.08);
+  border-color: #C04A00;
+  color: #C04A00;
 }
 body[data-theme="light"] .swarm-config-deploying { color: #b45309; }
 body[data-theme="light"] .swarm-config-logs-title { color: #4a4a55; }
@@ -321,12 +321,12 @@ body[data-theme="light"] .swarm-engine-btn.active.engine-mlx {
   color: #008c2a;
 }
 body[data-theme="light"] .swarm-engine-btn.active.engine-vllm {
-  background: rgba(194, 65, 12, 0.12);
-  color: #c2410c;
+  background: rgba(192, 74, 0, 0.12);
+  color: #C04A00;
 }
 body[data-theme="light"] .swarm-engine-in-use { color: #6d28d9; }
 body[data-theme="light"] .swarm-engine-in-use strong { color: #5b21b6; }
-body[data-theme="light"] .swarm-engine-warn { color: #c1311f; }
+body[data-theme="light"] .swarm-engine-warn { color: #C04A00; }
 
 /* KV pressure gauge — keep label blue, keep LCD readout dark for that
    classic backlit-LCD look even in light mode. */
@@ -376,5 +376,5 @@ body[data-theme="light"] .preset-row-delete {
 }
 body[data-theme="light"] .preset-row-delete:hover:not(:disabled) {
   background: rgba(220, 38, 38, 0.1);
-  color: #b91c1c;
+  color: #C04A00;
 }
