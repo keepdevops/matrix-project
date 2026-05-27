@@ -53,6 +53,7 @@ body {
   color: var(--color-text-primary);
   --panel-bg: var(--color-bg-surface);
   --panel-border: var(--color-border-code);
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .matrix-container {

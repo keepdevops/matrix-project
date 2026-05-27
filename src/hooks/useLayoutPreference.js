@@ -67,6 +67,7 @@ export function useLayoutPreference() {
 
   const setTheme = (id) => {
     const safe = THEMES[id] ? id : DEFAULT_THEME;
+    document.body.setAttribute('data-theme', safe);
     setThemeState(safe);
     writeStorage(STORAGE_THEME, safe);
   };
