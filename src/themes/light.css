@@ -7,6 +7,18 @@ body[data-theme="light"] {
   color: #0f3d24;
   --panel-bg: #ffffff;
   --panel-border: #d8d6cc;
+  --color-primary: #1a56db;
+  --color-primary-dim: #1447b8;
+  --color-primary-glow: rgba(26, 86, 219, 0.25);
+  --color-primary-hover: rgba(26, 86, 219, 0.08);
+  --color-primary-tint: rgba(26, 86, 219, 0.05);
+  --color-primary-tint-sm: rgba(26, 86, 219, 0.08);
+  --color-primary-tint-xs: rgba(26, 86, 219, 0.04);
+  --btn-ghost-color:  #1a56db;
+  --btn-ghost-border: #bec6e8;
+  --btn-primary-bg:   #1a56db;
+  --btn-primary-border: #1a56db;
+  --btn-primary-hover-bg: #1447b8;
 }
 
 body[data-theme="light"] h1 {
@@ -32,45 +44,6 @@ body[data-theme="light"] select,
 body[data-theme="light"] pre,
 body[data-theme="light"] code { background: #ecebe4; color: #0f3d24; }
 
-/* Action buttons — blue, distinguishable from green success indicators under CVD */
-body[data-theme="light"] .history-button,
-body[data-theme="light"] .help-button,
-body[data-theme="light"] .configure-button,
-body[data-theme="light"] .save-code-button,
-body[data-theme="light"] .submit-button {
-  border-color: #1a56db;
-  color: #1a56db;
-}
-
-body[data-theme="light"] .history-button:hover,
-body[data-theme="light"] .help-button:hover,
-body[data-theme="light"] .configure-button:hover,
-body[data-theme="light"] .save-code-button:hover {
-  background: rgba(26, 86, 219, 0.08);
-}
-
-body[data-theme="light"] .submit-button {
-  background: #1a56db;
-  color: #ffffff;
-}
-body[data-theme="light"] .submit-button:hover { background: #2563eb; }
-body[data-theme="light"] .submit-button:disabled { background: #c4c2b8; color: #6a6a75; border-color: #c4c2b8; }
-
-/* Theme toggle button */
-.theme-toggle-button {
-  background: transparent;
-  border: 1px solid currentColor;
-  color: #00ff41;
-  padding: 5px 12px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.85rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-.theme-toggle-button:hover { background: rgba(0, 255, 65, 0.1); }
-body[data-theme="light"] .theme-toggle-button { color: #1a56db; }
-body[data-theme="light"] .theme-toggle-button:hover { background: rgba(26, 86, 219, 0.08); }
 
 /* Status / accents: keep blue/red/purple but soften backgrounds */
 body[data-theme="light"] .status-online { color: #1a56db; border-color: #1a56db; }

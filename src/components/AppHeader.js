@@ -94,14 +94,15 @@ export default function AppHeader({
         <Button variant="ghost" size="sm" onClick={onOpenHelp}>?</Button>
 
         <div className="appearance-picker" style={{ position: 'relative', display: 'inline-block' }}>
-          <button
-            className="theme-toggle-button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowAppearance(v => !v)}
             aria-label="Layout and theme"
             title="Pick layout and theme"
           >
             {THEMES[theme]?.label ?? '☾ Dark'}
-          </button>
+          </Button>
           {showAppearance && (
             <div className="appearance-dropdown" style={{
               position: 'absolute', right: 0, top: '100%', zIndex: 200,
