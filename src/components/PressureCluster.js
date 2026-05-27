@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchKvPressure } from '../api/swarmApi';
 
 // Cluster-of-gauges view of /api/pressure. Each MLX port renders four
@@ -137,12 +137,16 @@ export default function PressureCluster({ online }) {
     };
   }, [online]);
 
-  if (!online) return null;
+  const mlx = useMemo(
+    () => readings.filter(r => r && r.backend === 'mlx' && r.ok),
+    [readings]
+  );
+  const sortedMlx = useMemo(
+    () => mlx.slice().sort((a, b) => a.port - b.port),
+    [mlx]
+  );
 
-  // Show only MLX entries — the cluster is meaningful for the serialized
-  // single-slot backend. llama-server has its own /metrics signals shown
-  // by the existing KvPressureGauge.
-  const mlx = readings.filter(r => r && r.backend === 'mlx' && r.ok);
+  if (!online) return null;
 
   if (errored && mlx.length === 0) {
     return (
@@ -157,12 +161,9 @@ export default function PressureCluster({ online }) {
   return (
     <div className="pcluster" role="group" aria-label="MLX pressure cluster">
       <div className="pcluster-title">MLX pressure</div>
-      {mlx
-        .slice()
-        .sort((a, b) => a.port - b.port)
-        .map(entry => (
-          <PressureRow key={entry.port} entry={entry} />
-        ))}
+      {sortedMlx.map(entry => (
+        <PressureRow key={entry.port} entry={entry} />
+      ))}
     </div>
   );
 }
