@@ -4,7 +4,7 @@
 
 body[data-theme="light"] {
   background-color: #f6f5f0;
-  color: #0f3d24;
+  color: var(--color-text-body, #24292f);
   --panel-bg: #ffffff;
   --panel-border: #d8d6cc;
   --color-primary: #1a56db;
@@ -14,6 +14,13 @@ body[data-theme="light"] {
   --color-primary-tint: rgba(26, 86, 219, 0.05);
   --color-primary-tint-sm: rgba(26, 86, 219, 0.08);
   --color-primary-tint-xs: rgba(26, 86, 219, 0.04);
+  --color-accent: #5850c8;
+  --color-accent-dim: rgba(88, 80, 200, 0.10);
+  --color-warn: #b45309;
+  --color-warn-dim: rgba(180, 83, 9, 0.10);
+  --color-error: #c0392b;
+  --color-error-dim: rgba(192, 57, 43, 0.10);
+  --color-orange: #c4520a;
   --btn-ghost-color:  #1a56db;
   --btn-ghost-border: #bec6e8;
   --btn-primary-bg:   #1a56db;

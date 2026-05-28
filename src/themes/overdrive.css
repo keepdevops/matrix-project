@@ -16,6 +16,13 @@ body[data-theme="overdrive"] {
   --color-border: #1a4a2a;
   --color-border-subtle: #0f2a18;
   --color-border-emphasis: #2a6a3a;
+  --color-primary: #00d4ff;
+  --color-primary-dim: #00aad4;
+  --color-primary-glow: rgba(0, 212, 255, 0.35);
+  --color-primary-hover: rgba(0, 212, 255, 0.12);
+  --color-primary-tint: rgba(0, 212, 255, 0.05);
+  --color-primary-tint-sm: rgba(0, 212, 255, 0.10);
+  --color-primary-tint-xs: rgba(0, 212, 255, 0.04);
   --color-accent: #00d4ff;
   --color-accent-dim: rgba(0, 212, 255, 0.15);
   --color-accent-hover: rgba(0, 212, 255, 0.12);
