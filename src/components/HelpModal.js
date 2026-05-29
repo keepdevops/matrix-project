@@ -40,7 +40,7 @@ function HelpModal({ onClose }) {
               <dt>CLEAR KV</dt>
               <dd>Clears state on all agents: erases the KV cache on llama-server agents, restarts MLX servers, and resets conversation session state. Use before every new major prompt and whenever agents seem stuck or produce repetitive output.</dd>
               <dt>HISTORY (N)</dt>
-              <dd>Shows your last 10 broadcasts. Click any entry to reload the prompt and all agent responses exactly as they were. N shows the total number of entries stored.</dd>
+              <dd>Shows your last 10 broadcasts (terminal mode shows the 5 most recent via <code>:history</code>). Click any entry to reload the prompt and all agent responses exactly as they were. N shows the total number of entries stored.</dd>
               <dt>?</dt>
               <dd>This help modal. Click outside or press ✕ to close.</dd>
             </dl>

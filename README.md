@@ -9,7 +9,7 @@
 > **The local-first multi-agent coding swarm.** Privacy-first, no cloud, no API keys —
 > turns your Apple Silicon or NVIDIA box into a 16-agent dev team.
 
-A multi-agent local-LLM workbench. Dispatches prompts to 16+ specialised agents
+A multi-agent local-LLM workbench. Dispatches prompts to 16 specialised agents
 (architect, programmer, security, reviewer, …) across four orchestration modes
 (flat, pipeline, cascade, router) against local inference servers (llama.cpp,
 MLX, vLLM). Supports multi-turn conversation threads, pgvector RAG context
@@ -23,7 +23,7 @@ dashboard — all in a React UI with no cloud dependency.
 | | Matrix Swarm | Cursor | Aider | Cline |
 |---|---|---|---|---|
 | Runs fully local | **Yes** | No | Optional | Optional |
-| Multi-agent orchestration | **Yes (16+)** | No | No | No |
+| Multi-agent orchestration | **Yes (16)** | No | No | No |
 | Mix backends per agent | **MLX + llama.cpp + vLLM** | No | No | No |
 | Coordinator modes | **Flat · Pipeline · Cascade · Router** | — | — | — |
 | Multi-turn conversation | **Yes (per-session threads)** | Yes | Yes | Yes |
@@ -74,7 +74,7 @@ it with Matrix Swarm for parallel planning + deep execution.
 
 ## Features
 
-- **16+ specialised agent roles** — architect, foreman, programmer, specialist,
+- **16 specialised agent roles** — architect, foreman, programmer, specialist,
   security, api, database, frontend, reviewer, tester, optimizer, debugger,
   devops, scout, synthesis, documenter. Each has a tuned system prompt and a
   colour in the UI.

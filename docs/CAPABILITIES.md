@@ -240,7 +240,7 @@ re-probes (success closes, failure re-opens).
 |---|---|
 | Per-run exclusion | `envelope.meta.excluded_unhealthy: ["name", ...]` |
 | Snapshot endpoint | `GET /api/health/agents` |
-| UI | red banner in PER-MODE ROSTER, polled every 5 s |
+| UI | red banner in PER-MODE ROSTER, polled every 10 s |
 | Coordinator log | `🔴 [health] <name> breaker TRIPPED (...)` / `🟢 [health] <name> breaker reset` |
 
 ### Retry-with-backoff

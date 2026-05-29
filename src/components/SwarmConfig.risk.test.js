@@ -133,6 +133,16 @@ describe('computeRiskEstimate — engine warnings', () => {
     const mlxGroup = e.groups.find(g => g.engine === 'mlx');
     expect(mlxGroup?.warnings.length).toBeGreaterThan(0);
     expect(mlxGroup?.warnings[0]).toMatch(/MLX/);
+    expect(mlxGroup?.warnings[0]).toMatch(/serializes/);
+  });
+
+  it('MLX warning text mentions latency', () => {
+    const roles = [makeRole('p', 2048, 'mlx'), makeRole('q', 2048, 'mlx')];
+    const selected = new Set(['p', 'q']);
+    const roleModels = { p: '/m/mlx-4b', q: '/m/mlx-4b' };
+    const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
+    const mlxGroup = e.groups.find(g => g.engine === 'mlx');
+    expect(mlxGroup.warnings[0]).toMatch(/latency/i);
   });
 
   it('no MLX warning for single MLX agent', () => {
@@ -180,6 +190,27 @@ describe('computeRiskEstimate — engine warnings', () => {
     const vllmGroup = e.groups.find(g => g.engine === 'vllm');
     expect(vllmGroup?.riskLevel).toBe('block');
     expect(e.blockedGroups.length).toBeGreaterThan(0);
+    expect(e.blockedGroups[0].engine).toBe('vllm');
+    expect(e.blockedGroups[0].warnings[0]).toMatch(/vLLM/);
+  });
+
+  it('high RAM band hint text mentions OOM', () => {
+    const roles = Array.from({ length: 12 }, (_, i) => makeRole(`a${i}`, 8192));
+    const selected = new Set(roles.map(r => r.name));
+    const roleModels = Object.fromEntries(roles.map(r => [r.name, '/m/codestral-22b.gguf']));
+    const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
+    expect(e.band.id).toBe('high');
+    expect(e.band.hint).toMatch(/OOM/i);
+  });
+
+  it('medium RAM band hint text mentions pressure or slowdown', () => {
+    const roles = Array.from({ length: 8 }, (_, i) => makeRole(`b${i}`, 8192));
+    const selected = new Set(roles.map(r => r.name));
+    const roleModels = Object.fromEntries(roles.map(r => [r.name, '/m/codestral-22b.gguf']));
+    const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
+    if (e.band.id === 'medium') {
+      expect(e.band.hint).toMatch(/pressure|slowdown/i);
+    }
   });
 });
 

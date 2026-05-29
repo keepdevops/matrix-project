@@ -24,6 +24,7 @@ export default function AppHeader({
   theme,
   layout,
   historyCount,
+  warningsByMode,
   onModeChange,
   onClearCache,
   onToggleConfig,
@@ -58,6 +59,7 @@ export default function AppHeader({
           active={activeMode}
           onChange={onModeChange}
           disabled={!online}
+          warningsByMode={warningsByMode}
         />
         <KvPressureGauge online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
         <Button

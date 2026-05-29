@@ -49,8 +49,15 @@ function App() {
 
   const {
     activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
-    flatPickAgent, setFlatPickAgent, refreshModes, refreshAgents, handleModeChange,
+    flatPickAgent, setFlatPickAgent, modeWarnings, refreshModes, refreshAgents, handleModeChange,
   } = useCoordinatorState(online);
+
+  // Build a per-mode warning map for ModeSelector: { [modeName]: string[] }
+  // Only the active mode gets warnings for now; extend if per-mode pre-check is added.
+  const warningsByMode = useMemo(
+    () => (activeMode && modeWarnings.length > 0 ? { [activeMode]: modeWarnings } : {}),
+    [activeMode, modeWarnings]
+  );
 
   const { theme, setTheme } = useLayoutPreference();
 
@@ -78,6 +85,10 @@ function App() {
   } = useSubmitHandlers({
     submit, loadHistory, currentSession, activeMode, useRag,
     responses, activeAgents, flatPickAgent,
+    modeWarnings,
+    onModeWarning: useCallback((warnings) => {
+      showToast(warnings[0], 'warn');
+    }, [showToast]),
   });
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
@@ -161,6 +172,7 @@ function App() {
         showConfigPanel={showConfigPanel}
         theme={theme}
         historyCount={history.length}
+        warningsByMode={warningsByMode}
         onModeChange={handleModeChange}
         onClearCache={handleClearCache}
         onToggleConfig={handleToggleConfig}

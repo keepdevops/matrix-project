@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchKvPressure } from '../api/swarmApi';
+import { PRESSURE_QUEUE_FULL, PRESSURE_WAIT_SLA_SECS, PRESSURE_TPS_BASELINE } from '../config/thresholds';
 
 // Cluster-of-gauges view of /api/pressure. Each MLX port renders four
 // orthogonal channels (active LED, queue depth, expected wait, decode rate)
@@ -15,10 +16,9 @@ import { fetchKvPressure } from '../api/swarmApi';
 
 const POLL_MS = 500;
 
-// Display caps — anything above pegs the bar at 100%.
-const QUEUE_FULL = 16;       // queue depth that fills the queue bar
-const WAIT_SLA_SECS = 60;    // wait that fills the wait bar
-const TPS_BASELINE = 60;     // tok/s baseline for the decode-rate bar
+const QUEUE_FULL    = PRESSURE_QUEUE_FULL;
+const WAIT_SLA_SECS = PRESSURE_WAIT_SLA_SECS;
+const TPS_BASELINE  = PRESSURE_TPS_BASELINE;
 
 function clampPct(v, max) {
   if (!Number.isFinite(v) || v <= 0) return 0;

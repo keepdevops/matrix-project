@@ -101,6 +101,25 @@
   --color-border-dim:  #222;    /* very subtle separators */
   --color-border-code: #30363d; /* code-panel borders (GitHub-style) */
 
+  /* Agent role identity colors */
+  --agent-architect:  #FFB000;
+  --agent-specialist: #648FFF;
+  --agent-scout:      #DC267F;
+  --agent-programmer: #00ff41;
+  --agent-synthesis:  #FE6100;
+  --agent-reviewer:   #785EF0;
+  --agent-tester:     #00B4D8;
+  --agent-security:   #FF4C4C;
+  --agent-devops:     #06D6A0;
+  --agent-documenter: #FFD166;
+  --agent-optimizer:  #EF476F;
+  --agent-debugger:   #118AB2;
+  --agent-database:   #A8DADC;
+  --agent-frontend:   #F77F00;
+  --agent-api:        #4CC9F0;
+  --agent-foreman:    #C77DFF;
+  --agent-unknown:    #888888;
+
   /* KV gauge (also used by PressureCluster) */
   --kv-ok: #00ff41;
   --kv-warn: #ffae00;
