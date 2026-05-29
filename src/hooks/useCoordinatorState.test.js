@@ -29,6 +29,10 @@ jest.mock('../api/swarmApi', () => ({
   setActiveMode:    jest.fn(),
 }));
 
+jest.mock('../api/agentsApi', () => ({
+  fetchModeAgents: jest.fn(),
+}));
+
 import {
   fetchAgents,
   fetchKvPressure,
@@ -37,6 +41,8 @@ import {
   fetchModes,
   setActiveMode,
 } from '../api/swarmApi';
+
+import { fetchModeAgents } from '../api/agentsApi';
 
 // ---------------------------------------------------------------------------
 // Test harness
@@ -91,9 +97,11 @@ beforeEach(() => {
   fetchSwarmConfig.mockResolvedValue({ agents: [] });
   fetchModes.mockResolvedValue(makeModes('flat'));
   setActiveMode.mockResolvedValue({ mode: 'flat' });
+  fetchModeAgents.mockResolvedValue({ agents: [], available: [], stale: [] });
 });
 
 afterEach(() => {
+  jest.clearAllTimers();
   jest.useRealTimers();
   jest.clearAllMocks();
 });
