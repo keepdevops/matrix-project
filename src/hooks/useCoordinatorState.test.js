@@ -13,9 +13,7 @@
  * - Dynamic role switching under concurrent operations
  * - flatPickAgent reset on mode change
  */
-import React, { useRef } from 'react';
-import ReactDOM from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act, renderHook } from '@testing-library/react';
 import { useCoordinatorState } from './useCoordinatorState';
 
 // ---------------------------------------------------------------------------
@@ -53,36 +51,23 @@ function makeModes(active = 'flat') {
 }
 
 /**
- * Mounts the hook in a tiny wrapper and returns a ref to the latest value.
- * Caller must call cleanup() when done.
+ * Mounts the hook via renderHook and returns a compatible { stateRef, handlersRef, rerender, cleanup }.
  */
 function mountHook(online = true) {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const root = ReactDOM.createRoot(container);
+  const { result, rerender: rrHook, unmount } = renderHook(
+    ({ online: o }) => useCoordinatorState(o),
+    { initialProps: { online } },
+  );
 
-  const stateRef = { current: null };
-  const handlersRef = { current: null };
+  const stateRef = { get current() { return result.current; } };
+  const handlersRef = stateRef;
 
-  function Wrapper({ online: o }) {
-    const state = useCoordinatorState(o);
-    stateRef.current = state;
-    handlersRef.current = state;
-    return null;
-  }
-
-  act(() => { root.render(React.createElement(Wrapper, { online })); });
-
-  function rerender(newOnline) {
-    act(() => { root.render(React.createElement(Wrapper, { online: newOnline })); });
-  }
-
-  function cleanup() {
-    act(() => { root.unmount(); });
-    document.body.removeChild(container);
-  }
-
-  return { stateRef, handlersRef, rerender, cleanup };
+  return {
+    stateRef,
+    handlersRef,
+    rerender: (newOnline) => rrHook({ online: newOnline }),
+    cleanup: unmount,
+  };
 }
 
 /** Flush all pending microtasks + timers in the fake timer environment. */

@@ -158,34 +158,19 @@ jest.mock('../api/swarmApi', () => ({
 }));
 
 import { checkRagHealth } from '../api/swarmApi';
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act, renderHook } from '@testing-library/react';
 import { useRagHealth } from '../hooks/useRagHealth';
 
 function mountRagHealth(enabled = true) {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const root = ReactDOM.createRoot(container);
-  const stateRef = { current: null };
-
-  function Wrapper({ enabled: e }) {
-    stateRef.current = useRagHealth(e);
-    return null;
-  }
-
-  act(() => { root.render(React.createElement(Wrapper, { enabled })); });
-
-  function rerender(newEnabled) {
-    act(() => { root.render(React.createElement(Wrapper, { enabled: newEnabled })); });
-  }
-
-  function cleanup() {
-    act(() => { root.unmount(); });
-    document.body.removeChild(container);
-  }
-
-  return { stateRef, rerender, cleanup };
+  const { result, rerender: rrHook, unmount } = renderHook(
+    ({ enabled: e }) => useRagHealth(e),
+    { initialProps: { enabled } },
+  );
+  return {
+    stateRef: { get current() { return result.current; } },
+    rerender: (newEnabled) => rrHook({ enabled: newEnabled }),
+    cleanup: unmount,
+  };
 }
 
 async function flush(ms = 0) {

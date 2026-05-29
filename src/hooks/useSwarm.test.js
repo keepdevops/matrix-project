@@ -13,9 +13,7 @@
  * - submit: session ID propagated on followup
  * - Stress: 50 random backend × followup combinations load history successfully
  */
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act, renderHook } from '@testing-library/react';
 import { useSwarm } from './useSwarm';
 
 // ---------------------------------------------------------------------------
@@ -43,21 +41,10 @@ import {
 // ---------------------------------------------------------------------------
 
 function mountHook() {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const ref = React.createRef();
-
-  function Wrapper() {
-    const state = useSwarm();
-    ref.current = state;
-    return null;
-  }
-
-  act(() => { ReactDOM.createRoot(container).render(<Wrapper />); });
-
+  const { result, unmount } = renderHook(() => useSwarm());
   return {
-    ref,
-    cleanup() { container.remove(); },
+    ref: { get current() { return result.current; } },
+    cleanup: unmount,
   };
 }
 
