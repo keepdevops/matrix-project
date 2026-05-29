@@ -31,6 +31,11 @@ function AgentMarkdown({ text }) {
           pre({ children }) {
             return <>{children}</>;
           },
+          // Use div instead of p so block-level children (CodeBlock → SwarmEditor/pre)
+          // don't violate HTML nesting rules (<pre>/<div> inside <p> is invalid).
+          p({ children }) {
+            return <div className="agent-md-p">{children}</div>;
+          },
         }}
       >
         {text}
