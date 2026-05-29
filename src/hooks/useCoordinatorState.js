@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchAgents,
   fetchKvPressure,
@@ -7,6 +7,8 @@ import {
   fetchModes,
   setActiveMode,
 } from '../api/swarmApi';
+import { fetchModeAgents } from '../api/agentsApi';
+import { computeModeReadiness } from '../utils/modeReadiness';
 
 const KV_POLL_MS = 250;
 
@@ -18,20 +20,42 @@ export function useCoordinatorState(online) {
   const [kvReadings, setKvReadings]     = useState([]);
   const [kvFetchFailed, setKvFetchFailed] = useState(false);
   const [flatPickAgent, setFlatPickAgent] = useState(null);
+  const [modeWarnings, setModeWarnings] = useState([]);
+
+  // Refs to hold latest agents/mode for the readiness check without triggering
+  // re-renders or stale closures in the refresh callbacks.
+  const activeModeRef  = useRef(null);
+  const activeAgentsRef = useRef([]);
 
   useEffect(() => {
     if (activeMode !== 'flat') setFlatPickAgent(null);
   }, [activeMode]);
+
+  const refreshModeReadiness = useCallback((modeName, agents) => {
+    const name = modeName ?? activeModeRef.current;
+    const liveNames = (agents ?? activeAgentsRef.current).map(a => a.name);
+    if (!name) return;
+    fetchModeAgents(name)
+      .then(cfg => {
+        const { warnings } = computeModeReadiness(name, cfg, liveNames);
+        setModeWarnings(warnings);
+      })
+      .catch(err => console.error('useCoordinatorState: refreshModeReadiness failed:', err));
+  }, []);
 
   const refreshModes = useCallback(() =>
     fetchModes()
       .then(list => {
         const cur = list.find(m => m.active);
         setModes(list);
-        if (cur) setActiveModeState(cur.name);
+        if (cur) {
+          setActiveModeState(cur.name);
+          activeModeRef.current = cur.name;
+          refreshModeReadiness(cur.name, null);
+        }
       })
       .catch(err => console.error('useCoordinatorState: refreshModes failed:', err)),
-  []);
+  [refreshModeReadiness]);
 
   const refreshAgents = useCallback(() =>
     fetchAgents()
@@ -48,17 +72,21 @@ export function useCoordinatorState(online) {
           if (prev.length === next.length &&
               prev.every((a, i) => a.name === next[i].name && a.backend === next[i].backend))
             return prev;
+          activeAgentsRef.current = next;
+          refreshModeReadiness(null, next);
           return next;
         });
       })
       .catch(err => console.error('useCoordinatorState: refreshAgents failed:', err)),
-  [agentMeta]);
+  [agentMeta, refreshModeReadiness]);
 
   const handleModeChange = async (name) => {
     try {
       await setActiveMode(name);
       setActiveModeState(name);
+      activeModeRef.current = name;
       setModes(prev => prev.map(m => ({ ...m, active: m.name === name })));
+      refreshModeReadiness(name, null);
     } catch (err) {
       console.error('Failed to change mode:', err);
     }
@@ -120,6 +148,7 @@ export function useCoordinatorState(online) {
     kvFetchFailed,
     flatPickAgent,
     setFlatPickAgent,
+    modeWarnings,
     refreshModes,
     refreshAgents,
     handleModeChange,

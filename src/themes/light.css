@@ -42,6 +42,26 @@ body[data-theme="light"] .final-answer-panel,
 body[data-theme="light"] .mode-selector,
 body[data-theme="light"] .agent-editor-modal { background: #ffffff; }
 
+/* Mode dropdown — popover and options need explicit light surfaces */
+body[data-theme="light"] .mode-popover {
+  background: #ffffff;
+  border-color: #c0bfdf;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+body[data-theme="light"] .mode-option {
+  color: #1a1a1f;
+  border-bottom-color: #e8e6f0;
+}
+body[data-theme="light"] .mode-option:hover {
+  background: rgba(88, 80, 200, 0.07);
+}
+body[data-theme="light"] .mode-option.selected {
+  background: rgba(88, 80, 200, 0.12);
+  color: #5850c8;
+}
+body[data-theme="light"] .mode-option-name { color: inherit; }
+body[data-theme="light"] .mode-option-desc { color: #6a6a75; }
+
 body[data-theme="light"] .agent-response,
 body[data-theme="light"] .agent-editor-modal-content,
 body[data-theme="light"] textarea,
@@ -313,14 +333,25 @@ body[data-theme="light"] .swarm-engine-warn { color: #C04A00; }
 body[data-theme="light"] .kv-gauge {
   background: #ffffff;
   border-color: #c8d4e3;
+  --kv-ok:    #008c2a;
+  --kv-warn:  #b45309;
+  --kv-crit:  #c0392b;
+  --kv-label: #1a56db;
 }
 body[data-theme="light"] .kv-gauge-label {
   color: #1a56db;
   text-shadow: 0 0 4px rgba(26, 86, 219, 0.35);
 }
 body[data-theme="light"] .kv-gauge-track {
-  background: #e6ecf2;
+  background: #d4dce8;
   border-color: #c8d4e3;
+}
+body[data-theme="light"] .kv-gauge-seg {
+  background: rgba(0, 0, 0, 0.04);
+}
+body[data-theme="light"] .kv-gauge-digital {
+  background: #1a1a2e;
+  border-color: #0d0d1a;
 }
 
 /* MetricsStrip — light theme. Mirrors the surface used by FinalAnswerPanel. */

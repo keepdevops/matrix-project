@@ -5,10 +5,17 @@ import { qualityPassContextPolicy } from '../utils/qualityPassContext';
 export function useSubmitHandlers({
   submit, loadHistory, currentSession, activeMode, useRag,
   responses, activeAgents, flatPickAgent,
+  modeWarnings = [],
+  onModeWarning,
 }) {
   const [pendingPrompt, setPendingPrompt] = useState(null);
 
   const handleSubmit = useCallback(async (prompt, temperature, opts = {}) => {
+    // Warn if the active mode has known deployment issues (non-blocking).
+    if (modeWarnings.length > 0 && !opts.qualityPass && !opts.followup) {
+      onModeWarning?.(modeWarnings);
+    }
+
     setPendingPrompt(prompt);
     try {
       const autoOpts = { ...opts };
@@ -20,14 +27,18 @@ export function useSubmitHandlers({
           max_context_chars: 20000,
         };
       }
-      await submit(prompt, temperature, { useRag, ...autoOpts });
+      const result = await submit(prompt, temperature, { useRag, ...autoOpts });
+      // Post-broadcast: cascade ran but produced no final answer → synthesizer was absent.
+      if (activeMode === 'cascade' && result?.final === null && !opts.followup) {
+        onModeWarning?.(['cascade ran without synthesis — synthesizer may not be deployed']);
+      }
       loadHistory();
     } catch (err) {
       console.error('Submission failed:', err);
     } finally {
       setPendingPrompt(null);
     }
-  }, [submit, loadHistory, currentSession, activeMode, useRag]);
+  }, [submit, loadHistory, currentSession, activeMode, useRag, modeWarnings, onModeWarning]);
 
   const handleQualityPass = useCallback(async (temperature = 0.2) => {
     const instruction = [

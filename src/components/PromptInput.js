@@ -48,6 +48,16 @@ function PromptInput({
     return () => clearTimeout(t);
   }, [ragTopK, ragMinScore]);
 
+  const textareaRef = useRef(null);
+
+  // Auto-grow the textarea to fit content so typed text is always visible.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [prompt]);
+
   const onPromptConsumedRef = useRef(onPromptConsumed);
   useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; });
 
@@ -89,6 +99,7 @@ function PromptInput({
     <form className="prompt-input" onSubmit={handleSubmit}>
       <div className="prompt-input-row">
         <textarea
+          ref={textareaRef}
           className="prompt-textarea"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
