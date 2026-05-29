@@ -26,6 +26,9 @@ export function useCoordinatorState(online) {
   // re-renders or stale closures in the refresh callbacks.
   const activeModeRef  = useRef(null);
   const activeAgentsRef = useRef([]);
+  // Prevents state updates after unmount (avoids dangling React scheduler work).
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   useEffect(() => {
     if (activeMode !== 'flat') setFlatPickAgent(null);
@@ -37,6 +40,7 @@ export function useCoordinatorState(online) {
     if (!name) return;
     fetchModeAgents(name)
       .then(cfg => {
+        if (!mountedRef.current) return;
         const { warnings } = computeModeReadiness(name, cfg, liveNames);
         setModeWarnings(warnings);
       })
@@ -46,6 +50,7 @@ export function useCoordinatorState(online) {
   const refreshModes = useCallback(() =>
     fetchModes()
       .then(list => {
+        if (!mountedRef.current) return;
         const cur = list.find(m => m.active);
         setModes(list);
         if (cur) {
@@ -60,6 +65,7 @@ export function useCoordinatorState(online) {
   const refreshAgents = useCallback(() =>
     fetchAgents()
       .then(agents => {
+        if (!mountedRef.current) return;
         const next = agents.map(a => ({
           ...a,
           model:   a.model   || agentMeta[a.name]?.model   || null,
@@ -120,7 +126,7 @@ export function useCoordinatorState(online) {
   useEffect(() => {
     Promise.all([fetchSwarmConfig().catch(() => null), fetchModels().catch(() => [])])
       .then(([cfg, models]) => {
-        if (!cfg?.agents) return;
+        if (!mountedRef.current || !cfg?.agents) return;
         const pathToBackend = Object.fromEntries((models || []).map(m => [m.path, m.backend]));
         const meta = {};
         cfg.agents.forEach(a => {
