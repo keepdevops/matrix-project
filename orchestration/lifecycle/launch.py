@@ -52,6 +52,26 @@ def _spawn(cmd: list[str], log_path: Path, env: dict[str, str]) -> int:
     return proc.pid
 
 
+def _already_running(pid_file: Path) -> list[int]:
+    """Return live PIDs from a previous launch, or empty list if none."""
+    if not pid_file.is_file():
+        return []
+    live: list[int] = []
+    for line in pid_file.read_text().splitlines():
+        line = line.strip()
+        if not line.isdigit():
+            continue
+        pid = int(line)
+        try:
+            os.kill(pid, 0)
+            live.append(pid)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            live.append(pid)  # process exists, owned by another user
+    return live
+
+
 def run_launch() -> int:
     print("=" * 60)
     print("SWARM MATRIX starting")
@@ -64,6 +84,14 @@ def run_launch() -> int:
     logs = REPO / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     pid_file = logs / "matrix.pids"
+
+    live = _already_running(pid_file)
+    if live:
+        print(f"FATAL: Matrix Swarm is already running (pids={live}).")
+        print("       Run 'matrixctl shutdown' first, then relaunch.")
+        logger.error("launch aborted — existing instance pids=%s", live)
+        return 1
+
     pid_file.write_text("")  # reset
 
     proxy_bin = REPO / "proxy"
