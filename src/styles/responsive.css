@@ -1,0 +1,188 @@
+/* ── responsive.css — Swarm Matrix breakpoint overrides ─────────────────
+   Scale:
+     ≤480px   mobile     (single-column, bottom tab bar)
+     481–1024 tablet     (2-col AgentGrid, condensed panels)
+     ≥1600px  wide       (side-by-side Conversation + AgentGrid)
+   ─────────────────────────────────────────────────────────────────────── */
+
+
+/* ── Wide screens (≥1600px) ─────────────────────────────────────────── */
+@media (min-width: 1600px) {
+  .matrix-container {
+    max-width: 1800px;
+    padding: 24px 40px;
+  }
+
+  .wide-row {
+    display: grid;
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
+    gap: 24px;
+    align-items: start;
+  }
+}
+
+
+/* ── Tablet (481px – 1024px) ─────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .matrix-container {
+    padding: 12px 16px;
+  }
+
+  .agents-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pcluster {
+    grid-template-columns: 1fr;
+  }
+
+  .prompt-input {
+    padding: 12px;
+  }
+
+  .ct-scroll-area {
+    max-height: 360px;
+  }
+}
+
+
+/* ── Mobile (≤480px) ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .matrix-container {
+    max-width: 100%;
+    padding: 8px 10px;
+    padding-bottom: calc(60px + var(--safe-area-bottom) + 8px);
+  }
+
+  /* AgentGrid: single column */
+  .agents-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* PressureCluster is debug info — hide on mobile */
+  .pcluster {
+    display: none;
+  }
+
+  /* Touch-friendly input — font-size 16px prevents iOS viewport zoom */
+  .prompt-textarea {
+    font-size: 16px;
+    min-height: 80px;
+    max-height: 30vh;
+    padding: 10px;
+  }
+
+  .prompt-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  /* ConversationThread height on mobile */
+  .ct-scroll-area {
+    max-height: 55vh;
+  }
+
+  /* Compact header */
+  header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 10px;
+  }
+
+  header h1 {
+    font-size: 1rem;
+    letter-spacing: 1px;
+  }
+
+  .header-controls {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* Hide secondary ghost buttons on mobile; use btn--keep-mobile to opt back in */
+  .header-controls .btn--ghost {
+    display: none;
+  }
+
+  .header-controls .btn--keep-mobile {
+    display: inline-flex;
+  }
+
+  /* ── Panel tab switching ─────────────────────────────────────────────
+     Controlled by data-active-panel on .matrix-container.
+     Only active on mobile — data-active-panel is always set but
+     these selectors are scoped inside this media query.
+  ────────────────────────────────────────────────────────────────────── */
+  .matrix-container[data-active-panel="prompt"] .panel-chat,
+  .matrix-container[data-active-panel="prompt"] .panel-agents {
+    display: none;
+  }
+
+  .matrix-container[data-active-panel="chat"] .panel-prompt,
+  .matrix-container[data-active-panel="chat"] .panel-agents {
+    display: none;
+  }
+
+  .matrix-container[data-active-panel="agents"] .panel-prompt,
+  .matrix-container[data-active-panel="agents"] .panel-chat {
+    display: none;
+  }
+}
+
+
+/* ── Mobile tab bar ─────────────────────────────────────────────────── */
+.mobile-nav {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(60px + var(--safe-area-bottom));
+    padding-bottom: var(--safe-area-bottom);
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--color-border);
+    z-index: 200;
+    justify-content: space-around;
+    align-items: stretch;
+  }
+
+  .mobile-nav__tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-nav__tab--active {
+    color: var(--color-primary);
+  }
+
+  .mobile-nav__tab-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .mobile-nav__tab-label {
+    line-height: 1;
+  }
+}

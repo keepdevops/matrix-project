@@ -45,7 +45,7 @@ export default function AppHeader({
       <h1>Swarm Matrix v{process.env.REACT_APP_VERSION || 'dev'}</h1>
       <div className="header-controls">
         <span role="status" aria-live="polite"
-              className={`status-indicator ${online ? 'status-online' : 'status-offline'}`}
+              className={`status-indicator btn--keep-mobile ${online ? 'status-online' : 'status-offline'}`}
               aria-label={online ? 'Status: online' : 'Status: offline'}>
           {online ? '● ONLINE' : '✕ OFFLINE'}
         </span>
@@ -93,7 +93,7 @@ export default function AppHeader({
         <Button variant="ghost" size="sm" onClick={onOpenCachePanel} title="Inspect and manage the response cache">
           CACHE
         </Button>
-        <Button variant="ghost" size="sm" onClick={onOpenHelp}>?</Button>
+        <Button variant="ghost" size="sm" className="btn--keep-mobile" onClick={onOpenHelp}>?</Button>
 
         <div className="appearance-picker" style={{ position: 'relative', display: 'inline-block' }}>
           <Button

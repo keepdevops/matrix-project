@@ -18,8 +18,8 @@ export default function ModeOptions({
     <>
       {(activeTab === 'pipeline' || activeTab === 'cascade') && (
         <div style={row}>
-          <label>synthesizer</label>
-          <select value={synthesizer} onChange={e => setSynthesizer(e.target.value)} style={sel}>
+          <label htmlFor="mo-synthesizer">synthesizer</label>
+          <select id="mo-synthesizer" value={synthesizer} onChange={e => setSynthesizer(e.target.value)} style={sel}>
             <option value="">— none (last stage is final) —</option>
             {available.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -33,8 +33,8 @@ export default function ModeOptions({
 
       {activeTab === 'flat' && (
         <div style={row}>
-          <label>variant policy</label>
-          <select value={variantPolicy} onChange={e => setVariantPolicy(e.target.value)} style={sel}>
+          <label htmlFor="mo-variant-policy">variant policy</label>
+          <select id="mo-variant-policy" value={variantPolicy} onChange={e => setVariantPolicy(e.target.value)} style={sel}>
             <option value="standard">standard</option>
             <option value="distinct">distinct variants</option>
             <option value="code-alternatives">code alternatives</option>
@@ -44,8 +44,8 @@ export default function ModeOptions({
 
       {activeTab === 'pipeline' && (
         <div style={row}>
-          <label>preset</label>
-          <select value={pipelinePreset} onChange={e => setPipelinePreset(e.target.value)} style={sel}>
+          <label htmlFor="mo-pipeline-preset">preset</label>
+          <select id="mo-pipeline-preset" value={pipelinePreset} onChange={e => setPipelinePreset(e.target.value)} style={sel}>
             <option value="">custom roster/order</option>
             <option value="code-quality">code-quality</option>
             <option value="debug-fix">debug-fix</option>
@@ -57,10 +57,13 @@ export default function ModeOptions({
 
       {activeTab === 'pipeline' && (
         <div style={{ ...row, marginTop: '0.4rem' }}>
-          <label title="Max chars of prior-stage output passed as context to each stage. Leave blank for server default.">
+          <label
+            htmlFor="mo-stage-ctx-chars"
+            title="Max chars of prior-stage output passed as context to each stage. Leave blank for server default."
+          >
             stage ctx chars
           </label>
-          <input type="number" min={256} step={256}
+          <input id="mo-stage-ctx-chars" type="number" min={256} step={256}
                  value={stageContextChars}
                  onChange={e => setStageContextChars(e.target.value)}
                  placeholder="server default"
@@ -70,8 +73,8 @@ export default function ModeOptions({
 
       {activeTab === 'cascade' && (
         <div style={row}>
-          <label>synthesis policy</label>
-          <select value={synthesisPolicy} onChange={e => setSynthesisPolicy(e.target.value)} style={sel}>
+          <label htmlFor="mo-synthesis-policy">synthesis policy</label>
+          <select id="mo-synthesis-policy" value={synthesisPolicy} onChange={e => setSynthesisPolicy(e.target.value)} style={sel}>
             <option value="summary">summary</option>
             <option value="full-code">full-code</option>
             <option value="best-answer-plus-fixes">best-answer-plus-fixes</option>
@@ -82,8 +85,8 @@ export default function ModeOptions({
 
       {activeTab === 'router' && (
         <div style={row}>
-          <label>max responders</label>
-          <input type="number" min="1" max={Math.max(available.length, 1)}
+          <label htmlFor="mo-max-responders">max responders</label>
+          <input id="mo-max-responders" type="number" min="1" max={Math.max(available.length, 1)}
                  value={maxSelect} onChange={e => setMaxSelect(e.target.value)}
                  style={{ width: '4rem', padding: '0.15rem 0.3rem' }} />
           <span style={hint}>(foreman picks up to this many roles per prompt)</span>
@@ -92,8 +95,8 @@ export default function ModeOptions({
 
       {activeTab === 'router' && (
         <div style={row}>
-          <label>classifier policy</label>
-          <select value={classifierPolicy} onChange={e => setClassifierPolicy(e.target.value)} style={sel}>
+          <label htmlFor="mo-classifier-policy">classifier policy</label>
+          <select id="mo-classifier-policy" value={classifierPolicy} onChange={e => setClassifierPolicy(e.target.value)} style={sel}>
             <option value="standard">standard</option>
             <option value="code">code</option>
             <option value="debug">debug</option>
