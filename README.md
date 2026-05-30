@@ -156,7 +156,7 @@ it with Matrix Swarm for parallel planning + deep execution.
   bar chart below FINAL ANSWER. Themeable via the existing light/dark toggle.
 - **RAG (opt-in)** — pgvector-backed retrieval injects relevant codebase
   chunks into the prompt before dispatch. Per-agent targeting, a coordinator
-  hook for the C++ path, and a `matrixctl rag` CLI for indexing and querying.
+  hook for the C++ path, and a `brewctl rag` CLI for indexing and querying.
 - **Integration test suite** — `bash tests/run.sh` runs ~30 end-to-end tests
   against a coordinator wired to mock agents (no real models needed). Covers
   every mode, streaming, breaker, presets, retry/skip, prompt editing.
@@ -165,7 +165,7 @@ it with Matrix Swarm for parallel planning + deep execution.
 
 - **macOS** (Apple Silicon recommended; Intel Macs can run LLAMA-only swarms).
 - **Node ≥ 18 < 23, npm ≥ 9** — React UI and proxy.
-- **Python ≥ 3.10** — `matrixctl`, orchestration layer, MLX coordinator, and RAG pipeline.
+- **Python ≥ 3.10** — `brewctl`, orchestration layer, MLX coordinator, and RAG pipeline.
 - **C++17 toolchain (clang)** — `xcode-select --install` builds `coordinator` and `proxy`.
 - **For LLAMA**: `llama-server` from llama.cpp on `PATH`.
 - **For MLX**: `pip install mlx-lm` (Apple Silicon only). The Python MLX coordinator runs on `:3003` and handles all MLX inference with per-server serialisation.
@@ -185,17 +185,17 @@ bash scripts/build_cpp_binaries.sh
 source scripts/matrix-env.sh
 
 # 3. Pre-flight check (ports, binaries, models)
-python3 scripts/matrixctl check
+python3 scripts/brewctl check
 
 # 4. Launch — starts proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured
-python3 scripts/matrixctl launch
+python3 scripts/brewctl launch
 
 # 5. Open http://localhost:3000
 #    → CONFIGURE → choose engine + agents → LAUNCH SWARM
 #    → wait for ONLINE → type prompt → BROADCAST (Cmd+Enter)
 
 # 6. Stop everything
-python3 scripts/matrixctl shutdown
+python3 scripts/brewctl shutdown
 ```
 
 The coordinator listens on `:8000` once **LAUNCH SWARM** has been clicked in
@@ -255,7 +255,7 @@ normalised and saved as `swarm-config.validated.json`.
 | `npm run stage:dist` | Bundle for npm publish (`scripts/stage-dist.sh`) |
 | `npm test` | Run the component test suite once (no watch) |
 
-Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` — see [matrixctl quickstart](#matrixctl-quickstart).
+Lifecycle (check / launch / shutdown) is handled by `python3 scripts/brewctl` — see [brewctl quickstart](#brewctl-quickstart).
 
 ## UI cheat sheet
 
@@ -327,7 +327,7 @@ config/
   └─ agents/*.json         One file per agent (split from swarm-config.json)
 docker/pgvector/    docker-compose for Postgres+pgvector (RAG)
 scripts/
-  ├─ matrixctl              Unified Python CLI (check/launch/shutdown/rag)
+  ├─ brewctl              Unified Python CLI (check/launch/shutdown/rag)
   ├─ build_cpp_binaries.sh  C++ build (targets cpp_core/src)
   ├─ build_swarm_config.py  Merge config/agents/*.json → swarm-config.json
   ├─ migrate_swarm_config.py  Split legacy swarm-config.json → config/agents/
@@ -343,17 +343,17 @@ swarm-config*.json  Pre-tuned agent/model layouts read by the C++ coordinator
 production/         Optional nginx UI (not required for dev)
 ```
 
-### matrixctl quickstart
+### brewctl quickstart
 
 ```bash
 # Pre-flight: verify ports, binaries, and models
-python3 scripts/matrixctl check
+python3 scripts/brewctl check
 
 # Start proxy (:3002), React UI (:3000), and MLX coordinator (:3003)
-python3 scripts/matrixctl launch
+python3 scripts/brewctl launch
 
 # Stop everything
-python3 scripts/matrixctl shutdown
+python3 scripts/brewctl shutdown
 ```
 
 **RAG (requires Docker + pgvector):**
@@ -362,18 +362,18 @@ python3 scripts/matrixctl shutdown
 # Start the pgvector container (or use the convenience wrapper)
 bash scripts/rag-docker-compose.sh up
 
-# Index a directory (auto-runs on `matrixctl launch` when container is running)
-python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+# Index a directory (auto-runs on `brewctl launch` when container is running)
+python3 scripts/brewctl rag index ./cpp_core --embedder hash
 
 # Index multiple directories
-python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+python3 scripts/brewctl rag index ./cpp_core ./orchestration --embedder hash
 
 # Query the index
-python3 scripts/matrixctl rag query "kv router" --embedder hash
-python3 scripts/matrixctl rag query "session management" --top-k 5 --embedder hash
+python3 scripts/brewctl rag query "kv router" --embedder hash
+python3 scripts/brewctl rag query "session management" --top-k 5 --embedder hash
 
 # Re-index after code changes
-python3 scripts/matrixctl rag index . --embedder hash --force
+python3 scripts/brewctl rag index . --embedder hash --force
 ```
 
 `scripts/rag-docker-compose.sh` wraps the pgvector stack with subcommands:
@@ -452,13 +452,13 @@ C++ coordinator on `:8000`. See [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for
 | Agent system prompts | Both active + source config on every `PUT /api/agents/<name>/prompt` | Immediate + durable when `MATRIX_SOURCE_CONFIG` is set. |
 | Conversation sessions | `sessions.json` in the project root | Persists across restarts; cleared per-session by CLEAR KV. |
 | Response cache | In-memory; managed via `/api/cache/*` | Cleared on coordinator restart or explicit `POST /api/cache/clear`. |
-| RAG index | pgvector `chunks` table (Docker container) | Persists across restarts; re-index with `matrixctl rag index`. |
+| RAG index | pgvector `chunks` table (Docker container) | Persists across restarts; re-index with `brewctl rag index`. |
 
 Set `MATRIX_SOURCE_CONFIG` to make mode/preset/prompt edits survive a UI redeploy:
 
 ```bash
 export MATRIX_SOURCE_CONFIG=/path/to/swarm-config.json
-python3 scripts/matrixctl launch
+python3 scripts/brewctl launch
 ```
 
 ## Tests

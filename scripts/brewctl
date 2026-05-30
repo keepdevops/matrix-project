@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""matrixctl — unified CLI for the matrix-project control plane.
+"""brewctl — unified CLI for the matrix-project control plane.
 
-    matrixctl up [--no-rag]       Bring up the full stack: pgvector + RAG sidecar + proxy + UI.
-    matrixctl down [--full]       Stop UI/proxy/coordinator/workers/sidecar (+pgvector with --full).
-    matrixctl check               Show running llama-server processes + RAM/port/model.
-    matrixctl launch              Start proxy + UI only (no pgvector, no sidecar).
-    matrixctl shutdown            Stop UI, proxy, coordinator, and worker processes.
-    matrixctl rag index <path>    Walk path, chunk, embed, upsert into pgvector.
-    matrixctl rag query <text>    Run a top-k retrieval and print results.
-    matrixctl rag sources         List ingested sources (path, chunk count, latest).
-    matrixctl rag delete <path>   Remove all chunks for one source_path.
-    matrixctl rag health          Probe pgvector connectivity.
+    brewctl up [--no-rag]       Bring up the full stack: pgvector + RAG sidecar + proxy + UI.
+    brewctl down [--full]       Stop UI/proxy/coordinator/workers/sidecar (+pgvector with --full).
+    brewctl check               Show running llama-server processes + RAM/port/model.
+    brewctl launch              Start proxy + UI only (no pgvector, no sidecar).
+    brewctl shutdown            Stop UI, proxy, coordinator, and worker processes.
+    brewctl rag index <path>    Walk path, chunk, embed, upsert into pgvector.
+    brewctl rag query <text>    Run a top-k retrieval and print results.
+    brewctl rag sources         List ingested sources (path, chunk count, latest).
+    brewctl rag delete <path>   Remove all chunks for one source_path.
+    brewctl rag health          Probe pgvector connectivity.
 
 check/launch/shutdown are implemented natively in orchestration/lifecycle/.
 The legacy matrix-{1,2,3}-*.sh scripts are still present but deprecated.
@@ -34,7 +34,7 @@ from orchestration.rag.embed import HashEmbedder, MLXEmbedder  # noqa: E402
 from orchestration.rag.store import PgVectorStore, UpsertRow  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-logger = logging.getLogger("matrixctl")
+logger = logging.getLogger("brewctl")
 
 INDEXABLE = {".py", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c",
              ".ts", ".tsx", ".js", ".jsx", ".md", ".txt", ".yaml", ".yml"}
@@ -119,7 +119,7 @@ async def _health(store: PgVectorStore) -> int:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(prog="matrixctl")
+    p = argparse.ArgumentParser(prog="brewctl")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("check", help="Show running llama-server processes")

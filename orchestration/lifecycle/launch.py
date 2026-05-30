@@ -1,4 +1,4 @@
-"""matrixctl launch — start proxy + UI (npm start) in background.
+"""brewctl launch — start proxy + UI (npm start) in background.
 
 Sources scripts/matrix-env.sh if present so model paths and conda env vars
 are inherited just like the bash launcher.
@@ -88,7 +88,7 @@ def run_launch() -> int:
     live = _already_running(pid_file)
     if live:
         print(f"FATAL: Matrix Swarm is already running (pids={live}).")
-        print("       Run 'matrixctl shutdown' first, then relaunch.")
+        print("       Run 'brewctl shutdown' first, then relaunch.")
         logger.error("launch aborted — existing instance pids=%s", live)
         return 1
 

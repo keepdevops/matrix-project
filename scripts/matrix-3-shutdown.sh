@@ -1,5 +1,5 @@
 #!/bin/bash
-# DEPRECATED: prefer `python3 scripts/matrixctl shutdown` (native port).
+# DEPRECATED: prefer `python3 scripts/brewctl shutdown` (native port).
 # This script remains for legacy automation but won't receive new features.
 
 # Function to kill process(es) and verify

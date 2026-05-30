@@ -11,7 +11,7 @@ Step-by-step instructions to get from a fresh clone to a running swarm.
 | macOS (Apple Silicon recommended) | MLX requires Metal / Apple Silicon. Intel Macs can run LLAMA-only swarms. |
 | Node ≥ 18 < 23, npm ≥ 9 | `node --version`, `npm --version` |
 | C++17 toolchain | `xcode-select --install` (macOS) |
-| Python ≥ 3.10 | Used by `matrixctl`, orchestration, RAG, and MLX coordinator. |
+| Python ≥ 3.10 | Used by `brewctl`, orchestration, RAG, and MLX coordinator. |
 | `llama-server` on `PATH` | Build from [llama.cpp](https://github.com/ggerganov/llama.cpp) or install via Homebrew. |
 | `mlx_lm` (Apple Silicon only) | `pip install mlx-lm` in your active environment. |
 | Docker Desktop (vLLM or RAG) | Model Runner for GPU-accelerated vLLM servers; pgvector container for RAG. |
@@ -74,7 +74,7 @@ Sets `MATRIX_MODEL_DIR`, `MATRIX_LLAMA_SERVER`, `MATRIX_MLX_PYTHON`, and conda/v
 ## 5. Pre-flight check
 
 ```bash
-python3 scripts/matrixctl check
+python3 scripts/brewctl check
 ```
 
 Verifies:
@@ -102,7 +102,7 @@ Pre-built variants (`swarm-config-16gb.json`, `swarm-config-32gb.json`, `swarm-c
 ## 7. Launch
 
 ```bash
-python3 scripts/matrixctl launch
+python3 scripts/brewctl launch
 ```
 
 Starts:
@@ -117,7 +117,7 @@ Open `http://localhost:3000` → **CONFIGURE** → choose engine + agents → **
 ## 8. Shutdown
 
 ```bash
-python3 scripts/matrixctl shutdown
+python3 scripts/brewctl shutdown
 ```
 
 ---
@@ -139,21 +139,21 @@ The `environment.yml` pins `mlx-lm`, `pydantic`, `structlog`, `psycopg2`, and ot
 # Start pgvector (convenience wrapper)
 bash scripts/rag-docker-compose.sh up
 
-# Index a directory (auto-runs on `matrixctl launch` when container is running)
-python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+# Index a directory (auto-runs on `brewctl launch` when container is running)
+python3 scripts/brewctl rag index ./cpp_core --embedder hash
 
 # Index multiple directories
-python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+python3 scripts/brewctl rag index ./cpp_core ./orchestration --embedder hash
 
 # Re-index after code changes
-python3 scripts/matrixctl rag index . --embedder hash --force
+python3 scripts/brewctl rag index . --embedder hash --force
 
 # Query the index
-python3 scripts/matrixctl rag query "kv router" --embedder hash
-python3 scripts/matrixctl rag query "session management" --top-k 5 --embedder hash
+python3 scripts/brewctl rag query "kv router" --embedder hash
+python3 scripts/brewctl rag query "session management" --top-k 5 --embedder hash
 ```
 
-`matrixctl launch` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
+`brewctl launch` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
 
 `scripts/rag-docker-compose.sh` subcommands: `up`, `down`, `restart`, `logs`, `status`, `wait` (blocks until `pg_isready`), `psql` (shell into `matrix_rag`), `nuke` (down + volume wipe). Auto-detects `docker compose` vs legacy `docker-compose`.
 
@@ -191,4 +191,4 @@ Runs ~30 integration tests against mock agents (no real models needed, ~30 s). A
 | MLX server not responding | Check `logs/mlx_coordinator.log`; ensure `mlx_lm` is installed in the active Python env. |
 | vLLM containers not starting | Open Docker Desktop → Model Runner; verify GPU is available. |
 | Build fails: missing headers | Run `xcode-select --install`; ensure `clang++` supports C++17. |
-| Tests fail on port reuse | Run `python3 scripts/matrixctl shutdown` first, then re-run `bash tests/run.sh`. |
+| Tests fail on port reuse | Run `python3 scripts/brewctl shutdown` first, then re-run `bash tests/run.sh`. |

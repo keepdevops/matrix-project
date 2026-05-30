@@ -118,7 +118,7 @@ Set `MATRIX_SWARM_CONFIG_SERVICE=http://host:8011` in the coordinator's environm
 
 ```bash
 export MATRIX_SWARM_CONFIG_SERVICE=http://localhost:8011
-python3 scripts/matrixctl launch
+python3 scripts/brewctl launch
 ```
 
 ### Pipeline staging prompt
@@ -308,7 +308,7 @@ count but fine for relative comparison.
 | Agent system prompts | Both active + source config on every `PUT /api/agents/<name>/prompt` | Immediate + durable when `MATRIX_SOURCE_CONFIG` is set. |
 | Conversation sessions | `sessions.json` in the project root | Persists across restarts; cleared per-session by CLEAR KV. |
 | Response cache | In-memory; managed via `/api/cache/*` | Cleared on coordinator restart or explicit `POST /api/cache/clear`. |
-| RAG index | pgvector `chunks` table (Docker container) | Persists across restarts; re-index with `matrixctl rag index`. |
+| RAG index | pgvector `chunks` table (Docker container) | Persists across restarts; re-index with `brewctl rag index`. |
 
 If `MATRIX_SOURCE_CONFIG` is unset, only the active config is written — fine for
 manual launches but per-mode edits will vanish on the next UI redeploy.
@@ -430,21 +430,21 @@ Matrix Swarm supports multi-turn conversations per agent session.
 # Start pgvector (convenience wrapper)
 bash scripts/rag-docker-compose.sh up
 
-# Index a directory (auto-runs on `matrixctl launch` when container is running)
-python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+# Index a directory (auto-runs on `brewctl launch` when container is running)
+python3 scripts/brewctl rag index ./cpp_core --embedder hash
 
 # Index multiple directories
-python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+python3 scripts/brewctl rag index ./cpp_core ./orchestration --embedder hash
 
 # Re-index after code changes
-python3 scripts/matrixctl rag index . --embedder hash --force
+python3 scripts/brewctl rag index . --embedder hash --force
 
 # Query the index
-python3 scripts/matrixctl rag query "kv router" --embedder hash
-python3 scripts/matrixctl rag query "session management" --top-k 5 --embedder hash
+python3 scripts/brewctl rag query "kv router" --embedder hash
+python3 scripts/brewctl rag query "session management" --top-k 5 --embedder hash
 ```
 
-`matrixctl launch` auto-indexes the repo when the pgvector container is running.
+`brewctl launch` auto-indexes the repo when the pgvector container is running.
 Override the DSN with `RAG_DSN=postgresql://...`.
 
 `scripts/rag-docker-compose.sh` subcommands: `up`, `down`, `restart`, `logs`,

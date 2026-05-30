@@ -37,7 +37,7 @@ function HelpModal({ onClose, agents = [] }) {
           <div className="help-section">
             <h3>Quick Start</h3>
             <div className="help-steps">
-              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>python3 scripts/matrixctl check</code> for a pre-flight check, then <code>python3 scripts/matrixctl launch</code> to start the proxy, UI, and MLX coordinator. Shut down with <code>python3 scripts/matrixctl shutdown</code></span></div>
+              <div className="help-step"><span className="help-step-n">1</span><span>Run <code>python3 scripts/brewctl check</code> for a pre-flight check, then <code>python3 scripts/brewctl launch</code> to start the proxy, UI, and MLX coordinator. Shut down with <code>python3 scripts/brewctl shutdown</code></span></div>
               <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX / vLLM) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
               <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span className="status-online" style={{display:'inline',border:'none',padding:0}}>● ONLINE</span> (header may show the engine in use, e.g. MLX)</span></div>
               <div className="help-step"><span className="help-step-n">4</span><span>Pick an orchestration <strong>MODE</strong> (flat / pipeline / cascade / router) from the header dropdown</span></div>
@@ -205,8 +205,8 @@ function HelpModal({ onClose, agents = [] }) {
 
           <div className="help-section">
             <h3>Launch</h3>
-            <code className="help-code">python3 scripts/matrixctl check && python3 scripts/matrixctl launch</code>
-            <p>Check verifies ports, binaries, and models. Launch starts the proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured. Use <code>python3 scripts/matrixctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>.</p>
+            <code className="help-code">python3 scripts/brewctl check && python3 scripts/brewctl launch</code>
+            <p>Check verifies ports, binaries, and models. Launch starts the proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured. Use <code>python3 scripts/brewctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>.</p>
           </div>
 
           <div className="help-section">

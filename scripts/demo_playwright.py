@@ -12,7 +12,7 @@ Usage:
 
 Requirements:
   - Dev server running on http://localhost:3000  (npm start)
-  - Coordinator proxy running                    (matrixctl up  or  npm run proxy)
+  - Coordinator proxy running                    (brewctl up  or  npm run proxy)
 """
 
 import os

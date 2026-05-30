@@ -1,4 +1,4 @@
-"""matrixctl up / down — orchestrate the full stack (pgvector + sidecar + UI).
+"""brewctl up / down — orchestrate the full stack (pgvector + sidecar + UI).
 
 up:    rag-docker-compose up → wait pgvector → spawn rag ingest sidecar → run_launch
 down:  run_shutdown → kill sidecar :8001 → optionally rag-docker-compose down
@@ -89,11 +89,11 @@ def _sidecar_up() -> int:
 
 def _auto_index(index_path: Path) -> None:
     """Kick off background re-index of index_path using the mlx embedder."""
-    matrixctl = REPO / "scripts" / "matrixctl"
+    brewctl = REPO / "scripts" / "brewctl"
     logs = REPO / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     log_fp = open(logs / "rag-autoindex.log", "ab")
-    cmd = [sys.executable, str(matrixctl), "rag", "index", str(index_path), "--embedder", "mlx"]
+    cmd = [sys.executable, str(brewctl), "rag", "index", str(index_path), "--embedder", "mlx"]
     proc = subprocess.Popen(
         cmd, cwd=REPO, env=os.environ.copy(),
         stdout=log_fp, stderr=subprocess.STDOUT,

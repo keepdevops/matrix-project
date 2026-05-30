@@ -1,4 +1,4 @@
-"""matrixctl check — running llama-server processes + their port/RAM/model."""
+"""brewctl check — running llama-server processes + their port/RAM/model."""
 from __future__ import annotations
 
 import logging
