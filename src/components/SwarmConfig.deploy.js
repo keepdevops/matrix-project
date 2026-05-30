@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { configureSwarm, fetchLogs } from '../api/swarmApi';
 import { fetchConfigureStatus } from '../api/configApi';
 
@@ -22,6 +22,8 @@ export function useDeploy({ onDeployed }) {
       pollRef.current = null;
     }
   }, []);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   // Build port → [agentName] from the layout passed to deploy().
   const buildPortAgentMap = (layout) => {

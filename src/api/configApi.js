@@ -172,7 +172,10 @@ export async function checkRagHealth() {
 export async function fetchConfigureStatus() {
   try {
     const res = await fetch(`${API_BASE}/configure/status`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[configure/status] unexpected status ${res.status}`);
+      return null;
+    }
     return res.json();  // { active: bool, ports: { "3010": "pending"|"ready"|"error" } }
   } catch (e) {
     console.error('[configure/status] fetch failed:', e);
