@@ -11,10 +11,10 @@ Quick answers to common questions. For full detail see `USER_MANUAL.md` and `CAP
 bash scripts/build_cpp_binaries.sh
 
 # 2. Pre-flight check
-python3 scripts/matrixctl check
+python3 scripts/brewctl check
 
 # 3. Launch
-python3 scripts/matrixctl launch
+python3 scripts/brewctl launch
 
 # 4. Open http://localhost:3000
 #    CONFIGURE → pick engine + agents → LAUNCH SWARM → wait for ONLINE
@@ -100,7 +100,7 @@ python3 scripts/matrixctl launch
 | Only one agent responds in router mode | `foreman` system prompt may need tuning — edit it with ✏️ in CONFIGURE. |
 | Pipeline output is garbage after stage 2 | A stage failed; check `meta.errors[]` in the API response. The coordinator skips the bad stage automatically. |
 | MLX server not starting | Ensure `mlx_lm` is installed (`pip install mlx-lm`) and `MATRIX_MLX_PYTHON` points to the right interpreter. |
-| RAG returns no results | Check `bash scripts/rag-docker-compose.sh status`; re-index with `python3 scripts/matrixctl rag index . --embedder hash --force`. |
+| RAG returns no results | Check `bash scripts/rag-docker-compose.sh status`; re-index with `python3 scripts/brewctl rag index . --embedder hash --force`. |
 | Out of VRAM / KV overflow | Reduce active agents to 5–7. Click CLEAR KV between prompts. |
 
 ---

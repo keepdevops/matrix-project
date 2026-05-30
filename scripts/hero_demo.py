@@ -13,7 +13,7 @@ Usage:
 
 Prerequisites:
     - Dev server:  npm start  (http://localhost:3000)
-    - Proxy:       matrixctl up  (or npm run proxy)
+    - Proxy:       brewctl up  (or npm run proxy)
 """
 
 import os

@@ -1,4 +1,4 @@
-"""matrixctl shutdown — stop UI, proxy, coordinator, llama/mlx workers."""
+"""brewctl shutdown — stop UI, proxy, coordinator, llama/mlx workers."""
 from __future__ import annotations
 
 import logging

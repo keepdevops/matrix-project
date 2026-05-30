@@ -1,5 +1,5 @@
 #!/bin/bash
-# DEPRECATED: prefer `python3 scripts/matrixctl launch` (native port).
+# DEPRECATED: prefer `python3 scripts/brewctl launch` (native port).
 # This script remains for legacy automation but won't receive new features.
 echo "=========================================================="
 echo "SWARM MATRIX starting"

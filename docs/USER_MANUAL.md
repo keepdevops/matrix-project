@@ -28,8 +28,8 @@ End-to-end guide covering daily use, advanced workflows, and configuration.
 
 ```bash
 bash scripts/build_cpp_binaries.sh   # one-time C++ build
-python3 scripts/matrixctl check      # verify ports, binaries, models
-python3 scripts/matrixctl launch     # start proxy + UI
+python3 scripts/brewctl check      # verify ports, binaries, models
+python3 scripts/brewctl launch     # start proxy + UI
 ```
 
 Open `http://localhost:3000`. See [SETUP.md](SETUP.md) for full prerequisites and troubleshooting.
@@ -204,19 +204,19 @@ When RAG is enabled and the pgvector container is running, the coordinator retri
 bash scripts/rag-docker-compose.sh up
 
 # Index a directory
-python3 scripts/matrixctl rag index ./cpp_core --embedder hash
+python3 scripts/brewctl rag index ./cpp_core --embedder hash
 
 # Index multiple directories
-python3 scripts/matrixctl rag index ./cpp_core ./orchestration --embedder hash
+python3 scripts/brewctl rag index ./cpp_core ./orchestration --embedder hash
 
 # Re-index after code changes
-python3 scripts/matrixctl rag index . --embedder hash --force
+python3 scripts/brewctl rag index . --embedder hash --force
 
 # Query to verify
-python3 scripts/matrixctl rag query "kv router" --top-k 5 --embedder hash
+python3 scripts/brewctl rag query "kv router" --top-k 5 --embedder hash
 ```
 
-`matrixctl launch` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
+`brewctl launch` auto-indexes when the container is running. Override the DSN with `RAG_DSN=postgresql://...`.
 
 ### Enable in config
 

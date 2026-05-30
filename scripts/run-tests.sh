@@ -106,12 +106,12 @@ do_roles_roster() {
 
 do_role_profiles() {
     # Agent role definitions — build-time config generation, migration,
-    # live prompt edits, matrixctl RAG helpers.
+    # live prompt edits, brewctl RAG helpers.
     run_group "Role Profiles" \
         tests/test_build_swarm_config.py \
         tests/test_migrate_swarm_config.py \
         tests/test_prompts.py \
-        tests/test_matrixctl_rag.py
+        tests/test_brewctl_rag.py
 }
 
 do_gguf_models() {
