@@ -29,7 +29,6 @@ function BrewAgentGrid({
   responses,
   loading,
   timings = {},
-  onSaveCode,
   flatPickMode = false,
   pickedFlatAgent = null,
   onPickFlatAgent = null,
@@ -39,20 +38,8 @@ function BrewAgentGrid({
 }) {
   const isInitialLoad = loading && Object.keys(responses).length === 0;
 
-  const hasAnyCode = activeAgents.some(({ name }) => {
-    const r = responses[name];
-    if (!r) return false;
-    const { code } = extractCodeBlock(r);
-    return code && code.trim().length >= 10;
-  });
-
-  const programmerResp = responses.programmer;
-  const { code, language } = programmerResp
-    ? extractCodeBlock(programmerResp)
-    : { code: null, language: null };
-
   const renderCard = useCallback((agent) => {
-    const { name, model, backend, engine } = agent;
+    const { name, model } = agent;
     const response = responses[name];
     const err = agentErrors[name];
     const isPicked = flatPickMode && pickedFlatAgent === name;
@@ -60,6 +47,9 @@ function BrewAgentGrid({
     const role = rolesByName[name];
     const ctx = role?.context;
     const meta = buildMeta(agent, timings[name], err, loading, !!response, ctx);
+
+    const { code, language } = response ? extractCodeBlock(response) : { code: null, language: null };
+    const hasCode = code && code.trim().length >= 10;
 
     return (
       <BrewAgentCard
@@ -84,9 +74,21 @@ function BrewAgentGrid({
             <span className="brew-agent-response-dot">.</span>
           </div>
         ) : response ? (
-          <div className="brew-agent-response">
-            <AgentMarkdown text={response} />
-          </div>
+          <>
+            <div className="brew-agent-response">
+              <AgentMarkdown text={response} />
+            </div>
+            {hasCode && (
+              <div className="brew-code-output-section">
+                <div className="brew-code-output-header">
+                  <span className="brew-section-title">CODE OUTPUT</span>
+                </div>
+                <div className="brew-code-output-frame">
+                  <CodeDisplay initialCode={code} language={language} />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="brew-agent-response brew-agent-response--idle">
             Awaiting broadcast…
@@ -97,29 +99,11 @@ function BrewAgentGrid({
   }, [responses, loading, timings, flatPickMode, pickedFlatAgent, onPickFlatAgent, agentErrors, rolesByName]);
 
   return (
-    <>
-      <div className={`brew-agent-cards brew-agent-cards--runtime${compact ? ' brew-agent-cards--compact' : ''}`}>
-        {isInitialLoad
-          ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
-          : activeAgents.map(renderCard)}
-      </div>
-
-      {programmerResp && (
-        <div className="brew-code-output-section">
-          <div className="brew-code-output-header">
-            <span className="brew-section-title">CODE OUTPUT</span>
-            {hasAnyCode && (
-              <button type="button" className="brew-agent-card-edit" onClick={onSaveCode}>
-                SAVE
-              </button>
-            )}
-          </div>
-          <div className="brew-code-output-frame">
-            <CodeDisplay initialCode={code} language={language} />
-          </div>
-        </div>
-      )}
-    </>
+    <div className={`brew-agent-cards brew-agent-cards--runtime${compact ? ' brew-agent-cards--compact' : ''}`}>
+      {isInitialLoad
+        ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
+        : activeAgents.map(renderCard)}
+    </div>
   );
 }
 

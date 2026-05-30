@@ -395,16 +395,6 @@ export default function BrewlateLayout({
                       <option key={id} value={id}>{label}</option>
                     ))}
                   </select>
-                  <select className="brew-profile-select" defaultValue="medium">
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large</option>
-                  </select>
-                  <select className="brew-profile-select" defaultValue="priority">
-                    <option value="roundrobin">Round-robin</option>
-                    <option value="priority">Priority</option>
-                    <option value="mixed">Mixed</option>
-                  </select>
                 </div>
               </div>
             </div>
@@ -579,7 +569,6 @@ export default function BrewlateLayout({
                     agentErrors={agentErrors}
                     loading={loading}
                     timings={lastMeta?.timings || {}}
-                    onSaveCode={onSaveCode}
                     flatPickMode={activeMode === 'flat'}
                     pickedFlatAgent={flatPickAgent}
                     onPickFlatAgent={onPickFlatAgent}
@@ -627,7 +616,6 @@ export default function BrewlateLayout({
                         agentErrors={agentErrors}
                         loading={loading}
                         timings={lastMeta?.timings || {}}
-                        onSaveCode={onSaveCode}
                         flatPickMode={activeMode === 'flat'}
                         pickedFlatAgent={flatPickAgent}
                         onPickFlatAgent={onPickFlatAgent}

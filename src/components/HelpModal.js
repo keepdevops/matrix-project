@@ -199,7 +199,7 @@ function HelpModal({ onClose, agents = [] }) {
             <h3>UI Layouts</h3>
             <dl>
               <dt>Layout switcher</dt>
-              <dd>Select a layout from the header switcher or append <code>?layout=&lt;name&gt;</code> to the URL. Primary layout: <strong>brewlate</strong> (rose-gold configure + runtime). Alternates: <strong>classic</strong> (legacy Matrix grid), <strong>dashboard</strong>, <strong>terminal</strong>, <strong>minimal</strong>, <strong>sidebar</strong>. <code>?layout=default</code> resolves to Brewlate. The layout persists in the URL across reloads.</dd>
+              <dd>Select a layout from the header switcher or append <code>?layout=&lt;name&gt;</code> to the URL. Primary layout: <strong>brewlatte</strong> (rose-gold configure + runtime). Alternates: <strong>classic</strong> (legacy Matrix grid), <strong>dashboard</strong>, <strong>terminal</strong>, <strong>minimal</strong>, <strong>sidebar</strong>. <code>?layout=default</code> resolves to Brewlatte. The layout persists in the URL across reloads.</dd>
             </dl>
           </div>
 

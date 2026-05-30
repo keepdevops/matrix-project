@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const CTX_OPTIONS = [0, 4096, 8192, 16384, 32768];
-const TABS = ['Basic', 'Advanced', 'Tools'];
+const TABS = ['Basic', 'Advanced'];
 
 function Toggle({ checked, onChange, id }) {
   return (
@@ -175,12 +175,6 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
                 ))}
               </div>
             </>
-          )}
-
-          {tab === 'Tools' && (
-            <div className="brew-tools-empty">
-              <span>No tools configured for this role.</span>
-            </div>
           )}
 
         </div>

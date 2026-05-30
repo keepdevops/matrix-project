@@ -143,59 +143,72 @@ export default function ModeRosterPanel() {
         ))}
       </div>
 
-      {!explicit && selected.length === 0 && (
-        <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem' }}>
-          No override set — `{activeTab}` is using the full roster
-          ({available.length} agent{available.length === 1 ? '' : 's'}).
-        </div>
-      )}
-
-      <RosterGrid selected={selected} available={available} isPipeline={isPipeline}
-                  onAdd={addAgent} onRemove={removeAt} onMove={moveAgent} />
-
-      <ModeOptions
-        activeTab={activeTab} available={available}
-        synthesizer={synthesizer} setSynthesizer={setSynthesizer}
-        variantPolicy={variantPolicy} setVariantPolicy={setVariantPolicy}
-        pipelinePreset={pipelinePreset} setPipelinePreset={setPipelinePreset}
-        stageContextChars={stageContextChars} setStageContextChars={setStageContextChars}
-        synthesisPolicy={synthesisPolicy} setSynthesisPolicy={setSynthesisPolicy}
-        classifierPolicy={classifierPolicy} setClassifierPolicy={setClassifierPolicy}
-        maxSelect={maxSelect} setMaxSelect={setMaxSelect}
-      />
-
-      {isPipeline && (
-        <PipelineOrderEditor
-          pipelineOrder={pipelineOrder} setPipelineOrder={setPipelineOrder}
-          usePipelineOrder={usePipelineOrder} setUsePipelineOrder={setUsePipelineOrder}
-          selected={selected} available={available} pipelinePreset={pipelinePreset}
-        />
-      )}
-
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', alignItems: 'center' }}>
-        <Button variant="outline-primary" size="sm" onClick={handleSave} disabled={busy}>
-          {busy ? 'Saving…' : 'Save'}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => clearOverride(activeTab)}
-          disabled={busy || (!explicit && selected.length === 0)}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={explicit}
+          className={`brew-perm-toggle${explicit ? ' on' : ''}`}
+          onClick={() => {
+            if (explicit) {
+              clearOverride(activeTab);
+            } else {
+              setExplicit(true);
+            }
+          }}
+          disabled={busy}
+          style={{ flexShrink: 0 }}
         >
-          Clear override
-        </Button>
-        {error && <span style={{ color: '#ff7777', fontSize: '0.8rem' }}>{error}</span>}
-        {!error && staleAgents.length > 0 && (
-          <span style={{ color: '#ffaa44', fontSize: '0.8rem' }}>
-            ⚠ Not deployed: {staleAgents.join(', ')} — save to drop, or redeploy
-          </span>
-        )}
-        {!error && !staleAgents.length && savedAt && (
-          <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>
-            saved {new Date(savedAt).toLocaleTimeString()}
-          </span>
-        )}
+          <span className="brew-perm-thumb" />
+        </button>
+        <span style={{ fontSize: '0.8rem', opacity: explicit ? 1 : 0.6 }}>
+          {explicit
+            ? `Override ON — custom roster active`
+            : `Override OFF — using full roster (${available.length} agent${available.length === 1 ? '' : 's'})`}
+        </span>
       </div>
+
+      {explicit && (
+        <>
+          <RosterGrid selected={selected} available={available} isPipeline={isPipeline}
+                      onAdd={addAgent} onRemove={removeAt} onMove={moveAgent} />
+          <ModeOptions
+            activeTab={activeTab} available={available}
+            synthesizer={synthesizer} setSynthesizer={setSynthesizer}
+            variantPolicy={variantPolicy} setVariantPolicy={setVariantPolicy}
+            pipelinePreset={pipelinePreset} setPipelinePreset={setPipelinePreset}
+            stageContextChars={stageContextChars} setStageContextChars={setStageContextChars}
+            synthesisPolicy={synthesisPolicy} setSynthesisPolicy={setSynthesisPolicy}
+            classifierPolicy={classifierPolicy} setClassifierPolicy={setClassifierPolicy}
+            maxSelect={maxSelect} setMaxSelect={setMaxSelect}
+          />
+
+          {isPipeline && (
+            <PipelineOrderEditor
+              pipelineOrder={pipelineOrder} setPipelineOrder={setPipelineOrder}
+              usePipelineOrder={usePipelineOrder} setUsePipelineOrder={setUsePipelineOrder}
+              selected={selected} available={available} pipelinePreset={pipelinePreset}
+            />
+          )}
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', alignItems: 'center' }}>
+            <Button variant="outline-primary" size="sm" onClick={handleSave} disabled={busy}>
+              {busy ? 'Saving…' : 'Save'}
+            </Button>
+            {error && <span style={{ color: '#ff7777', fontSize: '0.8rem' }}>{error}</span>}
+            {!error && staleAgents.length > 0 && (
+              <span style={{ color: '#ffaa44', fontSize: '0.8rem' }}>
+                ⚠ Not deployed: {staleAgents.join(', ')} — save to drop, or redeploy
+              </span>
+            )}
+            {!error && !staleAgents.length && savedAt && (
+              <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>
+                saved {new Date(savedAt).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

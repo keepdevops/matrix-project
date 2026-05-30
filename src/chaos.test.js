@@ -26,7 +26,7 @@ jest.mock('./layouts/registry', () => ({
     'cvd-light-amber':       { label: '⬡ CVD Light: Achromatopsia' },
   },
   LAYOUTS: {
-    brewlate:  { label: 'Brewlate',  component: () => null },
+    brewlate:  { label: 'Brewlatte',  component: () => null },
     classic:   { label: 'Classic',   component: () => null },
     sidebar:   { label: 'Sidebar',   component: () => null },
     minimal:   { label: 'Minimal',   component: () => null },
