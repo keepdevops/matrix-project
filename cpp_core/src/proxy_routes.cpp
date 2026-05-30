@@ -1,5 +1,6 @@
 #include "proxy_routes.h"
 #include "proxy_configure.h"
+#include "proxy_configure_health.h"
 #include "proxy_file_io.h"
 #include "proxy_models_scan.h"
 #include "proxy_routes_convert.h"
@@ -64,6 +65,11 @@ void register_proxy_routes(httplib::Server& svr, const std::string& proj_root) {
             res.status = 500;
             res.set_content(json{{"error", std::string(e.what())}}.dump(), "application/json");
         }
+    });
+
+    svr.Get("/api/configure/status", [&cors](const httplib::Request&, httplib::Response& res) {
+        cors(res);
+        res.set_content(g_configure_progress.to_json().dump(), "application/json");
     });
 
     svr.Get("/api/logs", [&cors, &proj_root](const httplib::Request& req, httplib::Response& res) {

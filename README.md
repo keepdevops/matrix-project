@@ -101,9 +101,9 @@ it with Matrix Swarm for parallel planning + deep execution.
 - **Multi-turn conversation threads** — sessions auto-continue after the first
   BROADCAST. The `ConversationThread` panel shows the full turn history.
   Session state is persisted in `sessions.json` and reset by CLEAR KV.
-- **Five UI layouts** — switch between default, dashboard (metrics-first),
-  terminal (dense), minimal (single-column), and sidebar (roster + content)
-  via the header switcher or `?layout=<name>` in the URL.
+- **UI layouts** — **Brewlate** is the default (`?layout=brewlate` or omit layout).
+  Alternates: classic (legacy Matrix grid), dashboard, terminal, minimal, sidebar.
+  `?layout=default` also resolves to Brewlate.
 - **Visual layout editor** — flow, freeform, and grid editing modes with
   localStorage persistence for custom dashboard arrangements.
 - **CodeMirror response viewer** — auto-language-detect, edit, copy, save. Each
@@ -274,8 +274,8 @@ Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` 
   `Shift+Enter` inserts a newline.
 - **ConversationThread** — collapsible panel showing the multi-turn session
   history. Sessions auto-continue after the first BROADCAST.
-- **Layout switcher** — cycle between default / dashboard / terminal / minimal
-  / sidebar layouts, or append `?layout=<name>` to the URL.
+- **Layout switcher** — Brewlate (default), classic, dashboard, terminal, minimal,
+  sidebar — or append `?layout=<name>` to the URL.
 - **RUN METRICS** — per-agent ms + token bars below FINAL ANSWER after every
   dispatch.
 - **🔴 circuit breaker open** banner appears in PER-MODE ROSTER when any
@@ -309,7 +309,7 @@ Lifecycle (check / launch / shutdown) is handled by `python3 scripts/matrixctl` 
 ```
 src/                React UI (App, components, hooks, api)
   ├─ components/    Agent cards, modals, metrics, roster, RAG admin, …
-  ├─ layouts/       Layout variants: default/dashboard/terminal/minimal/sidebar
+  ├─ layouts/       Layout variants: brewlate (default)/classic/dashboard/terminal/minimal/sidebar
   └─ editor/        Visual layout editor (flow/freeform/grid) with persistence
 cpp_core/src/       C++ coordinator + proxy + modes (flat/pipeline/cascade/router)
 backends/           Python InferenceBackend ABC + per-engine adapters

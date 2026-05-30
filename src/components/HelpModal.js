@@ -41,7 +41,7 @@ function HelpModal({ onClose, agents = [] }) {
               <div className="help-step"><span className="help-step-n">2</span><span>Open <strong>CONFIGURE</strong> → choose inference engine (LLAMA / MLX / vLLM) — panel shows <strong>Using: &lt;engine&gt;</strong> and SERVER LAYOUT lists the engine — select agents and models → click <strong>LAUNCH SWARM</strong></span></div>
               <div className="help-step"><span className="help-step-n">3</span><span>Wait for the status indicator to turn <span className="status-online" style={{display:'inline',border:'none',padding:0}}>● ONLINE</span> (header may show the engine in use, e.g. MLX)</span></div>
               <div className="help-step"><span className="help-step-n">4</span><span>Pick an orchestration <strong>MODE</strong> (flat / pipeline / cascade / router) from the header dropdown</span></div>
-              <div className="help-step"><span className="help-step-n">5</span><span>Type a prompt and press <strong>BROADCAST</strong> or <code>Cmd+Enter</code></span></div>
+              <div className="help-step"><span className="help-step-n">5</span><span>Type a prompt and press <strong>BREW</strong> (Brewlate) or <strong>BROADCAST</strong> (classic) — or <code>Cmd+Enter</code></span></div>
               <div className="help-step"><span className="help-step-n">6</span><span>Read agent cards — code from the <em>programmer</em> agent appears in <strong>CODE OUTPUT</strong> below; click <strong>⤢</strong> on any card for a full-screen CodeMirror editor</span></div>
             </div>
           </div>
@@ -75,7 +75,7 @@ function HelpModal({ onClose, agents = [] }) {
               <dd>The prompt is dispatched according to the active <strong>MODE</strong>. In <em>flat</em> every <strong>deployed</strong> agent receives the same prompt in parallel and responses are independent. In <em>pipeline</em> the prompt flows through the agents in order, each consuming the previous output. In <em>router</em> a classifier agent first selects which agents to engage.</dd>
               <dt>Temperature</dt>
               <dd>Default is <code>0.20</code>. For engineering swarms stay in the <code>0.10–0.25</code> range — higher values cause agents to hallucinate roles, invent classes, or contradict each other across 10+ parallel responses. Use <code>0.40–0.70</code> only for architecture brainstorming or open-ended exploration.</dd>
-              <dt>BROADCAST / Cmd+Enter</dt>
+              <dt>BREW / BROADCAST / Cmd+Enter</dt>
               <dd>Sends one broadcast to the coordinator; all active agents run at once and return when done.</dd>
             </dl>
           </div>
@@ -199,7 +199,7 @@ function HelpModal({ onClose, agents = [] }) {
             <h3>UI Layouts</h3>
             <dl>
               <dt>Layout switcher</dt>
-              <dd>Select a layout from the header switcher or append <code>?layout=&lt;name&gt;</code> to the URL. Available layouts: <strong>default</strong> (standard grid), <strong>dashboard</strong> (metrics-first), <strong>terminal</strong> (dense monospace), <strong>minimal</strong> (single-column), <strong>sidebar</strong> (roster left, content right). The layout persists in the URL across reloads.</dd>
+              <dd>Select a layout from the header switcher or append <code>?layout=&lt;name&gt;</code> to the URL. Primary layout: <strong>brewlate</strong> (rose-gold configure + runtime). Alternates: <strong>classic</strong> (legacy Matrix grid), <strong>dashboard</strong>, <strong>terminal</strong>, <strong>minimal</strong>, <strong>sidebar</strong>. <code>?layout=default</code> resolves to Brewlate. The layout persists in the URL across reloads.</dd>
             </dl>
           </div>
 

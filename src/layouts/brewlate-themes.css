@@ -1,0 +1,279 @@
+/* Brewlate palettes per Matrix theme — overrides --brew-* on body[data-layout="brewlate"].
+   Matrix token bridge in brewlate.css derives --color-* from these vars. */
+
+/* Default dark = copper rose-gold (also when theme=dark) */
+body[data-layout="brewlate"][data-theme="dark"] {
+  --brew-bg:             #140c0c;
+  --brew-panel:          #1e1212;
+  --brew-panel-inner:    #251616;
+  --brew-border:         #3a2020;
+  --brew-border-subtle:  #2a1818;
+  --brew-accent:         #c4896e;
+  --brew-accent-dim:     #9a6a50;
+  --brew-accent-bright:  #dda07c;
+  --brew-text:           #d4c4bc;
+  --brew-text-muted:     #8a7870;
+  --brew-text-dim:       #5a4a44;
+  --brew-btn-grad:       linear-gradient(135deg, #c87050 0%, #a04830 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #dc8060 0%, #b45840 100%);
+  --brew-tab-active:     #c4896e;
+  --brew-toggle-active:  #d4a080;
+  --brew-progress:       linear-gradient(90deg, #c47050, #a04030);
+  --brew-section-title:  #c4896e;
+  --brew-kv-ok:          #6ab86a;
+  --brew-kv-warn:        #c8a050;
+  --brew-kv-crit:        #e06040;
+}
+
+body[data-layout="brewlate"][data-theme="light"] {
+  --brew-bg:             #f6f5f0;
+  --brew-panel:          #ffffff;
+  --brew-panel-inner:    #f0ede6;
+  --brew-border:         #d8d6cc;
+  --brew-border-subtle:  #e8e6df;
+  --brew-accent:         #b85c38;
+  --brew-accent-dim:     #9a4a28;
+  --brew-accent-bright:  #c87050;
+  --brew-text:           #2a2420;
+  --brew-text-muted:     #6a6058;
+  --brew-text-dim:       #9a9088;
+  --brew-btn-grad:       linear-gradient(135deg, #c87050 0%, #a04830 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #dc8060 0%, #b45840 100%);
+  --brew-tab-active:     #b85c38;
+  --brew-toggle-active:  #c87050;
+  --brew-progress:       linear-gradient(90deg, #c47050, #a04030);
+  --brew-section-title:  #9a4a28;
+  --brew-kv-ok:          #1a7a42;
+  --brew-kv-warn:        #b45309;
+  --brew-kv-crit:        #c0392b;
+}
+
+body[data-layout="brewlate"][data-theme="overdrive"] {
+  --brew-bg:             #050d0a;
+  --brew-panel:          #0a1a10;
+  --brew-panel-inner:    #0f2218;
+  --brew-border:         #1a4a2a;
+  --brew-border-subtle:  #0f2a18;
+  --brew-accent:         #00d4ff;
+  --brew-accent-dim:     #00aad4;
+  --brew-accent-bright:  #66e8ff;
+  --brew-text:           #b8f0c8;
+  --brew-text-muted:     #5a9a6a;
+  --brew-text-dim:       #3a6a48;
+  --brew-btn-grad:       linear-gradient(135deg, #00d4ff 0%, #0090b8 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #33ddff 0%, #00aad4 100%);
+  --brew-tab-active:     #00d4ff;
+  --brew-toggle-active:  #66e8ff;
+  --brew-progress:       linear-gradient(90deg, #00d4ff, #0090b8);
+  --brew-section-title:  #00d4ff;
+  --brew-kv-ok:          #50fa7b;
+  --brew-kv-warn:        #ffcc00;
+  --brew-kv-crit:        #ff6b35;
+}
+
+body[data-layout="brewlate"][data-theme="synthwave"] {
+  --brew-bg:             #0d0b1e;
+  --brew-panel:          #12102a;
+  --brew-panel-inner:    #1a1836;
+  --brew-border:         #2e1f5e;
+  --brew-border-subtle:  #1e1540;
+  --brew-accent:         #bd93f9;
+  --brew-accent-dim:     #9b72f5;
+  --brew-accent-bright:  #ff79c6;
+  --brew-text:           #e0d7ff;
+  --brew-text-muted:     #7c6fa0;
+  --brew-text-dim:       #5a4a80;
+  --brew-btn-grad:       linear-gradient(135deg, #bf5fff 0%, #9b72f5 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #dc8cff 0%, #bd93f9 100%);
+  --brew-tab-active:     #bd93f9;
+  --brew-toggle-active:  #ff79c6;
+  --brew-progress:       linear-gradient(90deg, #bf5fff, #ff2d78);
+  --brew-section-title:  #bd93f9;
+  --brew-kv-ok:          #50fa7b;
+  --brew-kv-warn:        #ffb86c;
+  --brew-kv-crit:        #ff6b35;
+}
+
+body[data-layout="brewlate"][data-theme="cobalt"] {
+  --brew-bg:             #060d1a;
+  --brew-panel:          #0d1830;
+  --brew-panel-inner:    #132040;
+  --brew-border:         #1a2f4a;
+  --brew-border-subtle:  #0f1f36;
+  --brew-accent:         #2979ff;
+  --brew-accent-dim:     #1565e0;
+  --brew-accent-bright:  #64b5ff;
+  --brew-text:           #d0e4ff;
+  --brew-text-muted:     #5a7fa8;
+  --brew-text-dim:       #3a5880;
+  --brew-btn-grad:       linear-gradient(135deg, #2979ff 0%, #1565e0 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #448aff 0%, #2979ff 100%);
+  --brew-tab-active:     #2979ff;
+  --brew-toggle-active:  #64b5ff;
+  --brew-progress:       linear-gradient(90deg, #2979ff, #1565e0);
+  --brew-section-title:  #2979ff;
+  --brew-kv-ok:          #00e676;
+  --brew-kv-warn:        #ff9f0a;
+  --brew-kv-crit:        #ff6b35;
+}
+
+body[data-layout="brewlate"][data-theme="greyscale"] {
+  --brew-bg:             #161616;
+  --brew-panel:          #202020;
+  --brew-panel-inner:    #2a2a2a;
+  --brew-border:         #383838;
+  --brew-border-subtle:  #2a2a2a;
+  --brew-accent:         #e0e0e0;
+  --brew-accent-dim:     #b0b0b0;
+  --brew-accent-bright:  #f0f0f0;
+  --brew-text:           #c0c0c0;
+  --brew-text-muted:     #808080;
+  --brew-text-dim:       #606060;
+  --brew-btn-grad:       linear-gradient(135deg, #c8c8c8 0%, #909090 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #e0e0e0 0%, #a8a8a8 100%);
+  --brew-tab-active:     #e0e0e0;
+  --brew-toggle-active:  #f0f0f0;
+  --brew-progress:       linear-gradient(90deg, #c8c8c8, #808080);
+  --brew-section-title:  #e0e0e0;
+  --brew-kv-ok:          #a0a0a0;
+  --brew-kv-warn:        #d0d0d0;
+  --brew-kv-crit:        #f0f0f0;
+}
+
+body[data-layout="brewlate"][data-theme="cvd-blue-orange"] {
+  --brew-bg:             #1e1e24;
+  --brew-panel:          #252530;
+  --brew-panel-inner:    #2e2e3e;
+  --brew-border:         #353550;
+  --brew-border-subtle:  #2a2a3a;
+  --brew-accent:         #f58220;
+  --brew-accent-dim:     #d46a10;
+  --brew-accent-bright:  #ffaa55;
+  --brew-text:           #c8d4e8;
+  --brew-text-muted:     #7888aa;
+  --brew-text-dim:       #586878;
+  --brew-btn-grad:       linear-gradient(135deg, #f58220 0%, #d46a10 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #ff9933 0%, #f58220 100%);
+  --brew-tab-active:     #f58220;
+  --brew-toggle-active:  #ffaa55;
+  --brew-progress:       linear-gradient(90deg, #f58220, #6699cc);
+  --brew-section-title:  #6699cc;
+  --brew-kv-ok:          #5588cc;
+  --brew-kv-warn:        #f58220;
+  --brew-kv-crit:        #d45c00;
+}
+
+body[data-layout="brewlate"][data-theme="cvd-teal-charcoal"] {
+  --brew-bg:             #1a1e1e;
+  --brew-panel:          #222828;
+  --brew-panel-inner:    #2a3232;
+  --brew-border:         #3a4545;
+  --brew-border-subtle:  #2e3838;
+  --brew-accent:         #4db6ac;
+  --brew-accent-dim:     #00897b;
+  --brew-accent-bright:  #80cbc4;
+  --brew-text:           #c8e0e0;
+  --brew-text-muted:     #789898;
+  --brew-text-dim:       #587070;
+  --brew-btn-grad:       linear-gradient(135deg, #4db6ac 0%, #00897b 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #80cbc4 0%, #4db6ac 100%);
+  --brew-tab-active:     #4db6ac;
+  --brew-toggle-active:  #80cbc4;
+  --brew-progress:       linear-gradient(90deg, #4db6ac, #00897b);
+  --brew-section-title:  #4db6ac;
+  --brew-kv-ok:          #4db6ac;
+  --brew-kv-warn:        #ffb74d;
+  --brew-kv-crit:        #ff8a65;
+}
+
+body[data-layout="brewlate"][data-theme="cvd-amber"] {
+  --brew-bg:             #1a1a1a;
+  --brew-panel:          #242424;
+  --brew-panel-inner:    #2e2e2e;
+  --brew-border:         #404040;
+  --brew-border-subtle:  #303030;
+  --brew-accent:         #ffb300;
+  --brew-accent-dim:     #ff8f00;
+  --brew-accent-bright:  #ffd54f;
+  --brew-text:           #e0e0e0;
+  --brew-text-muted:     #909090;
+  --brew-text-dim:       #707070;
+  --brew-btn-grad:       linear-gradient(135deg, #ffb300 0%, #ff8f00 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+  --brew-tab-active:     #ffb300;
+  --brew-toggle-active:  #ffd54f;
+  --brew-progress:       linear-gradient(90deg, #ffb300, #ff8f00);
+  --brew-section-title:  #ffb300;
+  --brew-kv-ok:          #bdbdbd;
+  --brew-kv-warn:        #ffb300;
+  --brew-kv-crit:        #ffffff;
+}
+
+body[data-layout="brewlate"][data-theme="cvd-light-blue-orange"] {
+  --brew-bg:             #f0f2fb;
+  --brew-panel:          #ffffff;
+  --brew-panel-inner:    #e8ecf8;
+  --brew-border:         #bec6e8;
+  --brew-border-subtle:  #d4daef;
+  --brew-accent:         #e65100;
+  --brew-accent-dim:     #bf360c;
+  --brew-accent-bright:  #ff8333;
+  --brew-text:           #1a1a2e;
+  --brew-text-muted:     #5560aa;
+  --brew-text-dim:       #8088bb;
+  --brew-btn-grad:       linear-gradient(135deg, #e65100 0%, #bf360c 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #ff8333 0%, #e65100 100%);
+  --brew-tab-active:     #e65100;
+  --brew-toggle-active:  #ff8333;
+  --brew-progress:       linear-gradient(90deg, #e65100, #1565c0);
+  --brew-section-title:  #1565c0;
+  --brew-kv-ok:          #1565c0;
+  --brew-kv-warn:        #e65100;
+  --brew-kv-crit:        #bf360c;
+}
+
+body[data-layout="brewlate"][data-theme="cvd-light-tritanopia"] {
+  --brew-bg:             #f0f4f4;
+  --brew-panel:          #ffffff;
+  --brew-panel-inner:    #e8f0f0;
+  --brew-border:         #b0c8c8;
+  --brew-border-subtle:  #d0e0e0;
+  --brew-accent:         #c62828;
+  --brew-accent-dim:     #b71c1c;
+  --brew-accent-bright:  #ef5350;
+  --brew-text:           #1a2828;
+  --brew-text-muted:     #507070;
+  --brew-text-dim:       #789898;
+  --brew-btn-grad:       linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #ef5350 0%, #c62828 100%);
+  --brew-tab-active:     #c62828;
+  --brew-toggle-active:  #ef5350;
+  --brew-progress:       linear-gradient(90deg, #c62828, #00838f);
+  --brew-section-title:  #00838f;
+  --brew-kv-ok:          #00838f;
+  --brew-kv-warn:        #ff8f00;
+  --brew-kv-crit:        #c62828;
+}
+
+body[data-layout="brewlate"][data-theme="cvd-light-amber"] {
+  --brew-bg:             #f5f5f5;
+  --brew-panel:          #ffffff;
+  --brew-panel-inner:    #eeeeee;
+  --brew-border:         #cccccc;
+  --brew-border-subtle:  #e0e0e0;
+  --brew-accent:         #424242;
+  --brew-accent-dim:     #212121;
+  --brew-accent-bright:  #616161;
+  --brew-text:           #212121;
+  --brew-text-muted:     #757575;
+  --brew-text-dim:       #9e9e9e;
+  --brew-btn-grad:       linear-gradient(135deg, #616161 0%, #424242 100%);
+  --brew-btn-hover:      linear-gradient(135deg, #757575 0%, #616161 100%);
+  --brew-tab-active:     #424242;
+  --brew-toggle-active:  #616161;
+  --brew-progress:       linear-gradient(90deg, #757575, #424242);
+  --brew-section-title:  #424242;
+  --brew-kv-ok:          #9e9e9e;
+  --brew-kv-warn:        #bdbdbd;
+  --brew-kv-crit:        #212121;
+}

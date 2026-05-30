@@ -1,25 +1,68 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { configureSwarm, fetchLogs } from '../api/swarmApi';
+import { fetchConfigureStatus } from '../api/configApi';
 
 // useDeploy — encapsulates the launch flow's local state machine.
 //
 // Returned shape:
-//   { status, statusMsg, logTail, deploy, reset }
-// where deploy(args) runs the full validation + configureSwarm + log-fetch
-// sequence. status transitions: idle → deploying → idle | error.
-//
-// Pulled out of SwarmConfig.js so the parent stays focused on rendering and
-// orchestration; the hook owns its three pieces of state and the side-effect
-// chain that ties them together.
+//   { status, statusMsg, logTail, agentStatuses, deploy, reset }
+// where deploy(args) runs validation + configureSwarm + log-fetch.
+// status transitions: idle → deploying → idle | error.
+// agentStatuses: Map<agentName, 'pending'|'ready'|'error'>
 export function useDeploy({ onDeployed }) {
   const [status, setStatus] = useState('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [logTail, setLogTail] = useState(null);
+  const [agentStatuses, setAgentStatuses] = useState(new Map());
+  const pollRef = useRef(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // Build port → [agentName] from the layout passed to deploy().
+  const buildPortAgentMap = (layout) => {
+    const map = new Map();
+    for (const server of layout) {
+      map.set(server.port, server.agents || []);
+    }
+    return map;
+  };
+
+  const startPolling = useCallback((portAgentMap) => {
+    // Seed all agents as pending.
+    const initial = new Map();
+    for (const names of portAgentMap.values())
+      for (const name of names) initial.set(name, 'pending');
+    setAgentStatuses(initial);
+
+    pollRef.current = setInterval(async () => {
+      const data = await fetchConfigureStatus();
+      if (!data) return;
+      setAgentStatuses(prev => {
+        const next = new Map(prev);
+        for (const [portStr, state] of Object.entries(data.ports)) {
+          const port = Number(portStr);
+          const names = portAgentMap.get(port) || [];
+          for (const name of names) next.set(name, state);
+        }
+        return next;
+      });
+      if (!data.active) stopPolling();
+    }, 2000);
+  }, [stopPolling]);
 
   const reset = () => {
+    stopPolling();
     setStatus('idle');
     setStatusMsg('');
     setLogTail(null);
+    setAgentStatuses(new Map());
   };
 
   const deploy = async ({ roles, selected, roleModels, models, engine, riskEstimate, layout }) => {
@@ -64,11 +107,16 @@ export function useDeploy({ onDeployed }) {
     setStatusMsg(`Starting ${engineLabel} servers... this may take up to 4 minutes on first load`);
     setLogTail(null);
 
+    const portAgentMap = buildPortAgentMap(layout);
+    startPolling(portAgentMap);
+
     try {
       await configureSwarm(agents);
+      stopPolling();
       setStatus('idle');
       onDeployed?.();
     } catch (e) {
+      stopPolling();
       setStatus('error');
       setStatusMsg(e.message);
       const ports = (e.failedPorts && e.failedPorts.length > 0)
@@ -82,5 +130,5 @@ export function useDeploy({ onDeployed }) {
     }
   };
 
-  return { status, statusMsg, logTail, deploy, reset };
+  return { status, statusMsg, logTail, agentStatuses, deploy, reset };
 }

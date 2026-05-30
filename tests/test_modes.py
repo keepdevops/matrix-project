@@ -96,3 +96,136 @@ def test_router_drops_unknown_agents_in_selected(matrix):
     env = matrix.dispatch('refactor')
     assert env['meta']['selected'] == ['programmer']
     assert sorted(env['agents'].keys()) == ['programmer']
+
+
+# ---------------------------------------------------------------------------
+# Active-mode GET endpoint
+# ---------------------------------------------------------------------------
+
+def test_get_active_mode_returns_current(matrix):
+    matrix.set_mode('pipeline')
+    s, j = matrix.get('/api/modes/active')
+    assert s == 200
+    assert j['mode'] == 'pipeline'
+
+
+def test_get_active_mode_updates_after_switch(matrix):
+    matrix.set_mode('flat')
+    matrix.set_mode('cascade')
+    s, j = matrix.get('/api/modes/active')
+    assert s == 200
+    assert j['mode'] == 'cascade'
+
+
+# ---------------------------------------------------------------------------
+# Per-mode roster GET endpoint
+# ---------------------------------------------------------------------------
+
+def test_get_pipeline_agents_reflects_put(matrix):
+    matrix.set_roster('pipeline', ['architect', 'programmer'], synthesizer='reviewer')
+    s, j = matrix.get('/api/modes/pipeline/agents')
+    assert s == 200
+    assert j['agents'] == ['architect', 'programmer']
+    assert j.get('synthesizer') == 'reviewer'
+
+
+def test_get_router_agents_reflects_max_select(matrix):
+    matrix.set_roster('router', ['foreman', 'programmer'], max_select=1)
+    s, j = matrix.get('/api/modes/router/agents')
+    assert s == 200
+    assert j.get('max_select') == 1
+
+
+# ---------------------------------------------------------------------------
+# Empty roster → full swarm fallback
+# ---------------------------------------------------------------------------
+
+def test_pipeline_empty_roster_uses_full_swarm(matrix):
+    matrix.set_mode('pipeline')
+    matrix.set_roster('pipeline', [])
+    env = matrix.dispatch('go')
+    assert set(env['meta']['order']) == {'architect', 'foreman', 'programmer', 'reviewer'}
+
+
+def test_cascade_empty_roster_uses_full_swarm(matrix):
+    # With no roster set, cascade should broadcast to every deployed agent.
+    matrix.set_mode('cascade')
+    matrix.set_roster('cascade', [], synthesizer='architect')
+    env = matrix.dispatch('build')
+    participants = set(env['meta'].get('participants', env['agents'].keys()))
+    # All non-synthesizer agents must appear.
+    assert {'foreman', 'programmer', 'reviewer'}.issubset(participants)
+
+
+def test_router_empty_roster_uses_full_swarm(matrix):
+    matrix.set_mode('router')
+    matrix.set_roster('router', [], max_select=2)
+    matrix.mocks['foreman'].reply_template = 'SELECTED: programmer, reviewer'
+    env = matrix.dispatch('code review')
+    assert sorted(env['agents'].keys()) == ['programmer', 'reviewer']
+
+
+# ---------------------------------------------------------------------------
+# Pipeline: explicit order key
+# ---------------------------------------------------------------------------
+
+def test_pipeline_explicit_order_overrides_roster_sequence(matrix):
+    matrix.set_mode('pipeline')
+    matrix.set_roster('pipeline', ['architect', 'programmer', 'reviewer'],
+                      order=['reviewer', 'architect', 'programmer'])
+    env = matrix.dispatch('test order')
+    assert env['meta']['order'] == ['reviewer', 'architect', 'programmer']
+
+
+# ---------------------------------------------------------------------------
+# Pipeline: meta.stage_outputs
+# ---------------------------------------------------------------------------
+
+def test_pipeline_meta_stage_outputs_populated(matrix):
+    matrix.set_mode('pipeline')
+    matrix.set_roster('pipeline', ['architect', 'programmer'])
+    env = matrix.dispatch('hello stages')
+    stage_outputs = env['meta'].get('stage_outputs', [])
+    agents_in_outputs = {entry['agent'] for entry in stage_outputs}
+    assert 'architect' in agents_in_outputs
+    assert 'programmer' in agents_in_outputs
+
+
+# ---------------------------------------------------------------------------
+# Flat: meta.participants
+# ---------------------------------------------------------------------------
+
+def test_flat_meta_participants_lists_all_agents(matrix):
+    # NOTE: docs say flat ignores per-mode roster and always broadcasts to all
+    # deployed agents; the existing roster-override test contradicts this —
+    # actual behavior (per passing tests) is that flat DOES honor rosters.
+    # This test verifies meta.participants when no roster is set (full swarm).
+    matrix.set_mode('flat')
+    env = matrix.dispatch('hello')
+    participants = env['meta'].get('participants', [])
+    assert set(participants) == {'architect', 'foreman', 'programmer', 'reviewer'}
+
+
+# ---------------------------------------------------------------------------
+# Cascade: meta.excluded on agent failure
+# ---------------------------------------------------------------------------
+
+def test_cascade_meta_excluded_populated_on_failure(matrix):
+    matrix.mocks['programmer'].fail = True
+    matrix.set_mode('cascade')
+    matrix.set_roster('cascade', ['programmer', 'reviewer'], synthesizer='architect')
+    env = matrix.dispatch('build thing')
+    excluded = env['meta'].get('excluded', [])
+    assert 'programmer' in excluded
+
+
+# ---------------------------------------------------------------------------
+# Router: classifier_policy config key
+# ---------------------------------------------------------------------------
+
+def test_router_classifier_policy_round_trips(matrix):
+    matrix.set_roster('router', ['foreman', 'programmer', 'reviewer'],
+                      max_select=2, classifier_policy='code')
+    s, j = matrix.get('/api/modes/router/agents')
+    assert s == 200
+    assert j.get('classifier_policy') == 'code'

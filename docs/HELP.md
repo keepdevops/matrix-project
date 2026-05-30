@@ -37,7 +37,7 @@ python3 scripts/matrixctl launch
 | **Temperature** | Default 0.20. Keep 0.10–0.25 for code; 0.40–0.70 for brainstorming. |
 | **BROADCAST / Cmd+Enter** | Send prompt under active mode. |
 | **ConversationThread** | Collapsible panel showing the multi-turn session history. Sessions auto-continue after the first BROADCAST. |
-| **Layout switcher** | Cycle between default / dashboard / terminal / minimal / sidebar layouts, or use `?layout=<name>` in the URL. |
+| **Layout switcher** | Brewlate (default), classic, dashboard, terminal, minimal, sidebar — or `?layout=<name>` in the URL. |
 | **RUN METRICS** | Per-agent ms + token bars below FINAL ANSWER. |
 | **⤢ on a card** | Open that agent's full response in a CodeMirror editor. |
 | **SAVE CODE** | Export all code blocks to a timestamped file. |

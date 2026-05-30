@@ -3,7 +3,7 @@ import { LAYOUTS, THEMES } from '../layouts/registry';
 
 const STORAGE_LAYOUT = 'swarm-matrix-layout';
 const STORAGE_THEME  = 'swarm-matrix-theme';
-const DEFAULT_LAYOUT = 'default';
+const DEFAULT_LAYOUT = 'brewlate';
 const DEFAULT_THEME  = 'dark';
 
 function readParam(name) {
@@ -35,9 +35,16 @@ function syncUrl(layout, theme) {
   }
 }
 
+function normalizeLayoutId(id) {
+  if (!id || id === 'default') return DEFAULT_LAYOUT;
+  return id;
+}
+
 function resolve(paramVal, storageVal, valid, def) {
-  if (paramVal && valid[paramVal]) return paramVal;
-  if (storageVal && valid[storageVal]) return storageVal;
+  const fromParam = normalizeLayoutId(paramVal);
+  const fromStorage = normalizeLayoutId(storageVal);
+  if (fromParam && valid[fromParam]) return fromParam;
+  if (fromStorage && valid[fromStorage]) return fromStorage;
   // system preference fallback for theme only
   if (def === DEFAULT_THEME) {
     return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -55,12 +62,14 @@ export function useLayoutPreference() {
 
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-layout', layout);
     writeStorage(STORAGE_THEME, theme);
     syncUrl(layout, theme);
   }, [theme, layout]);
 
   const setLayout = (id) => {
-    const safe = LAYOUTS[id] ? id : DEFAULT_LAYOUT;
+    const normalized = normalizeLayoutId(id);
+    const safe = LAYOUTS[normalized] ? normalized : DEFAULT_LAYOUT;
     setLayoutState(safe);
     writeStorage(STORAGE_LAYOUT, safe);
   };

@@ -12,7 +12,7 @@ import {
 import TokenBudgetPanel from './TokenBudgetPanel';
 
 export default function SwarmAgentSelector({
-  roles, models, selected, roleModels, engine, hasEngineModels, activeProfile,
+  roles, models, selected, roleModels, engine, hasEngineModels, activeProfile, agentStatuses,
   onEngineChange, onToggleRole, onSetModel, onApplyProfile, onEditAgent, onRolesChange,
 }) {
   return (
@@ -91,6 +91,11 @@ export default function SwarmAgentSelector({
                 onChange={() => onToggleRole(role.name)}
               />
               <span className="swarm-role-name">{role.name}</span>
+              {agentStatuses?.get(role.name) && (
+                <span className={`agent-launch-badge badge-${agentStatuses.get(role.name)}`}>
+                  {agentStatuses.get(role.name)}
+                </span>
+              )}
             </label>
             <Button
               variant="ghost"

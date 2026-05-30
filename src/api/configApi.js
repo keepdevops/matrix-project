@@ -168,6 +168,21 @@ export async function checkRagHealth() {
   }
 }
 
+/** Poll per-port launch progress while a configure is running. */
+export async function fetchConfigureStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/configure/status`);
+    if (!res.ok) {
+      console.error(`[configure/status] unexpected status ${res.status}`);
+      return null;
+    }
+    return res.json();  // { active: bool, ports: { "3010": "pending"|"ready"|"error" } }
+  } catch (e) {
+    console.error('[configure/status] fetch failed:', e);
+    return null;
+  }
+}
+
 export async function fetchLogs(ports) {
   if (!ports?.length) return { logs: [] };
   const q = ports.join(',');

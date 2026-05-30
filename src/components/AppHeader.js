@@ -38,6 +38,7 @@ export default function AppHeader({
 }) {
   const engines = useMemo(() => getRunningEngines(activeAgents), [activeAgents]);
   const themeEntries = useMemo(() => Object.entries(THEMES), []);
+  const layoutEntries = useMemo(() => Object.entries(LAYOUTS), []);
   const [showAppearance, setShowAppearance] = useState(false);
 
   return (
@@ -111,7 +112,20 @@ export default function AppHeader({
               background: 'var(--panel-bg, #161b22)', border: '1px solid var(--panel-border, #30363d)',
               borderRadius: 6, padding: '0.5rem', minWidth: 160,
             }}>
-              <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Theme</div>
+              <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>Layout</div>
+              {layoutEntries.map(([id, { label }]) => (
+                <Button
+                  key={id}
+                  variant="ghost"
+                  size="sm"
+                  className={`appearance-option${layout === id ? ' active' : ''}`}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', fontWeight: layout === id ? 700 : 400 }}
+                  onClick={() => { onSetLayout?.(id); setShowAppearance(false); }}
+                >
+                  {label}
+                </Button>
+              ))}
+              <div style={{ fontSize: '0.7rem', opacity: 0.6, margin: '0.4rem 0', textTransform: 'uppercase' }}>Theme</div>
               {themeEntries.map(([id, { label }]) => (
                 <Button
                   key={id}

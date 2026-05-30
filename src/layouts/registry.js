@@ -3,9 +3,11 @@ import SidebarLayout   from './SidebarLayout';
 import MinimalLayout   from './MinimalLayout';
 import TerminalLayout  from './TerminalLayout';
 import DashboardLayout from './DashboardLayout';
+import BrewlateLayout  from './BrewlateLayout';
 
 export const LAYOUTS = {
-  default:   { label: 'Default',   component: DefaultLayout },
+  brewlate:  { label: '✦ Brewlate', component: BrewlateLayout },
+  classic:   { label: 'Matrix Classic', component: DefaultLayout },
   sidebar:   { label: 'Sidebar',   component: SidebarLayout },
   minimal:   { label: 'Minimal',   component: MinimalLayout },
   terminal:  { label: 'Terminal',  component: TerminalLayout },
