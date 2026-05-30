@@ -633,6 +633,26 @@ body[data-layout="brewlate"] {
   gap: 0.85rem;
 }
 
+.brew-agent-cards--compact {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.brew-agent-cards--compact .brew-agent-card {
+  padding: var(--brew-space-xs, 0.4rem) var(--brew-space-sm, 0.6rem);
+}
+
+.brew-agent-cards--compact .brew-agent-response {
+  max-height: 6rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+.brew-brewcast-agents {
+  margin-bottom: 0.75rem;
+}
+
 .brew-agent-card {
   display: flex;
   flex-direction: column;

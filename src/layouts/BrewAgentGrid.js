@@ -35,6 +35,7 @@ function BrewAgentGrid({
   onPickFlatAgent = null,
   agentErrors = {},
   rolesByName = {},
+  compact = false,
 }) {
   const isInitialLoad = loading && Object.keys(responses).length === 0;
 
@@ -97,7 +98,7 @@ function BrewAgentGrid({
 
   return (
     <>
-      <div className="brew-agent-cards brew-agent-cards--runtime">
+      <div className={`brew-agent-cards brew-agent-cards--runtime${compact ? ' brew-agent-cards--compact' : ''}`}>
         {isInitialLoad
           ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
           : activeAgents.map(renderCard)}
