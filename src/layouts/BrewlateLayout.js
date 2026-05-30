@@ -130,7 +130,7 @@ function BrewRagTab({
 
 export default function BrewlateLayout({
   online, activeAgents, modes, activeMode,
-  kvReadings,
+  kvReadings, kvFetchFailed,
   responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
   currentSession, backend, switchBackend,
   showHistory, showHelp, showConverter, showRagAdmin, showCachePanel,
@@ -346,6 +346,7 @@ export default function BrewlateLayout({
             onClose={() => setShowMonitor(false)}
             online={online}
             kvReadings={kvReadings}
+            kvFetchFailed={kvFetchFailed}
             activeAgents={activeAgents}
             engine={engine}
             excludedBreaker={excludedBreaker}
