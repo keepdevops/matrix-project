@@ -282,7 +282,7 @@ function App() {
         </>
       )}
 
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} agents={activeAgents} />}
       {showRagAdmin && <RagAdmin onClose={() => setShowRagAdmin(false)} />}
       {showCachePanel && <CachePanel onClose={() => setShowCachePanel(false)} />}
       <MobileNav activePanel={activePanel} onSetPanel={setActivePanel} />

@@ -2,7 +2,29 @@ import React from 'react';
 import Button from './Button';
 import { getAgentColor } from '../utils/agentColors';
 
-function HelpModal({ onClose }) {
+const AGENT_DESCRIPTIONS = {
+  architect:   'System design, ASCII UML, component diagrams',
+  foreman:     'Structured planning, step ordering, role assignment',
+  programmer:  'Complete production-ready code (large context, 4096 tokens)',
+  specialist:  'C++/Go, performance, memory management, concurrency',
+  security:    'OWASP top 10, vulnerabilities, secure coding alternatives',
+  api:         'REST/GraphQL design, OpenAPI specs, versioning strategies',
+  database:    'Schemas, queries, indexing, SQL/NoSQL, caching layers',
+  frontend:    'React components, CSS, accessibility, UX patterns',
+  reviewer:    'Bugs, code smells, anti-patterns, best practices',
+  tester:      'Unit tests, integration tests, edge cases, coverage',
+  optimizer:   'CPU/memory/IO bottlenecks, algorithmic improvements',
+  debugger:    'Root cause analysis, error propagation, targeted fixes',
+  devops:      'CI/CD pipelines, containers, infrastructure-as-code',
+  scout:       'Codebase analysis, patterns, module boundaries',
+  synthesis:   'Execution roadmap, risk analysis, step-by-step planning',
+  documenter:  'API docs, READMEs, inline comments, user guides',
+};
+
+function HelpModal({ onClose, agents = [] }) {
+  const roleRows = agents.length > 0
+    ? agents.map(a => [a.name, AGENT_DESCRIPTIONS[a.name] || ''])
+    : Object.entries(AGENT_DESCRIPTIONS);
   return (
     <div className="help-overlay" onClick={onClose}>
       <div className="help-modal" onClick={e => e.stopPropagation()}>
@@ -75,24 +97,7 @@ function HelpModal({ onClose }) {
           <div className="help-section">
             <h3>Agent Roles</h3>
             <div className="help-roles">
-              {[
-                ['architect','System design, ASCII UML, component diagrams'],
-                ['foreman','Structured planning, step ordering, role assignment'],
-                ['programmer','Complete production-ready code (large context, 4096 tokens)'],
-                ['specialist','C++/Go, performance, memory management, concurrency'],
-                ['security','OWASP top 10, vulnerabilities, secure coding alternatives'],
-                ['api','REST/GraphQL design, OpenAPI specs, versioning strategies'],
-                ['database','Schemas, queries, indexing, SQL/NoSQL, caching layers'],
-                ['frontend','React components, CSS, accessibility, UX patterns'],
-                ['reviewer','Bugs, code smells, anti-patterns, best practices'],
-                ['tester','Unit tests, integration tests, edge cases, coverage'],
-                ['optimizer','CPU/memory/IO bottlenecks, algorithmic improvements'],
-                ['debugger','Root cause analysis, error propagation, targeted fixes'],
-                ['devops','CI/CD pipelines, containers, infrastructure-as-code'],
-                ['scout','Codebase analysis, patterns, module boundaries'],
-                ['synthesis','Execution roadmap, risk analysis, step-by-step planning'],
-                ['documenter','API docs, READMEs, inline comments, user guides'],
-              ].map(([name, desc]) => (
+              {roleRows.map(([name, desc]) => (
                 <div key={name} className="help-role-row">
                   <span className="help-role-name" style={{color: getAgentColor(name)}}>{name}</span>
                   <span className="help-role-desc">{desc}</span>
