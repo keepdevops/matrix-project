@@ -40,8 +40,10 @@ def run_mode_scenario(page, mode, prompts, base_dir):
     log(f"=== MIXED × {mode} (TypeScript) ===")
     set_mode(page, mode)
     shot(page, shots_dir, "mode-set")
+    page.wait_for_timeout(1_000)  # let mode switch settle before RAG/broadcast
     enable_rag(page)
     clear_session(page)
+    page.wait_for_timeout(800)
 
     broadcast(page, prompts["p1"], 1)
     wait_for_response(page, shots_dir, "p1-response")
