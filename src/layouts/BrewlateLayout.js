@@ -63,7 +63,7 @@ const RIGHT_TABS = [
   ['session',  'Session'],
   ['agents',   'Agents'],
   ['modes',    'Modes'],
-  ['brewcast', 'Brewcast'],
+  ['brewcast', 'Live'],
   ['rag',      'RAG'],
 ];
 
@@ -158,6 +158,14 @@ export default function BrewlateLayout({
   const [deployed, setDeployed]         = useState(false);
   const [rightTab, setRightTab]         = useState('session');
   const [showMonitor, setShowMonitor]   = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      setRightTab('brewcast');
+    } else if (lastMeta) {
+      setRightTab('session');
+    }
+  }, [loading, lastMeta]);
 
   const handleDeployedInternal = useCallback(() => {
     setDeployed(true);
@@ -608,6 +616,23 @@ export default function BrewlateLayout({
                     <div className="brew-brewcast-live">
                       <span className="brew-brewcast-dot" />
                       <span className="brew-brewcast-live-label">LIVE</span>
+                    </div>
+                  )}
+                  {(loading || lastMeta) && (
+                    <div className="brew-brewcast-agents">
+                      <BrewAgentGrid
+                        activeAgents={activeAgents}
+                        responses={responses}
+                        agentErrors={agentErrors}
+                        loading={loading}
+                        timings={lastMeta?.timings || {}}
+                        onSaveCode={onSaveCode}
+                        flatPickMode={activeMode === 'flat'}
+                        pickedFlatAgent={flatPickAgent}
+                        onPickFlatAgent={onPickFlatAgent}
+                        rolesByName={rolesByName}
+                        compact
+                      />
                     </div>
                   )}
                   {lastMeta && (
