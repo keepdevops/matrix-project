@@ -987,6 +987,30 @@ h1 {
   color: var(--color-primary);
 }
 
+.agent-launch-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm, 3px);
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.badge-pending {
+  background: var(--color-surface-2, rgba(255,255,255,0.06));
+  color: var(--color-text-muted);
+}
+.badge-ready {
+  background: var(--color-success-dim, rgba(72,199,142,0.15));
+  color: var(--color-success, #48c78e);
+}
+.badge-error {
+  background: var(--color-error-dim, rgba(241,70,104,0.15));
+  color: var(--color-error, #f14668);
+}
+
 .swarm-model-select {
   flex: 1;
   background: var(--color-bg-base);

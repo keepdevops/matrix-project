@@ -253,11 +253,14 @@ Select a layout via the **layout switcher** in the header or append `?layout=<na
 
 | Layout | Description |
 |---|---|
-| `default` | Standard card grid. |
+| `brewlate` | **Default** — rose-gold configure + runtime (single-screen). |
+| `classic` | Legacy Matrix card grid. |
 | `dashboard` | Metrics strip promoted above the grid. |
 | `terminal` | Dense monospace; more agents visible at once. |
 | `minimal` | Single-column stripped view; low-resolution / embedded use. |
 | `sidebar` | Agent roster sidebar left, content right. |
+
+`?layout=default` resolves to `brewlate`.
 
 The layout persists in the URL across reloads. The **visual layout editor** (`/editor`) lets power users arrange custom dashboards in flow, freeform, or grid modes with localStorage persistence.
 

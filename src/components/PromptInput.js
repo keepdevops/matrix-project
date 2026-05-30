@@ -17,6 +17,9 @@ function PromptInput({
   activeAgents = [],
   backend = 'llama',
   onBackendChange,
+  submitLabel = 'BROADCAST',
+  submitLoadingLabel = 'BROADCASTING...',
+  qualityPassLabel = 'QUALITY PASS',
 }) {
   const ragHealth = useRagHealth(true);
   const [prompt, setPrompt] = useState('');
@@ -167,7 +170,7 @@ function PromptInput({
           type="submit"
           disabled={loading || disabled || !prompt.trim()}
         >
-          {loading ? 'BROADCASTING...' : 'BROADCAST'}
+          {loading ? submitLoadingLabel : submitLabel}
         </Button>
         <Button
           variant="outline-accent"
@@ -175,9 +178,9 @@ function PromptInput({
           type="button"
           disabled={loading || disabled || !canContinue}
           onClick={() => onQualityPass?.(temperature)}
-          title={canContinue ? 'Review and correct the previous output in this session' : 'Run a broadcast first to start a session'}
+          title={canContinue ? 'Review and correct the previous output in this session' : `Run a ${submitLabel.toLowerCase()} first to start a session`}
         >
-          QUALITY PASS
+          {qualityPassLabel}
         </Button>
       </div>
     </form>

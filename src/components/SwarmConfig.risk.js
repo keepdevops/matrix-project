@@ -33,6 +33,17 @@ function getRiskBand(totalRamGb) {
   return                                { id: 'low',    label: 'LOW',    hint: 'Well within 36GB memory budget' };
 }
 
+/** Normalize risk band (object or legacy string) for comparisons / display. */
+export function riskBandId(band) {
+  if (!band) return 'low';
+  return typeof band === 'object' ? band.id : band;
+}
+
+export function riskBandLabel(band) {
+  if (!band) return 'LOW';
+  return typeof band === 'object' ? band.label : String(band).toUpperCase();
+}
+
 // computeRiskEstimate — groups selected roles by (engine, model, server_group),
 // estimates KV cache GB, and returns a band + per-group breakdown for rendering.
 export function computeRiskEstimate(roles, selected, roleModels, models) {

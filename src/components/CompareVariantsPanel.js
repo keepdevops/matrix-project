@@ -66,7 +66,7 @@ export default function CompareVariantsPanel({
   if (!activeAgents || Object.keys(responses).length === 0) return null;
 
   return (
-    <div className="final-answer-panel" style={{ marginTop: '0.75rem' }}>
+    <div className="final-answer-panel compare-variants-panel" style={{ marginTop: '0.75rem' }}>
       <div className="swarm-config-title">COMPARE VARIANTS</div>
       <div style={VARIANTS_CONTAINER_STYLE}>
         {activeAgents.map(({ name }) => {

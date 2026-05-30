@@ -39,7 +39,7 @@ export default function SwarmConfig({ onDeployed }) {
   const [profileThresholds, setProfileThresholds] = useState({});
   const [editingAgent, setEditingAgent] = useState(null);
 
-  const { status, statusMsg, logTail, deploy, reset } = useDeploy({ onDeployed });
+  const { status, statusMsg, logTail, agentStatuses, deploy, reset } = useDeploy({ onDeployed });
 
   useEffect(() => {
     let cancelled = false;
@@ -160,6 +160,7 @@ export default function SwarmConfig({ onDeployed }) {
           engine={engine}
           hasEngineModels={hasEngineModels}
           activeProfile={activeProfile}
+          agentStatuses={agentStatuses}
           onEngineChange={handleEngineChange}
           onToggleRole={toggleRole}
           onSetModel={setModel}

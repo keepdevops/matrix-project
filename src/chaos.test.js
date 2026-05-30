@@ -26,7 +26,8 @@ jest.mock('./layouts/registry', () => ({
     'cvd-light-amber':       { label: '⬡ CVD Light: Achromatopsia' },
   },
   LAYOUTS: {
-    default:   { label: 'Default',   component: () => null },
+    brewlate:  { label: 'Brewlate',  component: () => null },
+    classic:   { label: 'Classic',   component: () => null },
     sidebar:   { label: 'Sidebar',   component: () => null },
     minimal:   { label: 'Minimal',   component: () => null },
     terminal:  { label: 'Terminal',  component: () => null },
@@ -197,10 +198,16 @@ describe('useLayoutPreference — chaos', () => {
     expect(document.body.getAttribute('data-theme')).toBe('dark');
   });
 
-  it('rejects unknown layout — falls back to default', () => {
+  it('rejects unknown layout — falls back to brewlate default', () => {
     const { result } = renderHook(() => useLayoutPreference());
     act(() => result.current.setLayout('__invalid_layout__'));
-    expect(result.current.layout).toBe('default');
+    expect(result.current.layout).toBe('brewlate');
+  });
+
+  it('maps legacy layout=default to brewlate', () => {
+    window.history.replaceState(null, '', '/?layout=default');
+    const { result } = renderHook(() => useLayoutPreference());
+    expect(result.current.layout).toBe('brewlate');
   });
 
   it('survives localStorage.setItem throwing', () => {
@@ -257,7 +264,7 @@ describe('useLayoutPreference — chaos', () => {
     });
   });
 
-  it('all 5 layouts can be set', () => {
+  it('all layouts can be set', () => {
     const { result } = renderHook(() => useLayoutPreference());
     LAYOUT_KEYS.forEach(l => {
       act(() => result.current.setLayout(l));

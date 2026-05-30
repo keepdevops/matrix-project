@@ -1,12 +1,13 @@
 #include "proxy_configure_health.h"
 
 #include "httplib.h"
-#include "json.hpp"
 
 #include <chrono>
+#include <set>
 #include <thread>
 
-using json = nlohmann::json;
+// Definition of the global progress tracker declared in the header.
+ConfigureProgress g_configure_progress;
 
 std::vector<int> proxy_configure_wait_for_health(
     const std::map<int, PortGroup>& pgs,
@@ -14,34 +15,34 @@ std::vector<int> proxy_configure_wait_for_health(
 {
     auto deadline = std::chrono::steady_clock::now()
                     + std::chrono::seconds(timeout_secs);
-    // Extract the bare filename from a model path (after last '/').
     auto model_basename = [](const std::string& path) -> std::string {
         auto sl = path.rfind('/');
         return sl == std::string::npos ? path : path.substr(sl + 1);
     };
 
-    auto check = [&]() -> std::vector<int> {
+    // Ports that have already passed health — skip re-checking them.
+    std::set<int> ready;
+
+    auto check_remaining = [&]() -> std::vector<int> {
         std::vector<int> failed;
         for (const auto& [port, g] : pgs) {
+            if (ready.count(port)) continue;
             try {
                 httplib::Client cli("127.0.0.1", port);
                 cli.set_connection_timeout(5);
                 cli.set_read_timeout(30);
 
+                bool ok = false;
                 if (g.backend == "mlx" || g.backend == "docker"
                     || g.backend == "vllm" || g.backend == "docker-vllm") {
                     auto r = cli.Get("/v1/models");
-                    if (!r || r->status != 200) { failed.push_back(port); continue; }
+                    ok = r && r->status == 200;
                 } else {
-                    // llama backend: require /health AND confirm the correct
-                    // model is loaded via /v1/models — prevents a stale process
-                    // with a different model from passing the health check.
+                    // llama: require /health + correct model in /v1/models
                     auto hr = cli.Get("/health");
                     if (!hr || hr->status != 200) { failed.push_back(port); continue; }
-
                     auto mr = cli.Get("/v1/models");
                     if (!mr || mr->status != 200) { failed.push_back(port); continue; }
-
                     const std::string expected = model_basename(g.model);
                     if (!expected.empty() && mr->body.find(expected) == std::string::npos) {
                         std::cerr << "[Health] port " << port
@@ -49,16 +50,31 @@ std::vector<int> proxy_configure_wait_for_health(
                         failed.push_back(port);
                         continue;
                     }
+                    ok = true;
+                }
+
+                if (ok) {
+                    ready.insert(port);
+                    g_configure_progress.set(port, "ready");
+                } else {
+                    failed.push_back(port);
                 }
             } catch (...) { failed.push_back(port); }
         }
         return failed;
     };
+
     while (std::chrono::steady_clock::now() < deadline) {
-        if (check().empty()) return {};
+        auto failed = check_remaining();
+        if (failed.empty()) return {};
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-    return check();
+
+    // Final check — mark anything still not ready as error.
+    auto final_failed = check_remaining();
+    for (int port : final_failed)
+        g_configure_progress.set(port, "error");
+    return final_failed;
 }
 
 std::string proxy_configure_check_docker_model_runner(const std::string& model) {

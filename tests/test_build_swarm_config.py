@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 import json
+import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import build_swarm_config  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "build_swarm_config.py"
@@ -88,3 +94,99 @@ def test_generator_matches_committed_output() -> None:
         json.loads(p.read_text())["name"] for p in AGENTS_DIR.glob("*.json")
     )
     assert sorted(a["name"] for a in out["agents"]) == names_from_files
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for pure functions in build_swarm_config
+# ---------------------------------------------------------------------------
+
+def test_default_model_dir_darwin():
+    with patch("platform.system", return_value="Darwin"):
+        result = build_swarm_config._default_model_dir()
+    assert result == "/Users/Shared/llama/models"
+
+
+def test_default_model_dir_linux():
+    with patch("platform.system", return_value="Linux"):
+        result = build_swarm_config._default_model_dir()
+    assert result == ""
+
+
+def test_load_json_parses_valid_file(tmp_path):
+    f = tmp_path / "data.json"
+    f.write_text(json.dumps({"key": "value"}))
+    assert build_swarm_config.load_json(f) == {"key": "value"}
+
+
+def test_load_json_raises_on_missing_file(tmp_path):
+    with pytest.raises(OSError):
+        build_swarm_config.load_json(tmp_path / "nonexistent.json")
+
+
+def test_load_json_raises_on_invalid_json(tmp_path):
+    f = tmp_path / "bad.json"
+    f.write_text("{not valid")
+    with pytest.raises(json.JSONDecodeError):
+        build_swarm_config.load_json(f)
+
+
+def test_load_agents_exits_on_unresolved_env_var(tmp_path):
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
+    (agents_dir / "bot.json").write_text(json.dumps({
+        "name": "bot",
+        "model": "${UNSET_VAR_XYZ}/model.gguf",
+        "system_prompt": "you are a bot",
+        "context": 2048,
+        "max_tokens": 64,
+        "engine": "llama",
+    }))
+    # Ensure the env var is NOT set.
+    env = {k: v for k, v in os.environ.items() if k != "UNSET_VAR_XYZ"}
+    with patch.dict(os.environ, env, clear=True):
+        with pytest.raises(SystemExit):
+            build_swarm_config.load_agents(agents_dir)
+
+
+def test_load_agents_expands_matrix_model_dir(tmp_path):
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
+    (agents_dir / "coder.json").write_text(json.dumps({
+        "name": "coder",
+        "model": "${MATRIX_MODEL_DIR}/coder.gguf",
+        "system_prompt": "code",
+        "context": 2048,
+        "max_tokens": 64,
+        "engine": "llama",
+    }))
+    with patch.dict(os.environ, {"MATRIX_MODEL_DIR": "/shared/models"}):
+        agents = build_swarm_config.load_agents(agents_dir)
+    assert agents[0]["model"] == "/shared/models/coder.gguf"
+
+
+def test_load_agents_strips_agent_id_key(tmp_path):
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
+    (agents_dir / "reviewer.json").write_text(json.dumps({
+        "agent_id": "reviewer",
+        "name": "reviewer",
+        "model": "",
+        "system_prompt": "review",
+        "context": 2048,
+        "max_tokens": 64,
+        "engine": "llama",
+    }))
+    agents = build_swarm_config.load_agents(agents_dir)
+    assert "agent_id" not in agents[0]
+
+
+def test_load_agents_sorts_by_name(tmp_path):
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
+    for name in ["zeta", "alpha", "mango"]:
+        (agents_dir / f"{name}.json").write_text(json.dumps({
+            "name": name, "model": "", "system_prompt": "x",
+            "context": 2048, "max_tokens": 64, "engine": "llama",
+        }))
+    agents = build_swarm_config.load_agents(agents_dir)
+    assert [a["name"] for a in agents] == ["alpha", "mango", "zeta"]

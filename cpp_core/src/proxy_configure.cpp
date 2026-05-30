@@ -208,6 +208,8 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         return {false, 500, {{"error", std::string(e.what())}}};
     }
 
+    g_configure_progress.reset(pgs);
+
     proxy_configure_kill_old_and_prepare_dirs(proj);
 
     for (const auto& [port, g] : pgs) {
@@ -219,6 +221,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         else if (g.backend == "docker") err = proxy_configure_check_docker_model_runner(g.model);
         if (!err.empty()) {
             std::cerr << "[Configure] Pre-flight failed port " << port << ": " << err << "\n";
+            g_configure_progress.active.store(false);
             return {false, 400, {{"error", err}, {"port", port}, {"model", g.model}}};
         }
     }
@@ -235,6 +238,7 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         std::string fl;
         for (int p : failed) { fa.push_back(p); if (!fl.empty()) fl += ", "; fl += std::to_string(p); }
         std::cerr << "[Configure] Health timeout. Ports not ready: " << fl << "\n";
+        g_configure_progress.active.store(false);
         return {false, 503, {
             {"error", "Servers failed to become healthy within several minutes. Check agent_logs/"
                       + std::to_string(failed[0]) + ".log. Ports not ready: " + fl
@@ -254,5 +258,6 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         servers.push_back({{"port",port},{"model",mn},{"agents",na},{"parallel",(int)g.names.size()}});
     }
     std::cout << "[Configure] Swarm online: " << servers.size() << " server(s)\n";
+    g_configure_progress.active.store(false);
     return {true, 200, {{"status","ok"},{"servers",servers}}};
 }
