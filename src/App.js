@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
+import './styles/responsive.css';
 import './themes/light.css';
 import './themes/overdrive.css';
 import './themes/synthwave.css';
@@ -34,6 +35,7 @@ import CompareVariantsPanel from './components/CompareVariantsPanel';
 import HelpModal from './components/HelpModal';
 import RagAdmin from './components/RagAdmin';
 import CachePanel from './components/CachePanel';
+import MobileNav from './components/MobileNav';
 
 function App() {
   const showToast = useToast();
@@ -61,6 +63,7 @@ function App() {
 
   const { theme, setTheme } = useLayoutPreference();
 
+  const [activePanel, setActivePanel]       = useState('prompt');
   const [showConfig, setShowConfig]         = useState(true);
   const [deployPending, setDeployPending]   = useState(false);
   const [showHelp, setShowHelp]             = useState(false);
@@ -160,7 +163,7 @@ function App() {
   }), [handleSubmit]);
 
   return (
-    <div className="matrix-container">
+    <div className="matrix-container" data-active-panel={activePanel}>
       <AppHeader
         online={online}
         activeAgents={activeAgents}
@@ -209,71 +212,80 @@ function App() {
 
       {!showConfigPanel && (
         <>
-          <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
-          <PromptInput
-            onSubmit={handleSubmit}
-            loading={loading}
-            disabled={!online}
-            externalPrompt={selectedPrompt}
-            externalTemperature={selectedTemperature}
-            onPromptConsumed={() => setSelectedPrompt(null)}
-            canContinue={Boolean(currentSession?.sessionId)}
-            onQualityPass={handleQualityPass}
-            useRag={useRag}
-            onUseRagChange={setUseRag}
-            activeAgents={activeAgents}
-            backend={backend}
-            onBackendChange={switchBackend}
-          />
-          {excludedBreaker.length > 0 && (
-            <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">
-              Skipped (circuit breaker open):{' '}
-              <strong>{excludedBreaker.join(', ')}</strong>. Cooldown ~30s after failures — see PER-MODE ROSTER health or coordinator logs.
-            </div>
-          )}
-          <ConversationThread
-            history={history}
-            sessionId={currentSession?.sessionId}
-            responses={responses}
-            finalAnswer={finalAnswer}
-            loading={loading}
-            pendingPrompt={pendingPrompt}
-            onFollowUp={handleFollowUp}
-            onClear={handleClearSession}
-            onSwitchSession={handleSwitchSession}
-          />
-          <FinalAnswerPanel text={finalAnswer} />
-          <RagSources rag={lastMeta?.rag} />
-          <MetricsStrip envelope={{ meta: lastMeta }} />
-          <PipelineStageOutputs stageOutputs={stageOutputs} />
-          <AgentGrid
-            activeAgents={activeAgents}
-            responses={responses}
-            agentErrors={agentErrors}
-            loading={loading}
-            timings={lastMeta?.timings || {}}
-            onSaveCode={handleSaveCode}
-            flatPickMode={activeMode === 'flat'}
-            pickedFlatAgent={flatPickAgent}
-            onPickFlatAgent={setFlatPickAgent}
-            onExpandProgrammer={handleExpandProgrammer}
-          />
-          {activeMode === 'flat' && Object.keys(responses).length > 0 && (
-            <CompareVariantsPanel
-              activeAgents={activeAgents}
-              responses={responses}
+          <div className="panel-prompt">
+            <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
+            <PromptInput
+              onSubmit={handleSubmit}
               loading={loading}
-              flatPickAgent={flatPickAgent}
-              onPickAgent={setFlatPickAgent}
-              onSendBest={() => handleSendBestContinue(0.2)}
+              disabled={!online}
+              externalPrompt={selectedPrompt}
+              externalTemperature={selectedTemperature}
+              onPromptConsumed={() => setSelectedPrompt(null)}
+              canContinue={Boolean(currentSession?.sessionId)}
+              onQualityPass={handleQualityPass}
+              useRag={useRag}
+              onUseRagChange={setUseRag}
+              activeAgents={activeAgents}
+              backend={backend}
+              onBackendChange={switchBackend}
             />
-          )}
+            {excludedBreaker.length > 0 && (
+              <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">
+                Skipped (circuit breaker open):{' '}
+                <strong>{excludedBreaker.join(', ')}</strong>. Cooldown ~30s after failures — see PER-MODE ROSTER health or coordinator logs.
+              </div>
+            )}
+          </div>
+          <div className="wide-row">
+            <div className="panel-chat">
+              <ConversationThread
+                history={history}
+                sessionId={currentSession?.sessionId}
+                responses={responses}
+                finalAnswer={finalAnswer}
+                loading={loading}
+                pendingPrompt={pendingPrompt}
+                onFollowUp={handleFollowUp}
+                onClear={handleClearSession}
+                onSwitchSession={handleSwitchSession}
+              />
+              <FinalAnswerPanel text={finalAnswer} />
+              <RagSources rag={lastMeta?.rag} />
+              <MetricsStrip envelope={{ meta: lastMeta }} />
+              <PipelineStageOutputs stageOutputs={stageOutputs} />
+            </div>
+            <div className="panel-agents">
+              <AgentGrid
+                activeAgents={activeAgents}
+                responses={responses}
+                agentErrors={agentErrors}
+                loading={loading}
+                timings={lastMeta?.timings || {}}
+                onSaveCode={handleSaveCode}
+                flatPickMode={activeMode === 'flat'}
+                pickedFlatAgent={flatPickAgent}
+                onPickFlatAgent={setFlatPickAgent}
+                onExpandProgrammer={handleExpandProgrammer}
+              />
+              {activeMode === 'flat' && Object.keys(responses).length > 0 && (
+                <CompareVariantsPanel
+                  activeAgents={activeAgents}
+                  responses={responses}
+                  loading={loading}
+                  flatPickAgent={flatPickAgent}
+                  onPickAgent={setFlatPickAgent}
+                  onSendBest={() => handleSendBestContinue(0.2)}
+                />
+              )}
+            </div>
+          </div>
         </>
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showRagAdmin && <RagAdmin onClose={() => setShowRagAdmin(false)} />}
       {showCachePanel && <CachePanel onClose={() => setShowCachePanel(false)} />}
+      <MobileNav activePanel={activePanel} onSetPanel={setActivePanel} />
     </div>
   );
 }

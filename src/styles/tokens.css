@@ -217,3 +217,8 @@ body[data-theme="light"] {
   --toast-success-bg: rgba(0, 140, 42, 0.08);
   --toast-success-border: rgba(0, 140, 42, 0.35);
 }
+
+/* Breakpoint scale: 480px (mobile) | 1024px (tablet) | 1600px (wide) */
+:root {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
