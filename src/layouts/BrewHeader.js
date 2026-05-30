@@ -44,7 +44,7 @@ export default function BrewHeader({
 
   return (
     <header className="brew-header">
-      <span className="brew-logo">Brewlate</span>
+      <span className="brew-logo">Brewlatte</span>
 
       <span
         className={`brew-status-pill${online ? ' online' : ''}`}

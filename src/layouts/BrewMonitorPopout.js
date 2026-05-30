@@ -14,6 +14,7 @@ export default function BrewMonitorPopout({
   onClose,
   online,
   kvReadings,
+  kvFetchFailed = false,
   activeAgents = [],
   engine = 'llama',
   excludedBreaker = [],
@@ -104,7 +105,7 @@ export default function BrewMonitorPopout({
         {online && (
           <div className="brew-resource-section brew-resource-section--pressure brew-resource-section--last">
             <div className="brew-res-layout-title">Port Pressure</div>
-            <PressureCluster online={online} />
+            <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
           </div>
         )}
       </div>

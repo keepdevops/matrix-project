@@ -7,7 +7,7 @@ function modelShortName(path) {
 }
 
 /**
- * Shared Brewlate agent identity card (configure + runtime).
+ * Shared Brewlatte agent identity card (configure + runtime).
  */
 export default function BrewAgentCard({
   name,

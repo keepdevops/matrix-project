@@ -62,7 +62,6 @@ const OPTIONAL_UNUSED = new Set([
   'deployPending',
   'onToggleConfig',
   'onExpandProgrammer',
-  'kvFetchFailed',
 ]);
 
 describe('Brewlate wiring audit', () => {

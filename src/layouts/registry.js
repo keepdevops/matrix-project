@@ -6,7 +6,7 @@ import DashboardLayout from './DashboardLayout';
 import BrewlateLayout  from './BrewlateLayout';
 
 export const LAYOUTS = {
-  brewlate:  { label: '✦ Brewlate', component: BrewlateLayout },
+  brewlate:  { label: '✦ Brewlatte', component: BrewlateLayout },
   classic:   { label: 'Matrix Classic', component: DefaultLayout },
   sidebar:   { label: 'Sidebar',   component: SidebarLayout },
   minimal:   { label: 'Minimal',   component: MinimalLayout },

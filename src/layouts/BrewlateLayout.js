@@ -130,7 +130,7 @@ function BrewRagTab({
 
 export default function BrewlateLayout({
   online, activeAgents, modes, activeMode,
-  kvReadings,
+  kvReadings, kvFetchFailed,
   responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
   currentSession, backend, switchBackend,
   showHistory, showHelp, showConverter, showRagAdmin, showCachePanel,
@@ -346,6 +346,7 @@ export default function BrewlateLayout({
             onClose={() => setShowMonitor(false)}
             online={online}
             kvReadings={kvReadings}
+            kvFetchFailed={kvFetchFailed}
             activeAgents={activeAgents}
             engine={engine}
             excludedBreaker={excludedBreaker}
@@ -393,16 +394,6 @@ export default function BrewlateLayout({
                     {PROFILES.map(([id, label]) => (
                       <option key={id} value={id}>{label}</option>
                     ))}
-                  </select>
-                  <select className="brew-profile-select" defaultValue="medium">
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large</option>
-                  </select>
-                  <select className="brew-profile-select" defaultValue="priority">
-                    <option value="roundrobin">Round-robin</option>
-                    <option value="priority">Priority</option>
-                    <option value="mixed">Mixed</option>
                   </select>
                 </div>
               </div>
@@ -578,7 +569,6 @@ export default function BrewlateLayout({
                     agentErrors={agentErrors}
                     loading={loading}
                     timings={lastMeta?.timings || {}}
-                    onSaveCode={onSaveCode}
                     flatPickMode={activeMode === 'flat'}
                     pickedFlatAgent={flatPickAgent}
                     onPickFlatAgent={onPickFlatAgent}
@@ -626,7 +616,6 @@ export default function BrewlateLayout({
                         agentErrors={agentErrors}
                         loading={loading}
                         timings={lastMeta?.timings || {}}
-                        onSaveCode={onSaveCode}
                         flatPickMode={activeMode === 'flat'}
                         pickedFlatAgent={flatPickAgent}
                         onPickFlatAgent={onPickFlatAgent}
