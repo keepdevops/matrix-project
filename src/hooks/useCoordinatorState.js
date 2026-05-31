@@ -122,8 +122,9 @@ export function useCoordinatorState(online) {
     return () => { cancelled = true; clearInterval(id); };
   }, [online]);
 
-  // Load agent metadata from swarm config once on mount
+  // Refresh agent metadata from swarm config whenever coordinator comes online
   useEffect(() => {
+    if (!online) return;
     Promise.all([fetchSwarmConfig().catch(() => null), fetchModels().catch(() => [])])
       .then(([cfg, models]) => {
         if (!mountedRef.current || !cfg?.agents) return;
@@ -138,7 +139,7 @@ export function useCoordinatorState(online) {
         setAgentMeta(meta);
       })
       .catch(err => console.error('Failed to load agent metadata:', err));
-  }, []);
+  }, [online]);
 
   // Refresh agents + modes when coordinator comes online
   useEffect(() => {
