@@ -43,8 +43,10 @@ export function useModeSave({ setSelected, setExplicit, setPipelineOrder, setUse
         }
       }
       setSavedAt(Date.now());
+      const unknown = Array.isArray(res?.unknown) ? res.unknown : [];
+      setStaleAgents(unknown);
       const skipped = [];
-      if (Array.isArray(res?.unknown) && res.unknown.length) skipped.push(`agents: ${res.unknown.join(', ')}`);
+      if (unknown.length) skipped.push(`agents: ${unknown.join(', ')}`);
       if (res?.unknown_order?.length) skipped.push(`order: ${res.unknown_order.join(', ')}`);
       setError(skipped.length ? `Skipped (not deployed) — ${skipped.join('; ')}` : null);
     } catch (e) {
@@ -55,7 +57,7 @@ export function useModeSave({ setSelected, setExplicit, setPipelineOrder, setUse
   }, [setSelected, setExplicit, setPipelineOrder, setUsePipelineOrder]);
 
   const clearOverride = useCallback(async (activeTab) => {
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setStaleAgents([]);
     try {
       const extra = activeTab === 'pipeline' ? { order: null } : {};
       const res = await setModeAgents(activeTab, [], extra);

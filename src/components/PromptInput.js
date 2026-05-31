@@ -62,7 +62,7 @@ function PromptInput({
   }, [prompt]);
 
   const onPromptConsumedRef = useRef(onPromptConsumed);
-  useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; });
+  useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; }, [onPromptConsumed]);
 
   useEffect(() => {
     if (externalPrompt !== undefined && externalPrompt !== null) {

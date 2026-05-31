@@ -53,6 +53,9 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
       setEditedCode(event.target.result);
       setIsEditable(true); // Auto-enable edit mode when a file is loaded
     };
+    reader.onerror = () => {
+      console.error('[CodeDisplay] FileReader failed to read:', file.name);
+    };
     reader.readAsText(file);
   };
 
