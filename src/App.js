@@ -173,6 +173,7 @@ function App() {
     activeMode,
     kvReadings,
     kvFetchFailed,
+    hostMemory,
     responses,
     agentErrors,
     finalAnswer,
@@ -230,7 +231,7 @@ function App() {
     onUseRagChange: setUseRag,
     onExpandProgrammer: handleExpandProgrammer,
   }), [
-    online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
+    online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed, hostMemory,
     responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
     currentSession, backend, switchBackend, showConfig, showHistory, showConfigPanel,
     deployPending, showHelp, showConverter, showRagAdmin, showCachePanel, cacheStatus,

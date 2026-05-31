@@ -46,7 +46,9 @@ export function riskBandLabel(band) {
 
 // computeRiskEstimate — groups selected roles by (engine, model, server_group),
 // estimates KV cache GB, and returns a band + per-group breakdown for rendering.
-export function computeRiskEstimate(roles, selected, roleModels, models) {
+// hostMemory (optional): live snapshot from GET /api/memory.  When present, the
+// base RAM figure uses the actual used_gb rather than the static model constant.
+export function computeRiskEstimate(roles, selected, roleModels, models, hostMemory = null) {
   const groups = {};
   let readyAgents = 0;
 
@@ -107,8 +109,18 @@ export function computeRiskEstimate(roles, selected, roleModels, models) {
   });
 
   const totalKvGb   = computed.reduce((sum, g) => sum + g.kvGb, 0);
-  const totalRamGb  = RAM_MODEL_GB + RAM_OS_GB + totalKvGb + mlxModelRamGb;
+
+  // When a live host snapshot is available use it as the base RAM figure so
+  // the risk estimate reflects actual system pressure rather than static constants.
+  const liveUsedGb  = hostMemory?.ok && Number.isFinite(hostMemory.used_gb) ? hostMemory.used_gb : null;
+  const baseRamGb   = liveUsedGb !== null ? liveUsedGb : RAM_MODEL_GB + RAM_OS_GB;
+  const ramSource   = liveUsedGb !== null ? 'host' : 'estimate';
+
+  const totalRamGb  = baseRamGb + totalKvGb + mlxModelRamGb;
   const band        = getRiskBand(totalRamGb);
+
+  // Warn when live host RAM alone already exceeds the warn threshold, before KV is added.
+  const liveRamHigh = liveUsedGb !== null && liveUsedGb > RAM_WARN_GB;
 
   // Block if any group explicitly blocked, or if total RAM would OOM.
   const blockedGroups = [
@@ -121,10 +133,13 @@ export function computeRiskEstimate(roles, selected, roleModels, models) {
   return {
     groups: computed.sort((a, b) => b.kvGb - a.kvGb),
     readyAgents,
-    totalScore: totalRamGb,   // kept for API compat; now represents estimated GB
+    totalScore: totalRamGb,
     totalRamGb,
     totalKvGb,
     mlxModelRamGb,
+    liveUsedGb,
+    ramSource,
+    liveRamHigh,
     band,
     blockedGroups,
     warnGroups,
@@ -144,6 +159,12 @@ export function RiskCard({ riskEstimate, engine, isMixedBackends, activeBackends
         ~<strong>{e.totalRamGb != null ? e.totalRamGb.toFixed(1) : '—'}</strong> GB
         &nbsp;({RAM_TOTAL_GB}GB budget — warn at {RAM_WARN_GB}GB, block at {RAM_BLOCK_GB}GB)
       </div>
+      {e.liveUsedGb != null && (
+        <div className="swarm-risk-hint">
+          Live host RAM: <strong>{e.liveUsedGb.toFixed(1)} GB</strong> used&nbsp;
+          {e.liveRamHigh && <span style={{ color: 'var(--risk-high-color, #f87)' }}>⚠ already above warn threshold</span>}
+        </div>
+      )}
       {e.mlxModelRamGb > 0 && (
         <div className="swarm-risk-hint">
           Includes ~{e.mlxModelRamGb.toFixed(1)}GB MLX model weights in Metal memory

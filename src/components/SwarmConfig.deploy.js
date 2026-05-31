@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { configureSwarm, fetchLogs } from '../api/swarmApi';
 import { fetchConfigureStatus } from '../api/configApi';
+import { RAM_WARN_GB } from './SwarmConfig.risk';
 
 // useDeploy — encapsulates the launch flow's local state machine.
 //
@@ -80,9 +81,16 @@ export function useDeploy({ onDeployed }) {
       );
       return;
     }
+    if (riskEstimate.liveRamHigh && riskEstimate.band.id !== 'high') {
+      const ok = window.confirm(
+        `Live host RAM is already ${riskEstimate.liveUsedGb?.toFixed(1)} GB — above the ${RAM_WARN_GB} GB warn threshold. ` +
+        `Adding KV cache will increase pressure. Continue?`
+      );
+      if (!ok) return;
+    }
     if (riskEstimate.band.id === 'high') {
       const ok = window.confirm(
-        `Projected OOM risk is HIGH (score ${riskEstimate.totalScore.toFixed(1)}). Continue anyway?`
+        `Projected OOM risk is HIGH (~${riskEstimate.totalRamGb.toFixed(1)} GB). Continue anyway?`
       );
       if (!ok) return;
     }

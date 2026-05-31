@@ -18,7 +18,7 @@ import {
   getProfileRoles,
   chooseModelForRole,
 } from '../components/SwarmConfig.helpers';
-import { computeRiskEstimate } from '../components/SwarmConfig.risk';
+import { computeRiskEstimate, RAM_WARN_GB } from '../components/SwarmConfig.risk';
 import { useDeploy } from '../components/SwarmConfig.deploy';
 import useRagHealth from '../hooks/useRagHealth';
 import AgentPromptModal from '../components/AgentPromptModal';
@@ -136,7 +136,7 @@ function BrewRagTab({
 
 export default function BrewlateLayout({
   online, activeAgents, modes, activeMode,
-  kvReadings, kvFetchFailed,
+  kvReadings, kvFetchFailed, hostMemory,
   responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
   currentSession, backend, switchBackend,
   showHistory, showHelp, showConverter, showRagAdmin, showCachePanel,
@@ -207,11 +207,17 @@ export default function BrewlateLayout({
         const preselected = {};
         liveAgents.forEach(a => { if (a.model) preselected[a.name] = a.model; });
         setRoleModels(preselected);
-        setActiveProfile(liveAgents.length > 0 ? PROFILE_CUSTOM : PROFILE_SAFE);
+        // Auto-select SAFE when live host RAM is already above the warn threshold
+        // so users don't accidentally configure an OOM roster on a pressured machine.
+        const liveUsedGb = hostMemory?.ok && Number.isFinite(hostMemory.used_gb) ? hostMemory.used_gb : null;
+        const defaultProfile = liveUsedGb !== null && liveUsedGb > RAM_WARN_GB
+          ? PROFILE_SAFE
+          : (liveAgents.length > 0 ? PROFILE_CUSTOM : PROFILE_SAFE);
+        setActiveProfile(defaultProfile);
       })
       .catch(e => { if (!cancelled) setLoadError(e.message); });
     return () => { cancelled = true; };
-  }, [loadRetries]);
+  }, [loadRetries, hostMemory]);
 
   const engineModels = useMemo(
     () => models.filter(m => m.backend === engine),
@@ -300,7 +306,7 @@ export default function BrewlateLayout({
     reset();
   };
 
-  const riskEstimate = computeRiskEstimate(roles, selected, roleModels, models);
+  const riskEstimate = computeRiskEstimate(roles, selected, roleModels, models, hostMemory);
 
   let serverLayout = computeLayout(roles, selected, roleModels, models);
   if (engine === 'vllm') {
