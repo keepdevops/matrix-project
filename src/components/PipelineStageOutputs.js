@@ -5,8 +5,8 @@ export default function PipelineStageOutputs({ stageOutputs }) {
   return (
     <div className="final-answer-panel" style={{ marginTop: '0.75rem' }}>
       <div className="swarm-config-title">PIPELINE STAGE OUTPUTS</div>
-      {stageOutputs.map(stage => (
-        <details key={`${stage.step}-${stage.agent}`} style={{ marginTop: '0.4rem' }}>
+      {stageOutputs.map((stage, idx) => (
+        <details key={idx} style={{ marginTop: '0.4rem' }}>
           <summary>{stage.step}. {stage.agent}</summary>
           <pre style={{ whiteSpace: 'pre-wrap', marginTop: '0.4rem' }}>{stage.output}</pre>
         </details>

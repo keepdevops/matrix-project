@@ -44,6 +44,11 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
       onError?.(null, msg);
       return;
     }
+    if (!res.body) {
+      console.error('[stream] response has no body');
+      onError?.(null, 'stream response has no body');
+      return;
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -138,6 +143,11 @@ export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, call
       const msg = await res.text().catch(() => `HTTP ${res.status}`);
       console.error('[mlx-stream] non-ok response:', msg);
       onError?.(null, msg);
+      return;
+    }
+    if (!res.body) {
+      console.error('[mlx-stream] response has no body');
+      onError?.(null, 'stream response has no body');
       return;
     }
 
