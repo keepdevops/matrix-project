@@ -13,6 +13,7 @@ struct MatrixEnv {
     std::string matrix_slots_dir;
     int proxy_port = 3002;
     int coordinator_port = 8000;
+    int python_coord_port = 3003;
 };
 
 extern MatrixEnv g_env;
