@@ -66,6 +66,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_core.cpp" \
    "$CPP_SRC/coordinator_routes_dispatch.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream.cpp" \
+   "$CPP_SRC/coordinator_routes_architect_stream_modes.cpp" \
    "$CPP_SRC/coordinator_routes_architect_synthesis.cpp" \
    "$CPP_SRC/coordinator_routes_architect_persist.cpp" \
    "$CPP_SRC/coordinator_routes_filters.cpp" \
@@ -82,6 +83,8 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/agent_metrics.cpp" \
    "$CPP_SRC/agent_stream.cpp" \
    "$CPP_SRC/pressure_snapshot.cpp" \
+   "$CPP_SRC/pressure_snapshot_llama.cpp" \
+   "$CPP_SRC/pressure_snapshot_mlx.cpp" \
    "$CPP_SRC/host_memory.cpp" \
    "$CPP_SRC/pressure.cpp" \
    "$CPP_SRC/pressure_evict.cpp" \
@@ -108,6 +111,7 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy_file_io.cpp" \
   "$CPP_SRC/proxy_models_scan.cpp" \
   "$CPP_SRC/proxy_configure.cpp" \
+  "$CPP_SRC/proxy_configure_ports.cpp" \
   "$CPP_SRC/proxy_configure_spawn.cpp" \
   "$CPP_SRC/config/path_expand.cpp" \
   "$CPP_SRC/proxy_configure_health.cpp" \
