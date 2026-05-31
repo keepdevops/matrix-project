@@ -178,6 +178,11 @@ void register_proxy_routes(httplib::Server& svr, const std::string& proj_root) {
                 res.set_content(json{{"error", "'mode' required"}}.dump(), "application/json");
                 return;
             }
+            if (body.value("prompt", "").empty()) {
+                res.status = 400;
+                res.set_content(json{{"error", "'prompt' required"}}.dump(), "application/json");
+                return;
+            }
         } catch (const std::exception& e) {
             res.status = 400;
             res.set_content(json{{"error", e.what()}}.dump(), "application/json");
