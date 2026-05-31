@@ -182,6 +182,45 @@ void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st
     });
 
     // 10. CORS preflight
+    // Persist an orchestrate run into the shared history so it appears in
+    // the conversation thread alongside streaming runs.
+    // Body: { prompt, result, mode, session_id, wall_ms? }
+    svr.Post("/api/history/entry", [&st](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        try {
+            auto body = json::parse(req.body);
+            std::string prompt     = body.value("prompt", "");
+            std::string result     = body.value("result", "");
+            std::string mode       = body.value("mode", "");
+            std::string session_id = body.value("session_id", "");
+            if (prompt.empty()) {
+                res.status = 400;
+                res.set_content("{\"error\":\"prompt required\"}", "application/json");
+                return;
+            }
+            auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            json entry;
+            entry["prompt"]      = prompt;
+            entry["temperature"] = body.value("temperature", 0.2);
+            entry["timestamp"]   = now_ms;
+            entry["_final"]      = result;
+            entry["_mode"]       = mode;
+            entry["_session_id"] = session_id;
+            entry["_orchestrate"] = true;
+            {
+                std::lock_guard<std::mutex> lock(st.history_mutex);
+                st.history.push_back(entry);
+                coordinator_save_history(st);
+            }
+            res.set_content(json{{"ok", true}}.dump(), "application/json");
+        } catch (const std::exception& e) {
+            std::cerr << "[history/entry] " << e.what() << "\n";
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
     svr.Options(R"(/api/.*)", [&st](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");

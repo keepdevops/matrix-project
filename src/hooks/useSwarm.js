@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth, submitOrchestrateStream } from '../api/swarmApi';
+import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth, submitOrchestrateStream, saveOrchestrateHistory } from '../api/swarmApi';
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
@@ -82,6 +82,12 @@ export function useSwarm() {
               });
               setLoading(false);
               cancelRef.current = null;
+              saveOrchestrateHistory({
+                prompt,
+                result: resultText || '',
+                mode: opts.orchestrateMode,
+                sessionId: data?.session_id || '',
+              }).catch(() => {});
               resolve({ final: resultText, meta: data?.meta });
             },
             onError(agentId, message) {
