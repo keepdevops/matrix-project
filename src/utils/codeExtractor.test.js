@@ -16,6 +16,7 @@ import {
   parseFenceInfo,
   extractFilenameFromComments,
   formatFencesOnlyMarkdown,
+  hasExtractableCode,
   MIN_CODE_CHARS,
   parseMarkdownCodeBlock,
 } from './codeExtractor';
@@ -280,4 +281,9 @@ test('formatFencesOnlyMarkdown: strips prose', () => {
   const raw = 'Note:\n```js\nconst a=1;\n```\nDone.';
   expect(formatFencesOnlyMarkdown(raw)).not.toContain('Note:');
   expect(formatFencesOnlyMarkdown(raw)).toContain('const a=1');
+});
+
+test('hasExtractableCode: true when fence meets MIN_CODE_CHARS', () => {
+  expect(hasExtractableCode('```python\nprint("hi")\n```')).toBe(true);
+  expect(hasExtractableCode('no code')).toBe(false);
 });

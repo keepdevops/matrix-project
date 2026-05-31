@@ -37,10 +37,11 @@ describe('Prompts and code generation', () => {
     expect(stream).toMatch(/architect\/stream/);
     expect(stream).toMatch(/onToken/);
     expect(stream).toMatch(/eventName === 'token'/);
+    expect(stream).toMatch(/eventName === 'metrics'/);
   });
 
   it('handleSaveCode aggregates fenced code from agents', () => {
-    expect(submitHandlers).toMatch(/extractCodeBlock/);
+    expect(submitHandlers).toMatch(/buildCodeExport/);
     expect(submitHandlers).toMatch(/handleSaveCode/);
     expect(brew).toMatch(/onSaveCode=\{onSaveCode\}/);
     expect(brew).toMatch(/BrewCodeResultsPanel/);

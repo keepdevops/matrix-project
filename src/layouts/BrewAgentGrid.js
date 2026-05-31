@@ -3,7 +3,7 @@ import BrewAgentCard, { modelShortName } from './BrewAgentCard';
 import AgentMarkdown from '../components/AgentMarkdown';
 import CodeOutputPanel from '../components/CodeOutputPanel';
 import { SkeletonAgentCard } from '../components/Skeleton';
-import { extractCodeBlock } from '../utils/codeExtractor';
+import { extractCodeBlock, hasExtractableCode } from '../utils/codeExtractor';
 import BrewAgentPopout from './BrewAgentPopout';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
@@ -77,6 +77,7 @@ function BrewAgentGrid({
         pickable={isPickable}
         onClick={isPickable ? () => onPickFlatAgent(name) : undefined}
         className="brew-agent-card--runtime"
+        hasCode={hasExtractableCode(response)}
       >
         {err ? (
           <div className="brew-agent-response brew-agent-response--error">

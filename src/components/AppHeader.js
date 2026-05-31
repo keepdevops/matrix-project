@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ModeSelector from './ModeSelector';
 import KvPressureGauge from './KvPressureGauge';
+import MemoryPressureBadge from './MemoryPressureBadge';
 import { LAYOUTS, THEMES } from '../layouts/registry';
 import Button from './Button';
 
@@ -25,6 +26,7 @@ export default function AppHeader({
   layout,
   historyCount,
   warningsByMode,
+  memoryPressure,
   onModeChange,
   onClearCache,
   onToggleConfig,
@@ -63,6 +65,7 @@ export default function AppHeader({
           warningsByMode={warningsByMode}
         />
         <KvPressureGauge online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
+        <MemoryPressureBadge pressure={memoryPressure} />
         <Button
           variant={cacheStatus === 'clearing' ? 'outline-warn' : cacheStatus === 'cleared' ? 'outline-primary' : cacheStatus === 'failed' ? 'outline-error' : 'outline-accent'}
           size="sm"

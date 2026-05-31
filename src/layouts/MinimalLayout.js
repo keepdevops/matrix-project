@@ -27,7 +27,7 @@ export default function MinimalLayout({
   showConfig, showHistory, showConfigPanel, deployPending,
   showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, pendingPrompt,
-  flatPickAgent, excludedBreaker, stageOutputs,
+  flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, memoryPressure,
   theme, layout, onSetTheme, onSetLayout,
   onModeChange, onClearCache,
   onToggleConfig, onToggleHistory,
@@ -66,6 +66,8 @@ export default function MinimalLayout({
         onOpenHelp={onOpenHelp}
         onSetTheme={onSetTheme}
         onSetLayout={onSetLayout}
+        warningsByMode={warningsByMode}
+        memoryPressure={memoryPressure}
       />
 
       <div className="ml-body">

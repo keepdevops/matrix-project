@@ -3,7 +3,7 @@ import AgentResponse from './AgentResponse';
 import CodeOutputPanel from './CodeOutputPanel';
 import { SkeletonAgentCard } from './Skeleton';
 import { getAgentColor } from '../utils/agentColors';
-import { extractCodeBlock } from '../utils/codeExtractor';
+import { extractCodeBlock, hasExtractableCode } from '../utils/codeExtractor';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 const modelDisplayName = (m) => {
@@ -13,6 +13,7 @@ const modelDisplayName = (m) => {
 };
 
 function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
+                     onExpandProgrammer = null,
                      flatPickMode = false, pickedFlatAgent = null, onPickFlatAgent = null,
                      agentErrors = {} }) {
   // Show skeleton cards while the first submission is in flight (no responses yet).
@@ -46,6 +47,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
         pickable={isPickable}
         onPick={isPickable ? () => onPickFlatAgent(name) : null}
         agentError={agentErrors[name] || null}
+        hasCode={hasExtractableCode(responses[name])}
       />
     );
   }, [responses, loading, timings, flatPickMode, pickedFlatAgent, onPickFlatAgent, agentErrors]);
@@ -64,6 +66,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
             sourceText={programmerResp || ''}
             loading={loading}
             onSaveCode={onSaveCode}
+            onExpandProgrammer={onExpandProgrammer}
             showSave={hasAnyCode}
             frameClassName="editor-frame"
             editorHeight="min(42vh, 420px)"

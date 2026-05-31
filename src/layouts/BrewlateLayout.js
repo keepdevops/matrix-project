@@ -141,7 +141,7 @@ export default function BrewlateLayout({
   currentSession, backend, switchBackend,
   showHistory, showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, flatPickAgent, excludedBreaker, stageOutputs,
-  warningsByMode, theme, layout: currentLayout,
+  warningsByMode, memoryPressure, theme, layout: currentLayout,
   pendingPrompt, selectedPrompt, selectedTemperature,
   onModeChange, onClearCache, onToggleHistory,
   onOpenConverter, onOpenRagAdmin, onOpenCachePanel, onOpenHelp,
@@ -150,6 +150,7 @@ export default function BrewlateLayout({
   onHistorySelect, onSubmit, onQualityPass, onPromptConsumed,
   onFollowUp, onClearSession, onSwitchSession,
   onSaveCode, onPickFlatAgent, onSendBestContinue, onUseRagChange,
+  onExpandProgrammer,
 }) {
   const [roles, setRoles]               = useState([]);
   const [models, setModels]             = useState([]);
@@ -344,6 +345,7 @@ export default function BrewlateLayout({
         warningsByMode={warningsByMode}
         kvReadings={kvReadings}
         kvFetchFailed={kvFetchFailed}
+        memoryPressure={memoryPressure}
         cacheStatus={cacheStatus}
         historyCount={history.length}
         deployed={deployed}
@@ -675,6 +677,7 @@ export default function BrewlateLayout({
                       activeAgents={activeAgents}
                       loading={loading}
                       onSaveCode={onSaveCode}
+                      onExpandProgrammer={onExpandProgrammer}
                     />
                     <RagSources rag={lastMeta?.rag} />
                     {lastMeta && (

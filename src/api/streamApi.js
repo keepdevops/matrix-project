@@ -2,11 +2,13 @@ import { API_BASE, MLX_API_BASE, normalizeArchitectResponse } from './base';
 
 /**
  * Submit a prompt via SSE streaming. Calls back on each event as agents respond.
- * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError }
+ * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError }
  * Returns a cancel function.
  */
 export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
-  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession } = callbacks;
+  const {
+    onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession,
+  } = callbacks;
   const controller = new AbortController();
 
   const body = { prompt, temperature };
@@ -65,6 +67,7 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
       else if (eventName === 'stage') onStage?.(data);
       else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent);
       else if (eventName === 'session') onSession?.(data);
+      else if (eventName === 'metrics') onMetrics?.(data);
       else if (eventName === 'done') fireOnce();
       else if (eventName === 'error') {
         console.error('[stream] agent error:', data);
@@ -104,10 +107,12 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
 /**
  * Submit a prompt to the Python MLX coordinator via SSE streaming.
  * Drop-in replacement for submitPromptStream when backend="mlx".
- * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession }
+ * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession }
  */
 export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
-  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession } = callbacks;
+  const {
+    onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession,
+  } = callbacks;
   const controller = new AbortController();
 
   const body = { prompt, temperature };
@@ -180,6 +185,7 @@ export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, call
           else if (eventName === 'stage') onStage?.(data);
           else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent_id ?? data.agent);
           else if (eventName === 'session') onSession?.(data);
+          else if (eventName === 'metrics') onMetrics?.(data);
           else if (eventName === 'done') fireOnce();
           else if (eventName === 'error') {
             console.error('[mlx-stream] error:', data);
