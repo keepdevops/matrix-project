@@ -18,6 +18,9 @@ import importlib.util
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 
+if not (SCRIPTS / "matrixctl").is_file():
+    pytest.skip("scripts/matrixctl removed — see tests/test_brewctl_rag.py", allow_module_level=True)
+
 # matrixctl has no .py extension; load it by file path.
 # Stub heavy orchestration imports before the module executes.
 _stub_rag = MagicMock()
@@ -75,7 +78,11 @@ def test_pick_embedder_unknown_raises_value_error():
 # ---------------------------------------------------------------------------
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 def test_index_includes_python_files(tmp_path):
