@@ -22,6 +22,7 @@ from orchestration.modes.base import ModeContext
 from orchestration.modes.critic_debate import CriticDebateMode
 from orchestration.modes.map_reduce import MapReduceMode
 from orchestration.modes.speculative import SpeculativeMode
+from orchestration.modes.tree_of_thought import TreeOfThoughtMode
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ async def _fetch_rag_chunks(query: str, k: int = 3) -> list[dict[str, Any]]:
         logger.error("rag retrieve failed (non-fatal): %s", exc)
         return []
 
-_PYTHON_MODES = {m.mode_id: m for m in [MapReduceMode(), SpeculativeMode(), CriticDebateMode()]}
+_PYTHON_MODES = {m.mode_id: m for m in [MapReduceMode(), SpeculativeMode(), CriticDebateMode(), TreeOfThoughtMode()]}
 
 
 async def handle_orchestrate(request: web.Request) -> web.Response:
