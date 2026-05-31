@@ -88,4 +88,5 @@ void matrix_env_init(const std::string& project_root) {
 
     g_env.proxy_port = getenv_int("MATRIX_PROXY_PORT", 3002);
     g_env.coordinator_port = getenv_int("MATRIX_COORDINATOR_PORT", 8000);
+    g_env.python_coord_port = getenv_int("MLX_COORD_PORT", 3003);
 }

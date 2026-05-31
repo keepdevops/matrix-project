@@ -33,6 +33,7 @@ from orchestration.modes.cascade import CascadeMode
 from orchestration.modes.flat import FlatMode
 from orchestration.modes.pipeline import PipelineMode
 from orchestration.mlx_coordinator.backend import MlxBackend, get_pressure
+from orchestration.mlx_coordinator.service_orchestrate import register_orchestrate_routes
 from orchestration.mlx_coordinator.session import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -288,6 +289,7 @@ def make_app() -> web.Application:
     app.router.add_post("/api/mlx/modes/active", handle_set_mode)
     app.router.add_post("/api/mlx/session/clear", handle_session_clear)
     app.router.add_get("/api/mlx/pressure", handle_pressure)
+    register_orchestrate_routes(app)
     return app
 
 

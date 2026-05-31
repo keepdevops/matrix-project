@@ -164,6 +164,40 @@ void register_proxy_routes(httplib::Server& svr, const std::string& proj_root) {
         }
     });
 
+    // Forward Python-backend orchestration modes to the MLX coordinator sidecar.
+    // The body must include "mode" (a Python-side mode_id) and "prompt".
+    // Returns blocking JSON {result, session_id, mode, meta}; SSE streaming is MS-25-2.
+    svr.Post("/api/orchestrate", [&cors](const httplib::Request& req, httplib::Response& res) {
+        cors(res);
+        try {
+            auto body = json::parse(req.body);
+            std::string mode = body.value("mode", "");
+            if (mode.empty()) {
+                res.status = 400;
+                res.set_content(json{{"error", "'mode' required"}}.dump(), "application/json");
+                return;
+            }
+            httplib::Client py_coord("127.0.0.1", g_env.python_coord_port);
+            py_coord.set_connection_timeout(5);
+            py_coord.set_read_timeout(300);
+            auto r = py_coord.Post("/api/orchestrate", req.body, "application/json");
+            if (r) {
+                res.status = r->status;
+                std::string ct = r->get_header_value("Content-Type");
+                res.set_content(r->body, ct.empty() ? "application/json" : ct.c_str());
+            } else {
+                res.status = 503;
+                res.set_content(
+                    json{{"error", "Python coordinator offline — run: brewctl launch"}}.dump(),
+                    "application/json");
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[/api/orchestrate] " << e.what() << "\n";
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
     auto fwd = [&cors](const httplib::Request& req, httplib::Response& res) {
         cors(res);
         httplib::Client coord("127.0.0.1", g_env.coordinator_port);
