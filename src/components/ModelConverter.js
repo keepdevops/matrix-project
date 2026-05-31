@@ -166,13 +166,20 @@ function ConvertRow({ model, onDone }) {
 }
 
 export default function ModelConverter({ models: modelsProp, onConversionDone, standalone }) {
-  const [models, setModels]   = useState(modelsProp || []);
-  const [loading, setLoading] = useState(standalone && !modelsProp);
+  const [models, setModels]     = useState(modelsProp || []);
+  const [loading, setLoading]   = useState(standalone && !modelsProp);
+  const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
     if (!standalone) return;
     setLoading(true);
-    fetchModels().then(m => { setModels(m); setLoading(false); }).catch(() => setLoading(false));
+    setFetchError('');
+    fetchModels()
+      .then(m => { setModels(m); setLoading(false); })
+      .catch(() => {
+        setLoading(false);
+        setFetchError('Failed to load models — is the coordinator running?');
+      });
   }, [standalone]);
 
   const handleDone = () => {
@@ -195,6 +202,7 @@ export default function ModelConverter({ models: modelsProp, onConversionDone, s
           Weights are downloaded from HuggingFace and saved to the local MLX model directory.
         </p>
         {loading && <p style={{ color: '#555', fontSize: '0.8rem' }}>Scanning models…</p>}
+        {fetchError && <p style={{ color: 'var(--brew-error, #e55)', fontSize: '0.8rem' }}>{fetchError}</p>}
         {!loading && ggufModels.length === 0 && (
           <p style={{ color: '#555', fontSize: '0.8rem' }}>No GGUF models found in model directory.</p>
         )}

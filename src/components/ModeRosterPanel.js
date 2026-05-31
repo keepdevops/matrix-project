@@ -28,7 +28,10 @@ export default function ModeRosterPanel() {
     setSelected, setExplicit, setPipelineOrder, setUsePipelineOrder,
   });
 
+  const [loadError, setLoadError] = useState('');
+
   const loadModes = useCallback(async () => {
+    setLoadError('');
     try {
       const [m, a] = await Promise.all([fetchModes(), fetchAgents()]);
       setModes(m);
@@ -36,6 +39,7 @@ export default function ModeRosterPanel() {
       setActiveTab(prev => prev || (m.find(x => x.active) || m[0])?.name || null);
     } catch (e) {
       console.error('[ModeRosterPanel] loadModes failed:', e);
+      setLoadError('Failed to load modes — is the coordinator running?');
     }
   }, []);
 
@@ -98,7 +102,7 @@ export default function ModeRosterPanel() {
       <div className="swarm-config-section" style={{ padding: '0.75rem' }}>
         <div className="swarm-config-title">PER-MODE ROSTER</div>
         <div style={{ opacity: 0.7, fontSize: '0.85rem' }}>
-          {error ? `Error: ${error}` : 'Loading modes…'}
+          {loadError || (error ? `Error: ${error}` : 'Loading modes…')}
         </div>
       </div>
     );
