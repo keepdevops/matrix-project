@@ -12,7 +12,7 @@ function read(rel) {
 }
 
 describe('Prompts and code generation', () => {
-  const brew = read('layouts/BrewlateLayout.js');
+  const brew = read('layouts/BrewlateLayout.js') + ['layouts/useBrewConfig.js','layouts/BrewConfigPanel.js','layouts/BrewSessionTab.js','layouts/BrewAgentsTab.js','layouts/BrewBroadcastTab.js','layouts/BrewRagTab.js'].map(f => read(f)).join('\n');
   const classic = read('layouts/DefaultLayout.js');
   const prompt = read('components/PromptInput.js');
   const stream = read('api/streamApi.js');
