@@ -1,15 +1,14 @@
 #include "mode.h"
+#include "pipeline_order.h"
 #include "pipeline_prompts.h"
 #include "../agent_client.h"
 #include "../mode_module.h"
 #include "../synthesis_budget.h"
 #include "../synthesis_tiered.h"
 
-#include <algorithm>
 #include <iostream>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -17,32 +16,6 @@ using json = nlohmann::json;
 
 namespace {
 
-
-std::vector<std::string> default_pipeline_order(const std::vector<Agent>& agents) {
-    if (agents.empty()) return {};
-
-    // Build a pipeline from tag-grouped roles: planning → coding → review.
-    auto planners = mode_module::agents_with_tag(agents, "planning");
-    auto coders   = mode_module::agents_with_tag(agents, "coding");
-    auto checkers = mode_module::agents_with_tag(agents, "review");
-
-    std::vector<std::string> out;
-    auto push_first = [&](const std::vector<std::string>& xs) {
-        if (!xs.empty()) out.push_back(xs.front());
-    };
-    push_first(planners);
-    push_first(coders);
-    push_first(checkers);
-
-    if (!out.empty()) return out;
-
-    // Final fallback: first two active agents in config order.
-    out.push_back(agents.front().name);
-    if (agents.size() > 1) out.push_back(agents[1].name);
-    return out;
-}
-
-// Sequential chain: each stage feeds the next. Order comes from mode_config.
 json run_pipeline(const ModeContext& ctx) {
     json agent_outputs = json::object();
     json meta = mode_module::module_meta("pipeline", ctx.mode_config);
@@ -55,94 +28,19 @@ json run_pipeline(const ModeContext& ctx) {
             : 24000;
     json stage_compaction = json::array();
 
-    std::vector<std::string> effective_order;
-    bool fallback_order_used = false;
-    if (ctx.mode_config.contains("order") && ctx.mode_config["order"].is_array()
-        && !ctx.mode_config["order"].empty()) {
-        for (const auto& item : ctx.mode_config["order"]) {
-            if (item.is_string()) effective_order.push_back(item.get<std::string>());
-        }
-    }
-    // If a synthesizer is configured, it runs as a final reducer — exclude it
-    // from chain construction so it doesn't double-execute as a regular stage.
     std::string synth_name_for_filter;
     if (ctx.mode_config.contains("synthesizer")
         && ctx.mode_config["synthesizer"].is_string()) {
         synth_name_for_filter = ctx.mode_config["synthesizer"].get<std::string>();
     }
-    if (effective_order.empty()
-        && ctx.mode_config.contains("agents")
-        && ctx.mode_config["agents"].is_array()
-        && !ctx.mode_config["agents"].empty()) {
-        for (const auto& item : ctx.mode_config["agents"]) {
-            if (!item.is_string()) continue;
-            const std::string name = item.get<std::string>();
-            if (name == synth_name_for_filter) continue;
-            effective_order.push_back(name);
-        }
-    }
-    if (effective_order.empty() && !preset.empty()) {
-        effective_order = mode_module::pipeline_preset_order(preset, ctx.agents);
-    }
-    if (effective_order.empty()) {
-        // Roster-driven fallback: run EVERY active agent, with planning first,
-        // then coding, then review, then any remaining roles (data, synthesis, etc.).
-        std::unordered_set<std::string> emitted;
-        const std::vector<std::string> tag_order = {"planning", "coding", "review", "data", "synthesis"};
-        for (const auto& tag : tag_order) {
-            for (const auto& name : mode_module::agents_with_tag(ctx.agents, tag)) {
-                if (name == synth_name_for_filter) continue;
-                if (emitted.insert(name).second) effective_order.push_back(name);
-            }
-        }
-        // Append any remaining agents not covered by known tags.
-        for (const auto& a : ctx.agents) {
-            if (a.name == synth_name_for_filter) continue;
-            if (emitted.insert(a.name).second) effective_order.push_back(a.name);
-        }
-        fallback_order_used = true;
-        std::cerr << "⚠️  [pipeline] roster-driven fallback: " << effective_order.size()
-                  << " active agent(s) chained" << std::endl;
-    }
+
+    auto resolved = pipeline_order::resolve_effective_order(ctx, synth_name_for_filter);
+    std::vector<std::string> effective_order = std::move(resolved.order);
+    const bool fallback_order_used = resolved.fallback_order_used;
+    const json substituted = resolved.substitutions;
 
     std::unordered_map<std::string, const Agent*> by_name;
     for (const auto& a : ctx.agents) by_name[a.name] = &a;
-
-    // Role substitution: when a configured order names an agent that isn't active,
-    // find the first active agent with the same tags before silently skipping.
-    std::unordered_map<std::string, std::string> substituted;
-    std::vector<std::string> resolved_order;
-    std::unordered_set<std::string> already_in_order(effective_order.begin(),
-                                                     effective_order.end());
-    std::unordered_set<std::string> seen_resolved;
-    for (const auto& name : effective_order) {
-        if (by_name.count(name)) {
-            if (seen_resolved.insert(name).second) resolved_order.push_back(name);
-            continue;
-        }
-        // Find the missing agent's tags from the full ctx.agents list (it may be
-        // unconfigured for this run). Fall back to first same-tag active agent.
-        std::vector<std::string> missing_tags;
-        for (const auto& a : ctx.agents)
-            if (a.name == name) { missing_tags = a.tags; break; }
-        std::string sub;
-        for (const auto& tag : missing_tags) {
-            for (const auto& cand : mode_module::agents_with_tag(ctx.agents, tag)) {
-                if (by_name.count(cand) && !already_in_order.count(cand)) {
-                    sub = cand; break;
-                }
-            }
-            if (!sub.empty()) break;
-        }
-        if (!sub.empty()) {
-            substituted[name] = sub;
-            already_in_order.insert(sub);
-            if (seen_resolved.insert(sub).second) resolved_order.push_back(sub);
-            std::cerr << "⚠️  [pipeline] substituting missing '" << name
-                      << "' with active '" << sub << "'" << std::endl;
-        }
-    }
-    effective_order.swap(resolved_order);
 
     std::vector<std::string> executed;
     std::vector<std::string> missing;
@@ -162,7 +60,6 @@ json run_pipeline(const ModeContext& ctx) {
             missing.push_back(name);
             continue;
         }
-        // Quality pass: only execute the target stage; skip all others.
         if (ctx.quality_pass && name != ctx.quality_pass_target) {
             std::cout << "⏭️  [pipeline] quality_pass: skipping stage '" << name << "'" << std::endl;
             continue;
@@ -201,16 +98,11 @@ json run_pipeline(const ModeContext& ctx) {
             {"output", result}
         });
 
-        // Skip-with-warning: a failed stage is recorded in meta.errors[] but
-        // does NOT poison downstream stages — they continue from the last
-        // successful output. Without this, one transient timeout cascades
-        // garbage through the rest of the chain.
         if (modes::is_error_response(result, name)) {
             std::cerr << "❌ [pipeline] step " << step << " (" << name
                       << ") failed; downstream stages will use the last good output" << std::endl;
             errors.push_back({{"step", (int)step}, {"agent", name},
                               {"detail", result.substr(0, 200)}});
-            // Leave prev_agent/prev_output/final_output unchanged.
         } else {
             prev_agent = name;
             prev_output = result;
@@ -219,7 +111,6 @@ json run_pipeline(const ModeContext& ctx) {
     }
 
     if (executed.empty()) {
-        // Last-resort fallback: run first active agent so mode always produces output.
         if (!ctx.agents.empty()) {
             const Agent& a0 = ctx.agents.front();
             std::cerr << "⚠️  [pipeline] no configured agents matched; falling back to "
@@ -252,10 +143,6 @@ json run_pipeline(const ModeContext& ctx) {
 
     std::cout << "✅ [pipeline] final from " << prev_agent << std::endl;
 
-    // Optional synthesis stage: if mode_config["synthesizer"] names an active
-    // agent, run it as a reducer over ALL stage outputs and use its result as
-    // the canonical final answer. Without this, only the last agent's output
-    // becomes `final` and earlier work is invisible to downstream callers.
     std::string synthesizer_name;
     if (ctx.mode_config.contains("synthesizer")
         && ctx.mode_config["synthesizer"].is_string()) {
