@@ -1,9 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import BrewAgentCard, { modelShortName } from './BrewAgentCard';
 import AgentMarkdown from '../components/AgentMarkdown';
 import CodeDisplay from '../components/CodeDisplay';
 import { SkeletonAgentCard } from '../components/Skeleton';
 import { extractCodeBlock } from '../utils/codeExtractor';
+import BrewAgentPopout from './BrewAgentPopout';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 
@@ -37,6 +38,7 @@ function BrewAgentGrid({
   compact = false,
 }) {
   const isInitialLoad = loading && Object.keys(responses).length === 0;
+  const [popout, setPopout] = useState(null);
 
   const renderCard = useCallback((agent) => {
     const { name, model } = agent;
@@ -66,6 +68,13 @@ function BrewAgentGrid({
           <div className="brew-agent-response brew-agent-response--error">
             <span className="brew-agent-response-error-icon">✕</span>
             {err}
+            <button
+              type="button"
+              className="brew-agent-card-edit"
+              style={{ marginLeft: 'auto', flexShrink: 0 }}
+              onClick={e => { e.stopPropagation(); setPopout({ name, model: modelShortName(model), meta, response: null, error: err, code: null, language: null }); }}
+              title="Popout"
+            >⤢</button>
           </div>
         ) : loading && !response ? (
           <div className="brew-agent-response brew-agent-response--loading">
@@ -75,8 +84,15 @@ function BrewAgentGrid({
           </div>
         ) : response ? (
           <>
-            <div className="brew-agent-response">
+            <div className="brew-agent-response" style={{ position: 'relative' }}>
               <AgentMarkdown text={response} />
+              <button
+                type="button"
+                className="brew-agent-card-edit"
+                style={{ position: 'absolute', top: 0, right: 0 }}
+                onClick={e => { e.stopPropagation(); setPopout({ name, model: modelShortName(model), meta, response, error: null, code: hasCode ? code : null, language }); }}
+                title="Popout"
+              >⤢</button>
             </div>
             {hasCode && (
               <div className="brew-code-output-section">
@@ -99,11 +115,25 @@ function BrewAgentGrid({
   }, [responses, loading, timings, flatPickMode, pickedFlatAgent, onPickFlatAgent, agentErrors, rolesByName]);
 
   return (
-    <div className={`brew-agent-cards brew-agent-cards--runtime${compact ? ' brew-agent-cards--compact' : ''}`}>
-      {isInitialLoad
-        ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
-        : activeAgents.map(renderCard)}
-    </div>
+    <>
+      <div className={`brew-agent-cards brew-agent-cards--runtime${compact ? ' brew-agent-cards--compact' : ''}`}>
+        {isInitialLoad
+          ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
+          : activeAgents.map(renderCard)}
+      </div>
+      {popout && (
+        <BrewAgentPopout
+          name={popout.name}
+          model={popout.model}
+          meta={popout.meta}
+          response={popout.response}
+          error={popout.error}
+          code={popout.code}
+          language={popout.language}
+          onClose={() => setPopout(null)}
+        />
+      )}
+    </>
   );
 }
 

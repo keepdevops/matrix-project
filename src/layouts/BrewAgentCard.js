@@ -17,8 +17,10 @@ export default function BrewAgentCard({
   selected = false,
   picked = false,
   pickable = false,
+  hasResult = false,
   onClick,
   onEdit,
+  onExpand,
   showModelSelect = false,
   models = [],
   onModelChange,
@@ -31,6 +33,7 @@ export default function BrewAgentCard({
     selected && 'selected',
     picked && 'picked',
     pickable && 'pickable',
+    hasResult && 'brew-agent-card--has-result',
     className,
   ].filter(Boolean).join(' ');
 
@@ -90,6 +93,14 @@ export default function BrewAgentCard({
           >
             Edit
           </button>
+        )}
+        {onExpand && (
+          <button
+            type="button"
+            className="brew-agent-card-edit brew-agent-card-expand"
+            onClick={e => { e.stopPropagation(); onExpand(e); }}
+            title="View result"
+          >⤢</button>
         )}
       </div>
 
