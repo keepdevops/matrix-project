@@ -6,6 +6,7 @@ from typing import AsyncIterator
 
 from backends.base import GenerateRequest
 from .base import Event, ModeContext, OrchestrationMode
+from ._helpers import rag_xml
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,13 @@ class CriticDebateMode(OrchestrationMode):
         gen_backend = ctx.backend_for(gen_id)
         critic_backend = ctx.backend_for(critic_id)
 
+        rag_block = rag_xml(ctx.params.get("rag_context") or [])
         current: str = ""
         critique: str = ""
         for round_idx in range(1, max_rounds + 1):
             gen_prompt = (
-                f"<system>{gen_cfg.system_prompt}</system>\n<query>{query}</query>\n"
+                f"<system>{gen_cfg.system_prompt}</system>\n{rag_block}"
+                f"<query>{query}</query>\n"
                 f"<prior_attempt>{current}</prior_attempt>\n"
                 f"<critique>{critique}</critique>"
             )
@@ -53,7 +56,7 @@ class CriticDebateMode(OrchestrationMode):
             yield Event(kind="agent_end", agent_id=gen_id)
 
             critic_prompt = (
-                f"<system>{critic_cfg.system_prompt}</system>\n"
+                f"<system>{critic_cfg.system_prompt}</system>\n{rag_block}"
                 f"<query>{query}</query>\n<proposal>{current}</proposal>\n"
                 f"<task>Reply with SHIP if acceptable, otherwise REWRITE followed by "
                 f"specific critiques.</task>"

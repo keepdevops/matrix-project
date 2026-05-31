@@ -80,7 +80,7 @@ async def handle_orchestrate(request: web.Request) -> web.Response:
 
     # For map_reduce with RAG enabled, retrieve top-k chunks and inject into params
     # so the mode can cite sources in each chunk prompt and the synthesizer output.
-    if mode_id == "map_reduce" and body.get("use_rag"):
+    if body.get("use_rag"):
         k = int(body.get("rag_top_k") or 3)
         rag_chunks = await _fetch_rag_chunks(prompt, k=k)
         if rag_chunks:
@@ -139,7 +139,7 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
     session_id = (body.get("session_id") or "").strip() or str(uuid.uuid4())
     params: dict[str, Any] = body.get("params") or {}
 
-    if mode_id == "map_reduce" and body.get("use_rag"):
+    if body.get("use_rag"):
         k = int(body.get("rag_top_k") or 3)
         rag_chunks = await _fetch_rag_chunks(prompt, k=k)
         if rag_chunks:
