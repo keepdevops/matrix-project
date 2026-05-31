@@ -1,12 +1,10 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
-#include "code_fence_normalize.h"
+#include "coordinator_routes_architect_synthesis.h"
+#include "coordinator_routes_architect_persist.h"
 #include "modes/pipeline_prompts.h"
 #include "modes/router_selected_parse.h"
 #include "session_store.h"
-#include "synthesis_budget.h"
-#include "synthesis_tiered.h"
-#include "utf8_sanitize.h"
 
 #include <chrono>
 #include <unordered_set>
@@ -42,7 +40,6 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
         if (req_session_id.empty()) req_session_id = session_new_id("sess");
         const std::string run_id = session_new_id("run");
 
-        // Build continuation prompt from session history when this is a follow-up.
         std::string effective_prompt = user_prompt;
         if (followup && !req_session_id.empty()) {
             std::lock_guard<std::mutex> lock(st.sessions_mutex);
@@ -70,19 +67,19 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
         auto cancel      = std::make_shared<std::atomic<bool>>(false);
         agent_metrics::reset();
 
-        auto session_id_snap     = std::make_shared<std::string>(req_session_id);
-        auto run_id_snap         = std::make_shared<std::string>(run_id);
-        auto parent_run_id_snap  = std::make_shared<std::string>(req_parent_run_id);
-        auto temperature_snap    = std::make_shared<double>(temperature);
-        auto user_prompt_snap    = std::make_shared<std::string>(user_prompt);
+        auto session_id_snap    = std::make_shared<std::string>(req_session_id);
+        auto run_id_snap        = std::make_shared<std::string>(run_id);
+        auto parent_run_id_snap = std::make_shared<std::string>(req_parent_run_id);
+        auto temperature_snap   = std::make_shared<double>(temperature);
+        auto user_prompt_snap   = std::make_shared<std::string>(user_prompt);
 
         res.set_chunked_content_provider("text/event-stream",
             [agents_snap, prompt_snap, user_prompt_snap, cfg_snap, mode_snap, cancel,
              session_id_snap, run_id_snap, parent_run_id_snap, temperature_snap, &st]
             (size_t /*offset*/, httplib::DataSink& sink) -> bool {
                 std::mutex sink_mu;
-                auto write_event = [&](const std::string& event,
-                                       const std::string& data_json) {
+                WriteEventFn write_event = [&](const std::string& event,
+                                               const std::string& data_json) {
                     std::lock_guard<std::mutex> lock(sink_mu);
                     if (!sink.is_writable()) { cancel->store(true); return; }
                     std::string frame = "event: " + event + "\ndata: "
@@ -100,10 +97,6 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                     if (a.name == synth_name) { synth_agent = &a; break; }
                 }
 
-                // Flush threshold: write a batched token event after this many
-                // chars accumulate. Keeps mutex acquisitions low (one per ~128
-                // bytes vs. one per token) while staying well below human
-                // reading speed for visible latency.
                 static constexpr size_t TOKEN_BATCH_BYTES = 128;
 
                 auto stream_parallel = [&](const std::vector<const Agent*>& parallel_agents,
@@ -116,14 +109,12 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                                               &write_event, &outputs, &out_mu]() {
                             std::string assembled;
                             std::string batch;
-
                             auto flush_batch = [&]() {
                                 if (batch.empty()) return;
-                                json payload = {{"agent", a->name}, {"delta", batch}};
-                                write_event("token", payload.dump());
+                                write_event("token",
+                                    json({{"agent", a->name}, {"delta", batch}}).dump());
                                 batch.clear();
                             };
-
                             auto on_chunk = [&](const std::string& delta) {
                                 assembled += delta;
                                 batch    += delta;
@@ -135,61 +126,25 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                                                            cancel.get());
                             } catch (const std::exception& e) {
                                 flush_batch();
-                                json err = {{"agent", a->name}, {"error", e.what()}};
-                                write_event("error", err.dump());
+                                write_event("error",
+                                    json({{"agent", a->name}, {"error", e.what()}}).dump());
                             }
-                            flush_batch(); // emit any remaining buffered tokens
+                            flush_batch();
                             {
                                 std::lock_guard<std::mutex> lk(out_mu);
                                 outputs[a->name] = assembled;
                             }
-                            json done = {{"agent", a->name}};
-                            write_event("agent_done", done.dump());
+                            write_event("agent_done",
+                                json({{"agent", a->name}}).dump());
                         });
                     }
                     for (auto& t : threads) t.join();
                 };
 
-                auto run_synthesis = [&](const std::vector<std::string>& contributors,
-                                         std::map<std::string, std::string>& outputs) {
-                    if (!synth_agent || contributors.empty()) return;
-                    std::vector<std::pair<std::string, std::string>> pairs;
-                    pairs.reserve(contributors.size());
-                    for (const auto& nm : contributors)
-                        pairs.push_back({nm, outputs[nm]});
-                    write_event("synthesis_start",
-                        json({{"agent", synth_agent->name}}).dump());
-                    if (synthesis_tiered::enabled_via_env()) {
-                        std::string final_text = synthesis_tiered::reduce_pairwise(
-                            *synth_agent, *prompt_snap, std::move(pairs),
-                            *mode_snap == "pipeline");
-                        final_text = sanitize_invalid_utf8(final_text);
-                        constexpr size_t kChunk = 120;
-                        for (size_t i = 0; i < final_text.size();) {
-                            size_t n = utf8_safe_prefix_len(final_text.substr(i), kChunk);
-                            if (n == 0) n = std::min(kChunk, final_text.size() - i);
-                            std::string delta = final_text.substr(i, n);
-                            json payload = {{"agent", synth_agent->name}, {"delta", delta}};
-                            write_event("token", payload.dump());
-                            i += n;
-                        }
-                    } else {
-                        std::string sp = synthesis_budget::build_stream_synthesis_prompt(
-                            *prompt_snap, pairs, synth_agent);
-                        auto on_chunk = [&](const std::string& delta) {
-                            json payload = {{"agent", synth_agent->name}, {"delta", delta}};
-                            write_event("token", payload.dump());
-                        };
-                        try {
-                            agent_stream::stream_agent(*synth_agent,
-                                synth_agent->system_prompt, sp, on_chunk, cancel.get());
-                        } catch (const std::exception& e) {
-                            write_event("error",
-                                json({{"agent", synth_agent->name}, {"error", e.what()}}).dump());
-                        }
-                    }
-                    write_event("agent_done",
-                        json({{"agent", synth_agent->name}}).dump());
+                auto do_synthesis = [&](const std::vector<std::string>& contributors,
+                                        std::map<std::string, std::string>& outputs) {
+                    run_stream_synthesis(synth_agent, *prompt_snap, *mode_snap,
+                                         contributors, outputs, cancel.get(), write_event);
                 };
 
                 std::map<std::string, std::string> outputs;
@@ -228,8 +183,8 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                         std::string assembled;
                         auto on_chunk = [&](const std::string& delta) {
                             assembled += delta;
-                            json payload = {{"agent", a->name}, {"delta", delta}};
-                            write_event("token", payload.dump());
+                            write_event("token",
+                                json({{"agent", a->name}, {"delta", delta}}).dump());
                         };
                         try {
                             agent_stream::stream_agent(*a, a->system_prompt,
@@ -245,7 +200,7 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                         write_event("agent_done",
                             json({{"agent", a->name}}).dump());
                     }
-                    run_synthesis(participants, outputs);
+                    do_synthesis(participants, outputs);
 
                 } else if (*mode_snap == "router") {
                     std::string classifier_name = cfg_snap->value("classifier", std::string(""));
@@ -301,49 +256,16 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                     }
                     stream_parallel(bcast, outputs);
                     if (*mode_snap == "cascade") {
-                        run_synthesis(participants, outputs);
+                        do_synthesis(participants, outputs);
                     }
                 }
 
                 json metrics = agent_metrics::snapshot();
                 write_event("metrics", metrics.dump());
 
-                // Persist history + session (mirrors coordinator_routes_dispatch.cpp).
-                {
-                    long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::system_clock::now().time_since_epoch()).count();
-                    json entry = json::object();
-                    for (const auto& [name, text] : outputs) entry[name] = text;
-                    entry["prompt"]      = *user_prompt_snap;
-                    entry["temperature"] = *temperature_snap;
-                    entry["timestamp"]   = ms;
-                    entry["_session_id"] = *session_id_snap;
-                    entry["_run_id"]     = *run_id_snap;
-                    entry["_mode"]       = *mode_snap;
-                    code_fence::normalize_agents_in_entry(entry);
-                    {
-                        std::lock_guard<std::mutex> lock(st.history_mutex);
-                        st.history.push_back(entry);
-                        coordinator_save_history(st);
-                    }
-                    {
-                        std::lock_guard<std::mutex> lock(st.sessions_mutex);
-                        json run = {
-                            {"run_id",        *run_id_snap},
-                            {"parent_run_id", *parent_run_id_snap},
-                            {"prompt",        *prompt_snap},
-                            {"mode",          *mode_snap},
-                            {"agents",        entry},
-                            {"timestamp",     ms}
-                        };
-                        session_append_run(st.sessions, *session_id_snap, run);
-                        coordinator_save_sessions(st);
-                    }
-                    write_event("session", json({
-                        {"session_id", *session_id_snap},
-                        {"run_id",     *run_id_snap}
-                    }).dump());
-                }
+                persist_stream_run(*user_prompt_snap, *temperature_snap, *mode_snap,
+                    *session_id_snap, *run_id_snap, *parent_run_id_snap,
+                    outputs, st, write_event);
 
                 {
                     std::lock_guard<std::mutex> lock(sink_mu);
