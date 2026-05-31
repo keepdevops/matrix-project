@@ -9,6 +9,7 @@ import {
 } from '../api/swarmApi';
 import { fetchModeAgents } from '../api/agentsApi';
 import { computeModeReadiness } from '../utils/modeReadiness';
+import { applyModeManifest } from '../utils/modeManifest';
 
 const KV_POLL_MS = 250;
 
@@ -51,8 +52,9 @@ export function useCoordinatorState(online) {
     fetchModes()
       .then(list => {
         if (!mountedRef.current) return;
-        const cur = list.find(m => m.active);
-        setModes(list);
+        const filtered = applyModeManifest(list);
+        const cur = filtered.find(m => m.active) || list.find(m => m.active);
+        setModes(filtered);
         if (cur) {
           setActiveModeState(cur.name);
           activeModeRef.current = cur.name;

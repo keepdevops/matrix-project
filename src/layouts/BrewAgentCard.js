@@ -26,6 +26,7 @@ export default function BrewAgentCard({
   checked = false,
   models = [],
   onModelChange,
+  hasCode = false,
   children,
   className = '',
 }) {
@@ -73,6 +74,7 @@ export default function BrewAgentCard({
           />
         )}
         <div className="brew-agent-card-name">{name}</div>
+        {hasCode && <span className="brew-code-badge" title="Fenced code available">CODE</span>}
       </div>
 
       {showModelSelect && models.length > 0 ? (

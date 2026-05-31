@@ -150,6 +150,7 @@ export default function BrewlateLayout({
   onHistorySelect, onSubmit, onQualityPass, onPromptConsumed,
   onFollowUp, onClearSession, onSwitchSession,
   onSaveCode, onPickFlatAgent, onSendBestContinue, onUseRagChange,
+  onExpandProgrammer,
 }) {
   const [roles, setRoles]               = useState([]);
   const [models, setModels]             = useState([]);
@@ -675,6 +676,7 @@ export default function BrewlateLayout({
                       activeAgents={activeAgents}
                       loading={loading}
                       onSaveCode={onSaveCode}
+                      onExpandProgrammer={onExpandProgrammer}
                     />
                     <RagSources rag={lastMeta?.rag} />
                     {lastMeta && (

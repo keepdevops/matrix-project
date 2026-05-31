@@ -6,7 +6,7 @@ import AgentMarkdown from './AgentMarkdown';
 const AgentResponse = React.memo(function AgentResponse({
   name, response, color = '#00ff41', loading = false, port, model, engine,
   tokenStats = null, picked = false, pickable = false, onPick = null,
-  agentError = null,
+  agentError = null, hasCode = false,
 }) {
   const [showModal, setShowModal] = useState(false);
 
@@ -37,6 +37,9 @@ const AgentResponse = React.memo(function AgentResponse({
           <span className={`agent-status ${getStatusClass()}`}>
             {getStatusText()}
           </span>
+          {hasCode && (
+            <span className="agent-code-badge" title="Fenced code available">CODE</span>
+          )}
           {response && (
             <Button
               variant="ghost"
