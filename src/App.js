@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import './App.css';
 import './styles/responsive.css';
 import './themes/light.css';
@@ -20,13 +20,13 @@ import { useSwarmPolling } from './hooks/useSwarmPolling';
 import { useSubmitHandlers } from './hooks/useSubmitHandlers';
 import { useSessionHandlers } from './hooks/useSessionHandlers';
 import { useMemoryPressure } from './hooks/useMemoryPressure';
-import { clearKvCache } from './api/swarmApi';
+import { useAppLayoutProps } from './hooks/useAppLayoutProps';
+import { useAppPanelHandlers } from './hooks/useAppPanelHandlers';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
 function App() {
   const showToast = useToast();
-  const prevError = useRef(null);
 
   const {
     responses, agentErrors, finalAnswer, loading, error, history, online,
@@ -103,146 +103,38 @@ function App() {
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
-  const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
-
-  const handleToggleConfig   = useCallback(() => { setShowConverter(false); setShowConfig(v => !v); }, []);
-  const handleToggleHistory  = useCallback(() => setShowHistory(v => !v), []);
-  const handleOpenConverter  = useCallback(() => setShowConverter(v => !v), []);
-  const handleOpenRagAdmin   = useCallback(() => setShowRagAdmin(true), []);
-  const handleOpenCachePanel = useCallback(() => setShowCachePanel(true), []);
-  const handleOpenHelp       = useCallback(() => setShowHelp(true), []);
-
-  const handleDeployed = useCallback(() => {
-    setShowConfig(false);
-    setDeployPending(true);
-    showToast('Swarm launching — waiting for health check…', 'info');
-    const pollId = setInterval(async () => {
-      const isOnline = await checkStatus();
-      if (!mountedRef.current) { clearInterval(pollId); return; }
-      if (isOnline) {
-        clearInterval(pollId);
-        setDeployPending(false);
-        refreshAgents();
-        loadHistory();
-        showToast('Swarm online', 'success');
-      }
-    }, 2000);
-    setTimeout(() => { if (mountedRef.current) { clearInterval(pollId); setDeployPending(false); } }, 90000);
-  }, [checkStatus, refreshAgents, loadHistory, showToast]);
-
-  const handleClearCache = useCallback(async () => {
-    setCacheStatus('clearing');
-    try {
-      await clearKvCache();
-      setCacheStatus('cleared');
-      showToast('KV cache cleared', 'success');
-    } catch {
-      setCacheStatus('failed');
-      showToast('Cache clear failed', 'error');
-    } finally {
-      setTimeout(() => setCacheStatus('idle'), 2000);
-    }
-  }, [showToast]);
-
-  useEffect(() => {
-    if (error && error !== prevError.current) {
-      const msg = error.includes('Coordinator offline')
-        ? 'Swarm not running — open CONFIGURE and launch the swarm.'
-        : `ERROR: ${error}`;
-      showToast(msg, 'error');
-    }
-    prevError.current = error;
-  }, [error, showToast]);
+  const {
+    handleToggleConfig, handleToggleHistory, handleOpenConverter,
+    handleOpenRagAdmin, handleOpenCachePanel, handleOpenHelp,
+    handleDeployed, handleClearCache, handleExpandProgrammer,
+  } = useAppPanelHandlers({
+    showToast, error, checkStatus, refreshAgents, loadHistory, handleSubmit,
+    setShowConfig, setShowHistory, setShowConverter, setShowRagAdmin,
+    setShowCachePanel, setShowHelp, setDeployPending, setCacheStatus,
+  });
 
   const excludedBreaker = lastMeta?.excluded_unhealthy || [];
   const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
 
-  const handleExpandProgrammer = useCallback((instruction) => handleSubmit(instruction, 0.2, {
-    followup: true,
-    contextPolicy: {
-      include: ['original_prompt', 'final', 'programmer'],
-      target_agent: 'programmer',
-      max_context_chars: 24000,
-    },
-  }), [handleSubmit]);
-
-  const layoutProps = useMemo(() => ({
-    online,
-    activeAgents,
-    modes,
-    activeMode,
-    kvReadings,
-    kvFetchFailed,
-    hostMemory,
-    responses,
-    agentErrors,
-    finalAnswer,
-    loading,
-    error,
-    history,
-    lastMeta,
-    currentSession,
-    backend,
-    switchBackend,
-    showConfig,
-    showHistory,
-    showConfigPanel,
-    deployPending,
-    showHelp,
-    showConverter,
-    showRagAdmin,
-    showCachePanel,
-    cacheStatus,
-    useRag,
-    flatPickAgent,
-    excludedBreaker,
-    stageOutputs,
-    warningsByMode: warningsByModeWithMemory,
-    memoryPressure,
-    theme,
-    layout,
-    pendingPrompt,
-    selectedPrompt,
-    selectedTemperature,
-    onModeChange: handleModeChange,
-    onClearCache: handleClearCache,
-    onToggleConfig: handleToggleConfig,
-    onToggleHistory: handleToggleHistory,
-    onOpenConverter: handleOpenConverter,
-    onOpenRagAdmin: handleOpenRagAdmin,
-    onOpenCachePanel: handleOpenCachePanel,
-    onOpenHelp: handleOpenHelp,
-    onCloseHelp: () => setShowHelp(false),
-    onCloseRagAdmin: () => setShowRagAdmin(false),
-    onCloseCachePanel: () => setShowCachePanel(false),
-    onSetTheme: setTheme,
-    onSetLayout: setLayout,
-    onDeployed: handleDeployed,
-    onHistorySelect: handleHistorySelect,
-    onSubmit: handleSubmit,
-    onQualityPass: handleQualityPass,
-    onPromptConsumed: () => setSelectedPrompt(null),
-    onFollowUp: handleFollowUp,
-    onClearSession: handleClearSession,
-    onSwitchSession: handleSwitchSession,
-    onSaveCode: handleSaveCode,
-    onPickFlatAgent: setFlatPickAgent,
-    onSendBestContinue: handleSendBestContinue,
-    onUseRagChange: setUseRag,
-    onExpandProgrammer: handleExpandProgrammer,
-  }), [
+  const layoutProps = useAppLayoutProps({
     online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed, hostMemory,
     responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
-    currentSession, backend, switchBackend, showConfig, showHistory, showConfigPanel,
-    deployPending, showHelp, showConverter, showRagAdmin, showCachePanel, cacheStatus,
-    useRag, flatPickAgent, excludedBreaker, stageOutputs, warningsByModeWithMemory, memoryPressure, theme, layout,
-    pendingPrompt, selectedPrompt, selectedTemperature, handleModeChange, handleClearCache,
-    handleToggleConfig, handleToggleHistory, handleOpenConverter, handleOpenRagAdmin,
-    handleOpenCachePanel, handleOpenHelp, setTheme, setLayout, handleDeployed,
-    handleHistorySelect, handleSubmit, handleQualityPass, handleFollowUp, handleClearSession,
-    handleSwitchSession, handleSaveCode, handleSendBestContinue, handleExpandProgrammer,
-  ]);
+    currentSession, backend, switchBackend,
+    showConfig, showHistory, showConfigPanel, deployPending,
+    showHelp, showConverter, showRagAdmin, showCachePanel, cacheStatus, useRag,
+    flatPickAgent, excludedBreaker, stageOutputs,
+    warningsByModeWithMemory, memoryPressure, theme, layout,
+    pendingPrompt, selectedPrompt, selectedTemperature,
+    handleModeChange, handleClearCache,
+    handleToggleConfig, handleToggleHistory, handleOpenConverter,
+    handleOpenRagAdmin, handleOpenCachePanel, handleOpenHelp,
+    setTheme, setLayout, handleDeployed,
+    handleHistorySelect, handleSubmit, handleQualityPass,
+    setSelectedPrompt, handleFollowUp, handleClearSession, handleSwitchSession,
+    handleSaveCode, setFlatPickAgent, handleSendBestContinue, setUseRag,
+    handleExpandProgrammer,
+    setShowHelp, setShowRagAdmin, setShowCachePanel,
+  });
 
   const Layout = LAYOUTS[layout]?.component ?? BrewlateLayout;
   return <Layout {...layoutProps} />;

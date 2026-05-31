@@ -1,4 +1,5 @@
 import { API_BASE, MLX_API_BASE, normalizeArchitectResponse } from './base';
+import { buildStreamBody, fetchSseStream, readSseStream } from './sseStreamReader';
 
 /**
  * Submit a prompt via SSE streaming. Calls back on each event as agents respond.
@@ -10,92 +11,35 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
     onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession,
   } = callbacks;
   const controller = new AbortController();
-
-  const body = { prompt, temperature };
-  if (opts.sessionId) body.session_id = opts.sessionId;
-  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
-  if (opts.followup) body.followup = true;
-  if (opts.qualityPass) body.quality_pass = true;
-  if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
-  if (opts.useRag) body.use_rag = true;
-  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
-  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore))
-    body.rag_min_score = opts.ragMinScore;
-  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
-    body.rag_agents = opts.ragAgents;
+  const body = buildStreamBody(prompt, temperature, opts);
 
   (async () => {
-    let res;
     try {
-      res = await fetch(`${API_BASE}/architect/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal,
+      const streamBody = await fetchSseStream(
+        `${API_BASE}/architect/stream`, body, controller.signal, '[stream]');
+      await readSseStream(streamBody, {
+        logPrefix: '[stream]',
+        onDone,
+        onReadError: (err) => onError?.(null, err.message),
+        dispatchEvent: (eventName, dataStr) => {
+          let data;
+          try { data = JSON.parse(dataStr); } catch { data = dataStr; }
+          if (eventName === 'token') onToken?.(data.agent, data.delta);
+          else if (eventName === 'agent_done') onAgentDone?.(data.agent);
+          else if (eventName === 'selected') onSelected?.(data);
+          else if (eventName === 'stage') onStage?.(data);
+          else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent);
+          else if (eventName === 'session') onSession?.(data);
+          else if (eventName === 'metrics') onMetrics?.(data);
+          else if (eventName === 'error') {
+            console.error('[stream] agent error:', data);
+            onError?.(data.agent, data.error);
+          }
+        },
       });
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('[stream] fetch failed:', err);
-        onError?.(null, err.message);
-      }
-      return;
-    }
-    if (!res.ok) {
-      const msg = await res.text().catch(() => `HTTP ${res.status}`);
-      console.error('[stream] non-ok response:', msg);
-      onError?.(null, msg);
-      return;
-    }
-    if (!res.body) {
-      console.error('[stream] response has no body');
-      onError?.(null, 'stream response has no body');
-      return;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-    let doneFired = false;
-    const fireOnce = () => { if (!doneFired) { doneFired = true; onDone?.(); } };
-
-    const dispatchEvent = (eventName, dataStr) => {
-      let data;
-      try { data = JSON.parse(dataStr); } catch { data = dataStr; }
-      if (eventName === 'token') onToken?.(data.agent, data.delta);
-      else if (eventName === 'agent_done') onAgentDone?.(data.agent);
-      else if (eventName === 'selected') onSelected?.(data);
-      else if (eventName === 'stage') onStage?.(data);
-      else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent);
-      else if (eventName === 'session') onSession?.(data);
-      else if (eventName === 'metrics') onMetrics?.(data);
-      else if (eventName === 'done') fireOnce();
-      else if (eventName === 'error') {
-        console.error('[stream] agent error:', data);
-        onError?.(data.agent, data.error);
-      }
-    };
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { fireOnce(); break; }
-        buf += decoder.decode(value, { stream: true });
-        const blocks = buf.split('\n\n');
-        buf = blocks.pop();
-        for (const block of blocks) {
-          if (!block.trim()) continue;
-          let eventName = 'message';
-          let dataStr = '';
-          for (const line of block.split('\n')) {
-            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
-            else if (line.startsWith('data: ')) dataStr = line.slice(6);
-          }
-          dispatchEvent(eventName, dataStr);
-        }
-      }
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('[stream] read error:', err);
         onError?.(null, err.message);
       }
     }
@@ -107,76 +51,24 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
 /**
  * Submit a prompt to the Python MLX coordinator via SSE streaming.
  * Drop-in replacement for submitPromptStream when backend="mlx".
- * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession }
  */
 export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
   const {
     onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession,
   } = callbacks;
   const controller = new AbortController();
-
-  const body = { prompt, temperature };
-  if (opts.sessionId) body.session_id = opts.sessionId;
-  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
-  if (opts.followup) body.followup = true;
-  if (opts.qualityPass) body.quality_pass = true;
-  if (opts.useRag) body.use_rag = true;
-  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
-  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore))
-    body.rag_min_score = opts.ragMinScore;
-  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
-    body.rag_agents = opts.ragAgents;
-  if (opts.params) body.params = opts.params;
+  const body = buildStreamBody(prompt, temperature, opts,
+    opts.params ? { params: opts.params } : {});
 
   (async () => {
-    let res;
     try {
-      res = await fetch(`${MLX_API_BASE}/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('[mlx-stream] fetch failed:', err);
-        onError?.(null, err.message);
-      }
-      return;
-    }
-    if (!res.ok) {
-      const msg = await res.text().catch(() => `HTTP ${res.status}`);
-      console.error('[mlx-stream] non-ok response:', msg);
-      onError?.(null, msg);
-      return;
-    }
-    if (!res.body) {
-      console.error('[mlx-stream] response has no body');
-      onError?.(null, 'stream response has no body');
-      return;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-    let doneFired = false;
-    const fireOnce = () => { if (!doneFired) { doneFired = true; onDone?.(); } };
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { fireOnce(); break; }
-        buf += decoder.decode(value, { stream: true });
-        const blocks = buf.split('\n\n');
-        buf = blocks.pop();
-        for (const block of blocks) {
-          if (!block.trim()) continue;
-          let eventName = 'message';
-          let dataStr = '';
-          for (const line of block.split('\n')) {
-            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
-            else if (line.startsWith('data: ')) dataStr = line.slice(6);
-          }
+      const streamBody = await fetchSseStream(
+        `${MLX_API_BASE}/stream`, body, controller.signal, '[mlx-stream]');
+      await readSseStream(streamBody, {
+        logPrefix: '[mlx-stream]',
+        onDone,
+        onReadError: (err) => onError?.(null, err.message),
+        dispatchEvent: (eventName, dataStr) => {
           let data;
           try { data = JSON.parse(dataStr); } catch { data = dataStr; }
           if (eventName === 'token') onToken?.(data.agent_id ?? data.agent, data.text ?? data.delta);
@@ -186,16 +78,15 @@ export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, call
           else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent_id ?? data.agent);
           else if (eventName === 'session') onSession?.(data);
           else if (eventName === 'metrics') onMetrics?.(data);
-          else if (eventName === 'done') fireOnce();
           else if (eventName === 'error') {
             console.error('[mlx-stream] error:', data);
             onError?.(data.agent_id ?? data.agent, data.error);
           }
-        }
-      }
+        },
+      });
     } catch (err) {
       if (err.name !== 'AbortError') {
-        console.error('[mlx-stream] read error:', err);
+        console.error('[mlx-stream] fetch failed:', err);
         onError?.(null, err.message);
       }
     }
@@ -218,18 +109,7 @@ export async function clearMlxSession(sessionId) {
 
 /** Submit a prompt to all agents via the coordinator (non-streaming). */
 export async function submitPrompt(prompt, temperature = 0.2, opts = {}) {
-  const body = { prompt, temperature };
-  if (opts.sessionId) body.session_id = opts.sessionId;
-  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
-  if (opts.followup) body.followup = true;
-  if (opts.qualityPass) body.quality_pass = true;
-  if (opts.contextPolicy) body.context_policy = opts.contextPolicy;
-  if (opts.useRag) body.use_rag = true;
-  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
-  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore))
-    body.rag_min_score = opts.ragMinScore;
-  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
-    body.rag_agents = opts.ragAgents;
+  const body = buildStreamBody(prompt, temperature, opts);
 
   const response = await fetch(`${API_BASE}/architect`, {
     method: 'POST',
