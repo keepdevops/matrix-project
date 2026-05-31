@@ -11,9 +11,11 @@ tree_of_thought is stretch and registered once MS-25-4 caps prove stable.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from typing import Any
 
+import aiohttp
 from aiohttp import web
 
 from orchestration.modes.base import ModeContext
@@ -22,6 +24,28 @@ from orchestration.modes.map_reduce import MapReduceMode
 from orchestration.modes.speculative import SpeculativeMode
 
 logger = logging.getLogger(__name__)
+
+_RAG_BASE = (
+    os.environ.get("RAG_INGEST_HOST", "http://127.0.0.1")
+    + ":"
+    + os.environ.get("RAG_INGEST_PORT", "8001")
+)
+
+
+async def _fetch_rag_chunks(query: str, k: int = 3) -> list[dict[str, Any]]:
+    """Call the RAG ingest service /retrieve and return chunk dicts."""
+    url = f"{_RAG_BASE}/retrieve"
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post(url, json={"query": query, "k": k}, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                if r.status != 200:
+                    logger.error("rag retrieve HTTP %d from %s", r.status, url)
+                    return []
+                data = await r.json()
+                return data.get("chunks") or []
+    except Exception as exc:
+        logger.error("rag retrieve failed (non-fatal): %s", exc)
+        return []
 
 _PYTHON_MODES = {m.mode_id: m for m in [MapReduceMode(), SpeculativeMode(), CriticDebateMode()]}
 
@@ -51,6 +75,14 @@ async def handle_orchestrate(request: web.Request) -> web.Response:
 
     session_id = (body.get("session_id") or "").strip() or str(uuid.uuid4())
     params: dict[str, Any] = body.get("params") or {}
+
+    # For map_reduce with RAG enabled, retrieve top-k chunks and inject into params
+    # so the mode can cite sources in each chunk prompt and the synthesizer output.
+    if mode_id == "map_reduce" and body.get("use_rag"):
+        k = int(body.get("rag_top_k") or 3)
+        rag_chunks = await _fetch_rag_chunks(prompt, k=k)
+        if rag_chunks:
+            params = {**params, "rag_context": rag_chunks}
 
     try:
         ctx = ModeContext(

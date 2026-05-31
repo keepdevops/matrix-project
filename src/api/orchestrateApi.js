@@ -16,14 +16,21 @@ export function splitIntoChunks(text, n) {
 /**
  * POST /api/orchestrate — blocking JSON call to the Python mode dispatcher.
  * Returns { result, session_id, mode, meta }.
+ * opts: { useRag, ragTopK, ragMinScore } — forwarded for server-side RAG retrieval.
  */
-export async function submitOrchestrate(mode, prompt, params = {}) {
+export async function submitOrchestrate(mode, prompt, params = {}, opts = {}) {
+  const body = { mode, prompt, params };
+  if (opts.useRag) {
+    body.use_rag = true;
+    if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
+    if (typeof opts.ragMinScore === 'number') body.rag_min_score = opts.ragMinScore;
+  }
   let res;
   try {
     res = await fetch(`${API_BASE}/api/orchestrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, prompt, params }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     console.error('[orchestrate] network error:', err);

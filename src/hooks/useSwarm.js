@@ -49,7 +49,8 @@ export function useSwarm() {
     if (opts.orchestrateMode) {
       return new Promise(async (resolve, reject) => {
         try {
-          const data = await submitOrchestrate(opts.orchestrateMode, prompt, opts.orchestrateParams || {});
+          const ragOpts = { useRag: opts.useRag, ragTopK: opts.ragTopK, ragMinScore: opts.ragMinScore };
+          const data = await submitOrchestrate(opts.orchestrateMode, prompt, opts.orchestrateParams || {}, ragOpts);
           setFinalAnswer(data.result || null);
           setLastMeta({ mode: data.mode, ...(data.meta || {}), wall_ms: Date.now() - wallStart });
           setLoading(false);

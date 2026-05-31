@@ -16,6 +16,18 @@ from .base import Event, ModeContext, OrchestrationMode
 logger = logging.getLogger(__name__)
 
 
+def _rag_xml(chunks: list) -> str:
+    """Format retrieved chunks as an XML block to splice into prompts."""
+    if not chunks:
+        return ""
+    parts = [
+        f"<chunk path={c.get('source_path','?')!r} distance={c.get('distance', 0):.4f}>\n"
+        f"{c.get('content','')}\n</chunk>"
+        for c in chunks
+    ]
+    return "<retrieved>\n" + "\n".join(parts) + "\n</retrieved>\n"
+
+
 class MapReduceMode(OrchestrationMode):
     mode_id = "map_reduce"
 
@@ -28,6 +40,7 @@ class MapReduceMode(OrchestrationMode):
             raise ValueError("map_reduce: empty agents list")
         synthesizer = ctx.params.get("synthesizer") or ctx.agents[-1]
         workers = [a for a in ctx.agents if a != synthesizer] or ctx.agents
+        rag_block = _rag_xml(ctx.params.get("rag_context") or [])
 
         async def map_one(idx: int, chunk: str) -> tuple[int, str, str | None]:
             agent_id = workers[idx % len(workers)]
@@ -35,6 +48,7 @@ class MapReduceMode(OrchestrationMode):
             backend = ctx.backend_for(agent_id)
             prompt = (
                 f"<system>{cfg.system_prompt}</system>\n"
+                f"{rag_block}"
                 f"<query>{query}</query>\n<chunk idx={idx}>\n{chunk}\n</chunk>"
             )
             buf: list[str] = []
@@ -71,7 +85,9 @@ class MapReduceMode(OrchestrationMode):
             f"<finding chunk={i}>\n{t}\n</finding>" for i, t in enumerate(mapped) if t
         )
         synth_prompt = (
-            f"<system>{synth_cfg.system_prompt}</system>\n<query>{query}</query>\n"
+            f"<system>{synth_cfg.system_prompt}</system>\n"
+            f"{rag_block}"
+            f"<query>{query}</query>\n"
             f"<findings>\n{joined}\n</findings>"
         )
 

@@ -25,6 +25,7 @@ from aiohttp import web
 
 from orchestration.rag import chunk_text
 from orchestration.rag.embed import HashEmbedder, MLXEmbedder
+from orchestration.rag.retrieve import retrieve
 from orchestration.rag.service_jobs import JobRegistry
 from orchestration.rag.store import PgVectorStore, UpsertRow
 
@@ -188,6 +189,33 @@ async def handle_embed(request: web.Request) -> web.Response:
     return web.json_response({"vectors": vectors})
 
 
+async def handle_retrieve(request: web.Request) -> web.Response:
+    """POST /retrieve — embed query and return top-k chunks for orchestration modes."""
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError(f"expected JSON object, got {type(body).__name__}")
+    except Exception as exc:
+        logger.error("retrieve: bad JSON: %s", exc)
+        raise web.HTTPBadRequest(reason="invalid JSON")
+    query = (body.get("query") or "").strip()
+    if not query:
+        raise web.HTTPBadRequest(reason="'query' required")
+    k = max(1, int(body.get("k", 3)))
+    try:
+        hits = await retrieve(query, embedder=request.app["embedder"],
+                              store=request.app["store"], k=k)
+    except Exception as exc:
+        logger.error("retrieve: failed query=%r: %s", query[:60], exc)
+        raise web.HTTPInternalServerError(reason=str(exc))
+    return web.json_response({
+        "chunks": [
+            {"content": h.content, "source_path": h.source_path, "distance": h.distance}
+            for h in hits
+        ]
+    })
+
+
 async def handle_documents(request: web.Request) -> web.Response:
     store: PgVectorStore = request.app["store"]
     if request.method == "DELETE":
@@ -212,6 +240,7 @@ def make_app(embedder_name: str = "hash") -> web.Application:
     app.router.add_get("/jobs/{job_id}", handle_job)
     app.router.add_get("/documents", handle_documents)
     app.router.add_delete("/documents", handle_documents)
+    app.router.add_post("/retrieve", handle_retrieve)
 
     async def _cleanup(app_: web.Application) -> None:
         await app_["store"].close()
