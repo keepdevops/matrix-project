@@ -2,12 +2,16 @@ import { useCallback, useState } from 'react';
 import { buildCodeExport, downloadBlob } from '../utils/codeSave';
 import { qualityPassContextPolicy } from '../utils/qualityPassContext';
 import { splitIntoChunks } from '../api/orchestrateApi';
+import { getModeManifestEntry } from '../utils/modeManifest';
+
+const PYTHON_ORCHESTRATE_MODES = new Set(['map_reduce', 'speculative', 'critic_debate']);
 
 export function useSubmitHandlers({
   submit, loadHistory, currentSession, activeMode, useRag,
   responses, activeAgents, flatPickAgent,
   modeWarnings = [],
   memoryPressure = null,
+  hostMemory = null,
   onModeWarning,
   onSaveCodeToast,
   onMemoryPressureWarning,
@@ -16,17 +20,25 @@ export function useSubmitHandlers({
 
   const handleSubmit = useCallback(async (prompt, temperature, opts = {}) => {
     // Python orchestrate modes bypass the streaming path entirely.
-    if (activeMode === 'map_reduce' && !opts.followup && !opts.qualityPass) {
-      const n = opts.chunkCount || 3;
+    if (PYTHON_ORCHESTRATE_MODES.has(activeMode) && !opts.followup && !opts.qualityPass) {
+      let orchestrateParams = opts.modeParams || {};
+      if (activeMode === 'map_reduce') {
+        orchestrateParams = { chunks: splitIntoChunks(prompt, opts.chunkCount || 3) };
+      }
+      // Context budget guard: warn (non-blocking) when free RAM is tight for this mode's weight.
+      const entry = getModeManifestEntry(activeMode);
+      const freeGb = hostMemory?.ok && Number.isFinite(hostMemory.free_gb) ? hostMemory.free_gb : null;
+      if (freeGb !== null && freeGb < (entry?.memoryWeight ?? 2) * 4) {
+        onMemoryPressureWarning?.({
+          warnings: [`${activeMode}: only ${freeGb.toFixed(1)} GB free — elevated pressure during multi-agent run`],
+        });
+      }
       setPendingPrompt(prompt);
       try {
-        await submit(prompt, temperature, {
-          orchestrateMode: 'map_reduce',
-          orchestrateParams: { chunks: splitIntoChunks(prompt, n) },
-        });
+        await submit(prompt, temperature, { orchestrateMode: activeMode, orchestrateParams });
         loadHistory();
       } catch (err) {
-        console.error('[useSubmitHandlers] map_reduce failed:', err);
+        console.error(`[useSubmitHandlers] ${activeMode} failed:`, err);
       } finally {
         setPendingPrompt(null);
       }

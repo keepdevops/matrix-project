@@ -9,12 +9,12 @@ export const MODE_MANIFEST = {
     note: 'Splits prompt into chunks, maps across agents, synthesizes findings',
   },
   speculative: {
-    backend: 'python', enabled: false, ui: false, memoryWeight: 2,
-    note: 'Python orchestration plugin',
+    backend: 'python', enabled: true, ui: true, memoryWeight: 2,
+    note: 'Drafter proposes, verifier confirms; select roles in prompt controls',
   },
   critic_debate: {
-    backend: 'python', enabled: false, ui: false, memoryWeight: 2,
-    note: 'Python orchestration plugin',
+    backend: 'python', enabled: true, ui: true, memoryWeight: 2,
+    note: 'Generator proposes, critic reviews; repeats until SHIP or max rounds',
   },
   tree_of_thought: {
     backend: 'python', enabled: false, ui: false, memoryWeight: 3,
