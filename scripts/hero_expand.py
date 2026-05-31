@@ -172,10 +172,13 @@ def main():
             shot(page, launch_dir, "online")
             page.wait_for_timeout(500)
 
-            for mode, prompt in [
+            for i, (mode, prompt) in enumerate([
                 ("ROUTER",   PROMPT_ROUTER),
                 ("PIPELINE", PROMPT_PIPELINE),
-            ]:
+            ]):
+                if i > 0:
+                    log("Waiting 60s for server to stabilise before next scenario…")
+                    page.wait_for_timeout(60_000)
                 shots_dir = os.path.join(BASE_DIR, mode.lower())
                 try:
                     mov = run_scenario(page, mode, prompt, shots_dir)
