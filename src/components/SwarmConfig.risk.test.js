@@ -446,3 +446,41 @@ describe('computeRiskEstimate chaos — 100 random mixed-backend configs', () =>
     expect(failures).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// MS-25-4: Python mode overhead
+// ---------------------------------------------------------------------------
+
+describe('computeRiskEstimate — activeMode overhead', () => {
+  const roles = [makeRole('architect'), makeRole('programmer')];
+  const selected = new Set(['architect', 'programmer']);
+  const roleModels = { architect: '/m/llama-7b.gguf', programmer: '/m/llama-7b.gguf' };
+
+  it('adds zero overhead for cpp modes (weight=1)', () => {
+    const base = computeRiskEstimate(roles, selected, roleModels, MODELS, null, null);
+    const flat = computeRiskEstimate(roles, selected, roleModels, MODELS, null, 'flat');
+    expect(flat.modeOverheadGb).toBeCloseTo(0, 5);
+    expect(flat.totalRamGb).toBeCloseTo(base.totalRamGb, 5);
+  });
+
+  it('adds (weight-1)×1.5 GB overhead for Python modes', () => {
+    const mapR = computeRiskEstimate(roles, selected, roleModels, MODELS, null, 'map_reduce');
+    expect(mapR.modeOverheadGb).toBeCloseTo(3.0, 5);
+    expect(mapR.activeMode).toBe('map_reduce');
+    const spec = computeRiskEstimate(roles, selected, roleModels, MODELS, null, 'speculative');
+    expect(spec.modeOverheadGb).toBeCloseTo(1.5, 5);
+  });
+
+  it('reflects mode overhead in totalRamGb', () => {
+    const base = computeRiskEstimate(roles, selected, roleModels, MODELS, null, null);
+    const heavy = computeRiskEstimate(roles, selected, roleModels, MODELS, null, 'map_reduce');
+    expect(heavy.totalRamGb).toBeCloseTo(base.totalRamGb + 3.0, 4);
+  });
+
+  it('blocks when mode overhead pushes past RAM_BLOCK_GB with pressured host', () => {
+    const pressured = { ok: true, used_gb: 32.0, free_gb: 4.0, total_gb: 36.0 };
+    const e = computeRiskEstimate([], new Set(), {}, MODELS, pressured, 'map_reduce');
+    expect(e.totalRamGb).toBeGreaterThan(33);
+    expect(e.band.id).toBe('high');
+  });
+});
