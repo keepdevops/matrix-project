@@ -195,9 +195,9 @@ def main():
 
     # Check MLX coordinator
     try:
-        urllib.request.urlopen("http://localhost:3003/health", timeout=3)
+        urllib.request.urlopen("http://localhost:3003/api/mlx/health", timeout=3)
     except Exception:
-        print("❌  MLX coordinator not reachable at http://localhost:3003", file=sys.stderr)
+        print("❌  MLX coordinator not reachable at http://localhost:3003/api/mlx/health", file=sys.stderr)
         print("    Run: brewctl up  or start the MLX coordinator manually", file=sys.stderr)
         sys.exit(1)
 
