@@ -33,7 +33,7 @@ function DashboardLayout({
   showConfig, showHistory, showConfigPanel, deployPending,
   showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, pendingPrompt,
-  flatPickAgent, excludedBreaker, stageOutputs,
+  flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, memoryPressure,
   theme, layout, onSetTheme, onSetLayout,
   onModeChange, onClearCache,
   onToggleConfig, onToggleHistory,
@@ -70,6 +70,7 @@ function DashboardLayout({
         onOpenConverter={onOpenConverter} onOpenRagAdmin={onOpenRagAdmin}
         onOpenCachePanel={onOpenCachePanel} onOpenHelp={onOpenHelp}
         onSetTheme={onSetTheme} onSetLayout={onSetLayout}
+        warningsByMode={warningsByMode} memoryPressure={memoryPressure}
       />
 
       {/* ── Stats bar ── */}

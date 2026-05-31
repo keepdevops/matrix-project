@@ -19,6 +19,7 @@ import { useLayoutPreference } from './hooks/useLayoutPreference';
 import { useSwarmPolling } from './hooks/useSwarmPolling';
 import { useSubmitHandlers } from './hooks/useSubmitHandlers';
 import { useSessionHandlers } from './hooks/useSessionHandlers';
+import { useMemoryPressure } from './hooks/useMemoryPressure';
 import { clearKvCache } from './api/swarmApi';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
@@ -44,6 +45,15 @@ function App() {
     () => (activeMode && modeWarnings.length > 0 ? { [activeMode]: modeWarnings } : {}),
     [activeMode, modeWarnings]
   );
+
+  const memoryPressure = useMemoryPressure({ online, activeAgents, activeMode, kvReadings });
+
+  const warningsByModeWithMemory = useMemo(() => {
+    if (!memoryPressure?.warnings?.length || !activeMode) return warningsByMode;
+    const memHints = memoryPressure.warnings.slice(0, 2);
+    const existing = warningsByMode[activeMode] ?? [];
+    return { ...warningsByMode, [activeMode]: [...existing, ...memHints] };
+  }, [warningsByMode, memoryPressure, activeMode]);
 
   const { layout, theme, setLayout, setTheme } = useLayoutPreference();
 
@@ -72,10 +82,20 @@ function App() {
     submit, loadHistory, currentSession, activeMode, useRag,
     responses, activeAgents, flatPickAgent,
     modeWarnings,
+    memoryPressure,
     onModeWarning: useCallback((warnings) => {
       showToast(warnings[0], 'warn');
     }, [showToast]),
     onSaveCodeToast: showToast,
+    onMemoryPressureWarning: useCallback((pressure) => {
+      const msg = pressure.warnings[0] || 'Elevated memory pressure';
+      const hint = pressure.suggestFlatMode
+        ? ' — try flat mode or SAFE profile'
+        : pressure.suggestSafeProfile
+          ? ' — try SAFE profile in CONFIGURE'
+          : '';
+      showToast(`${msg}${hint}`, 'warn');
+    }, [showToast]),
   });
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
@@ -174,7 +194,8 @@ function App() {
     flatPickAgent,
     excludedBreaker,
     stageOutputs,
-    warningsByMode,
+    warningsByMode: warningsByModeWithMemory,
+    memoryPressure,
     theme,
     layout,
     pendingPrompt,
@@ -211,7 +232,7 @@ function App() {
     responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
     currentSession, backend, switchBackend, showConfig, showHistory, showConfigPanel,
     deployPending, showHelp, showConverter, showRagAdmin, showCachePanel, cacheStatus,
-    useRag, flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, theme, layout,
+    useRag, flatPickAgent, excludedBreaker, stageOutputs, warningsByModeWithMemory, memoryPressure, theme, layout,
     pendingPrompt, selectedPrompt, selectedTemperature, handleModeChange, handleClearCache,
     handleToggleConfig, handleToggleHistory, handleOpenConverter, handleOpenRagAdmin,
     handleOpenCachePanel, handleOpenHelp, setTheme, setLayout, handleDeployed,

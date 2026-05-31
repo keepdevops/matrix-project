@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ModeSelector from '../components/ModeSelector';
 import KvPressureGauge from '../components/KvPressureGauge';
+import MemoryPressureBadge from '../components/MemoryPressureBadge';
 import { LAYOUTS, THEMES } from './registry';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
@@ -19,6 +20,7 @@ export default function BrewHeader({
   warningsByMode,
   kvReadings,
   kvFetchFailed,
+  memoryPressure,
   cacheStatus,
   historyCount,
   deployed,
@@ -60,6 +62,8 @@ export default function BrewHeader({
       {online && engines.length > 0 && (
         <span className="brew-engine-badge">{engines.join(' + ')}</span>
       )}
+
+      <MemoryPressureBadge pressure={memoryPressure} />
 
       <div className="brew-header-spacer" />
 
