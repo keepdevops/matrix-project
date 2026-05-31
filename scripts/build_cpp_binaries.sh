@@ -76,6 +76,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_presets.cpp" \
    "$CPP_SRC/coordinator_routes_rag_health.cpp" \
    "$CPP_SRC/swarm_config_store.cpp" \
+   "$CPP_SRC/swarm_config_roster.cpp" \
    "$CPP_SRC/agent_client.cpp" \
    "$CPP_SRC/agent_client_pool.cpp" \
    "$CPP_SRC/agent_health.cpp" \
@@ -139,6 +140,7 @@ echo "Building swarm_config_store_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/swarm_config_store_test" \
   "$ROOT/tests/cpp/swarm_config_store_test.cpp" \
   "$CPP_SRC/swarm_config_store.cpp" \
+  "$CPP_SRC/swarm_config_roster.cpp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/swarm_config_store_test"
 
