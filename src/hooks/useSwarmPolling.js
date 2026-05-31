@@ -14,4 +14,8 @@ export function useSwarmPolling({ checkStatus, loadHistory, refreshAgents, refre
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [checkStatus, loadHistory, online, refreshAgents, refreshModes]);
+
+  useEffect(() => {
+    if (online) loadHistory();
+  }, [online, loadHistory]);
 }
