@@ -82,6 +82,13 @@ def _port_open(host: str, port: int, timeout: float = 0.4) -> bool:
             return False
 
 
+def _wait_classic_kv_gauge(page, timeout_ms: int = 20_000) -> None:
+    """KvPressureGauge renders only after coordinator is online and KV poll returns."""
+    if not _port_open("127.0.0.1", 8000):
+        pytest.skip("Coordinator :8000 offline — classic header hides KV gauge")
+    page.wait_for_selector(".kv-gauge, .kv-gauge--err", timeout=timeout_ms)
+
+
 @pytest.fixture(scope="module")
 def playwright_browser():
     if not HAS_PLAYWRIGHT:
@@ -357,7 +364,7 @@ def test_classic_header_parity_with_brewlate(classic_page):
     page = classic_page
     assert page.get_by_role("button", name="HISTORY").count() >= 1
     assert page.get_by_role("button", name="CLEAR KV").count() >= 1
-    assert page.locator(".kv-gauge").count() >= 1
+    _wait_classic_kv_gauge(page)
     assert page.locator(".mode-button").count() >= 1
 
 
