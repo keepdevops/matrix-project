@@ -68,6 +68,14 @@ export async function fetchSwarmConfig() {
 const CONFIGURE_TIMEOUT_MS = 270000;
 
 export async function configureSwarm(agents) {
+  if (!Array.isArray(agents) || agents.length === 0) {
+    throw new Error('No agents selected — pick at least one agent and assign it a model.');
+  }
+  for (const a of agents) {
+    if (!a.name) throw new Error(`Agent is missing a name: ${JSON.stringify(a)}`);
+    if (!a.model) throw new Error(`Agent "${a.name}" has no model selected.`);
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), CONFIGURE_TIMEOUT_MS);
   try {
@@ -82,6 +90,7 @@ export async function configureSwarm(agents) {
       const msg = err.error || `Configure failed: ${response.status}`;
       const ex = new Error(msg);
       if (err.failedPorts?.length) ex.failedPorts = err.failedPorts;
+      console.error('[configureSwarm] server error:', msg);
       throw ex;
     }
     const data = await response.json();
@@ -91,6 +100,11 @@ export async function configureSwarm(agents) {
     if (e.name === 'AbortError') {
       throw new Error('Launch timed out (4.5 min). Check logs in CONFIGURE or project logs/ and try again.');
     }
+    if (e instanceof TypeError && e.message.toLowerCase().includes('fetch')) {
+      console.error('[configureSwarm] network error — coordinator unreachable:', e);
+      throw new Error('Cannot reach the coordinator — is it running?');
+    }
+    console.error('[configureSwarm] failed:', e);
     throw e;
   } finally {
     clearTimeout(timeoutId);
