@@ -1,56 +1,18 @@
 import React, { useState } from 'react';
 import { setAgentSystemPrompt, setAgentTokens } from '../api/swarmApi';
-
-const CTX_OPTIONS = [0, 4096, 8192, 16384, 32768];
-const TABS = ['Basic', 'Advanced'];
-
-function Toggle({ checked, onChange, id }) {
-  return (
-    <button
-      id={id}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      className={`brew-perm-toggle${checked ? ' on' : ''}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span className="brew-perm-thumb" />
-    </button>
-  );
-}
-
-function SliderRow({ label, min, max, step, value, onChange, showToggle, toggleOn, onToggleChange }) {
-  return (
-    <div className="brew-adv-row">
-      <span className="brew-adv-label">{label}</span>
-      <input
-        type="range"
-        className="brew-adv-slider"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={e => onChange(parseFloat(e.target.value))}
-      />
-      {showToggle ? (
-        <Toggle checked={toggleOn} onChange={onToggleChange} />
-      ) : (
-        <span className="brew-adv-value">{parseFloat(value).toFixed(step < 1 ? 2 : 0)}</span>
-      )}
-    </div>
-  );
-}
+import {
+  BREW_ROLE_CTX_OPTIONS,
+  BREW_ROLE_TABS,
+  BrewRoleSliderRow,
+  BrewRoleToggle,
+} from './brewEditRoleControls';
 
 export default function BrewEditRoleModal({ role, models, roleModels, onClose, onSaved }) {
   const [tab, setTab]           = useState('Basic');
-
-  // Basic
   const [name, setName]         = useState(role.name);
   const [prompt, setPrompt]     = useState(role.system_prompt || '');
   const [model, setModel]       = useState(roleModels[role.name] || '');
   const [context, setContext]   = useState(role.context ?? 0);
-
-  // Advanced
   const [temp, setTemp]         = useState(role.temperature ?? 0.7);
   const [topP, setTopP]         = useState(role.top_p ?? 0.9);
   const [topK, setTopK]         = useState(role.top_k ?? 40);
@@ -58,8 +20,6 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
   const [maxTokOn, setMaxTokOn] = useState(Boolean(role.max_tokens));
   const [busy, setBusy]       = useState(false);
   const [error, setError]     = useState(null);
-
-  // Permissions
   const [perms, setPerms] = useState({
     webSearch:    role.permissions?.webSearch    ?? true,
     codeExec:     role.permissions?.codeExec     ?? true,
@@ -113,18 +73,14 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
   return (
     <div className="brew-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="brew-modal-card brew-modal-card--wide" role="dialog" aria-modal="true" aria-label={`Edit role ${role.name}`}>
-
-        {/* Header */}
         <div className="brew-modal-header">
           <h2 className="brew-modal-title">
             <span className="brew-modal-title-plain">Role Editor</span>
           </h2>
           <button className="brew-modal-x" onClick={onClose} aria-label="Close">×</button>
         </div>
-
-        {/* Tabs */}
         <div className="brew-modal-tabs">
-          {TABS.map(t => (
+          {BREW_ROLE_TABS.map(t => (
             <button
               key={t}
               type="button"
@@ -135,10 +91,7 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
             </button>
           ))}
         </div>
-
-        {/* Body */}
         <div className="brew-modal-body">
-
           {tab === 'Basic' && (
             <>
               <div className="brew-modal-field">
@@ -170,26 +123,24 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
                 <label className="brew-modal-label" htmlFor="brew-role-ctx">Context Window</label>
                 <select id="brew-role-ctx" className="brew-modal-select"
                   value={context} onChange={e => setContext(e.target.value)}>
-                  {CTX_OPTIONS.map(v => (
+                  {BREW_ROLE_CTX_OPTIONS.map(v => (
                     <option key={v} value={v}>{v === 0 ? '0 (default)' : v.toLocaleString()}</option>
                   ))}
                 </select>
               </div>
             </>
           )}
-
           {tab === 'Advanced' && (
             <>
               <div className="brew-adv-card">
-                <SliderRow label="Temperature" min={0} max={2}    step={0.01} value={temp}   onChange={setTemp} />
-                <SliderRow label="Top-P"       min={0} max={1}    step={0.01} value={topP}   onChange={setTopP} />
-                <SliderRow label="Top-K"       min={0} max={200}  step={1}    value={topK}   onChange={setTopK} />
-                <SliderRow
+                <BrewRoleSliderRow label="Temperature" min={0} max={2} step={0.01} value={temp} onChange={setTemp} />
+                <BrewRoleSliderRow label="Top-P" min={0} max={1} step={0.01} value={topP} onChange={setTopP} />
+                <BrewRoleSliderRow label="Top-K" min={0} max={200} step={1} value={topK} onChange={setTopK} />
+                <BrewRoleSliderRow
                   label="Max Tokens" min={256} max={8192} step={256} value={maxTok} onChange={setMaxTok}
                   showToggle toggleOn={maxTokOn} onToggleChange={setMaxTokOn}
                 />
               </div>
-
               <div className="brew-adv-card">
                 <div className="brew-perm-title">Permissions</div>
                 {[
@@ -200,16 +151,13 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
                 ].map(([key, label]) => (
                   <div key={key} className="brew-perm-row">
                     <span className="brew-perm-label">{label}</span>
-                    <Toggle checked={perms[key]} onChange={() => togglePerm(key)} />
+                    <BrewRoleToggle checked={perms[key]} onChange={() => togglePerm(key)} />
                   </div>
                 ))}
               </div>
             </>
           )}
-
         </div>
-
-        {/* Footer */}
         <div className="brew-modal-footer">
           {error && (
             <span className="brew-modal-error" style={{ flex: 1, fontSize: '0.78rem', color: 'var(--brew-kv-crit)' }}>
@@ -221,7 +169,6 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
             {busy ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
-
       </div>
     </div>
   );

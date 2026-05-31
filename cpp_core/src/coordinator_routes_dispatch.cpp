@@ -1,13 +1,11 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "coordinator_dispatch_rag.h"
 #include "code_fence_normalize.h"
-#include "rag_client.h"
-#include "rag_config.h"
 #include "session_store.h"
 #include <unordered_set>
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
-    // 5. Swarm dispatch — delegate to active mode
     svr.Post("/api/architect", [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "\n🚀 [Swarm Matrix] Incoming broadcast" << std::endl;
@@ -25,15 +23,6 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             std::string session_id = j_body.value("session_id", std::string(""));
             const std::string parent_run_id = j_body.value("parent_run_id", std::string(""));
             json context_policy = j_body.value("context_policy", json::object());
-            const bool use_rag = j_body.value("use_rag", false);
-            const int  rag_top_k_override = j_body.value("rag_top_k", 0);
-            const double rag_min_score_override = j_body.value("rag_min_score", -1.0);
-            std::unordered_set<std::string> rag_agents_set;
-            if (j_body.contains("rag_agents") && j_body["rag_agents"].is_array()) {
-                for (const auto& a : j_body["rag_agents"]) {
-                    if (a.is_string()) rag_agents_set.insert(a.get<std::string>());
-                }
-            }
             if (session_id.empty()) session_id = session_new_id("sess");
             const std::string run_id = session_new_id("run");
 
@@ -47,51 +36,18 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 compaction = cont.compaction;
             }
 
-            // RAG: opt-in via {"use_rag": true}. Retrieved chunks are prepended
-            // to the prompt as a <context> block before mode dispatch. Failures
-            // log loudly but do not break dispatch (degrade to no-context).
-            json rag_meta = json::object();
-            std::string rag_block_for_ctx; // empty = no per-agent targeting
-            if (use_rag) {
-                rag::Settings rag_s = rag::settings_from_config(st.startup_config);
-                if (rag_top_k_override > 0) {
-                    rag_s.top_k = std::min(rag_top_k_override, 20);
-                }
-                if (rag_min_score_override >= 0.0 && rag_min_score_override <= 1.0) {
-                    rag_s.min_score = rag_min_score_override;
-                }
-                if (!rag_s.enabled) {
-                    rag_meta = {{"requested", true}, {"used", false},
-                                {"reason", "rag.enabled is false in coordinator config"}};
-                } else {
-                    auto hits = rag::retrieve(rag_s, user_prompt);
-                    std::string block = rag::render_context_block(hits);
-                    if (!block.empty()) {
-                        if (rag_agents_set.empty()) {
-                            // Legacy: all agents get context baked into effective_prompt
-                            effective_prompt = block + effective_prompt;
-                        } else {
-                            // Per-agent: store block separately; modes inject per agent
-                            rag_block_for_ctx = block;
-                        }
-                    }
-                    json sources = json::array();
-                    for (const auto& h : hits) {
-                        sources.push_back({{"source_path", h.source_path},
-                                           {"chunk_idx", h.chunk_idx},
-                                           {"distance", h.distance},
-                                           {"content", h.content}});
-                    }
-                    json rag_agents_arr = json::array();
-                    for (const auto& n : rag_agents_set) rag_agents_arr.push_back(n);
-                    rag_meta = {{"requested", true},
-                                {"used", !hits.empty()},
-                                {"top_k", rag_s.top_k},
-                                {"min_score", rag_s.min_score},
-                                {"hits", sources}};
-                    if (!rag_agents_set.empty()) rag_meta["targeted_agents"] = rag_agents_arr;
+            auto rag_prep = prepare_rag_for_dispatch(
+                j_body, user_prompt, effective_prompt, st.startup_config);
+            effective_prompt = std::move(rag_prep.effective_prompt);
+            const json rag_meta = std::move(rag_prep.rag_meta);
+            const std::string& rag_block_for_ctx = rag_prep.rag_block_for_ctx;
+            std::unordered_set<std::string> rag_agents_set;
+            if (j_body.contains("rag_agents") && j_body["rag_agents"].is_array()) {
+                for (const auto& a : j_body["rag_agents"]) {
+                    if (a.is_string()) rag_agents_set.insert(a.get<std::string>());
                 }
             }
+
             std::cout << "📝 Prompt: " << user_prompt
                       << (followup ? " (follow-up)" : "") << std::endl;
 
@@ -111,7 +67,6 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     ? st.modes_config[mode_name] : json::object();
             }
             std::vector<Agent> mode_agents = filter_agents_for_mode(st, mode_name);
-            // Circuit breaker: drop st.agents whose health breaker is open.
             std::vector<std::string> excluded_unhealthy;
             mode_agents.erase(std::remove_if(mode_agents.begin(), mode_agents.end(),
                 [&](const Agent& a) {
@@ -167,7 +122,6 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             }
             if (!parent_run_id.empty()) envelope["meta"]["parent_run_id"] = parent_run_id;
             if (followup) envelope["meta"]["compaction"] = compaction;
-            // Per-agent timings + grand total wall clock for the whole run.
             {
                 auto dispatch_t1 = std::chrono::steady_clock::now();
                 double total_ms = std::chrono::duration<double, std::milli>(
@@ -179,9 +133,6 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 envelope["meta"]["wall_ms"] = total_ms;
             }
 
-            // History entry preserves the legacy flat shape (agent_name → text +
-            // prompt/temperature/timestamp) so existing UI st.history handling is
-            // unaffected. The envelope's st.agents map is unwrapped into the entry.
             json entry = envelope.value("agents", json::object());
             entry["prompt"] = user_prompt;
             entry["temperature"] = temperature;

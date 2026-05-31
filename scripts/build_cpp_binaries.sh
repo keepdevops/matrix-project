@@ -65,6 +65,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_agents_meta.cpp" \
    "$CPP_SRC/coordinator_routes_core.cpp" \
    "$CPP_SRC/coordinator_routes_dispatch.cpp" \
+   "$CPP_SRC/coordinator_dispatch_rag.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream_modes.cpp" \
    "$CPP_SRC/coordinator_routes_architect_synthesis.cpp" \
@@ -110,6 +111,7 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy.cpp" \
   "$CPP_SRC/proxy_routes.cpp" \
   "$CPP_SRC/proxy_routes_convert.cpp" \
+  "$CPP_SRC/proxy_convert_jobs.cpp" \
   "$CPP_SRC/proxy_routes_orchestrate.cpp" \
   "$CPP_SRC/proxy_file_io.cpp" \
   "$CPP_SRC/proxy_models_scan.cpp" \

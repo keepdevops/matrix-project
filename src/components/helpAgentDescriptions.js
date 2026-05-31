@@ -1,0 +1,18 @@
+export const AGENT_DESCRIPTIONS = {
+  architect:   'System design, ASCII UML, component diagrams',
+  foreman:     'Structured planning, step ordering, role assignment',
+  programmer:  'Complete production-ready code (large context, 4096 tokens)',
+  specialist:  'C++/Go, performance, memory management, concurrency',
+  security:    'OWASP top 10, vulnerabilities, secure coding alternatives',
+  api:         'REST/GraphQL design, OpenAPI specs, versioning strategies',
+  database:    'Schemas, queries, indexing, SQL/NoSQL, caching layers',
+  frontend:    'React components, CSS, accessibility, UX patterns',
+  reviewer:    'Bugs, code smells, anti-patterns, best practices',
+  tester:      'Unit tests, integration tests, edge cases, coverage',
+  optimizer:   'CPU/memory/IO bottlenecks, algorithmic improvements',
+  debugger:    'Root cause analysis, error propagation, targeted fixes',
+  devops:      'CI/CD pipelines, containers, infrastructure-as-code',
+  scout:       'Codebase analysis, patterns, module boundaries',
+  synthesis:   'Execution roadmap, risk analysis, step-by-step planning',
+  documenter:  'API docs, READMEs, inline comments, user guides',
+};
