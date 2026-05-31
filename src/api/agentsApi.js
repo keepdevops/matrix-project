@@ -132,9 +132,9 @@ export async function fetchModeAgents(name) {
 export async function setModeAgents(name, agentNames, opts = {}) {
   const body = { agents: agentNames };
   if (Number.isInteger(opts.maxSelect)) body.max_select = opts.maxSelect;
-  if (opts.synthesizer !== undefined) body.synthesizer = opts.synthesizer || null;
+  if (opts.synthesizer !== undefined) body.synthesizer = opts.synthesizer ?? null;
   ['variant_policy', 'preset', 'synthesis_policy', 'classifier_policy'].forEach(key => {
-    if (opts[key] !== undefined) body[key] = opts[key] || null;
+    if (opts[key] !== undefined) body[key] = opts[key] ?? null;
   });
   if (Number.isInteger(opts.stage_context_chars)) body.stage_context_chars = opts.stage_context_chars;
   if (Array.isArray(opts.order)) body.order = opts.order;
