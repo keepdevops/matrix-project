@@ -12,6 +12,7 @@ from typing import AsyncIterator
 
 from backends.base import GenerateRequest
 from .base import Event, ModeContext, OrchestrationMode
+from ._helpers import rag_xml
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ class SpeculativeMode(OrchestrationMode):
         verifier = ctx.backend_for(verifier_id)
 
         block_size = int(ctx.params.get("block_size", 32))
-        prompt = f"<system>{verifier_cfg.system_prompt}</system>\n<query>{query}</query>"
+        rag_block = rag_xml(ctx.params.get("rag_context") or [])
+        prompt = f"<system>{verifier_cfg.system_prompt}</system>\n{rag_block}<query>{query}</query>"
         emitted: list[str] = []
         max_total = verifier_cfg.max_tokens
 
