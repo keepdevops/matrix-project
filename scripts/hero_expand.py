@@ -28,7 +28,6 @@ from playwright.sync_api import sync_playwright
 from demo_utils import (
     APP_URL, log, shot,
     select_profile, launch_and_wait_online,
-    ensure_config_closed,
     set_mode, clear_session,
     broadcast, wait_for_response,
     stitch_video,
@@ -171,8 +170,6 @@ def main():
 
             launch_and_wait_online(page, shots_dir=launch_dir)
             shot(page, launch_dir, "online")
-
-            ensure_config_closed(page)
             page.wait_for_timeout(500)
 
             for mode, prompt in [

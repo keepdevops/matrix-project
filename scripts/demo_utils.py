@@ -1,6 +1,6 @@
 """
-Shared Playwright helpers for Swarm Matrix demo scripts.
-Used by demo_playwright.py and hero_demo.py.
+Shared Playwright helpers for Brewlatte demo scripts.
+Updated for Brewlatte 2.1.0 CSS class names.
 """
 
 import os
@@ -14,6 +14,14 @@ APP_URL     = "http://localhost:3000?theme=dark"
 LAUNCH_TMO  = 300_000   # 5 min — cold llama-server start
 RESP_TMO    = 300_000   # 5 min per broadcast
 POLL_MS     = 1_500
+
+# Profile option values in the brew-profile-select <select>
+PROFILE_VALUES = {
+    "SAFE":     "safe",
+    "BALANCED": "balanced",
+    "MAX":      "max",
+    "MIXED":    "mixed",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -36,18 +44,18 @@ def shot(page, shots_dir, label):
 
 # ---------------------------------------------------------------------------
 # Configure panel
+# — In Brewlatte the left panel is always visible; these are no-ops kept
+#   for script compatibility.
 # ---------------------------------------------------------------------------
 
 def ensure_config_open(page):
-    if not page.is_visible(".swarm-deploy-btn"):
-        page.get_by_role("button", name="CONFIGURE").click()
-        page.wait_for_selector(".swarm-deploy-btn", timeout=5_000)
+    """No-op: Brewlatte left panel is always visible."""
+    pass
 
 
 def ensure_config_closed(page):
-    if page.is_visible(".swarm-deploy-btn"):
-        page.get_by_role("button", name="CONFIGURE").click()
-        page.wait_for_timeout(400)
+    """No-op: Brewlatte left panel is always visible."""
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -55,27 +63,29 @@ def ensure_config_closed(page):
 # ---------------------------------------------------------------------------
 
 def select_profile(page, profile_name):
+    """
+    Select a profile via the brew-profile-select <select> element.
+    profile_name: 'SAFE' | 'BALANCED' | 'MAX' | 'MIXED'
+    """
     log(f"Selecting profile: {profile_name}")
-    ensure_config_open(page)
-    for btn in page.query_selector_all(".swarm-profile-btn"):
-        if profile_name.upper() in btn.inner_text().upper():
-            btn.click()
-            page.wait_for_timeout(500)
-            print(f"  ✓  Profile '{profile_name}' selected")
-            return
-    raise RuntimeError(f"Profile button '{profile_name}' not found")
+    value = PROFILE_VALUES.get(profile_name.upper())
+    if not value:
+        raise RuntimeError(f"Unknown profile '{profile_name}'. Valid: {list(PROFILE_VALUES)}")
+    page.select_option(".brew-profile-select", value=value)
+    page.wait_for_timeout(600)
+    print(f"  ✓  Profile '{profile_name}' selected")
 
 
 def launch_and_wait_online(page, shots_dir=None):
+    """Click the BREW button and wait until the status pill shows ONLINE."""
     log("Launching swarm…")
-    ensure_config_open(page)
-    btn = page.query_selector(".swarm-deploy-btn")
+    btn = page.query_selector(".brew-launch-btn")
     if not btn:
-        raise RuntimeError(".swarm-deploy-btn not found")
+        raise RuntimeError(".brew-launch-btn not found")
     btn.click()
     print("  … waiting for ONLINE (up to 5 min)…")
     try:
-        page.wait_for_selector(".status-online", timeout=LAUNCH_TMO)
+        page.wait_for_selector(".brew-status-pill.online", timeout=LAUNCH_TMO)
     except PWTimeout:
         if shots_dir:
             shot(page, shots_dir, "LAUNCH-TIMEOUT")
@@ -89,16 +99,24 @@ def launch_and_wait_online(page, shots_dir=None):
 # ---------------------------------------------------------------------------
 
 def set_mode(page, mode_name):
+    """
+    Switch orchestration mode via the ModeSelector popover.
+    mode_name: 'ROUTER' | 'FLAT' | 'CASCADE' | 'PIPELINE'
+    """
     log(f"Setting mode: {mode_name}")
-    page.query_selector(".mode-button").click()
-    page.wait_for_selector(".mode-popover", timeout=3_000)
+    mode_btn = page.query_selector(".mode-button")
+    if not mode_btn:
+        raise RuntimeError(".mode-button not found")
+    mode_btn.click()
+    page.wait_for_selector(".mode-popover", timeout=5_000)
     for opt in page.query_selector_all(".mode-option"):
         if mode_name.upper() in opt.inner_text().upper():
             opt.click()
-            page.wait_for_timeout(400)
+            page.wait_for_timeout(500)
             print(f"  ✓  Mode → {mode_name}")
             return
-    raise RuntimeError(f"Mode option '{mode_name}' not found")
+    page.keyboard.press("Escape")
+    raise RuntimeError(f"Mode option '{mode_name}' not found in popover")
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +124,7 @@ def set_mode(page, mode_name):
 # ---------------------------------------------------------------------------
 
 def enable_rag(page):
-    """Check the RAG checkbox if it is not already on and not disabled."""
+    """Check the RAG toggle if it is not already on and not disabled."""
     cb = page.query_selector(".rag-toggle input[type=checkbox]")
     if not cb:
         print("  ⚠  RAG checkbox not found — skipping")
@@ -121,8 +139,8 @@ def enable_rag(page):
 
 
 def clear_session(page):
-    """Click ✕ new session in the conversation header to start fresh."""
-    btn = page.get_by_role("button", name="new session")
+    """Click '✕ new session' to start a fresh conversation."""
+    btn = page.get_by_title("Clear session")
     if btn.count():
         btn.first.click()
         page.wait_for_timeout(400)
@@ -136,6 +154,7 @@ def clear_session(page):
 # ---------------------------------------------------------------------------
 
 def broadcast(page, prompt_text, prompt_num=None):
+    """Fill the prompt textarea and submit."""
     label = f"#{prompt_num}" if prompt_num else ""
     log(f"Broadcast {label}: {prompt_text[:65]}…")
     ta = page.query_selector(".prompt-textarea")
@@ -149,8 +168,8 @@ def broadcast(page, prompt_text, prompt_num=None):
 
 def wait_for_response(page, shots_dir, label):
     """
-    Poll until .ct-thinking is gone and BROADCAST is re-enabled.
-    Returns the turn count in the thread.
+    Poll until .ct-thinking is gone and the submit button is re-enabled.
+    Returns turn count.
     """
     deadline = time.time() + RESP_TMO / 1000
     while time.time() < deadline:
@@ -170,14 +189,33 @@ def wait_for_response(page, shots_dir, label):
 
 
 def follow_up(page, prompt_text, shots_dir, label):
+    """Type a follow-up in the conversation reply box and submit."""
     log(f"Follow-up: {prompt_text[:65]}…")
     reply = page.query_selector(".ct-reply-input")
     if not reply:
         raise RuntimeError(".ct-reply-input not found — is there an active session?")
     reply.fill(prompt_text)
-    page.query_selector(".ct-reply-form button").click()
+    page.query_selector(".ct-reply-form button[type=submit]").click()
     print("  … waiting for follow-up…")
     return wait_for_response(page, shots_dir, label)
+
+
+# ---------------------------------------------------------------------------
+# Right-panel tab switching
+# ---------------------------------------------------------------------------
+
+def switch_right_tab(page, tab_label):
+    """
+    Click a right-panel tab by label.
+    tab_label: 'Session' | 'Agents' | 'Modes' | 'Live' | 'RAG'
+    """
+    for tab in page.query_selector_all(".brew-right-tab"):
+        if tab_label.lower() in tab.inner_text().lower():
+            tab.click()
+            page.wait_for_timeout(400)
+            print(f"  ✓  Right tab → {tab_label}")
+            return
+    print(f"  ⚠  Right tab '{tab_label}' not found")
 
 
 # ---------------------------------------------------------------------------
@@ -186,8 +224,8 @@ def follow_up(page, prompt_text, shots_dir, label):
 
 def stitch_video(shots_dir, output_mov, frame_secs=2):
     """
-    Rename screenshots to sequential 001.png … NNN.png in a temp subdir,
-    then call ffmpeg to produce a ProRes .mov at 1/frame_secs fps.
+    Rename screenshots to sequential 001.png … NNN.png then call ffmpeg
+    to produce a ProRes .mov at 1/frame_secs fps.
     """
     frames_dir = shots_dir + "_frames"
     os.makedirs(frames_dir, exist_ok=True)
