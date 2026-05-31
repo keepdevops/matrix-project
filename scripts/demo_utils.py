@@ -186,9 +186,15 @@ def wait_for_response(page, shots_dir, label):
     while time.time() < deadline:
         page.wait_for_timeout(POLL_MS)
 
-        # Primary signal: a new completed turn appeared
+        # Primary signal: a new completed turn with non-empty SWARM text
         completed = page.evaluate(
-            "() => document.querySelectorAll('.ct-turn:not(.ct-turn--pending)').length"
+            """() => {
+                const turns = document.querySelectorAll('.ct-turn:not(.ct-turn--pending)');
+                return Array.from(turns).filter(t => {
+                    const txt = t.querySelector('.ct-bubble--swarm .ct-bubble-text');
+                    return txt && txt.textContent.trim().length > 20;
+                }).length;
+            }"""
         )
         if completed > baseline:
             turns = page.evaluate("() => document.querySelectorAll('.ct-turn').length")
@@ -230,28 +236,33 @@ def follow_up(page, prompt_text, shots_dir, label):
 
 def wait_for_agents_ready(page, shots_dir=None, label="agents-ready", timeout_ms=300_000):
     """
-    Poll the coordinator /api/agents endpoint directly until it returns 200.
-    The coordinator returns 503 while llama-server is loading; 200 means
-    it is ready to accept broadcast requests.
+    Poll /api/configure/status until active=false and all ports are 'ready'.
+    This is the coordinator's own view of agent server health — more reliable
+    than the DOM badges (which freeze) or /api/agents (which returns 200 even
+    when servers are still loading).
     """
-    import urllib.request, urllib.error
-    API_AGENTS = "http://localhost:3002/api/agents"
-    log("Waiting for coordinator to be ready (polling /api/agents)…")
+    import urllib.request, urllib.error, json
+    STATUS_URL = "http://localhost:3002/api/configure/status"
+    log("Waiting for all agent ports to be ready…")
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
         try:
-            r = urllib.request.urlopen(API_AGENTS, timeout=4)
-            if r.status == 200:
-                print("  ✓  Coordinator ready (agents API 200)")
+            r = urllib.request.urlopen(STATUS_URL, timeout=4)
+            data = json.loads(r.read())
+            ports = data.get("ports", {})
+            not_ready = [p for p, s in ports.items() if s != "ready"]
+            if not data.get("active") and ports and not not_ready:
+                print(f"  ✓  All {len(ports)} port(s) ready")
                 if shots_dir:
                     shot(page, shots_dir, label)
                 return
+            print(f"  … {len(not_ready)}/{len(ports)} port(s) not ready yet …")
         except urllib.error.HTTPError as e:
-            print(f"  … coordinator not ready yet ({e.code}) …")
+            print(f"  … configure/status {e.code} — deploy still running …")
         except Exception as e:
-            print(f"  … coordinator probe failed: {e} …")
+            print(f"  … configure/status probe failed: {e} …")
         time.sleep(3)
-    raise RuntimeError("Timed out waiting for coordinator to become ready")
+    raise RuntimeError("Timed out waiting for agent ports to become ready")
 
 
 # ---------------------------------------------------------------------------
