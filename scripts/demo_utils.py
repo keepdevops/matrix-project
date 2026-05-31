@@ -162,6 +162,9 @@ def broadcast(page, prompt_text, prompt_num=None):
     """Fill the prompt textarea and submit."""
     label = f"#{prompt_num}" if prompt_num else ""
     log(f"Broadcast {label}: {prompt_text[:65]}…")
+    # Ensure the Session tab is active — PromptInput is only rendered there.
+    switch_right_tab(page, "Session")
+    page.wait_for_timeout(300)
     ta = page.query_selector(".prompt-textarea")
     if not ta:
         raise RuntimeError(".prompt-textarea not found")
