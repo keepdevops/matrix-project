@@ -54,7 +54,7 @@ def wait_for_runtime_expand_buttons(page, shots_dir, label, min_count=1, timeout
     """Wait for ⤢ buttons on runtime agent cards in the right-panel Agents tab."""
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
-        btns = page.query_selector_all(".brew-agent-cards--runtime .brew-agent-card-expand")
+        btns = page.query_selector_all(".brew-agent-cards--runtime button[title="Popout"]")
         if len(btns) >= min_count:
             print(f"  ✓  {len(btns)} runtime expand button(s) visible")
             shot(page, shots_dir, label)
@@ -66,7 +66,7 @@ def wait_for_runtime_expand_buttons(page, shots_dir, label, min_count=1, timeout
 
 def open_runtime_expand_popout(page, shots_dir, btn_index, label):
     """Click the nth ⤢ button on a runtime agent card and screenshot the popout."""
-    btns = page.query_selector_all(".brew-agent-cards--runtime .brew-agent-card-expand")
+    btns = page.query_selector_all(".brew-agent-cards--runtime button[title="Popout"]")
     if btn_index >= len(btns):
         print(f"  ⚠  expand button [{btn_index}] not available ({len(btns)} total) — skipping")
         return
