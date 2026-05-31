@@ -79,6 +79,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/agent_metrics.cpp" \
    "$CPP_SRC/agent_stream.cpp" \
    "$CPP_SRC/pressure_snapshot.cpp" \
+   "$CPP_SRC/host_memory.cpp" \
    "$CPP_SRC/pressure.cpp" \
    "$CPP_SRC/pressure_evict.cpp" \
    "$CPP_SRC/response_cache.cpp" \
@@ -106,6 +107,7 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy_configure_spawn.cpp" \
   "$CPP_SRC/config/path_expand.cpp" \
   "$CPP_SRC/proxy_configure_health.cpp" \
+  "$CPP_SRC/host_memory.cpp" \
   "$CPP_SRC/proxy_configure_kill_prepare.cpp" \
   "$CPP_SRC/proxy_configure_coordinator_startup.cpp" \
   "$CPP_SRC/proxy_validate.cpp" \

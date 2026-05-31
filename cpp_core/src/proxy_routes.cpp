@@ -5,6 +5,7 @@
 #include "proxy_models_scan.h"
 #include "proxy_routes_convert.h"
 #include "matrix_env.h"
+#include "host_memory.h"
 
 #include "httplib.h"
 #include "json.hpp"
@@ -70,6 +71,11 @@ void register_proxy_routes(httplib::Server& svr, const std::string& proj_root) {
     svr.Get("/api/configure/status", [&cors](const httplib::Request&, httplib::Response& res) {
         cors(res);
         res.set_content(g_configure_progress.to_json().dump(), "application/json");
+    });
+
+    svr.Get("/api/memory", [&cors](const httplib::Request&, httplib::Response& res) {
+        cors(res);
+        res.set_content(host_memory_snapshot().dump(), "application/json");
     });
 
     svr.Get("/api/logs", [&cors, &proj_root](const httplib::Request& req, httplib::Response& res) {

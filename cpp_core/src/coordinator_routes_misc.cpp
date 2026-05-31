@@ -1,5 +1,6 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "host_memory.h"
 
 void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st) {
     // 6. Clear KV cache on all llama-server slots
@@ -47,6 +48,12 @@ void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st
 
         res.set_content(results.dump(), "application/json");
         std::cout << "✅ [Swarm Matrix] KV cache clear complete" << std::endl;
+    });
+
+    // 6b. Live host unified-memory snapshot (MS-24 phase 2).
+    svr.Get("/api/memory", [](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(host_memory_snapshot().dump(), "application/json");
     });
 
     // 7. KV pressure aggregator (slots + props + metrics per llama-server)

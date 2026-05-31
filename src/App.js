@@ -37,7 +37,7 @@ function App() {
   } = useSwarm();
 
   const {
-    activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
+    activeAgents, modes, activeMode, kvReadings, kvFetchFailed, hostMemory,
     flatPickAgent, setFlatPickAgent, modeWarnings, refreshModes, refreshAgents, handleModeChange,
   } = useCoordinatorState(online);
 
@@ -46,7 +46,9 @@ function App() {
     [activeMode, modeWarnings]
   );
 
-  const memoryPressure = useMemoryPressure({ online, activeAgents, activeMode, kvReadings });
+  const memoryPressure = useMemoryPressure({
+    online, activeAgents, activeMode, kvReadings, hostMemory,
+  });
 
   const warningsByModeWithMemory = useMemo(() => {
     if (!memoryPressure?.warnings?.length || !activeMode) return warningsByMode;
