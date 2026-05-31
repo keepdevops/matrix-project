@@ -763,6 +763,18 @@ export default function BrewlateLayout({
                     <div className="brew-brewcast-live">
                       <span className="brew-brewcast-dot" />
                       <span className="brew-brewcast-live-label">LIVE</span>
+                      {lastMeta?._phase && (() => {
+                        const p = lastMeta._phase;
+                        const parts = [p.agent && `agent: ${p.agent}`];
+                        if (p.depth !== undefined) parts.push(`depth ${p.depth + 1}`);
+                        if (p.round !== undefined) parts.push(`round ${p.round}`);
+                        if (p.role) parts.push(p.role);
+                        return (
+                          <span className="brew-brewcast-phase" style={{ marginLeft: '0.75rem', opacity: 0.7, fontSize: '0.72rem' }}>
+                            {parts.filter(Boolean).join(' · ')}
+                          </span>
+                        );
+                      })()}
                     </div>
                   )}
                   {(loading || lastMeta) && (

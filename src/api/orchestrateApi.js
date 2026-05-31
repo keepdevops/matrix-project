@@ -25,7 +25,7 @@ export async function saveOrchestrateHistory({ prompt, result, mode, sessionId, 
  * Returns a cancel function.
  */
 export function submitOrchestrateStream(mode, prompt, params = {}, opts = {}, callbacks = {}) {
-  const { onToken, onAgentDone, onDone, onError } = callbacks;
+  const { onToken, onAgentStart, onAgentDone, onDone, onError } = callbacks;
   const controller = new AbortController();
 
   const body = { mode, prompt, params };
@@ -82,6 +82,7 @@ export function submitOrchestrateStream(mode, prompt, params = {}, opts = {}, ca
           let data;
           try { data = JSON.parse(dataStr); } catch { data = dataStr; }
           if (eventName === 'token') onToken?.(data.agent_id, data.text);
+          else if (eventName === 'agent_start') onAgentStart?.(data.agent_id, data.meta);
           else if (eventName === 'agent_end') onAgentDone?.(data.agent_id);
           else if (eventName === 'done') fireOnce(data);
           else if (eventName === 'error') {
