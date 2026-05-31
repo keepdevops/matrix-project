@@ -84,6 +84,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/response_cache.cpp" \
    "$CPP_SRC/mlx_inflight.cpp" \
    "$CPP_SRC/kv_router.cpp" \
+   "$CPP_SRC/code_fence_normalize.cpp" \
    "$CPP_SRC/rag_config.cpp" \
    "$CPP_SRC/rag_embed.cpp" \
    "$CPP_SRC/rag_client.cpp" \
@@ -134,6 +135,13 @@ c++ -std=c++17 -O0 -g -o "$ROOT/swarm_config_store_test" \
   "$CPP_SRC/swarm_config_store.cpp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/swarm_config_store_test"
+
+echo "Building code_fence_normalize_test..."
+c++ -std=c++17 -O0 -g -o "$ROOT/code_fence_normalize_test" \
+  "$ROOT/tests/cpp/code_fence_normalize_test.cpp" \
+  "$CPP_SRC/code_fence_normalize.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/code_fence_normalize_test"
 
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
