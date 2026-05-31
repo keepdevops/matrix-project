@@ -8,14 +8,14 @@ function read(rel) {
 }
 
 describe('Brewlatte launch (Brew button)', () => {
-  const brew = read('layouts/BrewlateLayout.js');
+  const brew = read('layouts/BrewlateLayout.js') + ['layouts/useBrewConfig.js','layouts/BrewConfigPanel.js','layouts/BrewSessionTab.js','layouts/BrewAgentsTab.js','layouts/BrewBroadcastTab.js','layouts/BrewRagTab.js'].map(f => read(f)).join('\n');
   const classic = read('components/ServerLayoutPreview.js');
 
   it('wires useDeploy and passes layout + risk to deploy()', () => {
     expect(brew).toMatch(/useDeploy\(/);
     expect(brew).toMatch(/brew-launch-btn/);
     expect(brew).toMatch(/deploy\(\{ roles, selected, roleModels, models, engine, riskEstimate, layout: serverLayout \}\)/);
-    expect(brew).toMatch(/canDeploy = selected\.size > 0/);
+    expect(brew).toMatch(/canDeploy\s*= selected\.size > 0/);
     expect(brew).toMatch(/status === 'deploying' \? 'Brewing…' : 'Brew'/);
     expect(brew).toMatch(/disabled=\{!canDeploy \|\| status === 'deploying'\}/);
   });

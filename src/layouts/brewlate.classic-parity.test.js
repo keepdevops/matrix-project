@@ -72,7 +72,7 @@ const FEATURE_PARITY = [
     id: 'pipeline-metrics',
     label: 'Pipeline stages + agent metrics',
     classic: ['layouts/DefaultLayout.js'],
-    brewlate: ['layouts/BrewlateLayout.js'],
+    brewlate: ['layouts/BrewSessionTab.js', 'layouts/BrewBroadcastTab.js'],
     classicMatch: [/PipelineStageOutputs/, /MetricsStrip/],
     brewlateMatch: [/PipelineStageOutputs/, /MetricsStrip/],
   },
@@ -96,7 +96,7 @@ const FEATURE_PARITY = [
     id: 'flat-compare',
     label: 'Flat mode variant compare',
     classic: ['layouts/DefaultLayout.js'],
-    brewlate: ['layouts/BrewlateLayout.js'],
+    brewlate: ['layouts/BrewAgentsTab.js'],
     classicMatch: [/CompareVariantsPanel/, /activeMode === 'flat'/],
     brewlateMatch: [/CompareVariantsPanel/, /activeMode === 'flat'/],
   },
@@ -104,7 +104,7 @@ const FEATURE_PARITY = [
     id: 'rag-sources',
     label: 'RAG sources after dispatch',
     classic: ['layouts/DefaultLayout.js'],
-    brewlate: ['layouts/BrewlateLayout.js'],
+    brewlate: ['layouts/BrewSessionTab.js'],
     classicMatch: [/RagSources rag=\{lastMeta/],
     brewlateMatch: [/RagSources rag=\{lastMeta/],
   },
@@ -123,10 +123,15 @@ const CLASSIC_UNUSED = new Set([
 describe('Brewlate vs classic parity', () => {
   const appSrc = read('App.js');
   const classicSrc = read('layouts/DefaultLayout.js');
-  const brewSrc = read('layouts/BrewlateLayout.js');
+  const brewShellSrc = read('layouts/BrewlateLayout.js');
+  // brewSrc concatenates shell + all sub-components so handler/component checks still pass.
+  const brewSrc = brewShellSrc + [
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewSessionTab.js',
+    'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js', 'layouts/BrewRagTab.js',
+  ].map(f => read(f)).join('\n');
   const layoutKeys = layoutPropKeys(appSrc);
   const classicParams = new Set(layoutParams(classicSrc, 'DefaultLayout'));
-  const brewParams = new Set(layoutParams(brewSrc, 'BrewlateLayout'));
+  const brewParams = new Set(layoutParams(brewShellSrc, 'BrewlateLayout'));
 
   it('both layouts accept the same App layoutProps (except documented Brewlate-only gaps)', () => {
     const missingClassic = layoutKeys.filter(

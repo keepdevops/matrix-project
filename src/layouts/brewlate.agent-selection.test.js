@@ -25,7 +25,7 @@ const ALL_ROLES = [
 ];
 
 describe('Brewlatte agent selection', () => {
-  const brewSrc = read('layouts/BrewlateLayout.js');
+  const brewSrc = read('layouts/BrewlateLayout.js') + ['layouts/useBrewConfig.js','layouts/BrewConfigPanel.js','layouts/BrewSessionTab.js','layouts/BrewAgentsTab.js','layouts/BrewBroadcastTab.js','layouts/BrewRagTab.js'].map(f => read(f)).join('\n');
   const cardSrc = read('layouts/BrewAgentCard.js');
 
   it('exports Custom profile and wires individual selection controls', () => {
