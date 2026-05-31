@@ -9,6 +9,7 @@ import {
 } from '../api/swarmApi';
 import {
   ENGINES,
+  PROFILE_CUSTOM,
   PROFILE_SAFE,
   PROFILE_BALANCED,
   PROFILE_MAX,
@@ -20,12 +21,14 @@ import {
 import { computeRiskEstimate } from '../components/SwarmConfig.risk';
 import { useDeploy } from '../components/SwarmConfig.deploy';
 import useRagHealth from '../hooks/useRagHealth';
-import BrewEditRoleModal from './BrewEditRoleModal';
+import AgentPromptModal from '../components/AgentPromptModal';
 import BrewResourcePopout from './BrewResourcePopout';
 import BrewMonitorPopout from './BrewMonitorPopout';
+import BrewAgentsPopout from './BrewAgentsPopout';
 import BrewHeader from './BrewHeader';
 import BrewAgentCard, { modelShortName } from './BrewAgentCard';
 import BrewAgentGrid from './BrewAgentGrid';
+import BrewCodeResultsPanel from './BrewCodeResultsPanel';
 import BrewAgentPopout from './BrewAgentPopout';
 import { extractCodeBlock } from '../utils/codeExtractor';
 import CompareVariantsPanel from '../components/CompareVariantsPanel';
@@ -55,6 +58,7 @@ const VLLM_PRESTARTED = [
 ];
 
 const PROFILES = [
+  [PROFILE_CUSTOM,   'Custom'],
   [PROFILE_SAFE,     'Safe'],
   [PROFILE_BALANCED, 'Balanced'],
   [PROFILE_MAX,      'Max'],
@@ -152,15 +156,16 @@ export default function BrewlateLayout({
   const [selected, setSelected]         = useState(new Set());
   const [roleModels, setRoleModels]     = useState({});
   const [engine, setEngine]             = useState('llama');
-  const [activeProfile, setActiveProfile] = useState(PROFILE_SAFE);
+  const [activeProfile, setActiveProfile] = useState(PROFILE_CUSTOM);
   const [profileThresholds, setProfileThresholds] = useState({});
   const [editingAgent, setEditingAgent] = useState(null);
   const [loadError, setLoadError]       = useState('');
   const [loadRetries, setLoadRetries]   = useState(0);
   const [deployed, setDeployed]         = useState(false);
   const [rightTab, setRightTab]         = useState('session');
-  const [showMonitor, setShowMonitor]   = useState(false);
-  const [leftPopout, setLeftPopout]     = useState(null);
+  const [showMonitor, setShowMonitor]       = useState(false);
+  const [showAgentsPopout, setShowAgentsPopout] = useState(false);
+  const [leftPopout, setLeftPopout]         = useState(null);
 
   useEffect(() => {
     if (loading) {
@@ -201,27 +206,79 @@ export default function BrewlateLayout({
         const preselected = {};
         liveAgents.forEach(a => { if (a.model) preselected[a.name] = a.model; });
         setRoleModels(preselected);
-        setActiveProfile(liveAgents.length > 0 ? PROFILE_MAX : PROFILE_SAFE);
+        setActiveProfile(liveAgents.length > 0 ? PROFILE_CUSTOM : PROFILE_SAFE);
       })
       .catch(e => { if (!cancelled) setLoadError(e.message); });
     return () => { cancelled = true; };
   }, [loadRetries]);
 
+  const engineModels = useMemo(
+    () => models.filter(m => m.backend === engine),
+    [models, engine],
+  );
+
+  const pickModelForRole = useCallback((roleName) => {
+    const role = roles.find(r => r.name === roleName);
+    const back = role?.engine || role?.backend || engine;
+    const cands = models.filter(m => m.backend === back).length
+      ? models.filter(m => m.backend === back)
+      : engineModels;
+    return chooseModelForRole(roleName, cands);
+  }, [roles, models, engine, engineModels]);
+
   const handleEngineChange = id => {
     setEngine(id);
     setSelected(new Set());
     setRoleModels({});
+    setActiveProfile(PROFILE_CUSTOM);
   };
 
-  const toggleRole = name => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(name) ? next.delete(name) : next.add(name);
-    return next;
-  });
+  const toggleRole = name => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+        if (!roleModels[name]) {
+          const path = pickModelForRole(name);
+          if (path) setRoleModels(rm => ({ ...rm, [name]: path }));
+        }
+      }
+      return next;
+    });
+    setActiveProfile(PROFILE_CUSTOM);
+  };
 
-  const setModel = (name, model) => setRoleModels(prev => ({ ...prev, [name]: model }));
+  const setModel = (name, model) => {
+    setRoleModels(prev => ({ ...prev, [name]: model }));
+    setActiveProfile(PROFILE_CUSTOM);
+  };
+
+  const selectAllRoles = () => {
+    const nextModels = { ...roleModels };
+    const picked = new Set(roles.map(r => r.name));
+    roles.forEach(r => {
+      if (!nextModels[r.name]) {
+        const path = pickModelForRole(r.name);
+        if (path) nextModels[r.name] = path;
+      }
+    });
+    setRoleModels(nextModels);
+    setSelected(picked);
+    setActiveProfile(PROFILE_CUSTOM);
+  };
+
+  const clearAllRoles = () => {
+    setSelected(new Set());
+    setActiveProfile(PROFILE_CUSTOM);
+  };
 
   const applyProfile = profileId => {
+    if (profileId === PROFILE_CUSTOM) {
+      setActiveProfile(PROFILE_CUSTOM);
+      return;
+    }
     const roleMap    = new Map(roles.map(r => [r.name, r]));
     const ctxMap     = Object.fromEntries(roles.map(r => [r.name, r.context ?? 0]));
     const roleNames  = getProfileRoles(profileId, roles.map(r => r.name), ctxMap, profileThresholds);
@@ -285,6 +342,8 @@ export default function BrewlateLayout({
         modes={modes}
         activeMode={activeMode}
         warningsByMode={warningsByMode}
+        kvReadings={kvReadings}
+        kvFetchFailed={kvFetchFailed}
         cacheStatus={cacheStatus}
         historyCount={history.length}
         deployed={deployed}
@@ -400,13 +459,52 @@ export default function BrewlateLayout({
                     ))}
                   </select>
                 </div>
+                <p className="brew-profile-hint">
+                  Presets fill the roster; use <strong>Custom</strong> and click agents to pick individually.
+                </p>
               </div>
             </div>
 
-            <div className="brew-section" style={{ flex: '1 1 0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div className="brew-section-header">
+            <div className="brew-section brew-section--agents" style={{ flex: '1 1 0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div className="brew-section-header brew-section-header--agents">
                 <span className="brew-section-title">Agents</span>
+                <div className="brew-agents-header-actions">
+                  <button
+                    type="button"
+                    className="brew-agents-bulk-btn"
+                    onClick={selectAllRoles}
+                    title="Select every agent role"
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    className="brew-agents-bulk-btn"
+                    onClick={clearAllRoles}
+                    title="Clear agent selection"
+                  >
+                    None
+                  </button>
+                  <button
+                    type="button"
+                    className={`brew-agents-popout-trigger${showAgentsPopout ? ' open' : ''}`}
+                    onClick={() => setShowAgentsPopout(v => !v)}
+                    aria-expanded={showAgentsPopout}
+                    title="Per-agent context and max token budgets"
+                  >
+                    BUDGETS
+                  </button>
+                </div>
               </div>
+
+              <BrewAgentsPopout
+                open={showAgentsPopout}
+                onClose={() => setShowAgentsPopout(false)}
+                roles={roles}
+                selected={selected}
+                onRolesChange={setRoles}
+              />
+
               <div className="brew-section-body" style={{ flex: '1 1 0', overflowY: 'auto', padding: '0.75rem' }}>
                 <div className="brew-agent-cards">
                   {roles.map(role => {
@@ -452,8 +550,10 @@ export default function BrewlateLayout({
                         onClick={() => toggleRole(role.name)}
                         onEdit={() => setEditingAgent(role)}
                         onExpand={onExpand}
-                        showModelSelect={models.length > 0}
-                        models={models}
+                        showCheckbox
+                        checked={isSelected}
+                        showModelSelect={engineModels.length > 0}
+                        models={engineModels.length > 0 ? engineModels : models}
                         onModelChange={path => setModel(role.name, path)}
                       />
                     );
@@ -524,6 +624,10 @@ export default function BrewlateLayout({
                   ))}
                 </div>
               </div>
+              <div className="brew-preview-roster">
+                <ModeRosterPanel />
+                <PresetsPanel />
+              </div>
             </div>
           ) : (
             <div className="brew-chat-panel">
@@ -566,7 +670,19 @@ export default function BrewlateLayout({
                       onSwitchSession={onSwitchSession}
                     />
                     <FinalAnswerPanel text={finalAnswer} />
+                    <BrewCodeResultsPanel
+                      responses={responses}
+                      activeAgents={activeAgents}
+                      loading={loading}
+                      onSaveCode={onSaveCode}
+                    />
                     <RagSources rag={lastMeta?.rag} />
+                    {lastMeta && (
+                      <>
+                        <PipelineStageOutputs stageOutputs={stageOutputs} />
+                        <MetricsStrip envelope={{ meta: lastMeta }} />
+                      </>
+                    )}
                   </div>
                   <div className="brew-session-prompt">
                     <PromptInput
@@ -602,6 +718,7 @@ export default function BrewlateLayout({
                     flatPickMode={activeMode === 'flat'}
                     pickedFlatAgent={flatPickAgent}
                     onPickFlatAgent={onPickFlatAgent}
+                    onSaveCode={onSaveCode}
                     rolesByName={rolesByName}
                   />
                   {activeMode === 'flat' && Object.keys(responses).length > 0 && (
@@ -649,6 +766,7 @@ export default function BrewlateLayout({
                         flatPickMode={activeMode === 'flat'}
                         pickedFlatAgent={flatPickAgent}
                         onPickFlatAgent={onPickFlatAgent}
+                        onSaveCode={onSaveCode}
                         rolesByName={rolesByName}
                         compact
                       />
@@ -683,23 +801,15 @@ export default function BrewlateLayout({
       </div>
 
       {editingAgent && (
-        <BrewEditRoleModal
-          role={editingAgent}
-          models={models}
-          roleModels={roleModels}
+        <AgentPromptModal
+          agent={editingAgent}
+          defaultPrompt={editingAgent.system_prompt}
           onClose={() => setEditingAgent(null)}
-          onSaved={({ name, system_prompt, model, temperature, context }) => {
+          onSaved={(saved) => {
+            const next = typeof saved === 'string' ? { system_prompt: saved } : (saved || {});
             setRoles(prev => prev.map(r =>
-              r.name === editingAgent.name
-                ? { ...r, name, system_prompt, temperature, context }
-                : r
+              r.name === editingAgent.name ? { ...r, ...next } : r
             ));
-            if (model) setRoleModels(prev => {
-              const next = { ...prev };
-              delete next[editingAgent.name];
-              next[name] = model;
-              return next;
-            });
             setEditingAgent(null);
           }}
         />

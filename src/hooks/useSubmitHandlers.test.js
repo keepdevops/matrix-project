@@ -189,6 +189,48 @@ test('handleSaveCode does nothing when no agents have responses', () => {
   expect(() => result.current.handleSaveCode()).not.toThrow();
 });
 
+test('handleSaveCode downloads combined code from programmer fence', () => {
+  const origCreateElement = document.createElement.bind(document);
+  const createObjectURL = jest.fn(() => 'blob:mock');
+  const revokeObjectURL = jest.fn();
+  global.URL.createObjectURL = createObjectURL;
+  global.URL.revokeObjectURL = revokeObjectURL;
+
+  const click = jest.fn();
+  const spy = jest.spyOn(document, 'createElement').mockImplementation((tag) => {
+    if (tag === 'a') return { click, download: '', href: '' };
+    return origCreateElement(tag);
+  });
+
+  const { opts } = makeHook({
+    activeAgents: [{ name: 'programmer' }],
+    responses: { programmer: '```python\nprint("ok")\n```' },
+  });
+  const { result } = renderHook(() => useSubmitHandlers(opts));
+  act(() => result.current.handleSaveCode());
+
+  expect(createObjectURL).toHaveBeenCalled();
+  const blob = createObjectURL.mock.calls[0][0];
+  expect(blob.type).toBe('text/plain');
+  expect(click).toHaveBeenCalled();
+  expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
+
+  spy.mockRestore();
+});
+
+test('handleSubmit forwards useRag and rag opts from PromptInput merge', async () => {
+  const { submit, opts } = makeHook({ useRag: true });
+  const { result } = renderHook(() => useSubmitHandlers(opts));
+  await act(async () => {
+    await result.current.handleSubmit('write fib in python', 0.2, { ragTopK: 5 });
+  });
+  expect(submit).toHaveBeenCalledWith(
+    'write fib in python',
+    0.2,
+    expect.objectContaining({ useRag: true, ragTopK: 5 }),
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Empty / whitespace prompts
 // ---------------------------------------------------------------------------

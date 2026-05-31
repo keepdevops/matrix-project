@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import ModeSelector from '../components/ModeSelector';
+import KvPressureGauge from '../components/KvPressureGauge';
 import { LAYOUTS, THEMES } from './registry';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
@@ -16,6 +17,8 @@ export default function BrewHeader({
   modes,
   activeMode,
   warningsByMode,
+  kvReadings,
+  kvFetchFailed,
   cacheStatus,
   historyCount,
   deployed,
@@ -69,6 +72,8 @@ export default function BrewHeader({
           warningsByMode={warningsByMode}
         />
       </div>
+
+      <KvPressureGauge online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
 
       <button
         type="button"
