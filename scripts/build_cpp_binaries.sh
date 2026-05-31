@@ -60,6 +60,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/mode_module.cpp" \
    "$CPP_SRC/session_store.cpp" \
    "$CPP_SRC/synthesis_budget.cpp" \
+   "$CPP_SRC/synthesis_budget_assemble.cpp" \
    "$CPP_SRC/synthesis_tiered.cpp" \
    "$CPP_SRC/coordinator_routes.cpp" \
    "$CPP_SRC/coordinator_routes_agents_meta.cpp" \
