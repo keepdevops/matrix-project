@@ -30,7 +30,7 @@ from demo_utils import (
     select_profile, launch_and_wait_online,
     set_mode, clear_session,
     broadcast, wait_for_response,
-    stitch_video,
+    wait_for_agents_ready, stitch_video,
 )
 
 BASE_DIR   = "/tmp/hero-expand"
@@ -114,6 +114,7 @@ def run_scenario(page, mode, prompt, shots_dir):
     set_mode(page, mode)
     shot(page, shots_dir, "mode-set")
     clear_session(page)
+    wait_for_agents_ready(page)
 
     # Broadcast
     broadcast(page, prompt)
@@ -177,8 +178,7 @@ def main():
                 ("PIPELINE", PROMPT_PIPELINE),
             ]):
                 if i > 0:
-                    log("Waiting 60s for server to stabilise before next scenario…")
-                    page.wait_for_timeout(60_000)
+                    wait_for_agents_ready(page, shots_dir=launch_dir)
                 shots_dir = os.path.join(BASE_DIR, mode.lower())
                 try:
                     mov = run_scenario(page, mode, prompt, shots_dir)

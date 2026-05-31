@@ -225,6 +225,39 @@ def follow_up(page, prompt_text, shots_dir, label):
 
 
 # ---------------------------------------------------------------------------
+# Agent readiness
+# ---------------------------------------------------------------------------
+
+def wait_for_agents_ready(page, shots_dir=None, label="agents-ready", timeout_ms=300_000):
+    """
+    Poll until no left-panel agent card shows a PENDING launch status.
+    This ensures the coordinator has finished bringing up all agent servers
+    before firing a broadcast that requires multiple agents (e.g. pipeline).
+    """
+    log("Waiting for all agents to be READY…")
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        page.wait_for_timeout(3_000)
+        pending = page.evaluate(
+            """() => {
+                const metas = document.querySelectorAll(
+                    '.brew-panel--left .brew-agent-card-meta'
+                );
+                return Array.from(metas).filter(
+                    el => el.textContent.trim().toUpperCase() === 'PENDING'
+                ).length;
+            }"""
+        )
+        if pending == 0:
+            print("  ✓  All agents ready (no PENDING cards)")
+            if shots_dir:
+                shot(page, shots_dir, label)
+            return
+        print(f"  … {pending} agent(s) still PENDING…")
+    raise RuntimeError("Timed out waiting for agents to become ready")
+
+
+# ---------------------------------------------------------------------------
 # Right-panel tab switching
 # ---------------------------------------------------------------------------
 
