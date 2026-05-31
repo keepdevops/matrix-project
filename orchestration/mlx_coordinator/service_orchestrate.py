@@ -108,6 +108,9 @@ async def handle_orchestrate(request: web.Request) -> web.Response:
         logger.error("orchestrate: mode=%s session=%s failed: %s", mode_id, session_id, exc)
         raise web.HTTPInternalServerError(reason=str(exc))
 
+    rag_context = params.get("rag_context") or []
+    if rag_context:
+        meta = {**meta, "rag_chunks": rag_context}
     return web.json_response(
         {"result": "".join(parts), "session_id": session_id, "mode": mode_id, "meta": meta}
     )
@@ -190,6 +193,9 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
         await send("error", json.dumps({"agent_id": None, "error": str(exc)}))
         return resp
 
+    rag_context = params.get("rag_context") or []
+    if rag_context:
+        final_meta = {**final_meta, "rag_chunks": rag_context}
     await send("done", json.dumps({
         "result": "".join(result_parts),
         "session_id": session_id,

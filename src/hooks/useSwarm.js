@@ -67,8 +67,19 @@ export function useSwarm() {
               const resultText = data?.result
                 || Object.values(assembled).map(a => a.join('')).join('');
               setFinalAnswer(resultText || null);
-              setLastMeta({ mode: opts.orchestrateMode, ...(data?.meta || {}),
-                wall_ms: Date.now() - wallStart });
+              const ragChunks = data?.meta?.rag_chunks;
+              const ragMeta = Array.isArray(ragChunks) && ragChunks.length > 0 ? {
+                requested: true, used: true, top_k: ragChunks.length,
+                hits: ragChunks.map((c, i) => ({
+                  source_path: c.source_path, chunk_idx: i,
+                  distance: c.distance, content: c.content,
+                })),
+              } : null;
+              setLastMeta({
+                mode: opts.orchestrateMode, ...(data?.meta || {}),
+                wall_ms: Date.now() - wallStart,
+                ...(ragMeta ? { rag: ragMeta } : {}),
+              });
               setLoading(false);
               cancelRef.current = null;
               resolve({ final: resultText, meta: data?.meta });
