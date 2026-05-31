@@ -8,11 +8,11 @@ import {
 // Models (Llama-8B + Codestral-22B Q4) consume ~17GB.
 // OS + runtime overhead: ~4GB.  Usable for KV cache: ~15GB.
 // Block threshold: total estimated RAM > 33GB (3GB safety margin).
-const RAM_TOTAL_GB   = 36;
-const RAM_MODEL_GB   = 17;   // both models loaded
-const RAM_OS_GB      = 4;
-const RAM_BLOCK_GB   = 33;   // hard block above this
-const RAM_WARN_GB    = 28;   // warn above this
+export const RAM_TOTAL_GB   = 36;
+export const RAM_MODEL_GB   = 17;   // both models loaded
+export const RAM_OS_GB      = 4;
+export const RAM_BLOCK_GB   = 33;   // hard block above this
+export const RAM_WARN_GB    = 28;   // warn above this
 
 // KV cache GB per 1024 tokens per model size (llama.cpp Q4/Q8 approximation).
 // Codestral-22B: 32 layers, GQA-8, head_dim=128 → ~0.125 GB / 1024 tokens
@@ -27,7 +27,7 @@ function kvGbPer1kTokens(modelSizeB, engine) {
   return 0.02;
 }
 
-function getRiskBand(totalRamGb) {
+export function getRiskBand(totalRamGb) {
   if (totalRamGb > RAM_BLOCK_GB) return { id: 'high',   label: 'HIGH',   hint: 'Projected OOM — reduce agents or context' };
   if (totalRamGb > RAM_WARN_GB)  return { id: 'medium', label: 'MEDIUM', hint: 'Elevated memory pressure — watch for slowdowns' };
   return                                { id: 'low',    label: 'LOW',    hint: 'Well within 36GB memory budget' };

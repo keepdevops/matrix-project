@@ -6,8 +6,10 @@ export function useSubmitHandlers({
   submit, loadHistory, currentSession, activeMode, useRag,
   responses, activeAgents, flatPickAgent,
   modeWarnings = [],
+  memoryPressure = null,
   onModeWarning,
   onSaveCodeToast,
+  onMemoryPressureWarning,
 }) {
   const [pendingPrompt, setPendingPrompt] = useState(null);
 
@@ -15,6 +17,15 @@ export function useSubmitHandlers({
     // Warn if the active mode has known deployment issues (non-blocking).
     if (modeWarnings.length > 0 && !opts.qualityPass && !opts.followup) {
       onModeWarning?.(modeWarnings);
+    }
+
+    if (
+      memoryPressure?.shouldWarnOnSubmit
+      && !opts.qualityPass
+      && !opts.followup
+      && !opts.skipMemoryWarn
+    ) {
+      onMemoryPressureWarning?.(memoryPressure);
     }
 
     setPendingPrompt(prompt);
@@ -39,7 +50,7 @@ export function useSubmitHandlers({
     } finally {
       setPendingPrompt(null);
     }
-  }, [submit, loadHistory, currentSession, activeMode, useRag, modeWarnings, onModeWarning]);
+  }, [submit, loadHistory, currentSession, activeMode, useRag, modeWarnings, memoryPressure, onModeWarning, onMemoryPressureWarning]);
 
   const handleQualityPass = useCallback(async (temperature = 0.2) => {
     const instruction = [

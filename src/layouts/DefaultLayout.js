@@ -34,7 +34,7 @@ export default function DefaultLayout({
   showConfig, showHistory, showConfigPanel, deployPending,
   showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, pendingPrompt,
-  flatPickAgent, excludedBreaker, stageOutputs,
+  flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, memoryPressure,
   // theme + layout
   theme, layout, onSetTheme, onSetLayout,
   // handlers
@@ -71,6 +71,8 @@ export default function DefaultLayout({
         onOpenHelp={onOpenHelp}
         onSetTheme={onSetTheme}
         onSetLayout={onSetLayout}
+        warningsByMode={warningsByMode}
+        memoryPressure={memoryPressure}
       />
 
       {showConverter && (

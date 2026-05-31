@@ -32,7 +32,7 @@ export default function SidebarLayout({
   showConfig, showHistory, showConfigPanel, deployPending,
   showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, pendingPrompt,
-  flatPickAgent, excludedBreaker, stageOutputs,
+  flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, memoryPressure,
   theme, layout, onSetTheme, onSetLayout,
   onModeChange, onClearCache,
   onToggleConfig, onToggleHistory,
@@ -69,6 +69,8 @@ export default function SidebarLayout({
         onOpenHelp={onOpenHelp}
         onSetTheme={onSetTheme}
         onSetLayout={onSetLayout}
+        warningsByMode={warningsByMode}
+        memoryPressure={memoryPressure}
       />
 
       <div className={`sl-body${sidebarCollapsed ? ' sl-body--collapsed' : ''}`}>

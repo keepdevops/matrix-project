@@ -216,6 +216,29 @@ h1 {
 }
 
 /* ========== KV Pressure Gauge ========== */
+.mem-pressure-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 174, 0, 0.45);
+  background: rgba(255, 174, 0, 0.08);
+  color: var(--kv-warn, #ffae00);
+  white-space: nowrap;
+}
+.mem-pressure-high {
+  border-color: rgba(255, 65, 54, 0.55);
+  background: rgba(255, 65, 54, 0.1);
+  color: var(--kv-crit, #ff4136);
+}
+.mem-pressure-medium {
+  border-color: rgba(255, 174, 0, 0.45);
+  color: var(--kv-warn, #ffae00);
+}
+
 .kv-gauge {
   display: inline-flex;
   align-items: center;

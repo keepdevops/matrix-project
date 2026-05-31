@@ -141,7 +141,7 @@ export default function BrewlateLayout({
   currentSession, backend, switchBackend,
   showHistory, showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, flatPickAgent, excludedBreaker, stageOutputs,
-  warningsByMode, theme, layout: currentLayout,
+  warningsByMode, memoryPressure, theme, layout: currentLayout,
   pendingPrompt, selectedPrompt, selectedTemperature,
   onModeChange, onClearCache, onToggleHistory,
   onOpenConverter, onOpenRagAdmin, onOpenCachePanel, onOpenHelp,
@@ -345,6 +345,7 @@ export default function BrewlateLayout({
         warningsByMode={warningsByMode}
         kvReadings={kvReadings}
         kvFetchFailed={kvFetchFailed}
+        memoryPressure={memoryPressure}
         cacheStatus={cacheStatus}
         historyCount={history.length}
         deployed={deployed}

@@ -1,6 +1,6 @@
 import { MODE_MANIFEST } from './modeManifestData';
 
-const DEFAULT_META = { backend: 'cpp', enabled: true, ui: true };
+const DEFAULT_META = { backend: 'cpp', enabled: true, ui: true, memoryWeight: 1 };
 
 /**
  * Merge coordinator /api/modes entries with MS-24 mode manifest metadata.
@@ -24,6 +24,11 @@ export function applyModeManifest(apiModes) {
 
 export function getModeManifestEntry(name) {
   return MODE_MANIFEST[name] || DEFAULT_META;
+}
+
+export function getModeMemoryWeight(name) {
+  const w = getModeManifestEntry(name).memoryWeight;
+  return Number.isFinite(w) && w > 0 ? w : 1;
 }
 
 export { MODE_MANIFEST };
