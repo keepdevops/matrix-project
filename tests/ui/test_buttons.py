@@ -393,3 +393,11 @@ def test_classic_swarm_config_token_budgets(classic_page):
 def test_classic_body_layout_attribute(classic_page):
     attr = classic_page.evaluate("() => document.body.getAttribute('data-layout')")
     assert attr == "classic"
+
+
+# ── MS-29-4 additions — orchestrate progress indicator ───────────────────────
+
+def test_brewlate_orchestrate_progress_class_exists():
+    """BrewlateLayout renders .brew-brewcast-phase when orchestrate is running."""
+    src = (REPO / "src/layouts/BrewlateLayout.js").read_text()
+    assert "brew-brewcast-phase" in src
