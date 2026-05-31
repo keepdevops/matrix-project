@@ -43,7 +43,14 @@ const Turn = memo(function Turn({ entry, finalAnswer }) {
         )}
       </div>
       <div className="ct-bubble ct-bubble--swarm">
-        <span className="ct-bubble-label">SWARM</span>
+        <span className="ct-bubble-label">
+          SWARM
+          {entry._orchestrate && entry._mode && (
+            <span className="ct-mode-badge" title={`Python orchestrate mode: ${entry._mode}`}>
+              {' · 🐍 '}{entry._mode}
+            </span>
+          )}
+        </span>
         {swarmText
           ? <>
               {isFallback && <span className="ct-fallback-label">best agent · </span>}
