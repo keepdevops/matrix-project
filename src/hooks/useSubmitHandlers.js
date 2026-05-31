@@ -35,7 +35,13 @@ export function useSubmitHandlers({
       }
       setPendingPrompt(prompt);
       try {
-        await submit(prompt, temperature, { orchestrateMode: activeMode, orchestrateParams });
+        await submit(prompt, temperature, {
+          orchestrateMode: activeMode,
+          orchestrateParams,
+          useRag,
+          ragTopK: opts.ragTopK,
+          ragMinScore: opts.ragMinScore,
+        });
         loadHistory();
       } catch (err) {
         console.error(`[useSubmitHandlers] ${activeMode} failed:`, err);
