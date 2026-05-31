@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { extractCodeBlock } from '../utils/codeExtractor';
+import { buildCodeExport, downloadBlob } from '../utils/codeSave';
 import { qualityPassContextPolicy } from '../utils/qualityPassContext';
 
 export function useSubmitHandlers({
@@ -7,6 +7,7 @@ export function useSubmitHandlers({
   responses, activeAgents, flatPickAgent,
   modeWarnings = [],
   onModeWarning,
+  onSaveCodeToast,
 }) {
   const [pendingPrompt, setPendingPrompt] = useState(null);
 
@@ -75,23 +76,16 @@ export function useSubmitHandlers({
   };
 
   const handleSaveCode = () => {
-    const sections = [];
-    activeAgents.forEach(({ name }) => {
-      const resp = responses[name];
-      if (!resp) return;
-      const { code, language } = extractCodeBlock(resp);
-      if (!code || code.trim().length < 10) return;
-      sections.push(`// === ${name.toUpperCase()} (${language}) ===\n\n${code}`);
-    });
-    if (!sections.length) return;
-    const separator = '\n\n// ────────────────────────────────────────────\n\n';
-    const blob = new Blob([sections.join(separator)], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `swarm-matrix-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const result = buildCodeExport(activeAgents, responses);
+    if (!result.ok) {
+      onSaveCodeToast?.(result.message || 'Nothing to save', 'warn');
+      return;
+    }
+    downloadBlob(result.blob, result.filename);
+    const msg = result.format === 'zip'
+      ? `Saved ${result.fileCount} files (${result.filename})`
+      : `Saved ${result.filename}`;
+    onSaveCodeToast?.(msg, 'success');
   };
 
   return { pendingPrompt, handleSubmit, handleQualityPass, handleFollowUp, handleSendBestContinue, handleSaveCode };

@@ -3,7 +3,7 @@ import AgentResponse from './AgentResponse';
 import CodeOutputPanel from './CodeOutputPanel';
 import { SkeletonAgentCard } from './Skeleton';
 import { getAgentColor } from '../utils/agentColors';
-import { extractCodeBlock } from '../utils/codeExtractor';
+import { extractCodeBlock, hasExtractableCode } from '../utils/codeExtractor';
 
 const ENGINE_LABELS = { llama: 'LLAMA', mlx: 'MLX', vllm: 'vLLM', docker: 'DOCKER' };
 const modelDisplayName = (m) => {
@@ -47,6 +47,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
         pickable={isPickable}
         onPick={isPickable ? () => onPickFlatAgent(name) : null}
         agentError={agentErrors[name] || null}
+        hasCode={hasExtractableCode(responses[name])}
       />
     );
   }, [responses, loading, timings, flatPickMode, pickedFlatAgent, onPickFlatAgent, agentErrors]);

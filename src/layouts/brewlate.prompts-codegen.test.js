@@ -41,7 +41,7 @@ describe('Prompts and code generation', () => {
   });
 
   it('handleSaveCode aggregates fenced code from agents', () => {
-    expect(submitHandlers).toMatch(/extractCodeBlock/);
+    expect(submitHandlers).toMatch(/buildCodeExport/);
     expect(submitHandlers).toMatch(/handleSaveCode/);
     expect(brew).toMatch(/onSaveCode=\{onSaveCode\}/);
     expect(brew).toMatch(/BrewCodeResultsPanel/);

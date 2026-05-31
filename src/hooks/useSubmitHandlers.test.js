@@ -180,13 +180,15 @@ test('handleSendBestContinue submits refine prompt with correct context policy',
 // ---------------------------------------------------------------------------
 
 test('handleSaveCode does nothing when no agents have responses', () => {
-  // URL.createObjectURL is not available in jsdom — test the no-op path (empty responses)
+  const onSaveCodeToast = jest.fn();
   const { opts } = makeHook({
     activeAgents: [{ name: 'architect' }],
     responses: {},
+    onSaveCodeToast,
   });
   const { result } = renderHook(() => useSubmitHandlers(opts));
-  expect(() => result.current.handleSaveCode()).not.toThrow();
+  act(() => result.current.handleSaveCode());
+  expect(onSaveCodeToast).toHaveBeenCalledWith(expect.stringContaining('No fenced'), 'warn');
 });
 
 test('handleSaveCode downloads combined code from programmer fence', () => {
@@ -205,6 +207,7 @@ test('handleSaveCode downloads combined code from programmer fence', () => {
   const { opts } = makeHook({
     activeAgents: [{ name: 'programmer' }],
     responses: { programmer: '```python\nprint("ok")\n```' },
+    onSaveCodeToast: jest.fn(),
   });
   const { result } = renderHook(() => useSubmitHandlers(opts));
   act(() => result.current.handleSaveCode());
@@ -214,6 +217,7 @@ test('handleSaveCode downloads combined code from programmer fence', () => {
   expect(blob.type).toBe('text/plain');
   expect(click).toHaveBeenCalled();
   expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
+  expect(opts.onSaveCodeToast).toHaveBeenCalledWith(expect.stringContaining('Saved'), 'success');
 
   spy.mockRestore();
 });

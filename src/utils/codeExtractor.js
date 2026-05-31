@@ -110,6 +110,12 @@ export function extractAllCodeBlocks(input, requestedLanguage = null) {
   return blocks.sort((a, b) => b.score - a.score);
 }
 
+/** True when text contains at least one fence meeting MIN_CODE_CHARS. */
+export function hasExtractableCode(input) {
+  if (!input) return false;
+  return extractAllCodeBlocks(input).some((b) => b.content.trim().length >= MIN_CODE_CHARS);
+}
+
 /**
  * Open trailing fence while streaming (odd ``` count).
  */

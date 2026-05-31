@@ -512,6 +512,15 @@ body[data-layout="brewlate"] {
   justify-content: center;
 }
 
+.brew-code-badge {
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  padding: 0.06rem 0.3rem;
+  border-radius: 3px;
+  border: 1px solid var(--brew-accent-dim);
+  color: var(--brew-accent);
+}
+
 .brew-agent-card-check {
   width: 14px;
   height: 14px;

@@ -54,6 +54,11 @@ function ModeSelector({ modes, active, onChange, disabled, warningsByMode = {} }
                   <span style={{ marginRight: '0.3em', color: 'var(--color-warn)' }} title={(warningsByMode[m.name] ?? [])[0]}>⚠</span>
                 )}
                 {m.name}
+                {m.backend && m.backend !== 'cpp' && (
+                  <span className="mode-option-backend" title={m.manifestNote || `${m.backend} backend`}>
+                    {m.backend}
+                  </span>
+                )}
               </div>
             </Button>
           ))}
