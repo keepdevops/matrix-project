@@ -32,10 +32,9 @@ from playwright.sync_api import sync_playwright
 
 from demo_utils import (
     log, shot,
-    ensure_config_closed,
     set_mode, clear_session,
     broadcast, wait_for_response,
-    stitch_video,
+    switch_right_tab, stitch_video,
 )
 
 BASE_DIR    = "/tmp/hero-mlx"
@@ -79,14 +78,7 @@ def switch_to_mlx_backend(page):
 
 def wait_for_live_tab_agents(page, shots_dir, label, timeout_ms=60_000):
     """Switch to the Live tab and wait for agent cards to populate."""
-    # Click the Live / brewcast tab
-    live_tab = page.query_selector("[data-tab='brewcast'], button:has-text('Live')")
-    if live_tab:
-        live_tab.click()
-        page.wait_for_timeout(500)
-        print("  ✓  Live tab open")
-    else:
-        print("  ⚠  Live tab not found — staying on current view")
+    switch_right_tab(page, "Live")
 
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
@@ -175,10 +167,7 @@ def run_scenario(page, mode, prompt, shots_dir):
     show_metrics_strip(page, shots_dir, "metrics-strip")
 
     # Return to agents tab to show expand buttons
-    agents_tab = page.query_selector("[data-tab='agents'], button:has-text('Agents')")
-    if agents_tab:
-        agents_tab.click()
-        page.wait_for_timeout(400)
+    switch_right_tab(page, "Agents")
 
     shot(page, shots_dir, "agents-tab-with-results")
     open_expand_popout(page, shots_dir, "popout-first-agent", btn_index=0)
@@ -238,8 +227,6 @@ def main():
 
             launch_and_wait_online(page, shots_dir=launch_dir)
             shot(page, launch_dir, "online")
-
-            ensure_config_closed(page)
             page.wait_for_timeout(500)
 
             for mode, prompt in [
