@@ -114,6 +114,19 @@ export async function configureSwarm(agents) {
 /** Default vLLM ports — keep in sync with VllmPanel. */
 export const VLLM_METRIC_PORTS = [8080, 8081, 8082, 8083];
 
+export async function fetchHostMemory() {
+  try {
+    const res = await fetch(`${API_BASE}/memory`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    if (!data || typeof data !== 'object') throw new Error('expected object from /api/memory');
+    return data;
+  } catch (e) {
+    console.error('Host memory fetch failed:', e);
+    return { ok: false, source: 'host' };
+  }
+}
+
 export async function fetchKvPressure() {
   try {
     const res = await fetch(`${API_BASE}/pressure`, { cache: 'no-store' });

@@ -32,27 +32,38 @@ export function maxKvUsage(kvReadings) {
   return Math.max(...live.map(r => r.usage));
 }
 
-export function assessMemoryPressure({ activeAgents = [], activeMode, kvReadings = [] }) {
+/** RAM GB for banding — prefers live host snapshot when available. */
+export function resolveRamGb({ activeAgents, activeMode, hostMemory }) {
+  if (hostMemory?.ok && Number.isFinite(hostMemory.used_gb))
+    return { ramGb: hostMemory.used_gb, ramSource: 'host' };
+  return {
+    ramGb: estimateDeployedRamGb(activeAgents, activeMode),
+    ramSource: 'estimate',
+  };
+}
+
+export function assessMemoryPressure({ activeAgents = [], activeMode, kvReadings = [], hostMemory = null }) {
   const agentCount = activeAgents.length;
-  const estimatedRamGb = estimateDeployedRamGb(activeAgents, activeMode);
-  const band = getRiskBand(estimatedRamGb);
+  const { ramGb, ramSource } = resolveRamGb({ activeAgents, activeMode, hostMemory });
+  const band = getRiskBand(ramGb);
   const bandId = riskBandId(band);
   const kvMax = maxKvUsage(kvReadings);
   const modeWeight = getModeMemoryWeight(activeMode);
   const heavyMode = modeWeight >= 2;
+  const ramLabel = ramSource === 'host' ? 'System RAM' : 'RAM estimate';
 
   const warnings = [];
   const actions = [];
 
   if (bandId === 'high') {
     warnings.push(
-      `System RAM estimate ~${estimatedRamGb.toFixed(1)}GB exceeds ${RAM_BLOCK_GB}GB — risk of OOM on ${RAM_TOTAL_GB}GB machine`,
+      `${ramLabel} ~${ramGb.toFixed(1)}GB exceeds ${RAM_BLOCK_GB}GB — risk of OOM on ${RAM_TOTAL_GB}GB machine`,
     );
     actions.push('Open CONFIGURE and switch to SAFE profile');
     actions.push('Reduce agent roster or context windows');
   } else if (bandId === 'medium') {
     warnings.push(
-      `Elevated system RAM (~${estimatedRamGb.toFixed(1)}GB) — ${RAM_WARN_GB}GB warn threshold on ${RAM_TOTAL_GB}GB budget`,
+      `${ramLabel} ~${ramGb.toFixed(1)}GB — ${RAM_WARN_GB}GB warn threshold on ${RAM_TOTAL_GB}GB budget`,
     );
     actions.push('Consider SAFE profile or fewer agents');
   }
@@ -75,7 +86,9 @@ export function assessMemoryPressure({ activeAgents = [], activeMode, kvReadings
   }
 
   return {
-    estimatedRamGb,
+    estimatedRamGb: ramGb,
+    ramSource,
+    hostMemory,
     band,
     bandId,
     agentCount,

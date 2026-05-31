@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchAgents,
   fetchKvPressure,
+  fetchHostMemory,
   fetchModels,
   fetchSwarmConfig,
   fetchModes,
@@ -12,6 +13,7 @@ import { computeModeReadiness } from '../utils/modeReadiness';
 import { applyModeManifest } from '../utils/modeManifest';
 
 const KV_POLL_MS = 250;
+const MEMORY_POLL_MS = 2000;
 
 export function useCoordinatorState(online) {
   const [activeAgents, setActiveAgents] = useState([]);
@@ -20,6 +22,7 @@ export function useCoordinatorState(online) {
   const [activeMode, setActiveModeState] = useState(null);
   const [kvReadings, setKvReadings]     = useState([]);
   const [kvFetchFailed, setKvFetchFailed] = useState(false);
+  const [hostMemory, setHostMemory]     = useState(null);
   const [flatPickAgent, setFlatPickAgent] = useState(null);
   const [modeWarnings, setModeWarnings] = useState([]);
 
@@ -124,6 +127,27 @@ export function useCoordinatorState(online) {
     return () => { cancelled = true; clearInterval(id); };
   }, [online]);
 
+  // Host unified-memory polling (proxy /api/memory — works before coordinator routes).
+  useEffect(() => {
+    if (!online) {
+      setHostMemory(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const data = await fetchHostMemory();
+        if (!cancelled) setHostMemory(data);
+      } catch (err) {
+        console.error('Host memory poll failed:', err);
+        if (!cancelled) setHostMemory({ ok: false, source: 'host' });
+      }
+    };
+    tick();
+    const id = setInterval(tick, MEMORY_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [online]);
+
   // Refresh agent metadata from swarm config whenever coordinator comes online
   useEffect(() => {
     if (!online) return;
@@ -155,6 +179,7 @@ export function useCoordinatorState(online) {
     activeMode,
     kvReadings,
     kvFetchFailed,
+    hostMemory,
     flatPickAgent,
     setFlatPickAgent,
     modeWarnings,

@@ -11,9 +11,10 @@ function colorFor(bandId) {
 export default function MemoryPressureBadge({ pressure }) {
   if (!pressure || pressure.bandId === 'low') return null;
 
-  const { bandId, estimatedRamGb, band } = pressure;
+  const { bandId, estimatedRamGb, band, ramSource } = pressure;
+  const ramKind = ramSource === 'host' ? 'System RAM' : 'RAM estimate';
   const title = [
-    `System RAM ~${estimatedRamGb.toFixed(1)}GB / ${RAM_TOTAL_GB}GB`,
+    `${ramKind} ~${estimatedRamGb.toFixed(1)}GB / ${RAM_TOTAL_GB}GB`,
     band?.hint,
     ...(pressure.actions || []),
   ].filter(Boolean).join(' · ');

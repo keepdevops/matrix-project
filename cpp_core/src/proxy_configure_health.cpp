@@ -54,6 +54,19 @@ std::vector<int> proxy_configure_wait_for_health(
                 }
 
                 if (ok) {
+                    // Smoke-decode: /health can pass while GPU is exhausted and
+                    // /completion returns 500 "Compute error."
+                    if (g.backend == "llama") {
+                        json probe = {{"prompt", "hi"}, {"n_predict", 1}, {"stream", false}};
+                        auto cr = cli.Post("/completion", probe.dump(), "application/json");
+                        if (!cr || cr->status != 200
+                            || cr->body.find("Compute error") != std::string::npos) {
+                            std::cerr << "[Health] port " << port
+                                      << ": completion probe failed (GPU memory or stale slots?)\n";
+                            failed.push_back(port);
+                            continue;
+                        }
+                    }
                     ready.insert(port);
                     g_configure_progress.set(port, "ready");
                 } else {

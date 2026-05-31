@@ -2,6 +2,7 @@ import {
   estimateDeployedRamGb,
   assessMemoryPressure,
   maxKvUsage,
+  resolveRamGb,
 } from './memoryPressure';
 import { getModeMemoryWeight } from './modeManifest';
 
@@ -44,7 +45,40 @@ describe('maxKvUsage', () => {
   });
 });
 
+describe('resolveRamGb', () => {
+  it('prefers live host used_gb when ok', () => {
+    const r = resolveRamGb({
+      activeAgents: agents(2),
+      activeMode: 'flat',
+      hostMemory: { ok: true, used_gb: 30.5 },
+    });
+    expect(r.ramGb).toBe(30.5);
+    expect(r.ramSource).toBe('host');
+  });
+
+  it('falls back to estimate when host unavailable', () => {
+    const r = resolveRamGb({
+      activeAgents: agents(2),
+      activeMode: 'flat',
+      hostMemory: { ok: false },
+    });
+    expect(r.ramSource).toBe('estimate');
+    expect(r.ramGb).toBeCloseTo(21, 0);
+  });
+});
+
 describe('assessMemoryPressure', () => {
+  it('uses host RAM for band when snapshot available', () => {
+    const a = assessMemoryPressure({
+      activeAgents: agents(2),
+      activeMode: 'flat',
+      kvReadings: [],
+      hostMemory: { ok: true, used_gb: 34, total_gb: 36 },
+    });
+    expect(a.ramSource).toBe('host');
+    expect(a.bandId).toBe('high');
+  });
+
   it('low band for minimal deployment', () => {
     const a = assessMemoryPressure({ activeAgents: agents(2), activeMode: 'flat', kvReadings: [] });
     expect(a.bandId).toBe('low');

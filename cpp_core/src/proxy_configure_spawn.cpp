@@ -66,7 +66,13 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
                               const std::string& proj)
 {
     int hf_n = 0;
+    int llama_n = 0;
     for (const auto& [port, g] : pgs) {
+        // Stagger llama loads so multiple large GGUFs don't race unified memory.
+        if (g.backend == "llama") {
+            if (llama_n++ > 0)
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
         std::string log = proj + "/agent_logs/" + std::to_string(port) + ".log";
         std::string ps  = std::to_string(port);
         if (g.backend == "docker") {
