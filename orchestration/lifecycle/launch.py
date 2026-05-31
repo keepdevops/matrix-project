@@ -100,6 +100,24 @@ def run_launch() -> int:
         print(f"FATAL: {proxy_bin} not found — run scripts/build_cpp_binaries.sh")
         return 2
 
+    # Auto-rebuild proxy if any C++ source is newer than the binary.
+    cpp_src = REPO / "cpp_core" / "src"
+    if cpp_src.is_dir():
+        binary_mtime = proxy_bin.stat().st_mtime
+        stale_sources = [
+            p for p in cpp_src.rglob("*")
+            if p.suffix in (".cpp", ".h") and p.stat().st_mtime > binary_mtime
+        ]
+        if stale_sources:
+            print(f"Proxy sources changed ({len(stale_sources)} file(s)) — rebuilding ...")
+            build_script = REPO / "scripts" / "build_cpp_binaries.sh"
+            rc = subprocess.run(["bash", str(build_script)], cwd=REPO, env=env).returncode
+            if rc != 0:
+                logger.error("auto-rebuild failed rc=%d", rc)
+                print("FATAL: proxy rebuild failed — check cpp_core build errors")
+                return 2
+            print("Rebuild complete.")
+
     # Kill any stale proxy on port 3002 so the freshest binary always runs.
     # This also handles the case where the binary was rebuilt after last launch.
     from ._proc import lsof_pids_on_port, kill_pids
