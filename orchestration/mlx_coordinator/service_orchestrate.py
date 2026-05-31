@@ -161,6 +161,7 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
 
     result_parts: list[str] = []
     final_meta: dict[str, Any] = {}
+    token_counts: dict[str, int] = {}  # agent_id → word-approximate token count
     try:
         ctx = ModeContext(
             swarm=request.app["swarm"],
@@ -172,6 +173,10 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
         async for event in mode.execute(ctx, prompt):
             if event.kind == "token":
                 result_parts.append(event.text)
+                if event.agent_id:
+                    token_counts[event.agent_id] = (
+                        token_counts.get(event.agent_id, 0) + len(event.text.split())
+                    )
                 await send("token", json.dumps(
                     {"agent_id": event.agent_id, "text": event.text}))
             elif event.kind == "agent_start":
@@ -196,6 +201,14 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
     rag_context = params.get("rag_context") or []
     if rag_context:
         final_meta = {**final_meta, "rag_chunks": rag_context}
+    if token_counts:
+        final_meta = {
+            **final_meta,
+            "timings": {
+                agent_id: {"completion_tokens": count, "total_ms": 0}
+                for agent_id, count in token_counts.items()
+            },
+        }
     await send("done", json.dumps({
         "result": "".join(result_parts),
         "session_id": session_id,
