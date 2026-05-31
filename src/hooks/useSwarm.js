@@ -57,6 +57,9 @@ export function useSwarm() {
               else assembled[agentId] = [text];
               scheduleFlush();
             },
+            onAgentStart(agentId, eventMeta) {
+              setLastMeta(prev => ({ ...(prev || {}), _phase: { agent: agentId, ...eventMeta } }));
+            },
             onAgentDone() {
               if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
               flushResponses();

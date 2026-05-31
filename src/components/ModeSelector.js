@@ -60,6 +60,9 @@ function ModeSelector({ modes, active, onChange, disabled, warningsByMode = {} }
                   </span>
                 )}
               </div>
+              {m.description && (
+                <div className="mode-option-description">{m.description}</div>
+              )}
             </Button>
           ))}
         </div>

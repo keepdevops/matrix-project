@@ -17,6 +17,7 @@ export function applyModeManifest(apiModes) {
         enabled: meta.enabled !== false,
         ui: meta.ui !== false,
         manifestNote: meta.note || null,
+        description: meta.description || null,
       };
     })
     .filter((m) => m.enabled && m.ui);
