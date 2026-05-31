@@ -12,6 +12,7 @@ from typing import AsyncIterator
 
 from backends.base import GenerateRequest
 from .base import Event, ModeContext, OrchestrationMode
+from ._helpers import rag_xml
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,12 @@ class TreeOfThoughtMode(OrchestrationMode):
         scorer_cfg = ctx.agent(scorer_id)
         gen_backend = ctx.backend_for(gen_id)
         scorer_backend = ctx.backend_for(scorer_id)
+        rag_block = rag_xml(ctx.params.get("rag_context") or [])
 
         async def gen_branch(prefix: str, seed: int) -> str:
             prompt = (
-                f"<system>{gen_cfg.system_prompt}</system>\n<query>{query}</query>\n"
+                f"<system>{gen_cfg.system_prompt}</system>\n{rag_block}"
+                f"<query>{query}</query>\n"
                 f"<prior>{prefix}</prior>\n<seed>{seed}</seed>\n"
                 f"<task>Continue with one alternative next step.</task>"
             )
@@ -57,7 +60,8 @@ class TreeOfThoughtMode(OrchestrationMode):
 
         async def score(text: str) -> float:
             prompt = (
-                f"<system>{scorer_cfg.system_prompt}</system>\n<query>{query}</query>\n"
+                f"<system>{scorer_cfg.system_prompt}</system>\n{rag_block}"
+                f"<query>{query}</query>\n"
                 f"<candidate>{text}</candidate>\n<task>Reply with a single number 0-10.</task>"
             )
             buf: list[str] = []
