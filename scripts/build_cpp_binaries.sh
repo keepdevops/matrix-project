@@ -66,6 +66,8 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_core.cpp" \
    "$CPP_SRC/coordinator_routes_dispatch.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream.cpp" \
+   "$CPP_SRC/coordinator_routes_architect_synthesis.cpp" \
+   "$CPP_SRC/coordinator_routes_architect_persist.cpp" \
    "$CPP_SRC/coordinator_routes_filters.cpp" \
    "$CPP_SRC/coordinator_routes_health_agents.cpp" \
    "$CPP_SRC/coordinator_routes_misc.cpp" \
