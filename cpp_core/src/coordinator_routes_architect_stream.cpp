@@ -1,5 +1,6 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "code_fence_normalize.h"
 #include "modes/pipeline_prompts.h"
 #include "modes/router_selected_parse.h"
 #include "session_store.h"
@@ -319,6 +320,7 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                     entry["_session_id"] = *session_id_snap;
                     entry["_run_id"]     = *run_id_snap;
                     entry["_mode"]       = *mode_snap;
+                    code_fence::normalize_agents_in_entry(entry);
                     {
                         std::lock_guard<std::mutex> lock(st.history_mutex);
                         st.history.push_back(entry);

@@ -1,5 +1,6 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "code_fence_normalize.h"
 #include "rag_client.h"
 #include "rag_config.h"
 #include "session_store.h"
@@ -191,6 +192,7 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             if (envelope.contains("mode")) entry["_mode"] = envelope["mode"];
             entry["_session_id"] = session_id;
             entry["_run_id"] = run_id;
+            code_fence::normalize_agents_in_entry(entry);
 
             {
                 std::lock_guard<std::mutex> lock(st.history_mutex);
@@ -207,7 +209,11 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     {"followup", followup},
                     {"quality_pass", quality_pass},
                     {"mode", mode_name},
-                    {"agents", envelope.value("agents", json::object())},
+                    {"agents", [&]() {
+                        json agents = envelope.value("agents", json::object());
+                        code_fence::normalize_agents_in_entry(agents);
+                        return agents;
+                    }()},
                     {"final", envelope.value("final", json(nullptr))},
                     {"timestamp", ms}
                 };
