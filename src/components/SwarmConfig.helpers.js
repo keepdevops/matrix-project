@@ -22,6 +22,15 @@ export const PROFILE_BALANCED = 'balanced';
 export const PROFILE_MAX      = 'max';
 export const PROFILE_MIXED    = 'mixed';
 
+/** [id, label] pairs for profile dropdowns (BrewConfigPanel). */
+export const PROFILES = [
+  [PROFILE_SAFE,     'Safe'],
+  [PROFILE_BALANCED, 'Balanced'],
+  [PROFILE_MAX,      'Max'],
+  [PROFILE_MIXED,    'Mixed'],
+  [PROFILE_CUSTOM,   'Custom'],
+];
+
 export function getEngineLabel(engineId) {
   return ENGINES.find(e => e.id === engineId)?.label ?? engineId;
 }
