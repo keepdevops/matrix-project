@@ -249,6 +249,45 @@ test('submit onSession stores sessionId and runId', async () => {
   cleanup();
 });
 
+test('submit onMetrics sets lastMeta timings and wall_ms', async () => {
+  let capturedCallbacks;
+  submitPromptStream.mockImplementation((_p, _t, _opts, cb) => {
+    capturedCallbacks = cb;
+    return () => {};
+  });
+  const { ref, cleanup } = mountHook();
+  act(() => { ref.current.submit('q', 0.2); });
+  await act(async () => {
+    capturedCallbacks.onMetrics({
+      programmer: { calls: 1, total_ms: 900, completion_tokens: 42 },
+    });
+    capturedCallbacks.onDone();
+  });
+  expect(ref.current.lastMeta.timings.programmer.total_ms).toBe(900);
+  expect(ref.current.lastMeta.wall_ms).toEqual(expect.any(Number));
+  cleanup();
+});
+
+test('submit onStage accumulates pipeline stage_outputs', async () => {
+  let capturedCallbacks;
+  submitPromptStream.mockImplementation((_p, _t, _opts, cb) => {
+    capturedCallbacks = cb;
+    return () => {};
+  });
+  const { ref, cleanup } = mountHook();
+  act(() => { ref.current.submit('q', 0.2); });
+  await act(async () => {
+    capturedCallbacks.onStage({ step: 1, total: 2, agent: 'architect' });
+    capturedCallbacks.onToken('architect', 'plan');
+    capturedCallbacks.onAgentDone('architect');
+    capturedCallbacks.onDone();
+  });
+  expect(ref.current.lastMeta.stage_outputs).toEqual([
+    { step: 1, agent: 'architect', output: 'plan' },
+  ]);
+  cleanup();
+});
+
 // ---------------------------------------------------------------------------
 // Stress: 50 random loadHistory calls
 // ---------------------------------------------------------------------------

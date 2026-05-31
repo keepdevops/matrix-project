@@ -49,8 +49,8 @@ const FEATURE_PARITY = [
     label: 'SAVE CODE on programmer output',
     classic: ['layouts/DefaultLayout.js', 'components/AgentGrid.js', 'components/CodeOutputPanel.js'],
     brewlate: ['layouts/BrewlateLayout.js', 'layouts/BrewAgentGrid.js', 'layouts/BrewCodeResultsPanel.js', 'components/CodeOutputPanel.js'],
-    classicMatch: [/onSaveCode/, /SAVE CODE/],
-    brewlateMatch: [/onSaveCode=\{onSaveCode\}/, /SAVE CODE/, /useLiveCodeExtraction/],
+    classicMatch: [/onSaveCode/, /SAVE CODE/, /onExpandProgrammer/],
+    brewlateMatch: [/onSaveCode=\{onSaveCode\}/, /SAVE CODE/, /useLiveCodeExtraction/, /extractAllCodeBlocks/],
   },
   {
     id: 'kv-gauge-header',
@@ -111,7 +111,7 @@ const FEATURE_PARITY = [
 ];
 
 const BREWLATE_ONLY_OPTIONAL = new Set([
-  'showConfig', 'showConfigPanel', 'deployPending', 'onToggleConfig', 'onExpandProgrammer',
+  'showConfig', 'showConfigPanel', 'deployPending', 'onToggleConfig',
 ]);
 
 /** App passes these; classic ignores (brewlate wires them). */

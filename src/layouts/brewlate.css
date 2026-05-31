@@ -1044,6 +1044,37 @@ body[data-layout="brewlate"] {
   border-bottom: 1px solid var(--brew-border-subtle);
 }
 
+.brew-code-output-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.brew-code-agent-picker {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-right: 0.35rem;
+}
+
+.brew-code-agent-picker-btn {
+  padding: 0.12rem 0.45rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--brew-border-subtle);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--brew-text-dim);
+  cursor: pointer;
+}
+
+.brew-code-agent-picker-btn.is-active,
+.brew-code-agent-picker-btn:hover {
+  color: var(--brew-accent);
+  border-color: var(--brew-accent-dim);
+}
+
 .brew-code-output-frame {
   background: #0a0606;
   min-height: 120px;

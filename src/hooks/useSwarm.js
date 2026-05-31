@@ -43,6 +43,8 @@ export function useSwarm() {
     setFinalAnswer(null);
     setLastMeta(null);
 
+    const wallStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
     const requestOpts = { ...opts };
     if (opts.followup && !requestOpts.sessionId && currentSession?.sessionId) {
       requestOpts.sessionId = currentSession.sessionId;
@@ -78,6 +80,37 @@ export function useSwarm() {
           // Flush immediately so the final text lands without waiting for next frame.
           if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
           flushResponses();
+          const text = assembled[agent]?.join('') || '';
+          if (text) {
+            setLastMeta(prev => {
+              if (!prev?.stage_outputs?.length) return prev;
+              return {
+                ...prev,
+                stage_outputs: prev.stage_outputs.map((s) => (
+                  s.agent === agent ? { ...s, output: text } : s
+                )),
+              };
+            });
+          }
+        },
+        onStage(data) {
+          if (!data?.agent) return;
+          setLastMeta(prev => ({
+            ...(prev || {}),
+            stage_outputs: [
+              ...(prev?.stage_outputs || []),
+              { step: data.step, agent: data.agent, output: '' },
+            ],
+          }));
+        },
+        onMetrics(data) {
+          const timings = (data?.timings && typeof data.timings === 'object')
+            ? data.timings
+            : data;
+          const wallMs = (typeof performance !== 'undefined' && performance.now)
+            ? performance.now() - wallStart
+            : Date.now() - wallStart;
+          setLastMeta(prev => ({ ...(prev || {}), timings, wall_ms: wallMs }));
         },
         onSelected({ classifier, agents: picked }) {
           // Surface router classifier name in meta for downstream consumers.

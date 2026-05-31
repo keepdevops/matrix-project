@@ -241,6 +241,21 @@ test('submitPromptStream fires onStage event', async () => {
   expect(onStage).toHaveBeenCalledWith({ stage: 'synthesis' });
 });
 
+test('submitPromptStream fires onMetrics with per-agent timings', async () => {
+  const metrics = {
+    programmer: { calls: 1, total_ms: 1200, completion_tokens: 80 },
+    reviewer: { calls: 1, total_ms: 400, completion_tokens: 20 },
+  };
+  mockFetchOk([
+    sseBlock('metrics', metrics),
+    sseBlock('done', {}),
+  ]);
+  const onMetrics = jest.fn();
+  submitPromptStream('q', 0.2, {}, { onMetrics, onDone: jest.fn() });
+  await new Promise(r => setTimeout(r, 50));
+  expect(onMetrics).toHaveBeenCalledWith(metrics);
+});
+
 test('submitPromptStream fires onSynthesisStart event', async () => {
   mockFetchOk([
     sseBlock('synthesis_start', { agent: 'architect' }),

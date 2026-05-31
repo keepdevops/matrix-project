@@ -13,6 +13,7 @@ const modelDisplayName = (m) => {
 };
 
 function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
+                     onExpandProgrammer = null,
                      flatPickMode = false, pickedFlatAgent = null, onPickFlatAgent = null,
                      agentErrors = {} }) {
   // Show skeleton cards while the first submission is in flight (no responses yet).
@@ -64,6 +65,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
             sourceText={programmerResp || ''}
             loading={loading}
             onSaveCode={onSaveCode}
+            onExpandProgrammer={onExpandProgrammer}
             showSave={hasAnyCode}
             frameClassName="editor-frame"
             editorHeight="min(42vh, 420px)"

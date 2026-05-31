@@ -866,6 +866,14 @@ h1 {
   background-color: var(--color-bg-base);
 }
 
+.brew-code-output-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* ========== Code Display ========== */
 .code-display-empty {
   padding: 40px;

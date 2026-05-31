@@ -37,6 +37,7 @@ describe('Prompts and code generation', () => {
     expect(stream).toMatch(/architect\/stream/);
     expect(stream).toMatch(/onToken/);
     expect(stream).toMatch(/eventName === 'token'/);
+    expect(stream).toMatch(/eventName === 'metrics'/);
   });
 
   it('handleSaveCode aggregates fenced code from agents', () => {
