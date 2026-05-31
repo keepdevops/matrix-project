@@ -178,6 +178,9 @@ def main():
                 ("FLAT",   PROMPT_FLAT),
             ]):
                 if i > 0:
+                    # Re-deploy to get a fresh llama-server after the previous run.
+                    log("Re-deploying swarm for next scenario…")
+                    launch_and_wait_online(page, shots_dir=launch_dir)
                     wait_for_agents_ready(page, shots_dir=launch_dir)
                 shots_dir = os.path.join(BASE_DIR, mode.lower())
                 try:
