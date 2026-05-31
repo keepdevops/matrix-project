@@ -72,6 +72,8 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_filters.cpp" \
    "$CPP_SRC/coordinator_routes_health_agents.cpp" \
    "$CPP_SRC/coordinator_routes_misc.cpp" \
+   "$CPP_SRC/coordinator_kv_ops.cpp" \
+   "$CPP_SRC/coordinator_routes_cache.cpp" \
    "$CPP_SRC/coordinator_routes_modes.cpp" \
    "$CPP_SRC/coordinator_routes_modes_put.cpp" \
    "$CPP_SRC/coordinator_routes_presets.cpp" \
