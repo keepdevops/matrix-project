@@ -230,31 +230,28 @@ def follow_up(page, prompt_text, shots_dir, label):
 
 def wait_for_agents_ready(page, shots_dir=None, label="agents-ready", timeout_ms=300_000):
     """
-    Poll until no left-panel agent card shows a PENDING launch status.
-    This ensures the coordinator has finished bringing up all agent servers
-    before firing a broadcast that requires multiple agents (e.g. pipeline).
+    Poll the coordinator /api/agents endpoint directly until it returns 200.
+    The coordinator returns 503 while llama-server is loading; 200 means
+    it is ready to accept broadcast requests.
     """
-    log("Waiting for all agents to be READY…")
+    import urllib.request, urllib.error
+    API_AGENTS = "http://localhost:3002/api/agents"
+    log("Waiting for coordinator to be ready (polling /api/agents)…")
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
-        page.wait_for_timeout(3_000)
-        pending = page.evaluate(
-            """() => {
-                const metas = document.querySelectorAll(
-                    '.brew-panel--left .brew-agent-card-meta'
-                );
-                return Array.from(metas).filter(
-                    el => el.textContent.trim().toUpperCase() === 'PENDING'
-                ).length;
-            }"""
-        )
-        if pending == 0:
-            print("  ✓  All agents ready (no PENDING cards)")
-            if shots_dir:
-                shot(page, shots_dir, label)
-            return
-        print(f"  … {pending} agent(s) still PENDING…")
-    raise RuntimeError("Timed out waiting for agents to become ready")
+        try:
+            r = urllib.request.urlopen(API_AGENTS, timeout=4)
+            if r.status == 200:
+                print("  ✓  Coordinator ready (agents API 200)")
+                if shots_dir:
+                    shot(page, shots_dir, label)
+                return
+        except urllib.error.HTTPError as e:
+            print(f"  … coordinator not ready yet ({e.code}) …")
+        except Exception as e:
+            print(f"  … coordinator probe failed: {e} …")
+        time.sleep(3)
+    raise RuntimeError("Timed out waiting for coordinator to become ready")
 
 
 # ---------------------------------------------------------------------------
