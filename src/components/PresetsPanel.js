@@ -160,7 +160,7 @@ export default function PresetsPanel() {
 
       <div style={{ marginTop: '0.5rem', fontSize: '0.78rem',
                     minHeight: '1.1rem' }}>
-        {error && <span style={{ color: '#ff7777' }}>{error}</span>}
+        {error && <span style={{ color: 'var(--brew-kv-crit, #e55)' }}>{error}</span>}
         {!error && savedAt && (
           <span style={{ opacity: 0.7 }}>
             updated {new Date(savedAt).toLocaleTimeString()}

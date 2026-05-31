@@ -31,12 +31,6 @@ export default function TokenBudgetPanel({ roles, onRolesChange, selected }) {
     setDrafts(prev => ({ ...prev, [name]: { ...(prev[name] || {}), [key]: value } }));
   };
 
-  const effective = (role, key) => {
-    const draft = drafts[role.name];
-    if (draft && draft[key] !== undefined && draft[key] !== '') return Number(draft[key]);
-    return role[key];
-  };
-
   const isDirty = (role) => {
     const d = drafts[role.name];
     if (!d) return false;
