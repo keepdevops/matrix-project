@@ -1,6 +1,25 @@
 import { API_BASE } from './base';
 
 /**
+ * Persist an orchestrate run into the coordinator's shared history
+ * so it appears in the conversation thread alongside streaming runs.
+ */
+export async function saveOrchestrateHistory({ prompt, result, mode, sessionId, temperature = 0.2 }) {
+  try {
+    const res = await fetch(`${API_BASE}/api/history/entry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, result, mode, session_id: sessionId, temperature }),
+    });
+    if (!res.ok) {
+      console.error('[orchestrate] history save failed:', res.status);
+    }
+  } catch (err) {
+    console.error('[orchestrate] history save network error:', err);
+  }
+}
+
+/**
  * POST /api/orchestrate/stream — SSE streaming for Python orchestration modes.
  * callbacks: { onToken(agentId, text), onAgentDone(agentId), onDone(meta), onError(agentId, msg) }
  * Returns a cancel function.
