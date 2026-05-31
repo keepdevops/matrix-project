@@ -34,15 +34,18 @@ function RagAdmin({ onClose }) {
   const [uploads, setUploads] = useState([]); // [{name, size, jobId, status, chunks, error}]
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const refresh = useCallback(async () => {
+    if (!mountedRef.current) return;
     setDocsError(null);
     try {
       const data = await ragIngestList();
-      setDocs(Array.isArray(data.documents) ? data.documents : []);
+      if (mountedRef.current) setDocs(Array.isArray(data.documents) ? data.documents : []);
     } catch (err) {
       console.error('[rag-admin] list failed:', err);
-      setDocsError(err.message || 'list failed');
+      if (mountedRef.current) setDocsError(err.message || 'list failed');
     }
   }, []);
 
@@ -50,7 +53,7 @@ function RagAdmin({ onClose }) {
     let cancelled = false;
     (async () => {
       const h = await ragIngestHealth();
-      if (!cancelled) setHealth({ loading: false, ...h });
+      if (!cancelled && mountedRef.current) setHealth({ loading: false, ...h });
     })();
     refresh();
     return () => { cancelled = true; };
@@ -98,18 +101,18 @@ function RagAdmin({ onClose }) {
         setUploads(prev => [entry, ...prev]);
         try {
           const { job_id: jobId, source_path } = await ragIngestUpload(f);
-          setUploads(prev => prev.map(u =>
+          if (mountedRef.current) setUploads(prev => prev.map(u =>
             u === entry ? { ...u, jobId, source_path, status: 'queued' } : u,
           ));
         } catch (err) {
           console.error('[rag-admin] upload failed:', err);
-          setUploads(prev => prev.map(u =>
+          if (mountedRef.current) setUploads(prev => prev.map(u =>
             u === entry ? { ...u, status: 'error', error: err.message } : u,
           ));
         }
       }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 

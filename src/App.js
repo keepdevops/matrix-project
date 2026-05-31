@@ -95,6 +95,7 @@ function App() {
     showToast('Swarm launching — waiting for health check…', 'info');
     const pollId = setInterval(async () => {
       const isOnline = await checkStatus();
+      if (!mountedRef.current) { clearInterval(pollId); return; }
       if (isOnline) {
         clearInterval(pollId);
         setDeployPending(false);
