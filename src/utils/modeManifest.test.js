@@ -11,18 +11,25 @@ describe('modeManifest', () => {
     expect(out[0].backend).toBe('cpp');
   });
 
-  it('includes map_reduce in UI list (MS-25-2 enabled)', () => {
+  it('includes Python orchestrate modes in UI list (MS-25-2/3 enabled)', () => {
     const api = [
       { name: 'flat', active: true },
       { name: 'map_reduce', active: false },
+      { name: 'speculative', active: false },
+      { name: 'critic_debate', active: false },
     ];
-    expect(applyModeManifest(api).map(m => m.name)).toEqual(['flat', 'map_reduce']);
+    const names = applyModeManifest(api).map(m => m.name);
+    expect(names).toContain('map_reduce');
+    expect(names).toContain('speculative');
+    expect(names).toContain('critic_debate');
   });
 
-  it('getModeManifestEntry returns python backend for map_reduce', () => {
-    const entry = getModeManifestEntry('map_reduce');
-    expect(entry.backend).toBe('python');
-    expect(entry.ui).toBe(true);
-    expect(entry.enabled).toBe(true);
+  it('getModeManifestEntry returns python backend and ui:true for enabled orchestrate modes', () => {
+    for (const mode of ['map_reduce', 'speculative', 'critic_debate']) {
+      const entry = getModeManifestEntry(mode);
+      expect(entry.backend).toBe('python');
+      expect(entry.ui).toBe(true);
+      expect(entry.enabled).toBe(true);
+    }
   });
 });

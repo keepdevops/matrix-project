@@ -85,6 +85,7 @@ function App() {
     responses, activeAgents, flatPickAgent,
     modeWarnings,
     memoryPressure,
+    hostMemory,
     onModeWarning: useCallback((warnings) => {
       showToast(warnings[0], 'warn');
     }, [showToast]),
