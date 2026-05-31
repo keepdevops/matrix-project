@@ -3,21 +3,40 @@ import SwarmEditor from './SwarmEditor';
 import { normalizeLanguage } from '../utils/codeExtractor';
 import Button from './Button';
 
-const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
+const CodeDisplay = ({
+  initialCode,
+  code: controlledCode,
+  language: rawLanguage,
+  editorHeight = '400px',
+  isStreaming = false,
+  isPartial = false,
+  autoScroll = true,
+  onAutoScrollChange = null,
+}) => {
   const [isEditable, setIsEditable] = useState(false);
-  const [editedCode, setEditedCode] = useState(initialCode);
+  const [editedCode, setEditedCode] = useState(controlledCode ?? initialCode ?? '');
   const [copyFeedback, setCopyFeedback] = useState('COPY');
   const fileInputRef = useRef(null);
   const copyTimerRef = useRef(null);
+  const editorWrapRef = useRef(null);
 
-  // Normalize language for file extensions and highlighting
   const language = normalizeLanguage(rawLanguage);
+  const incoming = controlledCode !== undefined ? controlledCode : initialCode;
 
-  // Reset internal state if the agent sends a completely new response
   useEffect(() => {
-    setEditedCode(initialCode);
-    setIsEditable(false);
-  }, [initialCode]);
+    if (isEditable) return;
+    setEditedCode(incoming ?? '');
+  }, [incoming, isEditable]);
+
+  useEffect(() => {
+    if (isStreaming) setIsEditable(false);
+  }, [isStreaming]);
+
+  useEffect(() => {
+    if (!isStreaming || !autoScroll) return;
+    const scroller = editorWrapRef.current?.querySelector('.cm-scroller');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  }, [editedCode, isStreaming, autoScroll]);
 
   const handleCopy = async () => {
     try {
@@ -51,7 +70,7 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       setEditedCode(event.target.result);
-      setIsEditable(true); // Auto-enable edit mode when a file is loaded
+      setIsEditable(true);
     };
     reader.onerror = () => {
       console.error('[CodeDisplay] FileReader failed to read:', file.name);
@@ -59,19 +78,40 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
     reader.readAsText(file);
   };
 
+  const toggleAutoScroll = () => {
+    const next = !autoScroll;
+    onAutoScrollChange?.(next);
+  };
+
   return (
-    <div className="code-display-container">
+    <div className={`code-display-container${isStreaming ? ' code-display-container--streaming' : ''}`}>
       <header className="code-display-header">
         <div className="code-lang-tag">
-          <span className="pulse-dot"></span> {language.toUpperCase()}
+          <span className={`pulse-dot${isStreaming ? ' pulse-dot--live' : ''}`} />
+          {language.toUpperCase()}
+          {isStreaming && (
+            <span className="code-streaming-badge">{isPartial ? 'streaming…' : 'generating…'}</span>
+          )}
         </div>
 
         <div className="code-toolbar">
+          {isStreaming && onAutoScrollChange && (
+            <Button
+              variant="ghost"
+              size="xs"
+              className={autoScroll ? 'active' : ''}
+              onClick={toggleAutoScroll}
+            >
+              {autoScroll ? '⇳ SCROLL' : 'SCROLL OFF'}
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="xs"
             className={isEditable ? 'active' : ''}
             onClick={() => setIsEditable(!isEditable)}
+            disabled={isStreaming}
           >
             {isEditable ? '🔒 LOCK' : '📝 EDIT'}
           </Button>
@@ -90,7 +130,6 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
         </div>
       </header>
 
-      {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -98,12 +137,15 @@ const CodeDisplay = ({ initialCode, language: rawLanguage }) => {
         onChange={handleFileOpen}
       />
 
-      <SwarmEditor
-        code={editedCode}
-        language={language}
-        editable={isEditable}
-        onChange={(val) => setEditedCode(val)}
-      />
+      <div ref={editorWrapRef} className="code-display-editor-wrap">
+        <SwarmEditor
+          code={editedCode}
+          language={language}
+          editable={isEditable && !isStreaming}
+          onChange={(val) => setEditedCode(val)}
+          height={editorHeight}
+        />
+      </div>
     </div>
   );
 };

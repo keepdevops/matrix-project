@@ -58,6 +58,25 @@ function mockFetchError(status, text) {
 // submitPromptStream — happy path
 // ---------------------------------------------------------------------------
 
+test('programmer token stream assembles extractable python block', async () => {
+  const { extractCodeBlock } = require('../utils/codeExtractor');
+  mockFetchOk([
+    sseBlock('token', { agent: 'programmer', delta: '```python\n' }),
+    sseBlock('token', { agent: 'programmer', delta: 'def hi():\n  return 1\n' }),
+    sseBlock('token', { agent: 'programmer', delta: '```\n' }),
+    sseBlock('done', {}),
+  ]);
+  const chunks = [];
+  const onToken = (agent, delta) => {
+    if (agent === 'programmer') chunks.push(delta);
+  };
+  submitPromptStream('write hi in python', 0.2, {}, { onToken, onDone: jest.fn() });
+  await new Promise(r => setTimeout(r, 50));
+  const { code, language } = extractCodeBlock(chunks.join(''));
+  expect(language).toBe('python');
+  expect(code).toContain('def hi');
+});
+
 test('submitPromptStream calls onToken and onDone on valid SSE', async () => {
   mockFetchOk([
     sseBlock('token', { agent: 'programmer', delta: 'hello ' }),

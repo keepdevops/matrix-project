@@ -103,15 +103,22 @@ function PressureRow({ entry }) {
   );
 }
 
-export default function PressureCluster({ online }) {
-  const [readings, setReadings] = useState([]);
-  const [errored, setErrored] = useState(false);
+export default function PressureCluster({
+  online,
+  readings: readingsProp,
+  fetchFailed: fetchFailedProp,
+  poll = true,
+}) {
+  const [readingsLocal, setReadingsLocal] = useState([]);
+  const [erroredLocal, setErroredLocal] = useState(false);
   const cancelRef = useRef(false);
+  const useParentFeed = readingsProp !== undefined;
 
   useEffect(() => {
+    if (useParentFeed || !poll) return undefined;
     if (!online) {
-      setReadings([]);
-      setErrored(false);
+      setReadingsLocal([]);
+      setErroredLocal(false);
       return undefined;
     }
     cancelRef.current = false;
@@ -120,12 +127,11 @@ export default function PressureCluster({ online }) {
       try {
         const data = await fetchKvPressure();
         if (cancelRef.current) return;
-        setReadings(Array.isArray(data) ? data : []);
-        setErrored(false);
+        setReadingsLocal(Array.isArray(data) ? data : []);
+        setErroredLocal(false);
       } catch (err) {
-        // Per project rules: never silent. Log and surface as error state.
         console.error('PressureCluster poll failed:', err);
-        if (!cancelRef.current) setErrored(true);
+        if (!cancelRef.current) setErroredLocal(true);
       }
     };
 
@@ -135,7 +141,10 @@ export default function PressureCluster({ online }) {
       cancelRef.current = true;
       clearInterval(id);
     };
-  }, [online]);
+  }, [online, useParentFeed, poll]);
+
+  const readings = useParentFeed ? (readingsProp || []) : readingsLocal;
+  const errored = useParentFeed ? !!fetchFailedProp : erroredLocal;
 
   const mlx = useMemo(
     () => readings.filter(r => r && r.backend === 'mlx' && r.ok),
@@ -156,7 +165,14 @@ export default function PressureCluster({ online }) {
       </div>
     );
   }
-  if (mlx.length === 0) return null;
+  if (mlx.length === 0) {
+    return (
+      <div className="pcluster pcluster--idle" role="status">
+        <div className="pcluster-title">MLX pressure</div>
+        <div className="pcluster-empty">No MLX ports reporting — deploy MLX agents or check coordinator</div>
+      </div>
+    );
+  }
 
   return (
     <div className="pcluster" role="group" aria-label="MLX pressure cluster">

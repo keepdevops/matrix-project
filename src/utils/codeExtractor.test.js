@@ -11,6 +11,12 @@ import {
   normalizeLanguage,
   detectLanguage,
   extractCodeBlock,
+  extractAllCodeBlocks,
+  extractPartialFence,
+  parseFenceInfo,
+  extractFilenameFromComments,
+  formatFencesOnlyMarkdown,
+  MIN_CODE_CHARS,
   parseMarkdownCodeBlock,
 } from './codeExtractor';
 
@@ -156,8 +162,8 @@ test('extractCodeBlock: Markdown fence with alias normalizes language', () => {
 });
 
 test('extractCodeBlock: Markdown fence without language → text', () => {
-  const input = '```\nsome code\n```';
-  expect(extractCodeBlock(input)).toEqual({ language: 'text', code: 'some code' });
+  const input = '```\nten chars!\n```';
+  expect(extractCodeBlock(input)).toEqual({ language: 'text', code: 'ten chars!' });
 });
 
 test('extractCodeBlock: tool-call JSON with parameters.content', () => {
@@ -176,11 +182,10 @@ test('extractCodeBlock: tool-call JSON without parameters.content falls through'
   expect(result.language).toBe('json');
 });
 
-test('extractCodeBlock: invalid JSON starting with { falls through to detect', () => {
+test('extractCodeBlock: invalid JSON starting with { → empty code', () => {
   const input = '{not valid';
   const result = extractCodeBlock(input);
-  expect(result.language).toBe('text');
-  expect(result.code).toBe(input.trim());
+  expect(result).toEqual({ language: 'text', code: '' });
 });
 
 test('extractCodeBlock: plain Python code uses detectLanguage', () => {
@@ -188,9 +193,9 @@ test('extractCodeBlock: plain Python code uses detectLanguage', () => {
   expect(extractCodeBlock(input)).toEqual({ language: 'python', code: input.trim() });
 });
 
-test('extractCodeBlock: plain text falls back to text', () => {
+test('extractCodeBlock: plain prose without fences → empty code', () => {
   const input = 'just some prose here';
-  expect(extractCodeBlock(input)).toEqual({ language: 'text', code: input.trim() });
+  expect(extractCodeBlock(input)).toEqual({ language: 'text', code: '' });
 });
 
 // ---------------------------------------------------------------------------
@@ -216,4 +221,63 @@ test('parseMarkdownCodeBlock: null lang → text', () => {
     language: 'text',
     code: 'code',
   });
+});
+
+// ---------------------------------------------------------------------------
+// MS-24: extractAllCodeBlocks, extractPartialFence
+// ---------------------------------------------------------------------------
+
+test('parseFenceInfo: language and filename=', () => {
+  expect(parseFenceInfo('python filename=src/a.py')).toEqual({
+    lang: 'python',
+    filename: 'src/a.py',
+  });
+});
+
+test('extractFilenameFromComments: // and # forms', () => {
+  expect(extractFilenameFromComments('// filename=lib/foo.py\nx=1')).toBe('lib/foo.py');
+  expect(extractFilenameFromComments('# filename: main.rs\nfn main() {}')).toBe('main.rs');
+});
+
+test('extractAllCodeBlocks: multiple fences sorted by score with requestedLanguage', () => {
+  const input = [
+    'Intro',
+    '```text\nshort\n```',
+    '```python\ndef run():\n  return 42\n```',
+  ].join('\n');
+  const blocks = extractAllCodeBlocks(input, 'python');
+  expect(blocks.length).toBeGreaterThanOrEqual(1);
+  expect(blocks[0].language).toBe('python');
+  expect(blocks[0].content).toContain('def run');
+});
+
+test('extractAllCodeBlocks: skips blocks under MIN_CODE_CHARS', () => {
+  const tiny = 'x'.repeat(MIN_CODE_CHARS - 1);
+  const input = '```py\n' + tiny + '\n```';
+  expect(extractAllCodeBlocks(input)).toHaveLength(0);
+});
+
+test('extractAllCodeBlocks: filename on fence info line', () => {
+  const input = '```python filename=app/main.py\nprint("ok")\n```';
+  const blocks = extractAllCodeBlocks(input);
+  expect(blocks[0].filename).toBe('app/main.py');
+});
+
+test('extractPartialFence: open trailing fence', () => {
+  const input = 'Explain:\n```python\nprint("partial';
+  const partial = extractPartialFence(input);
+  expect(partial).not.toBeNull();
+  expect(partial.language).toBe('python');
+  expect(partial.content).toContain('print');
+});
+
+test('extractPartialFence: closed fences returns null', () => {
+  const input = '```py\nx=1\n```';
+  expect(extractPartialFence(input)).toBeNull();
+});
+
+test('formatFencesOnlyMarkdown: strips prose', () => {
+  const raw = 'Note:\n```js\nconst a=1;\n```\nDone.';
+  expect(formatFencesOnlyMarkdown(raw)).not.toContain('Note:');
+  expect(formatFencesOnlyMarkdown(raw)).toContain('const a=1');
 });

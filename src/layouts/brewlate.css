@@ -437,7 +437,152 @@ body[data-layout="brewlate"] {
 }
 
 .brew-monitor-popout-body .pcluster-title {
-  display: none;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brew-text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.brew-monitor-popout-body .pcluster--idle,
+.brew-monitor-popout-body .pcluster--err {
+  padding: 0.35rem 0;
+}
+
+.brew-monitor-popout-body .pcluster-empty {
+  font-size: 0.72rem;
+  color: var(--brew-text-dim);
+  line-height: 1.35;
+}
+
+.brew-section--agents {
+  position: relative;
+}
+
+.brew-section--agents .brew-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.brew-section-header--agents {
+  flex-wrap: wrap;
+}
+
+.brew-agents-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.brew-agents-bulk-btn {
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brew-text-muted);
+  background: transparent;
+  border: 1px solid var(--brew-border);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.brew-agents-bulk-btn:hover {
+  border-color: var(--brew-accent-dim);
+  color: var(--brew-accent-bright);
+  background: var(--brew-accent-a08);
+}
+
+.brew-profile-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--brew-text-dim);
+}
+
+.brew-agent-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.brew-agent-card-check {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--brew-accent);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.brew-agents-popout-trigger {
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brew-text-muted);
+  background: transparent;
+  border: 1px solid var(--brew-border);
+  border-radius: 4px;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.brew-agents-popout-trigger:hover,
+.brew-agents-popout-trigger.open {
+  border-color: var(--brew-accent-dim);
+  color: var(--brew-accent-bright);
+  background: var(--brew-accent-a08);
+}
+
+.brew-agents-popout {
+  position: absolute;
+  top: 2.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 24;
+  border: 1px solid var(--brew-accent-dim);
+  border-radius: 10px;
+  background: var(--brew-surface-deep);
+  box-shadow: 0 8px 32px color-mix(in srgb, #000 55%, transparent), 0 0 0 1px var(--brew-accent-a12);
+  animation: brew-popout-in 220ms ease;
+  max-height: min(65vh, 480px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.brew-agents-popout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--brew-border-subtle);
+  background: var(--brew-surface-mid);
+  flex-shrink: 0;
+}
+
+.brew-agents-popout-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brew-accent);
+}
+
+.brew-agents-popout-body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding: 0.5rem 0.65rem 0.75rem;
 }
 
 .brew-close-btn {
@@ -904,6 +1049,14 @@ body[data-layout="brewlate"] {
   min-height: 120px;
 }
 
+.brew-code-output-section--card {
+  margin-top: 0.65rem;
+}
+
+.brew-code-output-section--card .brew-code-output-frame {
+  min-height: 160px;
+}
+
 .brew-agent-edit-btn {
   width: 22px;
   height: 22px;
@@ -949,6 +1102,40 @@ body[data-layout="brewlate"] {
   flex-direction: column;
   padding: var(--brew-section-gap);
   gap: var(--brew-section-gap);
+}
+
+.brew-preview-roster {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--brew-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  max-height: 40vh;
+}
+
+.brew-token-budget-wrap {
+  font-size: 0.78rem;
+}
+
+.brew-code-output-section--grid .brew-code-output-header,
+.brew-code-output-section--session .brew-code-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.brew-code-results-panel {
+  margin-top: 0.75rem;
+}
+
+.brew-code-results-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.68rem;
+  color: var(--brew-text-dim);
+  line-height: 1.35;
 }
 
 .brew-preview-section-title {
@@ -1626,6 +1813,101 @@ body[data-layout="brewlate"] {
 }
 
 .brew-modal-card--wide { width: 740px; }
+
+/* Agent response popout (⤢) — large square panel for prose + code */
+.brew-modal-card--agent-popout {
+  width: min(920px, 92vw);
+  height: min(920px, 88vh);
+  max-width: 92vw;
+  max-height: 88vh;
+}
+
+.brew-agent-popout-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.brew-agent-popout-name {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.brew-agent-popout-model {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.brew-agent-popout-meta {
+  font-size: 0.72rem;
+}
+
+.brew-agent-popout-body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow: hidden;
+}
+
+.brew-agent-popout-body--code {
+  display: grid;
+  grid-template-rows: minmax(0, 0.32fr) minmax(0, 0.68fr);
+}
+
+.brew-agent-popout-prose {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.brew-agent-popout-code {
+  margin-top: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-color: var(--brew-border);
+}
+
+.brew-agent-popout-code-frame {
+  flex: 1 1 0;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.brew-agent-popout-code-frame .code-display-container {
+  margin: 0;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 0 7px 7px;
+  box-shadow: none;
+}
+
+.brew-agent-popout-code-frame .matrix-editor-wrapper {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: none !important;
+  border-radius: 0;
+}
+
+.brew-agent-popout-code-frame .matrix-editor-wrapper > div {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.brew-agent-popout-code-frame .cm-editor,
+.brew-agent-popout-code-frame .cm-scroller {
+  height: 100% !important;
+  min-height: 240px;
+}
 
 .brew-modal-header {
   display: flex;

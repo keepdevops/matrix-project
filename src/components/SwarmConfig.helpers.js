@@ -16,6 +16,7 @@ export const ENGINES = [
   { id: 'vllm',  label: 'vLLM',  backend: 'vllm'  },
 ];
 
+export const PROFILE_CUSTOM   = 'custom';
 export const PROFILE_SAFE     = 'safe';
 export const PROFILE_BALANCED = 'balanced';
 export const PROFILE_MAX      = 'max';

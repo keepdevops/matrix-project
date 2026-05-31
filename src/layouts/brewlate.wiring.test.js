@@ -11,7 +11,8 @@ jest.mock('./registry', () => ({
 }));
 
 jest.mock('./BrewAgentGrid', () => () => null);
-jest.mock('./BrewEditRoleModal', () => () => null);
+jest.mock('../components/AgentPromptModal', () => () => null);
+jest.mock('./BrewAgentsPopout', () => () => null);
 jest.mock('../components/CodeDisplay', () => () => null);
 jest.mock('../components/ConversationThread', () => () => <div data-testid="conversation-thread" />);
 jest.mock('../components/ModeRosterPanel', () => () => null);
@@ -114,7 +115,9 @@ describe('Brewlate wiring audit', () => {
     expect(read('layouts/BrewMonitorPopout.js')).toMatch(/PressureCluster/);
   });
 
-  it('BrewHeader exposes utilities wired from App handlers', () => {
+  it('BrewHeader exposes KV gauge and utilities wired from App handlers', () => {
+    expect(headerSrc).toMatch(/KvPressureGauge/);
+    expect(headerSrc).toMatch(/kvReadings/);
     expect(headerSrc).toMatch(/onOpenConverter/);
     expect(headerSrc).toMatch(/onOpenRagAdmin/);
     expect(headerSrc).toMatch(/onOpenCachePanel/);
@@ -126,6 +129,16 @@ describe('Brewlate wiring audit', () => {
 
   it('session tab includes RagSources parity with classic layout', () => {
     expect(brewSrc).toMatch(/RagSources rag=\{lastMeta\?\.rag\}/);
+  });
+
+  it('session tab surfaces pipeline metrics and save-code like classic', () => {
+    expect(brewSrc).toMatch(/PipelineStageOutputs/);
+    expect(brewSrc).toMatch(/MetricsStrip/);
+    expect(brewSrc).toMatch(/onSaveCode=\{onSaveCode\}/);
+    expect(brewSrc).toMatch(/AgentPromptModal/);
+    expect(brewSrc).toMatch(/BrewAgentsPopout/);
+    expect(read('layouts/BrewAgentsPopout.js')).toMatch(/TokenBudgetPanel/);
+    expect(read('components/AgentPromptModal.js')).toMatch(/setAgentSystemPrompt/);
   });
 
   it('all Matrix themes define Brewlate palette overrides', () => {
