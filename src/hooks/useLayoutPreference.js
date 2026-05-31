@@ -76,9 +76,9 @@ export function useLayoutPreference() {
 
   const setTheme = (id) => {
     const safe = THEMES[id] ? id : DEFAULT_THEME;
-    document.body.setAttribute('data-theme', safe);
+    document.body.setAttribute('data-theme', safe); // instant — no flash before effect fires
     setThemeState(safe);
-    writeStorage(STORAGE_THEME, safe);
+    // storage write handled by the effect to avoid writing twice
   };
 
   return { layout, theme, setLayout, setTheme };

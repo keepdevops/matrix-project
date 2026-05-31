@@ -114,9 +114,14 @@ export async function fetchKvPressure() {
 }
 
 export async function clearKvCache() {
-  const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
-  if (!response.ok) throw new Error(`Clear cache failed: ${response.status}`);
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
+    if (!response.ok) throw new Error(`Clear cache failed: ${response.status}`);
+    return response.json();
+  } catch (e) {
+    console.error('[configApi] clearKvCache failed:', e);
+    throw e;
+  }
 }
 
 export async function checkHealth() {
@@ -129,15 +134,25 @@ export async function checkHealth() {
 }
 
 export async function fetchCacheStats() {
-  const res = await fetch(`${API_BASE}/cache`);
-  if (!res.ok) throw new Error(`cache stats failed (${res.status})`);
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/cache`);
+    if (!res.ok) throw new Error(`cache stats failed (${res.status})`);
+    return res.json();
+  } catch (e) {
+    console.error('[configApi] fetchCacheStats failed:', e);
+    throw e;
+  }
 }
 
 export async function clearCache() {
-  const res = await fetch(`${API_BASE}/cache/clear`, { method: 'POST' });
-  if (!res.ok) throw new Error(`cache clear failed (${res.status})`);
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/cache/clear`, { method: 'POST' });
+    if (!res.ok) throw new Error(`cache clear failed (${res.status})`);
+    return res.json();
+  } catch (e) {
+    console.error('[configApi] clearCache failed:', e);
+    throw e;
+  }
 }
 
 export async function setCacheConfig({ enabled, ttl_secs, max_entries } = {}) {
@@ -185,10 +200,15 @@ export async function fetchConfigureStatus() {
 
 export async function fetchLogs(ports) {
   if (!ports?.length) return { logs: [] };
-  const q = ports.join(',');
-  const response = await fetch(`${API_BASE}/logs?ports=${encodeURIComponent(q)}`);
-  if (!response.ok) throw new Error(`Failed to fetch logs: ${response.status}`);
-  return response.json();
+  try {
+    const q = ports.join(',');
+    const response = await fetch(`${API_BASE}/logs?ports=${encodeURIComponent(q)}`);
+    if (!response.ok) throw new Error(`Failed to fetch logs: ${response.status}`);
+    return response.json();
+  } catch (e) {
+    console.error('[configApi] fetchLogs failed:', e);
+    throw e;
+  }
 }
 
 /** Timeout slightly over the script's internal 600s health-check window */

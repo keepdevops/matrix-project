@@ -37,7 +37,7 @@ export default function MetricsStrip({ envelope }) {
             <div key={r.name} className="metrics-strip-row">
               <span className="metrics-strip-name">{r.name}</span>
               <span className="metrics-strip-ms">
-                {(r.total_ms / 1000).toFixed(2)}s
+                {((r.total_ms || 0) / 1000).toFixed(2)}s
               </span>
               <span className="metrics-strip-tokens">
                 {r.completion_tokens || 0} tok
