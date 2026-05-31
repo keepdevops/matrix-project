@@ -117,6 +117,7 @@ const BREWLATE_ONLY_OPTIONAL = new Set([
 /** App passes these; classic ignores (brewlate wires them). */
 const CLASSIC_UNUSED = new Set([
   'agentErrors', 'warningsByMode', 'onCloseHelp', 'onCloseRagAdmin', 'onCloseCachePanel',
+  'hostMemory',
 ]);
 
 describe('Brewlate vs classic parity', () => {
