@@ -63,6 +63,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/synthesis_tiered.cpp" \
    "$CPP_SRC/coordinator_routes.cpp" \
    "$CPP_SRC/coordinator_routes_agents_meta.cpp" \
+   "$CPP_SRC/coordinator_routes_agent_tokens.cpp" \
    "$CPP_SRC/coordinator_routes_core.cpp" \
    "$CPP_SRC/coordinator_routes_dispatch.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream.cpp" \
