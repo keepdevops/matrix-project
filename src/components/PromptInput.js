@@ -17,12 +17,14 @@ function PromptInput({
   activeAgents = [],
   backend = 'llama',
   onBackendChange,
+  activeMode,
   submitLabel = 'BROADCAST',
   submitLoadingLabel = 'BROADCASTING...',
   qualityPassLabel = 'QUALITY PASS',
 }) {
   const ragHealth = useRagHealth(true);
   const [prompt, setPrompt] = useState('');
+  const [chunkCount, setChunkCount] = useState(3);
   const [temperature, setTemperature] = useState(0.2);
   const [ragTopK, setRagTopK] = useState(() => {
     const raw = parseInt(
@@ -82,7 +84,8 @@ function PromptInput({
       const ragOpts = useRag
         ? { ragTopK, ragMinScore, ...(selectedRagAgents.length > 0 ? { ragAgents: selectedRagAgents } : {}) }
         : {};
-      onSubmit(prompt.trim(), temperature, { ...ragOpts, ...opts });
+      const modeOpts = activeMode === 'map_reduce' ? { chunkCount } : {};
+      onSubmit(prompt.trim(), temperature, { ...ragOpts, ...modeOpts, ...opts });
     }
   };
 
@@ -129,6 +132,24 @@ function PromptInput({
             className="temperature-slider"
           />
         </div>
+        {activeMode === 'map_reduce' && (
+          <div className="temperature-control">
+            <label htmlFor="chunk-count">
+              Chunks: <span className="temp-value">{chunkCount}</span>
+            </label>
+            <input
+              type="range"
+              id="chunk-count"
+              min="2"
+              max="8"
+              step="1"
+              value={chunkCount}
+              onChange={(e) => setChunkCount(Number(e.target.value))}
+              disabled={loading || disabled}
+              className="temperature-slider"
+            />
+          </div>
+        )}
         <RagControlsPanel
           useRag={useRag}
           onUseRagChange={onUseRagChange}
