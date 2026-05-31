@@ -25,6 +25,7 @@ from orchestration.modes.critic_debate import CriticDebateMode
 from orchestration.modes.map_reduce import MapReduceMode
 from orchestration.modes.speculative import SpeculativeMode
 from orchestration.modes.tree_of_thought import TreeOfThoughtMode
+from orchestration.memory_utils import check_mode_memory_ok
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,11 @@ async def handle_orchestrate(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(
             reason=f"unknown Python mode {mode_id!r} — choose from {list(_PYTHON_MODES)}"
         )
+
+    mem_ok, mem_err = check_mode_memory_ok(mode_id)
+    if not mem_ok:
+        logger.warning("orchestrate: memory guard blocked mode=%s: %s", mode_id, mem_err)
+        raise web.HTTPServiceUnavailable(reason=mem_err)
 
     session_id = (body.get("session_id") or "").strip() or str(uuid.uuid4())
     params: dict[str, Any] = body.get("params") or {}
@@ -139,6 +145,11 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
         raise web.HTTPBadRequest(
             reason=f"unknown Python mode {mode_id!r} — choose from {list(_PYTHON_MODES)}"
         )
+
+    mem_ok, mem_err = check_mode_memory_ok(mode_id)
+    if not mem_ok:
+        logger.warning("orchestrate/stream: memory guard blocked mode=%s: %s", mode_id, mem_err)
+        raise web.HTTPServiceUnavailable(reason=mem_err)
 
     session_id = (body.get("session_id") or "").strip() or str(uuid.uuid4())
     params: dict[str, Any] = body.get("params") or {}

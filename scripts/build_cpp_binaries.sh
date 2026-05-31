@@ -81,6 +81,8 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/agent_health.cpp" \
    "$CPP_SRC/agent_metrics.cpp" \
    "$CPP_SRC/agent_stream.cpp" \
+   "$CPP_SRC/agent_stream_pool.cpp" \
+   "$CPP_SRC/agent_stream_sse.cpp" \
    "$CPP_SRC/pressure_snapshot.cpp" \
    "$CPP_SRC/host_memory.cpp" \
    "$CPP_SRC/pressure.cpp" \
