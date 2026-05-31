@@ -15,6 +15,15 @@ from orchestration.mlx_coordinator.session import SessionStore
 from orchestration.mlx_coordinator.service_orchestrate import _fetch_rag_chunks
 
 
+@pytest.fixture(autouse=True)
+def _orchestrate_memory_guard_pass():
+    with patch(
+        "orchestration.mlx_coordinator.service_orchestrate.check_mode_memory_ok",
+        return_value=(True, None),
+    ):
+        yield
+
+
 async def _token_stream(*tokens):
     for t in tokens:
         yield TokenChunk(text=t)
@@ -166,6 +175,18 @@ class TestOrchestrateEndpoint(AioHTTPTestCase):
             json={"mode": "flat", "prompt": "hi"},
         )
         assert resp.status == 400
+
+    @unittest_run_loop
+    async def test_orchestrate_memory_guard_returns_503(self):
+        with patch(
+            "orchestration.mlx_coordinator.service_orchestrate.check_mode_memory_ok",
+            return_value=(False, "insufficient host memory"),
+        ):
+            resp = await self.client.post(
+                "/api/orchestrate",
+                json={"mode": "map_reduce", "prompt": "hi", "params": {"chunks": ["a"]}},
+            )
+        assert resp.status == 503
 
     @unittest_run_loop
     async def test_orchestrate_bad_json_returns_400(self):
