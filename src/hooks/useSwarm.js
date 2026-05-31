@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth } from '../api/swarmApi';
 
 export function useSwarm() {
@@ -30,6 +30,7 @@ export function useSwarm() {
   }, [currentSession]);
 
   const cancelRef = useRef(null);
+  useEffect(() => () => { cancelRef.current?.(); }, []);
 
   const submit = useCallback((prompt, temperature = 0.7, opts = {}) => {
     // Cancel any in-flight stream before starting a new one.
