@@ -40,9 +40,9 @@ PROMPT_ROUTER = (
     "Write a Python async HTTP client that retries on 429/503 with "
     "exponential backoff and jitter, returning structured error objects"
 )
-PROMPT_PIPELINE = (
-    "Design and implement a Go middleware chain: rate-limiting → "
-    "JWT auth → request-ID injection → structured JSON logging"
+PROMPT_FLAT = (
+    "Write a Rust function that parses a TOML config file, validates "
+    "required fields, and returns a typed Config struct with clear error messages"
 )
 
 
@@ -174,8 +174,8 @@ def main():
             page.wait_for_timeout(500)
 
             for i, (mode, prompt) in enumerate([
-                ("ROUTER",   PROMPT_ROUTER),
-                ("PIPELINE", PROMPT_PIPELINE),
+                ("ROUTER", PROMPT_ROUTER),
+                ("FLAT",   PROMPT_FLAT),
             ]):
                 if i > 0:
                     wait_for_agents_ready(page, shots_dir=launch_dir)
