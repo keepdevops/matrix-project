@@ -25,10 +25,14 @@ function PromptInput({
   const ragHealth = useRagHealth(true);
   const [prompt, setPrompt] = useState('');
   const [chunkCount, setChunkCount] = useState(3);
-  // Role selectors for speculative and critic_debate modes.
+  // Role selectors for speculative, critic_debate, tree_of_thought modes.
   const [roleA, setRoleA] = useState('');  // drafter / generator
-  const [roleB, setRoleB] = useState('');  // verifier / critic
+  const [roleB, setRoleB] = useState('');  // verifier / critic / scorer
   const [maxRounds, setMaxRounds] = useState(3);
+  // tree_of_thought params
+  const [totDepth, setTotDepth] = useState(2);
+  const [totBranching, setTotBranching] = useState(3);
+  const [totPruneBelow, setTotPruneBelow] = useState(4);
   const [temperature, setTemperature] = useState(0.2);
   const [ragTopK, setRagTopK] = useState(() => {
     const raw = parseInt(
@@ -95,6 +99,7 @@ function PromptInput({
         activeMode === 'map_reduce' ? { chunkCount } :
         activeMode === 'speculative' ? { modeParams: { drafter: a, verifier: b } } :
         activeMode === 'critic_debate' ? { modeParams: { generator: a, critic: b, max_rounds: maxRounds } } :
+        activeMode === 'tree_of_thought' ? { modeParams: { generator: a, scorer: b, depth: totDepth, branching: totBranching, prune_below: totPruneBelow } } :
         {};
       onSubmit(prompt.trim(), temperature, { ...ragOpts, ...modeOpts, ...opts });
     }
@@ -161,32 +166,54 @@ function PromptInput({
             />
           </div>
         )}
-        {(activeMode === 'speculative' || activeMode === 'critic_debate') && activeAgents.length >= 2 && (() => {
+        {(['speculative', 'critic_debate', 'tree_of_thought'].includes(activeMode)) && activeAgents.length >= 2 && (() => {
           const names = activeAgents.map(a => a.name || a);
+          const isTot = activeMode === 'tree_of_thought';
           const labelA = activeMode === 'speculative' ? 'Drafter' : 'Generator';
-          const labelB = activeMode === 'speculative' ? 'Verifier' : 'Critic';
+          const labelB = activeMode === 'speculative' ? 'Verifier' : isTot ? 'Scorer' : 'Critic';
           return (
-            <div className="temperature-control" style={{ gap: '0.5rem' }}>
-              <label>{labelA}:
-                <select value={roleA || names[0]} onChange={e => setRoleA(e.target.value)}
-                  disabled={loading || disabled} style={{ marginLeft: '0.3rem', fontFamily: 'inherit', fontSize: '0.75rem' }}>
-                  {names.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </label>
-              <label style={{ marginLeft: '0.75rem' }}>{labelB}:
-                <select value={roleB || names[names.length - 1]} onChange={e => setRoleB(e.target.value)}
-                  disabled={loading || disabled} style={{ marginLeft: '0.3rem', fontFamily: 'inherit', fontSize: '0.75rem' }}>
-                  {names.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </label>
-              {activeMode === 'critic_debate' && (
-                <label style={{ marginLeft: '0.75rem' }}>Rounds: <span className="temp-value">{maxRounds}</span>
-                  <input type="range" min="1" max="5" step="1" value={maxRounds}
-                    onChange={e => setMaxRounds(Number(e.target.value))}
-                    disabled={loading || disabled} className="temperature-slider" style={{ width: '4rem' }} />
+            <>
+              <div className="temperature-control" style={{ gap: '0.5rem' }}>
+                <label>{labelA}:
+                  <select value={roleA || names[0]} onChange={e => setRoleA(e.target.value)}
+                    disabled={loading || disabled} style={{ marginLeft: '0.3rem', fontFamily: 'inherit', fontSize: '0.75rem' }}>
+                    {names.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 </label>
+                <label style={{ marginLeft: '0.75rem' }}>{labelB}:
+                  <select value={roleB || names[names.length - 1]} onChange={e => setRoleB(e.target.value)}
+                    disabled={loading || disabled} style={{ marginLeft: '0.3rem', fontFamily: 'inherit', fontSize: '0.75rem' }}>
+                    {names.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </label>
+                {activeMode === 'critic_debate' && (
+                  <label style={{ marginLeft: '0.75rem' }}>Rounds: <span className="temp-value">{maxRounds}</span>
+                    <input type="range" min="1" max="5" step="1" value={maxRounds}
+                      onChange={e => setMaxRounds(Number(e.target.value))}
+                      disabled={loading || disabled} className="temperature-slider" style={{ width: '4rem' }} />
+                  </label>
+                )}
+              </div>
+              {isTot && (
+                <div className="temperature-control" style={{ gap: '0.5rem' }}>
+                  <label>Depth: <span className="temp-value">{totDepth}</span>
+                    <input type="range" min="1" max="3" step="1" value={totDepth}
+                      onChange={e => setTotDepth(Number(e.target.value))}
+                      disabled={loading || disabled} className="temperature-slider" style={{ width: '4rem' }} />
+                  </label>
+                  <label style={{ marginLeft: '0.75rem' }}>Branches: <span className="temp-value">{totBranching}</span>
+                    <input type="range" min="2" max="4" step="1" value={totBranching}
+                      onChange={e => setTotBranching(Number(e.target.value))}
+                      disabled={loading || disabled} className="temperature-slider" style={{ width: '4rem' }} />
+                  </label>
+                  <label style={{ marginLeft: '0.75rem' }}>Prune &lt;: <span className="temp-value">{totPruneBelow}</span>
+                    <input type="range" min="0" max="9" step="1" value={totPruneBelow}
+                      onChange={e => setTotPruneBelow(Number(e.target.value))}
+                      disabled={loading || disabled} className="temperature-slider" style={{ width: '4rem' }} />
+                  </label>
+                </div>
               )}
-            </div>
+            </>
           );
         })()}
         <RagControlsPanel

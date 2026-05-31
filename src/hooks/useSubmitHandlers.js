@@ -4,7 +4,7 @@ import { qualityPassContextPolicy } from '../utils/qualityPassContext';
 import { splitIntoChunks } from '../api/orchestrateApi';
 import { getModeManifestEntry } from '../utils/modeManifest';
 
-const PYTHON_ORCHESTRATE_MODES = new Set(['map_reduce', 'speculative', 'critic_debate']);
+const PYTHON_ORCHESTRATE_MODES = new Set(['map_reduce', 'speculative', 'critic_debate', 'tree_of_thought']);
 
 export function useSubmitHandlers({
   submit, loadHistory, currentSession, activeMode, useRag,

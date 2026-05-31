@@ -11,21 +11,23 @@ describe('modeManifest', () => {
     expect(out[0].backend).toBe('cpp');
   });
 
-  it('includes Python orchestrate modes in UI list (MS-25-2/3 enabled)', () => {
+  it('includes all Python orchestrate modes in UI list (MS-25-2/3 + MS-26-1 enabled)', () => {
     const api = [
       { name: 'flat', active: true },
       { name: 'map_reduce', active: false },
       { name: 'speculative', active: false },
       { name: 'critic_debate', active: false },
+      { name: 'tree_of_thought', active: false },
     ];
     const names = applyModeManifest(api).map(m => m.name);
     expect(names).toContain('map_reduce');
     expect(names).toContain('speculative');
     expect(names).toContain('critic_debate');
+    expect(names).toContain('tree_of_thought');
   });
 
-  it('getModeManifestEntry returns python backend and ui:true for enabled orchestrate modes', () => {
-    for (const mode of ['map_reduce', 'speculative', 'critic_debate']) {
+  it('getModeManifestEntry returns python backend and ui:true for all enabled orchestrate modes', () => {
+    for (const mode of ['map_reduce', 'speculative', 'critic_debate', 'tree_of_thought']) {
       const entry = getModeManifestEntry(mode);
       expect(entry.backend).toBe('python');
       expect(entry.ui).toBe(true);

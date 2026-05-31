@@ -17,7 +17,7 @@ export const MODE_MANIFEST = {
     note: 'Generator proposes, critic reviews; repeats until SHIP or max rounds',
   },
   tree_of_thought: {
-    backend: 'python', enabled: false, ui: false, memoryWeight: 3,
-    note: 'Python orchestration plugin',
+    backend: 'python', enabled: true, ui: true, memoryWeight: 3,
+    note: 'Generates K branches, scores and prunes, recurses depth levels',
   },
 };
