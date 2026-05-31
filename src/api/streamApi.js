@@ -48,6 +48,8 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
+    let doneFired = false;
+    const fireOnce = () => { if (!doneFired) { doneFired = true; onDone?.(); } };
 
     const dispatchEvent = (eventName, dataStr) => {
       let data;
@@ -58,7 +60,7 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
       else if (eventName === 'stage') onStage?.(data);
       else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent);
       else if (eventName === 'session') onSession?.(data);
-      else if (eventName === 'done') onDone?.();
+      else if (eventName === 'done') fireOnce();
       else if (eventName === 'error') {
         console.error('[stream] agent error:', data);
         onError?.(data.agent, data.error);
@@ -68,7 +70,7 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) { onDone?.(); break; }
+        if (done) { fireOnce(); break; }
         buf += decoder.decode(value, { stream: true });
         const blocks = buf.split('\n\n');
         buf = blocks.pop();
@@ -97,14 +99,23 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
 /**
  * Submit a prompt to the Python MLX coordinator via SSE streaming.
  * Drop-in replacement for submitPromptStream when backend="mlx".
- * callbacks: { onToken, onAgentDone, onDone, onError }
+ * callbacks: { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession }
  */
 export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, callbacks = {}) {
-  const { onToken, onAgentDone, onDone, onError } = callbacks;
+  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onDone, onError, onSession } = callbacks;
   const controller = new AbortController();
 
   const body = { prompt, temperature };
   if (opts.sessionId) body.session_id = opts.sessionId;
+  if (opts.parentRunId) body.parent_run_id = opts.parentRunId;
+  if (opts.followup) body.followup = true;
+  if (opts.qualityPass) body.quality_pass = true;
+  if (opts.useRag) body.use_rag = true;
+  if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
+  if (typeof opts.ragMinScore === 'number' && Number.isFinite(opts.ragMinScore))
+    body.rag_min_score = opts.ragMinScore;
+  if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
+    body.rag_agents = opts.ragAgents;
   if (opts.params) body.params = opts.params;
 
   (async () => {
@@ -133,11 +144,13 @@ export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, call
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
+    let doneFired = false;
+    const fireOnce = () => { if (!doneFired) { doneFired = true; onDone?.(); } };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) { onDone?.(); break; }
+        if (done) { fireOnce(); break; }
         buf += decoder.decode(value, { stream: true });
         const blocks = buf.split('\n\n');
         buf = blocks.pop();
@@ -151,12 +164,16 @@ export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, call
           }
           let data;
           try { data = JSON.parse(dataStr); } catch { data = dataStr; }
-          if (eventName === 'token') onToken?.(data.agent_id, data.text);
-          else if (eventName === 'agent_end') onAgentDone?.(data.agent_id);
-          else if (eventName === 'done') onDone?.();
+          if (eventName === 'token') onToken?.(data.agent_id ?? data.agent, data.text ?? data.delta);
+          else if (eventName === 'agent_end' || eventName === 'agent_done') onAgentDone?.(data.agent_id ?? data.agent);
+          else if (eventName === 'selected') onSelected?.(data);
+          else if (eventName === 'stage') onStage?.(data);
+          else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent_id ?? data.agent);
+          else if (eventName === 'session') onSession?.(data);
+          else if (eventName === 'done') fireOnce();
           else if (eventName === 'error') {
             console.error('[mlx-stream] error:', data);
-            onError?.(data.agent_id, data.error);
+            onError?.(data.agent_id ?? data.agent, data.error);
           }
         }
       }
