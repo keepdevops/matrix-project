@@ -19,9 +19,21 @@ export const API_BASE = normalizeApiBase();
 
 /**
  * Base URL for the Python MLX coordinator (hard barrier — never reaches C++).
- * Default: /api/mlx (same-origin via Nginx), or override with REACT_APP_MLX_API_BASE.
+ * Dev: direct to :3003 (CRA has no /api/mlx proxy). Production: same-origin /api/mlx
+ * via nginx. Override with REACT_APP_MLX_API_BASE.
  */
-export const MLX_API_BASE = (process.env.REACT_APP_MLX_API_BASE || '/api/mlx').replace(/\/+$/, '');
+function normalizeMlxApiBase() {
+  const raw = process.env.REACT_APP_MLX_API_BASE;
+  if (raw !== undefined && raw !== '') {
+    return raw.trim().replace(/\/+$/, '');
+  }
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3003/api/mlx';
+  }
+  return '/api/mlx';
+}
+
+export const MLX_API_BASE = normalizeMlxApiBase();
 
 /**
  * Base URL for the RAG ingest sidecar (orchestration/rag/service.py).
