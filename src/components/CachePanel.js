@@ -106,7 +106,7 @@ export default function CachePanel({ onClose }) {
         </div>
 
         {loadErr && (
-          <div style={{ color: '#ff8888', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+          <div style={{ color: 'var(--brew-kv-crit, #e55)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
             {loadErr} <Button variant="ghost" size="xs" onClick={load} style={{ marginLeft: '0.4rem' }}>retry</Button>
           </div>
         )}
@@ -145,7 +145,7 @@ export default function CachePanel({ onClose }) {
             <Button variant="primary" size="sm" onClick={handleSaveConfig} disabled={cfgBusy}>
               {cfgBusy ? 'Saving…' : 'Save config'}
             </Button>
-            {cfgMsg && <span style={{ fontSize: '0.78rem', color: cfgMsg.startsWith('Error') ? '#ff8888' : '#9ec99e' }}>{cfgMsg}</span>}
+            {cfgMsg && <span style={{ fontSize: '0.78rem', color: cfgMsg.startsWith('Error') ? 'var(--brew-kv-crit, #e55)' : '#9ec99e' }}>{cfgMsg}</span>}
           </div>
         </div>
 
@@ -154,7 +154,7 @@ export default function CachePanel({ onClose }) {
             {clearBusy ? 'Clearing…' : 'Clear KV'}
           </Button>
           <Button variant="ghost" size="sm" onClick={load}>Refresh</Button>
-          {clearMsg && <span style={{ fontSize: '0.78rem', color: clearMsg.startsWith('Error') ? '#ff8888' : '#9ec99e' }}>{clearMsg}</span>}
+          {clearMsg && <span style={{ fontSize: '0.78rem', color: clearMsg.startsWith('Error') ? 'var(--brew-kv-crit, #e55)' : '#9ec99e' }}>{clearMsg}</span>}
         </div>
       </div>
     </div>

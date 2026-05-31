@@ -42,18 +42,22 @@ export function useDeploy({ onDeployed }) {
     setAgentStatuses(initial);
 
     pollRef.current = setInterval(async () => {
-      const data = await fetchConfigureStatus();
-      if (!data) return;
-      setAgentStatuses(prev => {
-        const next = new Map(prev);
-        for (const [portStr, state] of Object.entries(data.ports)) {
-          const port = Number(portStr);
-          const names = portAgentMap.get(port) || [];
-          for (const name of names) next.set(name, state);
-        }
-        return next;
-      });
-      if (!data.active) stopPolling();
+      try {
+        const data = await fetchConfigureStatus();
+        if (!data) return;
+        setAgentStatuses(prev => {
+          const next = new Map(prev);
+          for (const [portStr, state] of Object.entries(data.ports)) {
+            const port = Number(portStr);
+            const names = portAgentMap.get(port) || [];
+            for (const name of names) next.set(name, state);
+          }
+          return next;
+        });
+        if (!data.active) stopPolling();
+      } catch (err) {
+        console.error('[useDeploy] status poll failed:', err);
+      }
     }, 2000);
   }, [stopPolling]);
 
@@ -119,6 +123,7 @@ export function useDeploy({ onDeployed }) {
       stopPolling();
       setStatus('error');
       setStatusMsg(e.message);
+      setAgentStatuses(new Map());
       const ports = (e.failedPorts && e.failedPorts.length > 0)
         ? e.failedPorts
         : layout.map(s => s.port);
