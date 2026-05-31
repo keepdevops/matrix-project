@@ -179,6 +179,7 @@ export default function BrewlateLayout({
 
   useEffect(() => {
     if (online && activeAgents.length > 0) setDeployed(true);
+    else if (!online) setDeployed(false);
   }, [online, activeAgents.length]);
 
   useEffect(() => {
