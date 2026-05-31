@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import uuid
 from typing import Any
 
@@ -161,7 +162,9 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
 
     result_parts: list[str] = []
     final_meta: dict[str, Any] = {}
-    token_counts: dict[str, int] = {}  # agent_id → word-approximate token count
+    token_counts: dict[str, int] = {}   # agent_id → word-approximate token count
+    agent_elapsed: dict[str, float] = {}  # agent_id → accumulated ms
+    agent_start_ts: dict[str, float] = {}  # agent_id → monotonic start time
     try:
         ctx = ModeContext(
             swarm=request.app["swarm"],
@@ -180,9 +183,16 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
                 await send("token", json.dumps(
                     {"agent_id": event.agent_id, "text": event.text}))
             elif event.kind == "agent_start":
+                if event.agent_id:
+                    agent_start_ts[event.agent_id] = time.monotonic()
                 await send("agent_start", json.dumps(
                     {"agent_id": event.agent_id, "meta": event.meta}))
             elif event.kind == "agent_end":
+                if event.agent_id and event.agent_id in agent_start_ts:
+                    elapsed_ms = (time.monotonic() - agent_start_ts.pop(event.agent_id)) * 1000
+                    agent_elapsed[event.agent_id] = (
+                        agent_elapsed.get(event.agent_id, 0.0) + elapsed_ms
+                    )
                 await send("agent_end", json.dumps(
                     {"agent_id": event.agent_id}))
             elif event.kind == "result" and event.meta:
@@ -201,12 +211,16 @@ async def handle_orchestrate_stream(request: web.Request) -> web.StreamResponse:
     rag_context = params.get("rag_context") or []
     if rag_context:
         final_meta = {**final_meta, "rag_chunks": rag_context}
-    if token_counts:
+    all_agent_ids = set(token_counts) | set(agent_elapsed)
+    if all_agent_ids:
         final_meta = {
             **final_meta,
             "timings": {
-                agent_id: {"completion_tokens": count, "total_ms": 0}
-                for agent_id, count in token_counts.items()
+                agent_id: {
+                    "completion_tokens": token_counts.get(agent_id, 0),
+                    "total_ms": int(agent_elapsed.get(agent_id, 0.0)),
+                }
+                for agent_id in all_agent_ids
             },
         }
     await send("done", json.dumps({
