@@ -5,8 +5,8 @@ export const MODE_MANIFEST = {
   cascade: { backend: 'cpp', enabled: true, ui: true, memoryWeight: 2 },
   router: { backend: 'cpp', enabled: true, ui: true, memoryWeight: 1.5 },
   map_reduce: {
-    backend: 'python', enabled: false, ui: false, memoryWeight: 3,
-    note: 'Python MLX coordinator only — not on C++ plane',
+    backend: 'python', enabled: true, ui: true, memoryWeight: 3,
+    note: 'Splits prompt into chunks, maps across agents, synthesizes findings',
   },
   speculative: {
     backend: 'python', enabled: false, ui: false, memoryWeight: 2,

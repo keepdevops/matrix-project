@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { buildCodeExport, downloadBlob } from '../utils/codeSave';
 import { qualityPassContextPolicy } from '../utils/qualityPassContext';
+import { splitIntoChunks } from '../api/orchestrateApi';
 
 export function useSubmitHandlers({
   submit, loadHistory, currentSession, activeMode, useRag,
@@ -14,6 +15,24 @@ export function useSubmitHandlers({
   const [pendingPrompt, setPendingPrompt] = useState(null);
 
   const handleSubmit = useCallback(async (prompt, temperature, opts = {}) => {
+    // Python orchestrate modes bypass the streaming path entirely.
+    if (activeMode === 'map_reduce' && !opts.followup && !opts.qualityPass) {
+      const n = opts.chunkCount || 3;
+      setPendingPrompt(prompt);
+      try {
+        await submit(prompt, temperature, {
+          orchestrateMode: 'map_reduce',
+          orchestrateParams: { chunks: splitIntoChunks(prompt, n) },
+        });
+        loadHistory();
+      } catch (err) {
+        console.error('[useSubmitHandlers] map_reduce failed:', err);
+      } finally {
+        setPendingPrompt(null);
+      }
+      return;
+    }
+
     // Warn if the active mode has known deployment issues (non-blocking).
     if (modeWarnings.length > 0 && !opts.qualityPass && !opts.followup) {
       onModeWarning?.(modeWarnings);

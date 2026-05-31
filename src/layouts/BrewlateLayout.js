@@ -708,6 +708,7 @@ export default function BrewlateLayout({
                       activeAgents={activeAgents}
                       backend={backend}
                       onBackendChange={switchBackend}
+                      activeMode={activeMode}
                       submitLabel="BREW"
                       submitLoadingLabel="BREWING…"
                       qualityPassLabel="REFINE"

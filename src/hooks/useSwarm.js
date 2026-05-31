@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth } from '../api/swarmApi';
+import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth, submitOrchestrate } from '../api/swarmApi';
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
@@ -44,6 +44,24 @@ export function useSwarm() {
     setLastMeta(null);
 
     const wallStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+    // Python-mode orchestrate path — blocking JSON, not a stream.
+    if (opts.orchestrateMode) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const data = await submitOrchestrate(opts.orchestrateMode, prompt, opts.orchestrateParams || {});
+          setFinalAnswer(data.result || null);
+          setLastMeta({ mode: data.mode, ...(data.meta || {}), wall_ms: Date.now() - wallStart });
+          setLoading(false);
+          resolve({ final: data.result, meta: data.meta });
+        } catch (err) {
+          console.error('[useSwarm] orchestrate failed:', err);
+          setError(err.message);
+          setLoading(false);
+          reject(err);
+        }
+      });
+    }
 
     const requestOpts = { ...opts };
     if (opts.followup && !requestOpts.sessionId && currentSession?.sessionId) {
