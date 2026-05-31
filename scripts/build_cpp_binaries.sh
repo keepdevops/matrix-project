@@ -103,6 +103,7 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy.cpp" \
   "$CPP_SRC/proxy_routes.cpp" \
   "$CPP_SRC/proxy_routes_convert.cpp" \
+  "$CPP_SRC/proxy_routes_orchestrate.cpp" \
   "$CPP_SRC/proxy_file_io.cpp" \
   "$CPP_SRC/proxy_models_scan.cpp" \
   "$CPP_SRC/proxy_configure.cpp" \
