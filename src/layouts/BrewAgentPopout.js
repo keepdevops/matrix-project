@@ -1,39 +1,39 @@
 import React, { useEffect } from 'react';
 import AgentMarkdown from '../components/AgentMarkdown';
-import CodeDisplay from '../components/CodeDisplay';
+import CodeOutputPanel from '../components/CodeOutputPanel';
 
-export default function BrewAgentPopout({ name, model, meta, response, error, code, language, onClose }) {
+export default function BrewAgentPopout({
+  name, model, meta, response, error, code, loading = false, onClose,
+}) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  const sourceText = response || (code ? '```\n' + code + '\n```' : '');
+  const showCodeLayout = Boolean(sourceText || loading);
+
   return (
     <div className="brew-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div
-        className="brew-modal-card brew-modal-card--wide"
+        className="brew-modal-card brew-modal-card--agent-popout"
         role="dialog"
         aria-modal="true"
         aria-label={`Agent response — ${name}`}
-        style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
       >
         <div className="brew-modal-header">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <span className="brew-modal-title-plain" style={{ fontWeight: 700, letterSpacing: '0.06em' }}>
+          <div className="brew-agent-popout-heading">
+            <span className="brew-modal-title-plain brew-agent-popout-name">
               {name.toUpperCase()}
             </span>
-            {model && (
-              <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>{model}</span>
-            )}
-            {meta && (
-              <span className="brew-agent-card-meta" style={{ fontSize: '0.72rem' }}>{meta}</span>
-            )}
+            {model && <span className="brew-agent-popout-model">{model}</span>}
+            {meta && <span className="brew-agent-card-meta brew-agent-popout-meta">{meta}</span>}
           </div>
           <button className="brew-modal-x" onClick={onClose} aria-label="Close">×</button>
         </div>
 
-        <div className="brew-modal-body" style={{ overflowY: 'auto', padding: '1rem 1.5rem', flex: '1 1 0' }}>
+        <div className={`brew-agent-popout-body${showCodeLayout ? ' brew-agent-popout-body--code' : ''}`}>
           {error ? (
             <div className="brew-agent-response brew-agent-response--error">
               <span className="brew-agent-response-error-icon">✕</span>
@@ -41,16 +41,19 @@ export default function BrewAgentPopout({ name, model, meta, response, error, co
             </div>
           ) : (
             <>
-              <AgentMarkdown text={response} />
-              {code && code.trim().length >= 10 && (
-                <div className="brew-code-output-section" style={{ marginTop: '1rem' }}>
-                  <div className="brew-code-output-header">
-                    <span className="brew-section-title">CODE OUTPUT</span>
-                  </div>
-                  <div className="brew-code-output-frame">
-                    <CodeDisplay initialCode={code} language={language} />
-                  </div>
+              {response && (
+                <div className="brew-agent-popout-prose">
+                  <AgentMarkdown text={response} />
                 </div>
+              )}
+              {(sourceText || loading) && (
+                <CodeOutputPanel
+                  sourceText={sourceText}
+                  loading={loading}
+                  sectionClassName="brew-agent-popout-code"
+                  frameClassName="brew-agent-popout-code-frame"
+                  editorHeight="min(56vh, 560px)"
+                />
               )}
             </>
           )}

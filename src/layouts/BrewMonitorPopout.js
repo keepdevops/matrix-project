@@ -102,12 +102,15 @@ export default function BrewMonitorPopout({
           )}
         </div>
 
-        {online && (
-          <div className="brew-resource-section brew-resource-section--pressure brew-resource-section--last">
-            <div className="brew-res-layout-title">Port Pressure</div>
-            <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
-          </div>
-        )}
+        <div className="brew-resource-section brew-resource-section--pressure brew-resource-section--last">
+          <div className="brew-res-layout-title">Port Pressure</div>
+          <PressureCluster
+            online={online}
+            readings={kvReadings}
+            fetchFailed={kvFetchFailed}
+            poll={false}
+          />
+        </div>
       </div>
     </div>
   );

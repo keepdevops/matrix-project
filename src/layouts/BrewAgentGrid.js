@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import BrewAgentCard, { modelShortName } from './BrewAgentCard';
 import AgentMarkdown from '../components/AgentMarkdown';
-import CodeDisplay from '../components/CodeDisplay';
+import CodeOutputPanel from '../components/CodeOutputPanel';
 import { SkeletonAgentCard } from '../components/Skeleton';
 import { extractCodeBlock } from '../utils/codeExtractor';
 import BrewAgentPopout from './BrewAgentPopout';
@@ -36,9 +36,22 @@ function BrewAgentGrid({
   agentErrors = {},
   rolesByName = {},
   compact = false,
+  onSaveCode = null,
 }) {
   const isInitialLoad = loading && Object.keys(responses).length === 0;
   const [popout, setPopout] = useState(null);
+
+  const programmerResp = responses.programmer;
+  const programmerInRoster = activeAgents.some(({ name }) => name === 'programmer');
+  const hasAnyCode = useMemo(
+    () => activeAgents.some(({ name }) => {
+      const r = responses[name];
+      if (!r) return false;
+      const { code } = extractCodeBlock(r);
+      return code && code.trim().length >= 10;
+    }),
+    [activeAgents, responses],
+  );
 
   const renderCard = useCallback((agent) => {
     const { name, model } = agent;
@@ -52,6 +65,7 @@ function BrewAgentGrid({
 
     const { code, language } = response ? extractCodeBlock(response) : { code: null, language: null };
     const hasCode = code && code.trim().length >= 10;
+    const showInlineCode = Boolean(response && (hasCode || loading));
 
     return (
       <BrewAgentCard
@@ -94,15 +108,13 @@ function BrewAgentGrid({
                 title="Popout"
               >⤢</button>
             </div>
-            {hasCode && (
-              <div className="brew-code-output-section">
-                <div className="brew-code-output-header">
-                  <span className="brew-section-title">CODE OUTPUT</span>
-                </div>
-                <div className="brew-code-output-frame">
-                  <CodeDisplay initialCode={code} language={language} />
-                </div>
-              </div>
+            {showInlineCode && (
+              <CodeOutputPanel
+                sourceText={response}
+                loading={loading}
+                editorHeight="220px"
+                sectionClassName="brew-code-output-section--card"
+              />
             )}
           </>
         ) : (
@@ -121,6 +133,17 @@ function BrewAgentGrid({
           ? activeAgents.map(({ name }) => <SkeletonAgentCard key={name} />)
           : activeAgents.map(renderCard)}
       </div>
+      {(programmerResp || (loading && programmerInRoster)) && (
+        <CodeOutputPanel
+          sourceText={programmerResp || ''}
+          loading={loading}
+          onSaveCode={onSaveCode}
+          showSave={hasAnyCode}
+          sectionClassName="brew-code-output-section--grid"
+          editorHeight="min(36vh, 360px)"
+        />
+      )}
+
       {popout && (
         <BrewAgentPopout
           name={popout.name}
@@ -129,7 +152,7 @@ function BrewAgentGrid({
           response={popout.response}
           error={popout.error}
           code={popout.code}
-          language={popout.language}
+          loading={loading && !!popout.response}
           onClose={() => setPopout(null)}
         />
       )}

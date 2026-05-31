@@ -22,6 +22,8 @@ export default function BrewAgentCard({
   onEdit,
   onExpand,
   showModelSelect = false,
+  showCheckbox = false,
+  checked = false,
   models = [],
   onModelChange,
   children,
@@ -59,7 +61,19 @@ export default function BrewAgentCard({
         />
       </div>
 
-      <div className="brew-agent-card-name">{name}</div>
+      <div className="brew-agent-card-name-row">
+        {showCheckbox && (
+          <input
+            type="checkbox"
+            className="brew-agent-card-check"
+            checked={checked}
+            readOnly
+            tabIndex={-1}
+            aria-hidden
+          />
+        )}
+        <div className="brew-agent-card-name">{name}</div>
+      </div>
 
       {showModelSelect && models.length > 0 ? (
         <select

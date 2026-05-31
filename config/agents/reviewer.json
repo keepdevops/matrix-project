@@ -4,7 +4,7 @@
   "flash_attn": true,
   "gpu_layers": 99,
   "max_tokens": 1024,
-  "model": "${MATRIX_MODEL_DIR}/GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+  "model": "${MATRIX_MODEL_DIR}/22B/GGUF/Codestral-22B-v0.1-Q4_K_M.gguf",
   "name": "reviewer",
   "port": 8080,
   "read_timeout_secs": 120,

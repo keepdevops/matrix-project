@@ -1879,6 +1879,33 @@ h1 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
+.code-display-container--streaming {
+  border-color: var(--color-accent, #3a7ac8);
+  box-shadow: 0 0 0 1px rgba(58, 122, 200, 0.25), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.code-streaming-badge {
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-accent, #5b9cf5);
+  text-transform: uppercase;
+}
+
+.pulse-dot--live {
+  animation: code-pulse-live 1s ease-in-out infinite;
+}
+
+@keyframes code-pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.code-display-editor-wrap {
+  min-height: 0;
+}
+
 .code-display-header {
   display: flex;
   justify-content: space-between;

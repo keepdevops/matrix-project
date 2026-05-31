@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
-import Button from './Button';
 import AgentResponse from './AgentResponse';
-import CodeDisplay from './CodeDisplay';
+import CodeOutputPanel from './CodeOutputPanel';
 import { SkeletonAgentCard } from './Skeleton';
 import { getAgentColor } from '../utils/agentColors';
 import { extractCodeBlock } from '../utils/codeExtractor';
@@ -27,9 +26,7 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
   });
 
   const programmerResp = responses.programmer;
-  const { code, language } = programmerResp
-    ? extractCodeBlock(programmerResp)
-    : { code: null, language: null };
+  const programmerInRoster = activeAgents.some(({ name }) => name === 'programmer');
 
   const renderCard = useCallback(({ name, port, model, backend, engine }) => {
     const isPicked = flatPickMode && pickedFlatAgent === name;
@@ -61,19 +58,16 @@ function AgentGrid({ activeAgents, responses, loading, timings = {}, onSaveCode,
           : activeAgents.map(renderCard)}
       </div>
 
-      {programmerResp && (
+      {(programmerResp || (loading && programmerInRoster)) && (
         <div className="code-output-section">
-          <div className="code-output-header">
-            <h2 className="section-title">CODE OUTPUT</h2>
-            {hasAnyCode && (
-              <Button variant="outline-primary" size="xs" onClick={onSaveCode}>
-                SAVE CODE
-              </Button>
-            )}
-          </div>
-          <div className="editor-frame">
-            <CodeDisplay initialCode={code} language={language} />
-          </div>
+          <CodeOutputPanel
+            sourceText={programmerResp || ''}
+            loading={loading}
+            onSaveCode={onSaveCode}
+            showSave={hasAnyCode}
+            frameClassName="editor-frame"
+            editorHeight="min(42vh, 420px)"
+          />
         </div>
       )}
     </>
