@@ -690,6 +690,22 @@ body[data-layout="brewlate"] {
 
 .brew-agent-card.pickable:hover { transform: translateY(-1px); }
 
+.brew-agent-card--has-result {
+  position: relative;
+  border-color: var(--brew-accent-dim);
+}
+.brew-agent-card--has-result::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brew-accent);
+  pointer-events: none;
+}
+
 .brew-agent-card-hero {
   display: flex;
   align-items: center;

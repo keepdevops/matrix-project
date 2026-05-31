@@ -24,8 +24,10 @@ import BrewEditRoleModal from './BrewEditRoleModal';
 import BrewResourcePopout from './BrewResourcePopout';
 import BrewMonitorPopout from './BrewMonitorPopout';
 import BrewHeader from './BrewHeader';
-import BrewAgentCard from './BrewAgentCard';
+import BrewAgentCard, { modelShortName } from './BrewAgentCard';
 import BrewAgentGrid from './BrewAgentGrid';
+import BrewAgentPopout from './BrewAgentPopout';
+import { extractCodeBlock } from '../utils/codeExtractor';
 import CompareVariantsPanel from '../components/CompareVariantsPanel';
 import RagSources from '../components/RagSources';
 import RagControlsPanel from '../components/RagControlsPanel';
@@ -158,6 +160,7 @@ export default function BrewlateLayout({
   const [deployed, setDeployed]         = useState(false);
   const [rightTab, setRightTab]         = useState('session');
   const [showMonitor, setShowMonitor]   = useState(false);
+  const [leftPopout, setLeftPopout]     = useState(null);
 
   useEffect(() => {
     if (loading) {
@@ -413,6 +416,30 @@ export default function BrewlateLayout({
                     const meta = launchStatus
                       ? launchStatus.toUpperCase()
                       : ctx > 0 ? `Context ${ctx.toLocaleString()}` : 'Context —';
+
+                    const response   = responses?.[role.name] ?? null;
+                    const agentError = agentErrors?.[role.name] ?? null;
+                    const timing     = lastMeta?.timings?.[role.name] ?? null;
+                    const hasResult  = !!(response || agentError);
+                    const onExpand   = hasResult ? () => {
+                      const { code, language } = response
+                        ? extractCodeBlock(response)
+                        : { code: null, language: null };
+                      const hasCode = code && code.trim().length >= 10;
+                      const resultMeta = timing
+                        ? `${(timing.total_ms / 1000).toFixed(1)}s`
+                        : agentError ? 'FAILED' : meta;
+                      setLeftPopout({
+                        name: role.name.toUpperCase(),
+                        model: modelShortName(modelPath),
+                        meta: resultMeta,
+                        response,
+                        error: agentError,
+                        code: hasCode ? code : null,
+                        language,
+                      });
+                    } : undefined;
+
                     return (
                       <BrewAgentCard
                         key={role.name}
@@ -420,8 +447,10 @@ export default function BrewlateLayout({
                         modelPath={modelPath}
                         meta={meta}
                         selected={isSelected}
+                        hasResult={hasResult}
                         onClick={() => toggleRole(role.name)}
                         onEdit={() => setEditingAgent(role)}
+                        onExpand={onExpand}
                         showModelSelect={models.length > 0}
                         models={models}
                         onModelChange={path => setModel(role.name, path)}
@@ -692,6 +721,18 @@ export default function BrewlateLayout({
       {showHelp && <HelpModal onClose={onCloseHelp} agents={activeAgents} />}
       {showRagAdmin && <RagAdmin onClose={onCloseRagAdmin} />}
       {showCachePanel && <CachePanel onClose={onCloseCachePanel} />}
+      {leftPopout && (
+        <BrewAgentPopout
+          name={leftPopout.name}
+          model={leftPopout.model}
+          meta={leftPopout.meta}
+          response={leftPopout.response}
+          error={leftPopout.error}
+          code={leftPopout.code}
+          language={leftPopout.language}
+          onClose={() => setLeftPopout(null)}
+        />
+      )}
     </div>
   );
 }
