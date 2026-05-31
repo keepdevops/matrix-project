@@ -210,7 +210,7 @@ const ConversationThread = React.memo(function ConversationThread({
       <div className="ct-turns">
         {turns.map((entry, i) => (
           <Turn
-            key={entry._run_id || i}
+            key={entry._run_id ?? i}
             entry={entry}
             finalAnswer={i === latestTurnIdx && !loading ? finalAnswer : null}
           />
