@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth, submitOrchestrate } from '../api/swarmApi';
+import { submitPromptStream, submitPromptStreamMlx, clearMlxSession, fetchHistory, checkHealth, submitOrchestrateStream } from '../api/swarmApi';
 
 export function useSwarm() {
   const [responses, setResponses] = useState({});
@@ -45,22 +45,48 @@ export function useSwarm() {
 
     const wallStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
-    // Python-mode orchestrate path — blocking JSON, not a stream.
+    // Python-mode orchestrate path — SSE streaming.
     if (opts.orchestrateMode) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const ragOpts = { useRag: opts.useRag, ragTopK: opts.ragTopK, ragMinScore: opts.ragMinScore };
-          const data = await submitOrchestrate(opts.orchestrateMode, prompt, opts.orchestrateParams || {}, ragOpts);
-          setFinalAnswer(data.result || null);
-          setLastMeta({ mode: data.mode, ...(data.meta || {}), wall_ms: Date.now() - wallStart });
-          setLoading(false);
-          resolve({ final: data.result, meta: data.meta });
-        } catch (err) {
-          console.error('[useSwarm] orchestrate failed:', err);
-          setError(err.message);
-          setLoading(false);
-          reject(err);
-        }
+      const ragOpts = { useRag: opts.useRag, ragTopK: opts.ragTopK, ragMinScore: opts.ragMinScore };
+      return new Promise((resolve, reject) => {
+        cancelRef.current = submitOrchestrateStream(
+          opts.orchestrateMode, prompt, opts.orchestrateParams || {}, ragOpts,
+          {
+            onToken(agentId, text) {
+              if (assembled[agentId]) assembled[agentId].push(text);
+              else assembled[agentId] = [text];
+              scheduleFlush();
+            },
+            onAgentDone() {
+              if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+              flushResponses();
+            },
+            onDone(data) {
+              if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+              flushResponses();
+              const resultText = data?.result
+                || Object.values(assembled).map(a => a.join('')).join('');
+              setFinalAnswer(resultText || null);
+              setLastMeta({ mode: opts.orchestrateMode, ...(data?.meta || {}),
+                wall_ms: Date.now() - wallStart });
+              setLoading(false);
+              cancelRef.current = null;
+              resolve({ final: resultText, meta: data?.meta });
+            },
+            onError(agentId, message) {
+              console.error('[useSwarm] orchestrate stream error:', agentId, message);
+              if (!agentId) {
+                if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                setError(message);
+                setLoading(false);
+                cancelRef.current = null;
+                reject(new Error(message));
+              } else {
+                setAgentErrors(prev => ({ ...prev, [agentId]: message }));
+              }
+            },
+          }
+        );
       });
     }
 
