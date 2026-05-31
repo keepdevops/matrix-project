@@ -62,7 +62,6 @@ const OPTIONAL_UNUSED = new Set([
   'showConfigPanel',
   'deployPending',
   'onToggleConfig',
-  'onExpandProgrammer',
 ]);
 
 describe('Brewlate wiring audit', () => {
@@ -103,6 +102,7 @@ describe('Brewlate wiring audit', () => {
     'onDeployed',
     'onSetTheme',
     'onSetLayout',
+    'onExpandProgrammer',
   ];
 
   it.each(HANDLER_WIRING)('%s is referenced in BrewlateLayout', (handler) => {

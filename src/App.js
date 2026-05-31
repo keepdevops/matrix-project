@@ -75,6 +75,7 @@ function App() {
     onModeWarning: useCallback((warnings) => {
       showToast(warnings[0], 'warn');
     }, [showToast]),
+    onSaveCodeToast: showToast,
   });
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
