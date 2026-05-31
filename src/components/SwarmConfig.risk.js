@@ -3,6 +3,7 @@ import {
   shortName,
   parseModelSizeBillions,
 } from './SwarmConfig.helpers';
+import { getModeMemoryWeight } from '../utils/modeManifest';
 
 // RAM budget for 36GB unified memory (Apple Silicon M3 Max).
 // Models (Llama-8B + Codestral-22B Q4) consume ~17GB.
@@ -48,7 +49,9 @@ export function riskBandLabel(band) {
 // estimates KV cache GB, and returns a band + per-group breakdown for rendering.
 // hostMemory (optional): live snapshot from GET /api/memory.  When present, the
 // base RAM figure uses the actual used_gb rather than the static model constant.
-export function computeRiskEstimate(roles, selected, roleModels, models, hostMemory = null) {
+// activeMode (optional): current orchestration mode — adds mode-weight overhead so
+// Python modes (speculative, map_reduce, etc.) are reflected in the risk band.
+export function computeRiskEstimate(roles, selected, roleModels, models, hostMemory = null, activeMode = null) {
   const groups = {};
   let readyAgents = 0;
 
@@ -116,7 +119,12 @@ export function computeRiskEstimate(roles, selected, roleModels, models, hostMem
   const baseRamGb   = liveUsedGb !== null ? liveUsedGb : RAM_MODEL_GB + RAM_OS_GB;
   const ramSource   = liveUsedGb !== null ? 'host' : 'estimate';
 
-  const totalRamGb  = baseRamGb + totalKvGb + mlxModelRamGb;
+  // Python orchestration modes carry extra memory overhead beyond KV cache.
+  // Uses the same (weight-1)×1.5 formula as estimateDeployedRamGb in memoryPressure.js.
+  const modeWeight      = getModeMemoryWeight(activeMode);
+  const modeOverheadGb  = (modeWeight - 1) * 1.5;
+
+  const totalRamGb  = baseRamGb + totalKvGb + mlxModelRamGb + modeOverheadGb;
   const band        = getRiskBand(totalRamGb);
 
   // Warn when live host RAM alone already exceeds the warn threshold, before KV is added.
@@ -137,6 +145,8 @@ export function computeRiskEstimate(roles, selected, roleModels, models, hostMem
     totalRamGb,
     totalKvGb,
     mlxModelRamGb,
+    modeOverheadGb,
+    activeMode,
     liveUsedGb,
     ramSource,
     liveRamHigh,
@@ -163,6 +173,11 @@ export function RiskCard({ riskEstimate, engine, isMixedBackends, activeBackends
         <div className="swarm-risk-hint">
           Live host RAM: <strong>{e.liveUsedGb.toFixed(1)} GB</strong> used&nbsp;
           {e.liveRamHigh && <span style={{ color: 'var(--risk-high-color, #f87)' }}>⚠ already above warn threshold</span>}
+        </div>
+      )}
+      {e.modeOverheadGb > 0 && (
+        <div className="swarm-risk-hint">
+          +{e.modeOverheadGb.toFixed(1)}GB estimated for <strong>{e.activeMode}</strong> orchestration overhead
         </div>
       )}
       {e.mlxModelRamGb > 0 && (

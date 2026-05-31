@@ -306,7 +306,7 @@ export default function BrewlateLayout({
     reset();
   };
 
-  const riskEstimate = computeRiskEstimate(roles, selected, roleModels, models, hostMemory);
+  const riskEstimate = computeRiskEstimate(roles, selected, roleModels, models, hostMemory, activeMode);
 
   let serverLayout = computeLayout(roles, selected, roleModels, models);
   if (engine === 'vllm') {
