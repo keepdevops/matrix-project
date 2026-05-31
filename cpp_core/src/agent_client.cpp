@@ -1,4 +1,5 @@
 #include "agent_client.h"
+#include "agent_client_pool.h"
 #include "agent_health.h"
 #include "agent_metrics.h"
 #include "httplib.h"
@@ -9,126 +10,11 @@
 #include "utf8_sanitize.h"
 
 #include <chrono>
-#include <condition_variable>
-#include <deque>
 #include <iostream>
-#include <map>
 #include <memory>
-#include <mutex>
 #include <thread>
 
 using json = nlohmann::json;
-
-// Strip any chat-template turn markers that leaked past EOS (defensive — even
-// with a stop[] list, the stop string itself may be emitted before halt).
-// Cuts the response at the first marker we recognise.
-static std::string strip_template_leakage(std::string s) {
-    static const char* markers[] = {
-        "<|im_end|>", "<|im_start|>",
-        "<|eot_id|>", "<|start_header_id|>",
-        "<|endoftext|>",
-    };
-    size_t cut = std::string::npos;
-    for (const char* m : markers) {
-        size_t pos = s.find(m);
-        if (pos != std::string::npos && pos < cut) cut = pos;
-    }
-    if (cut != std::string::npos) s.erase(cut);
-    while (!s.empty() && (s.back() == '\n' || s.back() == ' ' || s.back() == '\t'))
-        s.pop_back();
-    return s;
-}
-
-// Per-port concurrency limiter driven by Agent::max_concurrency.
-// max_concurrency == 0  → unlimited (no lock taken).
-// max_concurrency == 1  → serialized (mlx default).
-// max_concurrency >  1  → counted semaphore (e.g. vllm with known slot limit).
-struct PortSemaphore {
-    int limit = 0;
-    int count = 0;
-    int waiting = 0;
-    std::mutex mu;
-    std::condition_variable cv;
-
-    void acquire() {
-        if (limit <= 0) return;
-        std::unique_lock<std::mutex> lk(mu);
-        ++waiting;
-        cv.wait(lk, [this] { return count < limit; });
-        --waiting;
-        ++count;
-    }
-    void release() {
-        if (limit <= 0) return;
-        std::lock_guard<std::mutex> lk(mu);
-        --count;
-        cv.notify_one();
-    }
-    bool has_waiters() {
-        std::lock_guard<std::mutex> lk(mu);
-        return waiting > 0;
-    }
-};
-
-static std::map<int, std::unique_ptr<PortSemaphore>> port_semaphores;
-
-// HTTP client pool — reuses TCP connections across calls to the same port.
-// Each client is only used by one thread at a time (checked out / returned).
-// Pool is bounded to MAX_POOL_PER_PORT to avoid accumulating idle sockets.
-static constexpr int MAX_POOL_PER_PORT = 4;
-struct ClientPool {
-    struct PortClients {
-        std::deque<std::unique_ptr<httplib::Client>> idle;
-        std::mutex mu;
-    };
-    std::map<int, std::unique_ptr<PortClients>> ports;
-    std::mutex map_mu;
-
-    std::unique_ptr<httplib::Client> checkout(int port, int read_timeout_secs) {
-        {
-            std::lock_guard<std::mutex> map_lk(map_mu);
-            if (ports.find(port) == ports.end())
-                ports[port] = std::make_unique<PortClients>();
-        }
-        PortClients* pc = ports[port].get();
-        {
-            std::lock_guard<std::mutex> lk(pc->mu);
-            if (!pc->idle.empty()) {
-                auto cli = std::move(pc->idle.front());
-                pc->idle.pop_front();
-                cli->set_read_timeout(read_timeout_secs);
-                return cli;
-            }
-        }
-        auto cli = std::make_unique<httplib::Client>("127.0.0.1", port);
-        cli->set_keep_alive(true);
-        cli->set_connection_timeout(5);
-        cli->set_read_timeout(read_timeout_secs);
-        return cli;
-    }
-
-    void checkin(int port, std::unique_ptr<httplib::Client> cli) {
-        std::lock_guard<std::mutex> map_lk(map_mu);
-        auto it = ports.find(port);
-        if (it == ports.end()) return;
-        PortClients* pc = it->second.get();
-        std::lock_guard<std::mutex> lk(pc->mu);
-        if ((int)pc->idle.size() < MAX_POOL_PER_PORT)
-            pc->idle.push_back(std::move(cli));
-        // else drop — pool is full; client destructor closes the socket
-    }
-};
-static ClientPool g_client_pool;
-
-void init_port_concurrency(const std::vector<Agent>& agents) {
-    for (const auto& a : agents) {
-        if (a.max_concurrency > 0 && port_semaphores.find(a.port) == port_semaphores.end()) {
-            auto sem = std::make_unique<PortSemaphore>();
-            sem->limit = a.max_concurrency;
-            port_semaphores[a.port] = std::move(sem);
-        }
-    }
-}
 
 // Return shape of one HTTP attempt. `retryable` distinguishes transient
 // failures (worth a second try) from deterministic ones (4xx — bad request,
@@ -144,7 +30,7 @@ static AttemptResult call_agent_once(const Agent& agent,
                                      const std::string& prompt) {
     AttemptResult out;
     try {
-        auto cli_ptr = g_client_pool.checkout(agent.port, agent.read_timeout_secs);
+        auto cli_ptr = pool_checkout(agent.port, agent.read_timeout_secs);
         httplib::Client& cli = *cli_ptr;
 
         json messages = json::array();
@@ -219,7 +105,7 @@ static AttemptResult call_agent_once(const Agent& agent,
         // Return healthy connections to the pool; drop on error so stale
         // sockets don't accumulate (pool will create fresh ones on next call).
         if (!out.retryable)
-            g_client_pool.checkin(agent.port, std::move(cli_ptr));
+            pool_checkin(agent.port, std::move(cli_ptr));
         return out;
     } catch (const std::exception& e) {
         std::cerr << "[coordinator] call_agent exception for " << agent.name
@@ -252,14 +138,9 @@ static std::string call_agent_impl(const Agent& agent,
         return *cached;
     }
     std::unique_ptr<mlx_inflight::Scope> mlx_pressure;
-    PortSemaphore* sem = nullptr;
     if (agent.engine == "mlx")
         mlx_pressure = std::make_unique<mlx_inflight::Scope>(agent.port);
-    auto sem_it = port_semaphores.find(agent.port);
-    if (sem_it != port_semaphores.end()) {
-        sem = sem_it->second.get();
-        sem->acquire();
-    }
+    semaphore_acquire(agent.port);
 
     AttemptResult attempt;
     for (int i = 0; i < RETRY_ATTEMPTS; ++i) {
@@ -279,9 +160,9 @@ static std::string call_agent_impl(const Agent& agent,
     } else if (attempt.ok) {
         response_cache::store(agent, system_prompt, prompt, result);
     }
-    if (sem) sem->release();
+    const bool had_waiters = semaphore_release_has_waiters(agent.port);
     // Yield only when another caller is queued, letting it start before we return.
-    if (agent.engine == "mlx" && sem && sem->has_waiters())
+    if (agent.engine == "mlx" && had_waiters)
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     agent_health::record(agent.name, attempt.ok);
     return result;

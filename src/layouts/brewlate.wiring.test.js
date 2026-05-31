@@ -66,7 +66,13 @@ const OPTIONAL_UNUSED = new Set([
 
 describe('Brewlate wiring audit', () => {
   const appSrc = read('App.js');
-  const brewSrc = read('layouts/BrewlateLayout.js') + ['layouts/useBrewConfig.js','layouts/BrewConfigPanel.js','layouts/BrewSessionTab.js','layouts/BrewAgentsTab.js','layouts/BrewBroadcastTab.js','layouts/BrewRagTab.js'].map(f => read(f)).join('\n');
+  const BREW_SUBMODULES = [
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewRightPanel.js',
+    'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
+    'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
+    'layouts/BrewRagTab.js',
+  ];
+  const brewSrc = read('layouts/BrewlateLayout.js') + BREW_SUBMODULES.map(f => read(f)).join('\n');
   const headerSrc = read('layouts/BrewHeader.js');
   const keys = layoutPropKeys(appSrc);
   const params = new Set(brewlateParamNames(brewSrc));

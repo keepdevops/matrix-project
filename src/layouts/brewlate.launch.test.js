@@ -8,7 +8,12 @@ function read(rel) {
 }
 
 describe('Brewlatte launch (Brew button)', () => {
-  const brew = read('layouts/BrewlateLayout.js') + ['layouts/useBrewConfig.js','layouts/BrewConfigPanel.js','layouts/BrewSessionTab.js','layouts/BrewAgentsTab.js','layouts/BrewBroadcastTab.js','layouts/BrewRagTab.js'].map(f => read(f)).join('\n');
+  const brew = read('layouts/BrewlateLayout.js') + [
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewRightPanel.js',
+    'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
+    'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
+    'layouts/BrewRagTab.js',
+  ].map(f => read(f)).join('\n');
   const classic = read('components/ServerLayoutPreview.js');
 
   it('wires useDeploy and passes layout + risk to deploy()', () => {

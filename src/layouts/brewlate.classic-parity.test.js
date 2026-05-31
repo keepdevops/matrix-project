@@ -88,7 +88,7 @@ const FEATURE_PARITY = [
     id: 'mode-roster',
     label: 'Per-mode roster + presets',
     classic: ['components/ServerLayoutPreview.js'],
-    brewlate: ['layouts/BrewlateLayout.js'],
+    brewlate: ['layouts/BrewPreviewPanel.js', 'layouts/BrewRightPanel.js'],
     classicMatch: [/ModeRosterPanel/, /PresetsPanel/],
     brewlateMatch: [/ModeRosterPanel/, /PresetsPanel/],
   },
@@ -126,8 +126,10 @@ describe('Brewlate vs classic parity', () => {
   const brewShellSrc = read('layouts/BrewlateLayout.js');
   // brewSrc concatenates shell + all sub-components so handler/component checks still pass.
   const brewSrc = brewShellSrc + [
-    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewSessionTab.js',
-    'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js', 'layouts/BrewRagTab.js',
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewRightPanel.js',
+    'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
+    'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
+    'layouts/BrewRagTab.js',
   ].map(f => read(f)).join('\n');
   const layoutKeys = layoutPropKeys(appSrc);
   const classicParams = new Set(layoutParams(classicSrc, 'DefaultLayout'));

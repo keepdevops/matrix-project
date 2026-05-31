@@ -1,14 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { useDeploy } from './SwarmConfig.deploy';
-import { configureSwarm, fetchLogs } from '../api/swarmApi';
-import { fetchConfigureStatus } from '../api/configApi';
+import { configureSwarm, fetchLogs, fetchConfigureStatus } from '../api/swarmApi';
 
 jest.mock('../api/swarmApi', () => ({
   configureSwarm: jest.fn(),
   fetchLogs: jest.fn(),
-}));
-
-jest.mock('../api/configApi', () => ({
   fetchConfigureStatus: jest.fn(),
 }));
 

@@ -6,4 +6,5 @@ export * from './ragApi';
 export * from './streamApi';
 export * from './agentsApi';
 export * from './configApi';
+export * from './configureApi';
 export * from './orchestrateApi';

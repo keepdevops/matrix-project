@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { configureSwarm, fetchLogs } from '../api/swarmApi';
-import { fetchConfigureStatus } from '../api/configApi';
+import { configureSwarm, fetchLogs, fetchConfigureStatus } from '../api/swarmApi';
 import { RAM_WARN_GB } from './SwarmConfig.risk';
 
 // useDeploy — encapsulates the launch flow's local state machine.
