@@ -20,6 +20,11 @@ import { useSwarm } from './useSwarm';
 // Mocks
 // ---------------------------------------------------------------------------
 
+jest.mock('../api/orchestrateApi', () => ({
+  submitOrchestrateStream: jest.fn(),
+  saveOrchestrateHistory: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('../api/swarmApi', () => ({
   submitPromptStream:    jest.fn(),
   submitPromptStreamMlx: jest.fn(),
