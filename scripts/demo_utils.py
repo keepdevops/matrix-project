@@ -12,8 +12,9 @@ from playwright.sync_api import TimeoutError as PWTimeout
 
 APP_URL     = "http://localhost:3000?theme=dark"
 LAUNCH_TMO  = 300_000   # 5 min — cold llama-server start
-RESP_TMO    = 300_000   # 5 min per broadcast
+RESP_TMO    = 600_000   # 10 min per broadcast — first-load model warmup can be slow
 POLL_MS     = 1_500
+ONLINE_WARMUP_MS = 120_000  # 2 min extra after ONLINE before first broadcast
 
 # Profile option values in the brew-profile-select <select>
 PROFILE_VALUES = {
@@ -91,7 +92,11 @@ def launch_and_wait_online(page, shots_dir=None):
             shot(page, shots_dir, "LAUNCH-TIMEOUT")
         raise RuntimeError("Timed out waiting for swarm to come ONLINE")
     print("  ✓  Swarm ONLINE")
-    page.wait_for_timeout(800)
+    # Wait for model weights to finish loading before first broadcast.
+    # The status pill turns green when the coordinator passes a health check,
+    # but the first inference request can still be queued behind model loading.
+    print(f"  … warming up ({ONLINE_WARMUP_MS // 1000}s)…")
+    page.wait_for_timeout(ONLINE_WARMUP_MS)
 
 
 # ---------------------------------------------------------------------------
@@ -168,22 +173,41 @@ def broadcast(page, prompt_text, prompt_num=None):
 
 def wait_for_response(page, shots_dir, label):
     """
-    Poll until .ct-thinking is gone and the submit button is re-enabled.
-    Returns turn count.
+    Poll until the broadcast completes. Completion is signalled by ANY of:
+      - A new completed .ct-turn (non-pending) appearing since we started
+      - .ct-thinking gone AND submit button re-enabled
+    Returns the current turn count.
     """
+    # Baseline: how many completed turns exist before we started
+    baseline = page.evaluate(
+        "() => document.querySelectorAll('.ct-turn:not(.ct-turn--pending)').length"
+    )
     deadline = time.time() + RESP_TMO / 1000
     while time.time() < deadline:
         page.wait_for_timeout(POLL_MS)
+
+        # Primary signal: a new completed turn appeared
+        completed = page.evaluate(
+            "() => document.querySelectorAll('.ct-turn:not(.ct-turn--pending)').length"
+        )
+        if completed > baseline:
+            turns = page.evaluate("() => document.querySelectorAll('.ct-turn').length")
+            print(f"  ✓  Response complete — {turns} turn(s)")
+            shot(page, shots_dir, label)
+            return turns
+
+        # Fallback: thinking gone + button enabled
         thinking = page.query_selector(".ct-thinking")
         btn_disabled = page.evaluate(
             "() => { const b = document.querySelector('.prompt-input button[type=submit]');"
             " return b ? b.disabled : true; }"
         )
         if not thinking and not btn_disabled:
-            turns = len(page.query_selector_all(".ct-turn"))
-            print(f"  ✓  Response complete — {turns} turn(s)")
+            turns = page.evaluate("() => document.querySelectorAll('.ct-turn').length")
+            print(f"  ✓  Response complete (btn enabled) — {turns} turn(s)")
             shot(page, shots_dir, label)
             return turns
+
     shot(page, shots_dir, label + "-TIMEOUT")
     raise RuntimeError(f"Timed out waiting for response ({label})")
 
