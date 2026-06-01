@@ -60,6 +60,7 @@ function App() {
   } = useSubmitHandlers({
     submit, loadHistory, currentSession, activeMode, useRag,
     responses, activeAgents, flatPickAgent, modeWarnings, memoryPressure, hostMemory,
+    kvReadings,
     onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
   });
 

@@ -61,6 +61,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/mode_module.cpp" \
    "$CPP_SRC/session_store.cpp" \
    "$CPP_SRC/session_store_text.cpp" \
+   "$CPP_SRC/token_ledger.cpp" \
    "$CPP_SRC/synthesis_budget.cpp" \
    "$CPP_SRC/synthesis_budget_assemble.cpp" \
    "$CPP_SRC/synthesis_tiered.cpp" \

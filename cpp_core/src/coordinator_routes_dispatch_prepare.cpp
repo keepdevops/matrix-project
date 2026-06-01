@@ -22,6 +22,7 @@ DispatchRequest dispatch_parse_request(const json& body) {
         for (const auto& a : body["rag_agents"])
             if (a.is_string()) r.rag_agents.insert(a.get<std::string>());
     }
+    r.kv_pressure = body.value("kv_pressure", 0.0);
     if (r.session_id.empty()) r.session_id = session_new_id("sess");
     r.run_id = session_new_id("run");
     return r;

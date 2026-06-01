@@ -71,4 +71,9 @@ void coordinator_wire_agents(CoordinatorState& state, const nlohmann::json& conf
 
 void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohmann::json& config) {
     setup_wire::apply_coordinator_section(state, config);
+    if (config.contains("coordinator")) {
+        const auto& coord = config["coordinator"];
+        if (coord.contains("token_budget") && coord["token_budget"].is_number_integer())
+            state.global_token_budget = coord["token_budget"].get<int>();
+    }
 }

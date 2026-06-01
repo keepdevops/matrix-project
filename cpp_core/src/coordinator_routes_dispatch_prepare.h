@@ -22,6 +22,7 @@ struct DispatchRequest {
     std::unordered_set<std::string> rag_agents;
     std::string effective_prompt;
     json        compaction       = json::object();
+    double      kv_pressure      = 0.0;  // 0–1; sent by frontend from kvReadings
 };
 
 struct RagResult {
