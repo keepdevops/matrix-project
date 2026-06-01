@@ -2,6 +2,7 @@
 #include "coordinator_routes_internal.h"
 #include "coordinator_routes_dispatch_prepare.h"
 #include "coordinator_routes_dispatch_meta.h"
+#include "coordinator_routes_dispatch_history.h"
 #include <unordered_set>
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
