@@ -1,33 +1,15 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
 #include "coordinator_routes_presets_impl.h"
-
-static std::string url_decode(const std::string& s) {
-    std::string out;
-    out.reserve(s.size());
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (s[i] == '%' && i + 2 < s.size()) {
-            char hex[3] = {s[i+1], s[i+2], '\0'};
-            char* end;
-            long v = std::strtol(hex, &end, 16);
-            if (end == hex + 2) { out += static_cast<char>(v); i += 2; continue; }
-        }
-        out += (s[i] == '+') ? ' ' : s[i];
-    }
-    return out;
-}
+#include "coordinator_routes_presets_url.h"
 
 void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState& st) {
-    svr.Get("/api/presets", [&st](const httplib::Request&, httplib::Response& res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
-        std::lock_guard<std::mutex> lk(st.presets_mutex);
-        res.set_content(st.presets.dump(), "application/json");
-    });
+    presets_url::register_get_delete_routes(svr, st);
 
     svr.Put(R"(/api/presets/([^/]+))",
             [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        const std::string name = url_decode(req.matches[1]);
+        const std::string name = presets_url::decode(req.matches[1]);
         try {
             auto body = json::parse(req.body);
             if (!body.contains("mode") || !body["mode"].is_string()
@@ -61,25 +43,10 @@ void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState&
         }
     });
 
-    svr.Delete(R"(/api/presets/([^/]+))",
-               [&st](const httplib::Request& req, httplib::Response& res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
-        const std::string name = url_decode(req.matches[1]);
-        bool removed = false;
-        { std::lock_guard<std::mutex> lk(st.presets_mutex);
-          removed = st.presets.erase(name) > 0; }
-        if (removed) {
-            std::lock_guard<std::mutex> lk(st.modes_config_mutex);
-            coordinator_persist_modes_locked(st);
-            std::cout << "🗑️  [presets] removed '" << name << "'" << std::endl;
-        }
-        res.set_content(json({{"name",name},{"removed",removed}}).dump(), "application/json");
-    });
-
     svr.Post(R"(/api/presets/([^/]+)/apply)",
              [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        const std::string name = url_decode(req.matches[1]);
+        const std::string name = presets_url::decode(req.matches[1]);
         json bundle;
         {
             std::lock_guard<std::mutex> lk(st.presets_mutex);
