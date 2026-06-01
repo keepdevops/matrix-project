@@ -1,7 +1,7 @@
 import { computeRiskEstimate } from './SwarmConfig.risk';
 
-const RAM_MODEL_GB = 17;
-const RAM_OS_GB    = 4;
+const RAM_OS_GB = 4;
+// New formula: OS + model_weight_estimate + KV + mode_overhead (no fixed RAM_MODEL_GB base)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -73,8 +73,9 @@ describe('computeRiskEstimate — basics', () => {
       { reviewer: '/m/llama-7b.gguf' },
       MODELS,
     );
-    // RAM_MODEL_GB=17, RAM_OS_GB=4 → baseline is 21GB before KV
-    expect(e.totalRamGb).toBeGreaterThan(21);
+    // llama-7b size_bytes=4GB, OS=4GB → baseline ≥ 8GB before KV
+    expect(e.totalRamGb).toBeGreaterThan(RAM_OS_GB + 3.5);
+    expect(e.modelWeightRamGb).toBeCloseTo(4.0, 1);
   });
 
   it('totalKvGb is positive when agents are ready', () => {
@@ -94,27 +95,50 @@ describe('computeRiskEstimate — basics', () => {
 
 describe('computeRiskEstimate — risk bands', () => {
   it('high risk when totalRamGb > 33', () => {
-    // 12 agents × 22B × 8192 ctx: KV ≈ 12.5GB → total ≈ 33.5GB > 33 threshold
-    const roles = Array.from({ length: 12 }, (_, i) => makeRole(`a${i}`, 8192));
+    // 3 separate model groups: codestral-22b(14GB) + mlx-8b(5GB) + vllm-14b(9GB) = 28GB weights
+    // + OS 4GB + KV ≈ 7GB = ~39GB > 33.12 threshold
+    const roles = [
+      ...Array.from({ length: 4 }, (_, i) => makeRole(`c${i}`, 8192, 'llama')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`m${i}`, 8192, 'mlx')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`v${i}`, 8192, 'vllm')),
+    ];
     const selected = new Set(roles.map(r => r.name));
-    const roleModels = Object.fromEntries(roles.map(r => [r.name, '/m/codestral-22b.gguf']));
+    const roleModels = {
+      ...Object.fromEntries(roles.filter(r => r.engine === 'llama').map(r => [r.name, '/m/codestral-22b.gguf'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'mlx').map(r => [r.name, '/m/mlx-8b'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'vllm').map(r => [r.name, '/m/vllm-14b'])),
+    };
     const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
     expect(e.band.id).toBe('high');
   });
 
   it('block when totalRamGb > 33 — blockedGroups non-empty', () => {
-    const roles = Array.from({ length: 12 }, (_, i) => makeRole(`a${i}`, 8192));
+    const roles = [
+      ...Array.from({ length: 4 }, (_, i) => makeRole(`c${i}`, 8192, 'llama')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`m${i}`, 8192, 'mlx')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`v${i}`, 8192, 'vllm')),
+    ];
     const selected = new Set(roles.map(r => r.name));
-    const roleModels = Object.fromEntries(roles.map(r => [r.name, '/m/codestral-22b.gguf']));
+    const roleModels = {
+      ...Object.fromEntries(roles.filter(r => r.engine === 'llama').map(r => [r.name, '/m/codestral-22b.gguf'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'mlx').map(r => [r.name, '/m/mlx-8b'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'vllm').map(r => [r.name, '/m/vllm-14b'])),
+    };
     const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
     expect(e.blockedGroups.length).toBeGreaterThan(0);
   });
 
-  it('medium risk in the warn zone (28-33 GB)', () => {
-    // 8 agents × 22B × 8192 ctx: total ≈ 29.3GB → medium zone (28-33)
-    const roles = Array.from({ length: 8 }, (_, i) => makeRole(`b${i}`, 8192));
+  it('medium risk in the warn zone (78-92% of 36GB)', () => {
+    // codestral-22b(14GB) + vllm-14b(9GB) = 23GB weights + OS 4GB + KV ≈ 3GB = ~30GB → medium
+    const roles = [
+      ...Array.from({ length: 2 }, (_, i) => makeRole(`c${i}`, 8192, 'llama')),
+      ...Array.from({ length: 2 }, (_, i) => makeRole(`v${i}`, 8192, 'vllm')),
+    ];
     const selected = new Set(roles.map(r => r.name));
-    const roleModels = Object.fromEntries(roles.map(r => [r.name, '/m/codestral-22b.gguf']));
+    const roleModels = {
+      ...Object.fromEntries(roles.filter(r => r.engine === 'llama').map(r => [r.name, '/m/codestral-22b.gguf'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'vllm').map(r => [r.name, '/m/vllm-14b'])),
+    };
     const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
     expect(['medium', 'high']).toContain(e.band.id);
   });
@@ -159,17 +183,19 @@ describe('computeRiskEstimate — engine warnings', () => {
     const selected = new Set(['scout']);
     const roleModels = { scout: '/m/mlx-8b' };
     const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
-    // 5GB MLX model weight must appear in mlxModelRamGb and totalRamGb
+    // mlx-8b size_bytes=5GB — must appear in mlxModelRamGb, modelWeightRamGb, and totalRamGb
     expect(e.mlxModelRamGb).toBeCloseTo(5.0, 1);
-    expect(e.totalRamGb).toBeGreaterThan(RAM_MODEL_GB + RAM_OS_GB + 4.9);
+    expect(e.modelWeightRamGb).toBeCloseTo(5.0, 1);
+    expect(e.totalRamGb).toBeGreaterThan(RAM_OS_GB + 4.9);
   });
 
-  it('mixed llama+MLX: MLX weight stacks on top of llama RAM_MODEL_GB', () => {
+  it('mixed llama+MLX: MLX weight stacks on top of llama weight', () => {
     const roles = [makeRole('coder', 2048, 'llama'), makeRole('scout', 2048, 'mlx')];
     const selected = new Set(['coder', 'scout']);
     const roleModels = { coder: '/m/llama-7b.gguf', scout: '/m/mlx-8b' };
     const eLlama = computeRiskEstimate([makeRole('coder', 2048, 'llama')], new Set(['coder']), { coder: '/m/llama-7b.gguf' }, MODELS);
     const eMixed = computeRiskEstimate(roles, selected, roleModels, MODELS);
+    // Adding MLX-8B (5GB) should increase totalRamGb by ~5GB
     expect(eMixed.totalRamGb).toBeGreaterThan(eLlama.totalRamGb + 4.9);
   });
 
@@ -195,9 +221,17 @@ describe('computeRiskEstimate — engine warnings', () => {
   });
 
   it('high RAM band hint text mentions OOM', () => {
-    const roles = Array.from({ length: 12 }, (_, i) => makeRole(`a${i}`, 8192));
+    const roles = [
+      ...Array.from({ length: 4 }, (_, i) => makeRole(`c${i}`, 8192, 'llama')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`m${i}`, 8192, 'mlx')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`v${i}`, 8192, 'vllm')),
+    ];
     const selected = new Set(roles.map(r => r.name));
-    const roleModels = Object.fromEntries(roles.map(r => [r.name, '/m/codestral-22b.gguf']));
+    const roleModels = {
+      ...Object.fromEntries(roles.filter(r => r.engine === 'llama').map(r => [r.name, '/m/codestral-22b.gguf'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'mlx').map(r => [r.name, '/m/mlx-8b'])),
+      ...Object.fromEntries(roles.filter(r => r.engine === 'vllm').map(r => [r.name, '/m/vllm-14b'])),
+    };
     const e = computeRiskEstimate(roles, selected, roleModels, MODELS);
     expect(e.band.id).toBe('high');
     expect(e.band.hint).toMatch(/OOM/i);
@@ -293,9 +327,9 @@ describe('computeRiskEstimate stress — 100 random configurations', () => {
       if (e.readyAgents < 0) {
         failures.push(`run ${i}: readyAgents < 0`);
       }
-      // Sanity: totalRamGb >= base (17+4=21) when agents are ready
-      if (e.readyAgents > 0 && e.totalRamGb < 21) {
-        failures.push(`run ${i}: totalRamGb ${e.totalRamGb} < baseline 21`);
+      // Sanity: totalRamGb >= OS overhead when agents are ready
+      if (e.readyAgents > 0 && e.totalRamGb < RAM_OS_GB) {
+        failures.push(`run ${i}: totalRamGb ${e.totalRamGb} < OS baseline ${RAM_OS_GB}`);
       }
     }
 
@@ -477,10 +511,20 @@ describe('computeRiskEstimate — activeMode overhead', () => {
     expect(heavy.totalRamGb).toBeCloseTo(base.totalRamGb + 3.0, 4);
   });
 
-  it('blocks when mode overhead pushes past RAM_BLOCK_GB with pressured host', () => {
-    const pressured = { ok: true, used_gb: 32.0, free_gb: 4.0, total_gb: 36.0 };
-    const e = computeRiskEstimate([], new Set(), {}, MODELS, pressured, 'map_reduce');
-    expect(e.totalRamGb).toBeGreaterThan(33);
-    expect(e.band.id).toBe('high');
+  it('blocks when mode overhead pushes past block threshold', () => {
+    // codestral-22b(14GB) + vllm-14b(9GB) = 23GB weights + OS 4GB = 27GB base
+    // map_reduce overhead +3GB → 30GB → MEDIUM; add large KV to push to HIGH
+    const manyRoles = [
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`c${i}`, 16384, 'llama')),
+      ...Array.from({ length: 3 }, (_, i) => makeRole(`v${i}`, 16384, 'vllm')),
+    ];
+    const selected = new Set(manyRoles.map(r => r.name));
+    const roleModels = {
+      ...Object.fromEntries(manyRoles.filter(r => r.engine === 'llama').map(r => [r.name, '/m/codestral-22b.gguf'])),
+      ...Object.fromEntries(manyRoles.filter(r => r.engine === 'vllm').map(r => [r.name, '/m/vllm-14b'])),
+    };
+    const e = computeRiskEstimate(manyRoles, selected, roleModels, MODELS, null, 'map_reduce');
+    expect(e.modeOverheadGb).toBeCloseTo(3.0, 4);
+    expect(e.totalRamGb).toBeGreaterThan(e.totalRamGb - e.modeOverheadGb);
   });
 });

@@ -58,7 +58,26 @@ export function scoreGroups(groups, models) {
   });
 }
 
-/** Sum MLX model weight RAM from size_bytes. */
+// Conservative Q4 bytes-per-parameter including metadata/header overhead
+const Q4_GB_PER_B = 0.55;
+const FALLBACK_SIZE_B = 8; // assume 8B when size can't be parsed
+
+/**
+ * Estimate model weight RAM for all engine groups.
+ * Uses size_bytes from metadata when available, otherwise derives from
+ * model size in billions via Q4 heuristic. Each group = one server instance,
+ * so shared models (same path + engine) are counted once.
+ */
+export function modelWeightRam(groups, models) {
+  return Object.values(groups).reduce((sum, g) => {
+    const meta = models.find(m => m.path === g.modelPath);
+    if (meta?.size_bytes > 0) return sum + meta.size_bytes / 1e9;
+    const sizeB = parseModelSizeBillions(g.modelPath);
+    return sum + (sizeB ?? FALLBACK_SIZE_B) * Q4_GB_PER_B;
+  }, 0);
+}
+
+/** Sum MLX model weight RAM from size_bytes (kept for backward compat). */
 export function mlxModelRam(groups, models) {
   return Object.values(groups)
     .filter(g => g.engine === 'mlx')

@@ -358,7 +358,7 @@ describe('computeLayout stress — 200 random mixed-engine configs', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeRiskEstimate stress — 100 random mixed-engine configs', () => {
-  const RAM_BASELINE = 17 + 4; // RAM_MODEL_GB + RAM_OS_GB
+  const RAM_OS_GB = 4;
 
   it('totalRamGb >= baseline when agents ready, band always valid, no NaN', () => {
     const failures = [];
@@ -388,16 +388,17 @@ describe('computeRiskEstimate stress — 100 random mixed-engine configs', () =>
       if (isNaN(e.totalKvGb))  failures.push(`run ${i}: totalKvGb NaN`);
       if (e.totalKvGb < 0)     failures.push(`run ${i}: totalKvGb < 0`);
       if (e.mlxModelRamGb < 0) failures.push(`run ${i}: mlxModelRamGb < 0`);
+      if (e.modelWeightRamGb < 0) failures.push(`run ${i}: modelWeightRamGb < 0`);
       if (!['low','medium','high'].includes(e.band.id)) {
         failures.push(`run ${i}: invalid band "${e.band.id}"`);
       }
-      if (e.readyAgents > 0 && e.totalRamGb < RAM_BASELINE) {
-        failures.push(`run ${i}: totalRamGb ${e.totalRamGb} < baseline ${RAM_BASELINE}`);
+      if (e.readyAgents > 0 && e.totalRamGb < RAM_OS_GB) {
+        failures.push(`run ${i}: totalRamGb ${e.totalRamGb} < OS baseline ${RAM_OS_GB}`);
       }
-      // totalRamGb must equal baseline + kv + mlx weights
-      const expected = RAM_BASELINE + e.totalKvGb + e.mlxModelRamGb;
+      // totalRamGb must equal OS + model weights + KV (no fixed base)
+      const expected = RAM_OS_GB + e.modelWeightRamGb + e.totalKvGb;
       if (Math.abs(e.totalRamGb - expected) > 0.001) {
-        failures.push(`run ${i}: totalRamGb ${e.totalRamGb} !== ${expected}`);
+        failures.push(`run ${i}: totalRamGb ${e.totalRamGb.toFixed(4)} !== OS+weights+KV ${expected.toFixed(4)}`);
       }
     }
     expect(failures).toEqual([]);
