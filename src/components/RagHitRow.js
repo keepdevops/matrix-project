@@ -11,6 +11,12 @@ export function formatDistance(d) {
   return d.toFixed(4);
 }
 
+function relevanceColor(r) {
+  if (r >= 0.7) return 'var(--color-success, #22c55e)';
+  if (r >= 0.4) return 'var(--kv-warn, #ffae00)';
+  return 'var(--text-dim, #555)';
+}
+
 export function HitRow({ h, i }) {
   const [expanded, setExpanded] = useState(false);
   const hasContent = typeof h.content === 'string' && h.content.trim().length > 0;
@@ -33,6 +39,13 @@ export function HitRow({ h, i }) {
         </td>
         <td style={{ padding: '0.2rem 0.4rem' }}>{h.chunk_idx ?? '—'}</td>
         <td style={{ padding: '0.2rem 0.4rem' }}>{formatDistance(h.distance)}</td>
+        {h.relevance != null && (
+          <td style={{ padding: '0.2rem 0.4rem', color: relevanceColor(h.relevance),
+                       fontWeight: h.relevance >= 0.7 ? 600 : undefined }}
+              title={`Re-rank relevance: ${h.relevance.toFixed(3)}`}>
+            {h.relevance.toFixed(2)}
+          </td>
+        )}
       </tr>
       {expanded && hasContent && (
         <tr>

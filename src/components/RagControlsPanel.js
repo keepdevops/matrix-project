@@ -1,8 +1,10 @@
 import React from 'react';
+import RagAgentPicker from './RagAgentPicker';
 
 export default function RagControlsPanel({
   useRag, onUseRagChange, ragHealth,
   ragTopK, setRagTopK, ragMinScore, setRagMinScore,
+  ragRerank, setRagRerank,
   selectedRagAgents, setSelectedRagAgents, activeAgents,
   loading, disabled,
 }) {
@@ -48,7 +50,7 @@ export default function RagControlsPanel({
           <summary style={{ cursor: 'pointer', userSelect: 'none', opacity: 0.8 }}>
             RAG options
           </summary>
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <label style={{ fontSize: '0.85rem' }}>
               top_k{' '}
               <input
@@ -76,32 +78,23 @@ export default function RagControlsPanel({
                 title="Maximum cosine distance to accept (lower = stricter match)"
               />
             </label>
+            <label style={{ fontSize: '0.85rem' }}
+                   title="Re-rank chunks by combined cosine + term-overlap score">
+              <input
+                type="checkbox"
+                checked={!!ragRerank}
+                onChange={(e) => setRagRerank?.(e.target.checked)}
+                disabled={loading || disabled}
+              />
+              {' '}Re-rank
+            </label>
           </div>
-          {activeAgents.length > 0 && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <span style={{ fontSize: '0.78rem', opacity: 0.7 }}>
-                Target agents{' '}
-                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(none = all)</span>:
-              </span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.25rem' }}>
-                {activeAgents.map(({ name }) => (
-                  <label key={name} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedRagAgents.includes(name)}
-                      onChange={(e) => {
-                        setSelectedRagAgents(prev =>
-                          e.target.checked ? [...prev, name] : prev.filter(n => n !== name)
-                        );
-                      }}
-                      disabled={loading || disabled}
-                    />
-                    {name}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          <RagAgentPicker
+            activeAgents={activeAgents}
+            selectedRagAgents={selectedRagAgents}
+            setSelectedRagAgents={setSelectedRagAgents}
+            loading={loading} disabled={disabled}
+          />
         </details>
       )}
     </>

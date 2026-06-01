@@ -15,6 +15,7 @@ export function buildStreamBody(prompt, temperature, opts = {}, extra = {}) {
     body.rag_agents = opts.ragAgents;
   if (typeof opts.kvPressure === 'number' && Number.isFinite(opts.kvPressure))
     body.kv_pressure = opts.kvPressure;
+  if (opts.ragRerank) body.rag_rerank = true;
   return body;
 }
 
