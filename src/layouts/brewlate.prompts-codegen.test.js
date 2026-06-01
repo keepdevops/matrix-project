@@ -13,13 +13,14 @@ function read(rel) {
 
 describe('Prompts and code generation', () => {
   const brew = read('layouts/BrewlateLayout.js') + [
-    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewRightPanel.js',
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewConfigAgentsSection.js',
+    'layouts/BrewRightPanel.js',
     'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
     'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
     'layouts/BrewRagTab.js',
   ].map(f => read(f)).join('\n');
   const classic = read('layouts/DefaultLayout.js');
-  const prompt = read('components/PromptInput.js');
+  const prompt = read('components/PromptInput.js') + read('components/usePromptInput.js');
   const stream = read('api/streamApi.js');
   const submitHandlers = read('hooks/useSubmitHandlers.js');
 

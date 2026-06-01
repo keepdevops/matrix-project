@@ -54,7 +54,7 @@ def test_brewlate_button_classes_defined_in_layout():
 
 
 def test_brewlate_prompt_uses_brew_labels():
-    src = (REPO / "src/layouts/BrewlateLayout.js").read_text()
+    src = (REPO / "src/layouts/BrewSessionTab.js").read_text()
     assert 'submitLabel="BREW"' in src
     assert 'qualityPassLabel="REFINE"' in src
 
@@ -398,6 +398,6 @@ def test_classic_body_layout_attribute(classic_page):
 # ── MS-29-4 additions — orchestrate progress indicator ───────────────────────
 
 def test_brewlate_orchestrate_progress_class_exists():
-    """BrewlateLayout renders .brew-brewcast-phase when orchestrate is running."""
-    src = (REPO / "src/layouts/BrewlateLayout.js").read_text()
+    """Brew broadcast tab renders .brew-brewcast-phase when orchestrate is running."""
+    src = (REPO / "src/layouts/BrewBroadcastTab.js").read_text()
     assert "brew-brewcast-phase" in src

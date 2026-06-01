@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import useRagHealth from '../hooks/useRagHealth';
+import React from 'react';
 import Button from './Button';
 import RagControlsPanel from './RagControlsPanel';
-import ModeParamControls, { useModeParams } from './ModeParamControls';
+import ModeParamControls from './ModeParamControls';
+import { usePromptInput } from './usePromptInput';
 
 function PromptInput({
   onSubmit,
@@ -23,84 +23,33 @@ function PromptInput({
   submitLoadingLabel = 'BROADCASTING...',
   qualityPassLabel = 'QUALITY PASS',
 }) {
-  const ragHealth = useRagHealth(true);
-  const [prompt, setPrompt] = useState('');
-  const { buildModeOpts, ...modeParamFields } = useModeParams();
-  const [temperature, setTemperature] = useState(0.2);
-  const [ragTopK, setRagTopK] = useState(() => {
-    const raw = parseInt(
-      typeof window !== 'undefined' && localStorage.getItem('rag.top_k'),
-      10,
-    );
-    return Number.isFinite(raw) && raw >= 1 && raw <= 20 ? raw : 3;
+  const {
+    ragHealth,
+    prompt,
+    setPrompt,
+    temperature,
+    setTemperature,
+    ragTopK,
+    setRagTopK,
+    ragMinScore,
+    setRagMinScore,
+    selectedRagAgents,
+    setSelectedRagAgents,
+    textareaRef,
+    modeParamFields,
+    handleSubmit,
+    handleKeyDown,
+  } = usePromptInput({
+    onSubmit,
+    loading,
+    disabled,
+    externalPrompt,
+    externalTemperature,
+    onPromptConsumed,
+    activeAgents,
+    activeMode,
+    useRag,
   });
-  const [selectedRagAgents, setSelectedRagAgents] = useState([]);
-  const [ragMinScore, setRagMinScore] = useState(() => {
-    const raw = parseFloat(
-      typeof window !== 'undefined' && localStorage.getItem('rag.min_score'),
-    );
-    return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 1.0;
-  });
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem('rag.top_k', String(ragTopK));
-        localStorage.setItem('rag.min_score', String(ragMinScore));
-      } catch (err) {
-        console.error('[rag] persist params failed:', err);
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [ragTopK, ragMinScore]);
-
-  const textareaRef = useRef(null);
-
-  // Auto-grow the textarea to fit content so typed text is always visible.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  }, [prompt]);
-
-  const onPromptConsumedRef = useRef(onPromptConsumed);
-  useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; }, [onPromptConsumed]);
-
-  useEffect(() => {
-    if (externalPrompt !== undefined && externalPrompt !== null) {
-      setPrompt(externalPrompt);
-      onPromptConsumedRef.current?.();
-    }
-  }, [externalPrompt]);
-
-  useEffect(() => {
-    if (externalTemperature !== undefined && externalTemperature !== null) {
-      setTemperature(externalTemperature);
-    }
-  }, [externalTemperature]);
-
-  const submitPrompt = (opts = {}) => {
-    if (prompt.trim() && !loading && !disabled) {
-      const ragOpts = useRag
-        ? { ragTopK, ragMinScore, ...(selectedRagAgents.length > 0 ? { ragAgents: selectedRagAgents } : {}) }
-        : {};
-      const modeOpts = buildModeOpts(activeMode, activeAgents);
-      onSubmit(prompt.trim(), temperature, { ...ragOpts, ...modeOpts, ...opts });
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    submitPrompt();
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      submitPrompt();
-    }
-  };
 
   return (
     <form className="prompt-input" onSubmit={handleSubmit}>

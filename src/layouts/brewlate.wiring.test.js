@@ -43,10 +43,12 @@ function read(file) {
   return fs.readFileSync(path.join(ROOT, file), 'utf8');
 }
 
-function layoutPropKeys(appSrc) {
-  const block = appSrc.match(/const layoutProps = useMemo\(\(\) => \(\{([\s\S]*?)\}\), \[/);
-  if (!block) throw new Error('layoutProps block not found in App.js');
-  return [...block[1].matchAll(/^\s+(\w+),?\s*$/gm)].map(m => m[1]);
+function layoutPropKeys(_appSrc) {
+  // useMemo was extracted to hooks/useAppLayoutProps.js in MS-41
+  const hookSrc = read('hooks/useAppLayoutProps.js');
+  const block = hookSrc.match(/return useMemo\(\(\) => \(\{([\s\S]*?)\}\), \[/);
+  if (!block) throw new Error('layoutProps useMemo block not found in hooks/useAppLayoutProps.js');
+  return [...block[1].matchAll(/^\s+(\w+)[,:]/gm)].map(m => m[1]).filter(Boolean);
 }
 
 function brewlateParamNames(brewSrc) {
@@ -67,7 +69,8 @@ const OPTIONAL_UNUSED = new Set([
 describe('Brewlate wiring audit', () => {
   const appSrc = read('App.js');
   const BREW_SUBMODULES = [
-    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewRightPanel.js',
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewConfigAgentsSection.js',
+    'layouts/BrewRightPanel.js',
     'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
     'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
     'layouts/BrewRagTab.js',
