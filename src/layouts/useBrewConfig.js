@@ -66,7 +66,7 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
       })
       .catch(e => { if (!cancelled) setLoadError(e.message); });
     return () => { cancelled = true; };
-  }, [loadRetries, hostMemory]);
+  }, [loadRetries]);
 
   const engineModels = useMemo(() => models.filter(m => m.backend === engine), [models, engine]);
 

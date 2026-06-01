@@ -24,6 +24,25 @@ except ImportError:
     HAS_PLAYWRIGHT = False
 
 REPO = Path(__file__).resolve().parents[2]
+LAYOUTS = REPO / "src" / "layouts"
+
+# Brewlate was split across layout modules; static checks scan the tree.
+_BREWLATE_LAYOUT_FILES = (
+    "BrewlateLayout.js",
+    "useBrewConfig.js",
+    "BrewConfigPanel.js",
+    "BrewRightPanel.js",
+    "BrewSessionTab.js",
+    "BrewBroadcastTab.js",
+)
+
+
+def _brewlate_layout_sources() -> str:
+    return "\n".join(
+        (LAYOUTS / name).read_text()
+        for name in _BREWLATE_LAYOUT_FILES
+        if (LAYOUTS / name).is_file()
+    )
 BREWLATE_URL = os.environ.get(
     "MATRIX_UI_URL",
     "http://localhost:3000/?layout=brewlate&theme=dark",
@@ -54,7 +73,7 @@ def test_brewlate_button_classes_defined_in_layout():
 
 
 def test_brewlate_prompt_uses_brew_labels():
-    src = (REPO / "src/layouts/BrewlateLayout.js").read_text()
+    src = _brewlate_layout_sources()
     assert 'submitLabel="BREW"' in src
     assert 'qualityPassLabel="REFINE"' in src
 
@@ -398,6 +417,6 @@ def test_classic_body_layout_attribute(classic_page):
 # ── MS-29-4 additions — orchestrate progress indicator ───────────────────────
 
 def test_brewlate_orchestrate_progress_class_exists():
-    """BrewlateLayout renders .brew-brewcast-phase when orchestrate is running."""
-    src = (REPO / "src/layouts/BrewlateLayout.js").read_text()
+    """Brew broadcast tab renders .brew-brewcast-phase when orchestrate is running."""
+    src = _brewlate_layout_sources()
     assert "brew-brewcast-phase" in src
