@@ -118,7 +118,8 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy_file_io.cpp" \
   "$CPP_SRC/proxy_models_scan.cpp" \
   "$CPP_SRC/proxy_configure.cpp" \
-  "$CPP_SRC/proxy_configure_ports.cpp" \
+  "$CPP_SRC/proxy_configure_ports_build.cpp" \
+  "$CPP_SRC/proxy_configure_ports_write.cpp" \
   "$CPP_SRC/proxy_configure_spawn.cpp" \
   "$CPP_SRC/config/path_expand.cpp" \
   "$CPP_SRC/proxy_configure_health.cpp" \

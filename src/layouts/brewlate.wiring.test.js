@@ -67,7 +67,8 @@ const OPTIONAL_UNUSED = new Set([
 describe('Brewlate wiring audit', () => {
   const appSrc = read('App.js');
   const BREW_SUBMODULES = [
-    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewRightPanel.js',
+    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewConfigAgentsSection.js',
+    'layouts/BrewRightPanel.js',
     'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
     'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
     'layouts/BrewRagTab.js',
