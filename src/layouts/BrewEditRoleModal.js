@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
 import { setAgentSystemPrompt, setAgentTokens } from '../api/swarmApi';
-import { Toggle, SliderRow } from './BrewEditRoleModalControls';
+import { BrewBasicTab, BrewAdvancedTab } from './BrewEditRoleModalTabs';
 
-const CTX_OPTIONS = [0, 4096, 8192, 16384, 32768];
 const TABS = ['Basic', 'Advanced'];
 
 export default function BrewEditRoleModal({ role, models, roleModels, onClose, onSaved }) {
-  const [tab, setTab]           = useState('Basic');
+  const [tab, setTab] = useState('Basic');
 
-  // Basic
   const [name, setName]         = useState(role.name);
   const [prompt, setPrompt]     = useState(role.system_prompt || '');
   const [model, setModel]       = useState(roleModels[role.name] || '');
   const [context, setContext]   = useState(role.context ?? 0);
 
-  // Advanced
   const [temp, setTemp]         = useState(role.temperature ?? 0.7);
   const [topP, setTopP]         = useState(role.top_p ?? 0.9);
   const [topK, setTopK]         = useState(role.top_k ?? 40);
@@ -23,7 +20,6 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState(null);
 
-  // Permissions
   const [perms, setPerms] = useState({
     webSearch:    role.permissions?.webSearch    ?? true,
     codeExec:     role.permissions?.codeExec     ?? true,
@@ -78,7 +74,6 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
     <div className="brew-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="brew-modal-card brew-modal-card--wide" role="dialog" aria-modal="true" aria-label={`Edit role ${role.name}`}>
 
-        {/* Header */}
         <div className="brew-modal-header">
           <h2 className="brew-modal-title">
             <span className="brew-modal-title-plain">Role Editor</span>
@@ -86,94 +81,34 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
           <button className="brew-modal-x" onClick={onClose} aria-label="Close">×</button>
         </div>
 
-        {/* Tabs */}
         <div className="brew-modal-tabs">
           {TABS.map(t => (
-            <button
-              key={t}
-              type="button"
+            <button key={t} type="button"
               className={`brew-modal-tab${tab === t ? ' active' : ''}`}
-              onClick={() => setTab(t)}
-            >
+              onClick={() => setTab(t)}>
               {t}
             </button>
           ))}
         </div>
 
-        {/* Body */}
         <div className="brew-modal-body">
-
           {tab === 'Basic' && (
-            <>
-              <div className="brew-modal-field">
-                <label className="brew-modal-label" htmlFor="brew-role-name">Role Name</label>
-                <input id="brew-role-name" className="brew-modal-input" type="text"
-                  value={name} onChange={e => setName(e.target.value)} autoComplete="off" />
-              </div>
-              <div className="brew-modal-field">
-                <label className="brew-modal-label" htmlFor="brew-role-prompt">System Prompt</label>
-                <textarea id="brew-role-prompt" className="brew-modal-textarea"
-                  value={prompt} onChange={e => setPrompt(e.target.value)}
-                  rows={5} placeholder="Enter system prompt…" />
-              </div>
-              <div className="brew-modal-field">
-                <label className="brew-modal-label" htmlFor="brew-role-model">Model Assignment</label>
-                <select id="brew-role-model" className="brew-modal-select brew-modal-select--model"
-                  value={model} onChange={e => setModel(e.target.value)}>
-                  <option value="" disabled>Select model…</option>
-                  {Array.from(new Set(models.map(m => m.backend))).map(backend => (
-                    <optgroup key={backend} label={backend}>
-                      {models.filter(m => m.backend === backend).map(m => (
-                        <option key={m.path} value={m.path}>{m.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-              <div className="brew-modal-field brew-modal-field--row">
-                <label className="brew-modal-label" htmlFor="brew-role-ctx">Context Window</label>
-                <select id="brew-role-ctx" className="brew-modal-select"
-                  value={context} onChange={e => setContext(e.target.value)}>
-                  {CTX_OPTIONS.map(v => (
-                    <option key={v} value={v}>{v === 0 ? '0 (default)' : v.toLocaleString()}</option>
-                  ))}
-                </select>
-              </div>
-            </>
+            <BrewBasicTab
+              name={name} setName={setName} prompt={prompt} setPrompt={setPrompt}
+              model={model} setModel={setModel} context={context} setContext={setContext}
+              models={models}
+            />
           )}
-
           {tab === 'Advanced' && (
-            <>
-              <div className="brew-adv-card">
-                <SliderRow label="Temperature" min={0} max={2}    step={0.01} value={temp}   onChange={setTemp} />
-                <SliderRow label="Top-P"       min={0} max={1}    step={0.01} value={topP}   onChange={setTopP} />
-                <SliderRow label="Top-K"       min={0} max={200}  step={1}    value={topK}   onChange={setTopK} />
-                <SliderRow
-                  label="Max Tokens" min={256} max={8192} step={256} value={maxTok} onChange={setMaxTok}
-                  showToggle toggleOn={maxTokOn} onToggleChange={setMaxTokOn}
-                />
-              </div>
-
-              <div className="brew-adv-card">
-                <div className="brew-perm-title">Permissions</div>
-                {[
-                  ['webSearch',    'Web Search'],
-                  ['codeExec',     'Code Execution'],
-                  ['dalleImage',   'DALL-E Image Generation'],
-                  ['functionCall', 'Function Calling'],
-                ].map(([key, label]) => (
-                  <div key={key} className="brew-perm-row">
-                    <span className="brew-perm-label">{label}</span>
-                    <Toggle checked={perms[key]} onChange={() => togglePerm(key)} />
-                  </div>
-                ))}
-              </div>
-            </>
+            <BrewAdvancedTab
+              temp={temp} setTemp={setTemp} topP={topP} setTopP={setTopP}
+              topK={topK} setTopK={setTopK} maxTok={maxTok} setMaxTok={setMaxTok}
+              maxTokOn={maxTokOn} setMaxTokOn={setMaxTokOn}
+              perms={perms} togglePerm={togglePerm}
+            />
           )}
-
         </div>
 
-        {/* Footer */}
         <div className="brew-modal-footer">
           {error && (
             <span className="brew-modal-error" style={{ flex: 1, fontSize: '0.78rem', color: 'var(--brew-kv-crit)' }}>

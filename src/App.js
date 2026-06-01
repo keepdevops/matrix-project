@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import './styles/responsive.css';
 import './themes/light.css';
@@ -21,20 +21,18 @@ import { useSubmitHandlers } from './hooks/useSubmitHandlers';
 import { useSessionHandlers } from './hooks/useSessionHandlers';
 import { useMemoryPressure } from './hooks/useMemoryPressure';
 import { useAppLayoutProps } from './hooks/useAppLayoutProps';
-import { clearKvCache } from './api/swarmApi';
+import { useAppHandlers } from './hooks/useAppHandlers';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
 function App() {
   const showToast = useToast();
-  const prevError = useRef(null);
 
   const {
     responses, agentErrors, finalAnswer, loading, error, history, online,
     submit, loadHistory, checkStatus,
     setResponses, setFinalAnswer, lastMeta, setLastMeta,
-    currentSession, setCurrentSession,
-    backend, switchBackend,
+    currentSession, setCurrentSession, backend, switchBackend,
   } = useSwarm();
 
   const {
@@ -46,11 +44,7 @@ function App() {
     () => (activeMode && modeWarnings.length > 0 ? { [activeMode]: modeWarnings } : {}),
     [activeMode, modeWarnings]
   );
-
-  const memoryPressure = useMemoryPressure({
-    online, activeAgents, activeMode, kvReadings, hostMemory,
-  });
-
+  const memoryPressure = useMemoryPressure({ online, activeAgents, activeMode, kvReadings, hostMemory });
   const warningsByModeWithMemory = useMemo(() => {
     if (!memoryPressure?.warnings?.length || !activeMode) return warningsByMode;
     const memHints = memoryPressure.warnings.slice(0, 2);
@@ -83,68 +77,33 @@ function App() {
     handleFollowUp, handleSendBestContinue, handleSaveCode,
   } = useSubmitHandlers({
     submit, loadHistory, currentSession, activeMode, useRag,
-    responses, activeAgents, flatPickAgent,
-    modeWarnings,
-    memoryPressure,
-    hostMemory,
-    onModeWarning: useCallback((warnings) => {
-      showToast(warnings[0], 'warn');
-    }, [showToast]),
+    responses, activeAgents, flatPickAgent, modeWarnings, memoryPressure, hostMemory,
+    onModeWarning: useCallback((warnings) => { showToast(warnings[0], 'warn'); }, [showToast]),
     onSaveCodeToast: showToast,
     onMemoryPressureWarning: useCallback((pressure) => {
       const msg = pressure.warnings[0] || 'Elevated memory pressure';
       const hint = pressure.suggestFlatMode
         ? ' — try flat mode or SAFE profile'
-        : pressure.suggestSafeProfile
-          ? ' — try SAFE profile in CONFIGURE'
-          : '';
+        : pressure.suggestSafeProfile ? ' — try SAFE profile in CONFIGURE' : '';
       showToast(`${msg}${hint}`, 'warn');
     }, [showToast]),
   });
 
+  const {
+    mountedRef,
+    handleToggleConfig, handleToggleHistory,
+    handleOpenConverter, handleOpenRagAdmin, handleOpenCachePanel, handleOpenHelp,
+    handleDeployed, handleClearCache, handleExpandProgrammer,
+  } = useAppHandlers({
+    checkStatus, refreshAgents, loadHistory, showToast,
+    setShowConfig, setShowConverter, setShowHistory,
+    setShowHelp, setShowRagAdmin, setShowCachePanel,
+    setDeployPending, setCacheStatus, handleSubmit,
+  });
+
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
 
-  const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
-
-  const handleToggleConfig   = useCallback(() => { setShowConverter(false); setShowConfig(v => !v); }, []);
-  const handleToggleHistory  = useCallback(() => setShowHistory(v => !v), []);
-  const handleOpenConverter  = useCallback(() => setShowConverter(v => !v), []);
-  const handleOpenRagAdmin   = useCallback(() => setShowRagAdmin(true), []);
-  const handleOpenCachePanel = useCallback(() => setShowCachePanel(true), []);
-  const handleOpenHelp       = useCallback(() => setShowHelp(true), []);
-
-  const handleDeployed = useCallback(() => {
-    setShowConfig(false);
-    setDeployPending(true);
-    showToast('Swarm launching — waiting for health check…', 'info');
-    const pollId = setInterval(async () => {
-      const isOnline = await checkStatus();
-      if (!mountedRef.current) { clearInterval(pollId); return; }
-      if (isOnline) {
-        clearInterval(pollId);
-        setDeployPending(false);
-        refreshAgents();
-        loadHistory();
-        showToast('Swarm online', 'success');
-      }
-    }, 2000);
-    setTimeout(() => { if (mountedRef.current) { clearInterval(pollId); setDeployPending(false); } }, 90000);
-  }, [checkStatus, refreshAgents, loadHistory, showToast]);
-
-  const handleClearCache = useCallback(async () => {
-    setCacheStatus('clearing');
-    try {
-      await clearKvCache();
-      setCacheStatus('cleared');
-      showToast('KV cache cleared', 'success');
-    } catch {
-      setCacheStatus('failed');
-      showToast('Cache clear failed', 'error');
-    } finally {
-      setTimeout(() => setCacheStatus('idle'), 2000);
-    }
-  }, [showToast]);
+  useEffect(() => () => { mountedRef.current = false; }, [mountedRef]);
 
   useEffect(() => {
     if (error && error !== prevError.current) {
@@ -158,15 +117,6 @@ function App() {
 
   const excludedBreaker = lastMeta?.excluded_unhealthy || [];
   const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
-
-  const handleExpandProgrammer = useCallback((instruction) => handleSubmit(instruction, 0.2, {
-    followup: true,
-    contextPolicy: {
-      include: ['original_prompt', 'final', 'programmer'],
-      target_agent: 'programmer',
-      max_context_chars: 24000,
-    },
-  }), [handleSubmit]);
 
   const layoutProps = useAppLayoutProps({
     online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed, hostMemory,
@@ -191,5 +141,8 @@ function App() {
   const Layout = LAYOUTS[layout]?.component ?? BrewlateLayout;
   return <Layout {...layoutProps} />;
 }
+
+// Ref for prevError lives outside the component to survive re-renders without state overhead.
+const prevError = { current: null };
 
 export default App;
