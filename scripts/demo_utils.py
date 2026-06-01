@@ -1,18 +1,18 @@
 """
 Shared Playwright helpers for Brewlatte demo scripts.
 Updated for Brewlatte 2.1.0 CSS class names.
+
+Broadcast/response/video helpers live in demo_utils_broadcast.py;
+re-exported here for backwards compat.
 """
 
 import os
-import subprocess
-import sys
-import time
 
 from playwright.sync_api import TimeoutError as PWTimeout
 
 APP_URL     = "http://localhost:3000?theme=dark"
 LAUNCH_TMO  = 300_000   # 5 min — cold llama-server start
-RESP_TMO    = 600_000   # 10 min per broadcast — first-load model warmup can be slow
+RESP_TMO    = 600_000   # 10 min per broadcast
 POLL_MS     = 1_500
 ONLINE_WARMUP_MS = 120_000  # 2 min extra after ONLINE before first broadcast
 
@@ -92,9 +92,6 @@ def launch_and_wait_online(page, shots_dir=None):
             shot(page, shots_dir, "LAUNCH-TIMEOUT")
         raise RuntimeError("Timed out waiting for swarm to come ONLINE")
     print("  ✓  Swarm ONLINE")
-    # Wait for model weights to finish loading before first broadcast.
-    # The status pill turns green when the coordinator passes a health check,
-    # but the first inference request can still be queued behind model loading.
     print(f"  … warming up ({ONLINE_WARMUP_MS // 1000}s)…")
     page.wait_for_timeout(ONLINE_WARMUP_MS)
 
@@ -155,120 +152,6 @@ def clear_session(page):
 
 
 # ---------------------------------------------------------------------------
-# Broadcast & response
-# ---------------------------------------------------------------------------
-
-def broadcast(page, prompt_text, prompt_num=None):
-    """Fill the prompt textarea and submit."""
-    label = f"#{prompt_num}" if prompt_num else ""
-    log(f"Broadcast {label}: {prompt_text[:65]}…")
-    # Ensure the Session tab is active — PromptInput is only rendered there.
-    switch_right_tab(page, "Session")
-    page.wait_for_timeout(300)
-    ta = page.query_selector(".prompt-textarea")
-    if not ta:
-        raise RuntimeError(".prompt-textarea not found")
-    ta.click()
-    ta.fill(prompt_text)
-    page.query_selector(".prompt-input button[type=submit]").click()
-    print("  … broadcasting…")
-
-
-def wait_for_response(page, shots_dir, label):
-    """
-    Poll until the broadcast completes. Completion is signalled by ANY of:
-      - A new completed .ct-turn (non-pending) appearing since we started
-      - .ct-thinking gone AND submit button re-enabled
-    Returns the current turn count.
-    """
-    # Baseline: how many completed turns exist before we started
-    baseline = page.evaluate(
-        "() => document.querySelectorAll('.ct-turn:not(.ct-turn--pending)').length"
-    )
-    deadline = time.time() + RESP_TMO / 1000
-    while time.time() < deadline:
-        page.wait_for_timeout(POLL_MS)
-
-        # Primary signal: a new completed turn with non-empty SWARM text
-        completed = page.evaluate(
-            """() => {
-                const turns = document.querySelectorAll('.ct-turn:not(.ct-turn--pending)');
-                return Array.from(turns).filter(t => {
-                    const txt = t.querySelector('.ct-bubble--swarm .ct-bubble-text');
-                    return txt && txt.textContent.trim().length > 20;
-                }).length;
-            }"""
-        )
-        if completed > baseline:
-            turns = page.evaluate("() => document.querySelectorAll('.ct-turn').length")
-            print(f"  ✓  Response complete — {turns} turn(s)")
-            shot(page, shots_dir, label)
-            return turns
-
-        # Fallback: thinking gone + button enabled
-        thinking = page.query_selector(".ct-thinking")
-        btn_disabled = page.evaluate(
-            "() => { const b = document.querySelector('.prompt-input button[type=submit]');"
-            " return b ? b.disabled : true; }"
-        )
-        if not thinking and not btn_disabled:
-            turns = page.evaluate("() => document.querySelectorAll('.ct-turn').length")
-            print(f"  ✓  Response complete (btn enabled) — {turns} turn(s)")
-            shot(page, shots_dir, label)
-            return turns
-
-    shot(page, shots_dir, label + "-TIMEOUT")
-    raise RuntimeError(f"Timed out waiting for response ({label})")
-
-
-def follow_up(page, prompt_text, shots_dir, label):
-    """Type a follow-up in the conversation reply box and submit."""
-    log(f"Follow-up: {prompt_text[:65]}…")
-    reply = page.query_selector(".ct-reply-input")
-    if not reply:
-        raise RuntimeError(".ct-reply-input not found — is there an active session?")
-    reply.fill(prompt_text)
-    page.query_selector(".ct-reply-form button[type=submit]").click()
-    print("  … waiting for follow-up…")
-    return wait_for_response(page, shots_dir, label)
-
-
-# ---------------------------------------------------------------------------
-# Agent readiness
-# ---------------------------------------------------------------------------
-
-def wait_for_agents_ready(page, shots_dir=None, label="agents-ready", timeout_ms=300_000):
-    """
-    Poll /api/configure/status until active=false and all ports are 'ready'.
-    This is the coordinator's own view of agent server health — more reliable
-    than the DOM badges (which freeze) or /api/agents (which returns 200 even
-    when servers are still loading).
-    """
-    import urllib.request, urllib.error, json
-    STATUS_URL = "http://localhost:3002/api/configure/status"
-    log("Waiting for all agent ports to be ready…")
-    deadline = time.time() + timeout_ms / 1000
-    while time.time() < deadline:
-        try:
-            r = urllib.request.urlopen(STATUS_URL, timeout=4)
-            data = json.loads(r.read())
-            ports = data.get("ports", {})
-            not_ready = [p for p, s in ports.items() if s != "ready"]
-            if not data.get("active") and ports and not not_ready:
-                print(f"  ✓  All {len(ports)} port(s) ready")
-                if shots_dir:
-                    shot(page, shots_dir, label)
-                return
-            print(f"  … {len(not_ready)}/{len(ports)} port(s) not ready yet …")
-        except urllib.error.HTTPError as e:
-            print(f"  … configure/status {e.code} — deploy still running …")
-        except Exception as e:
-            print(f"  … configure/status probe failed: {e} …")
-        time.sleep(3)
-    raise RuntimeError("Timed out waiting for agent ports to become ready")
-
-
-# ---------------------------------------------------------------------------
 # Right-panel tab switching
 # ---------------------------------------------------------------------------
 
@@ -287,37 +170,26 @@ def switch_right_tab(page, tab_label):
 
 
 # ---------------------------------------------------------------------------
-# Video stitching
+# Backwards-compat re-exports from demo_utils_broadcast
 # ---------------------------------------------------------------------------
 
-def stitch_video(shots_dir, output_mov, frame_secs=2):
-    """
-    Rename screenshots to sequential 001.png … NNN.png then call ffmpeg
-    to produce a ProRes .mov at 1/frame_secs fps.
-    """
-    frames_dir = shots_dir + "_frames"
-    os.makedirs(frames_dir, exist_ok=True)
+from demo_utils_broadcast import (  # noqa: E402
+    broadcast,
+    wait_for_response,
+    follow_up,
+    wait_for_agents_ready,
+    stitch_video,
+)
 
-    pngs = sorted(f for f in os.listdir(shots_dir) if f.endswith(".png"))
-    for i, fname in enumerate(pngs):
-        src = os.path.join(shots_dir, fname)
-        dst = os.path.join(frames_dir, f"{i + 1:03d}.png")
-        if not os.path.exists(dst):
-            os.symlink(os.path.abspath(src), dst)
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-framerate", f"1/{frame_secs}",
-        "-i", os.path.join(frames_dir, "%03d.png"),
-        "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        "-c:v", "prores_ks",
-        "-profile:v", "3",
-        "-pix_fmt", "yuv422p10le",
-        output_mov,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  ⚠  ffmpeg error:\n{result.stderr[-400:]}", file=sys.stderr)
-    else:
-        size_mb = os.path.getsize(output_mov) / (1024 * 1024)
-        print(f"  🎬  {output_mov}  ({size_mb:.1f} MB)")
+__all__ = [
+    "APP_URL", "LAUNCH_TMO", "RESP_TMO", "POLL_MS", "ONLINE_WARMUP_MS",
+    "PROFILE_VALUES",
+    "log", "shot",
+    "ensure_config_open", "ensure_config_closed",
+    "select_profile", "launch_and_wait_online",
+    "set_mode",
+    "enable_rag", "clear_session",
+    "switch_right_tab",
+    "broadcast", "wait_for_response", "follow_up",
+    "wait_for_agents_ready", "stitch_video",
+]
