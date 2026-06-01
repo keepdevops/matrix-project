@@ -52,6 +52,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    -I"$PROM_INC" -L"$PROM_LIB" \
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
+   "$CPP_SRC/coordinator_setup.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
    "$CPP_SRC/config/path_expand.cpp" \
@@ -71,6 +72,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_dispatch_prepare.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream_modes.cpp" \
+   "$CPP_SRC/coordinator_routes_architect_stream_pipeline.cpp" \
    "$CPP_SRC/coordinator_routes_architect_synthesis.cpp" \
    "$CPP_SRC/coordinator_routes_architect_persist.cpp" \
    "$CPP_SRC/coordinator_routes_filters.cpp" \

@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchAgents,
-  fetchKvPressure,
   fetchHostMemory,
   fetchModels,
   fetchSwarmConfig,
   fetchModes,
   setActiveMode,
 } from '../api/swarmApi';
+import { useKvPoller } from './useKvPoller';
 import { fetchModeAgents } from '../api/agentsApi';
 import { computeModeReadiness } from '../utils/modeReadiness';
 import { applyModeManifest } from '../utils/modeManifest';
 
-const KV_POLL_MS = 250;
 const MEMORY_POLL_MS = 2000;
 
 export function useCoordinatorState(online) {
@@ -20,8 +19,7 @@ export function useCoordinatorState(online) {
   const [agentMeta, setAgentMeta]       = useState({});
   const [modes, setModes]               = useState([]);
   const [activeMode, setActiveModeState] = useState(null);
-  const [kvReadings, setKvReadings]     = useState([]);
-  const [kvFetchFailed, setKvFetchFailed] = useState(false);
+  const { kvReadings, kvFetchFailed }   = useKvPoller(online);
   const [hostMemory, setHostMemory]     = useState(null);
   const [flatPickAgent, setFlatPickAgent] = useState(null);
   const [modeWarnings, setModeWarnings] = useState([]);
@@ -102,30 +100,6 @@ export function useCoordinatorState(online) {
       console.error('Failed to change mode:', err);
     }
   };
-
-  // KV pressure polling
-  useEffect(() => {
-    if (!online) {
-      setKvReadings([]);
-      setKvFetchFailed(false);
-      return undefined;
-    }
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const data = await fetchKvPressure();
-        if (cancelled) return;
-        setKvReadings(Array.isArray(data) ? data : []);
-        setKvFetchFailed(false);
-      } catch (err) {
-        console.error('KV pressure poll failed:', err);
-        if (!cancelled) setKvFetchFailed(true);
-      }
-    };
-    tick();
-    const id = setInterval(tick, KV_POLL_MS);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [online]);
 
   // Host unified-memory polling (proxy /api/memory — works before coordinator routes).
   useEffect(() => {
