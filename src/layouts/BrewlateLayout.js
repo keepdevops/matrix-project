@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import './brewlate.css';
 import './brewlate-themes.css';
 import { useDeploy } from '../components/SwarmConfig.deploy';
+import { useBrewlateLayout } from './useBrewlateLayout';
 import BrewHeader from './BrewHeader';
 import { useBrewConfig } from './useBrewConfig';
 import BrewConfigPanel from './BrewConfigPanel';
@@ -28,28 +29,18 @@ export default function BrewlateLayout({
   onSaveCode, onPickFlatAgent, onSendBestContinue, onUseRagChange,
   onExpandProgrammer,
 }) {
-  const [deployed, setDeployed]             = useState(false);
-  const [rightTab, setRightTab]             = useState('session');
-  const [showMonitor, setShowMonitor]       = useState(false);
-  const [showAgentsPopout, setShowAgentsPopout] = useState(false);
-  const [leftPopout, setLeftPopout]         = useState(null);
-
-  useEffect(() => {
-    if (loading) setRightTab('brewcast');
-    else if (lastMeta) setRightTab('session');
-  }, [loading, lastMeta]);
+  const {
+    deployed, setDeployed, rightTab, setRightTab,
+    showMonitor, setShowMonitor, showAgentsPopout, setShowAgentsPopout,
+    leftPopout, setLeftPopout,
+  } = useBrewlateLayout({ online, activeAgents, loading, lastMeta });
 
   const handleDeployedInternal = useCallback(() => {
     setDeployed(true);
     onDeployed?.();
-  }, [onDeployed]);
+  }, [setDeployed, onDeployed]);
 
   const { status, statusMsg, agentStatuses, deploy, reset } = useDeploy({ onDeployed: handleDeployedInternal });
-
-  useEffect(() => {
-    if (online && activeAgents.length > 0) setDeployed(true);
-    else if (!online) setDeployed(false);
-  }, [online, activeAgents.length]);
 
   const brewConfig = useBrewConfig({ online, activeAgents, hostMemory, activeMode });
   const { roles, setRoles, editingAgent, setEditingAgent, loadError, setLoadRetries, invalidateModelsCache } = brewConfig;
@@ -97,14 +88,8 @@ export default function BrewlateLayout({
         />
 
         <BrewRightPanel
-          deployed={deployed}
-          rightTab={rightTab}
-          onTabChange={setRightTab}
-          preview={{
-            rosterPct: brewConfig.rosterPct,
-            serverLayout: brewConfig.serverLayout,
-            configLines: brewConfig.configLines,
-          }}
+          deployed={deployed} rightTab={rightTab} onTabChange={setRightTab}
+          preview={{ rosterPct: brewConfig.rosterPct, serverLayout: brewConfig.serverLayout, configLines: brewConfig.configLines }}
           rolesByName={rolesByName}
           session={{
             history, currentSession, responses, finalAnswer, loading, error, pendingPrompt,
@@ -121,27 +106,18 @@ export default function BrewlateLayout({
             activeAgents, responses, agentErrors, loading, lastMeta, stageOutputs,
             activeMode, flatPickAgent, onPickFlatAgent, onSaveCode,
           }}
-          rag={{
-            useRag, onUseRagChange, activeAgents, loading, online, lastMeta, onOpenRagAdmin,
-          }}
+          rag={{ useRag, onUseRagChange, activeAgents, loading, online, lastMeta, onOpenRagAdmin }}
         />
       </div>
 
       <BrewOverlays
-        editingAgent={editingAgent}
-        setEditingAgent={setEditingAgent}
-        setRoles={setRoles}
-        showConverter={showConverter}
-        onOpenConverter={onOpenConverter}
-        showHelp={showHelp}
-        onCloseHelp={onCloseHelp}
+        editingAgent={editingAgent} setEditingAgent={setEditingAgent} setRoles={setRoles}
+        showConverter={showConverter} onOpenConverter={onOpenConverter}
+        showHelp={showHelp} onCloseHelp={onCloseHelp}
         activeAgents={activeAgents}
-        showRagAdmin={showRagAdmin}
-        onCloseRagAdmin={onCloseRagAdmin}
-        showCachePanel={showCachePanel}
-        onCloseCachePanel={onCloseCachePanel}
-        leftPopout={leftPopout}
-        setLeftPopout={setLeftPopout}
+        showRagAdmin={showRagAdmin} onCloseRagAdmin={onCloseRagAdmin}
+        showCachePanel={showCachePanel} onCloseCachePanel={onCloseCachePanel}
+        leftPopout={leftPopout} setLeftPopout={setLeftPopout}
       />
     </div>
   );
