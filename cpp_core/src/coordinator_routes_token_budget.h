@@ -14,6 +14,14 @@ inline void register_routes(httplib::Server& svr, CoordinatorState&) {
         const std::string session_id = req.matches[1];
         res.set_content(token_ledger::snapshot(session_id).dump(), "application/json");
     });
+
+    svr.Delete(R"(/api/token-budget/([^/]+))",
+               [](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string session_id = req.matches[1];
+        token_ledger::reset(session_id);
+        res.set_content("{\"reset\":true}", "application/json");
+    });
 }
 
 } // namespace token_budget_routes

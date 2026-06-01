@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { fetchTokenBudget } from '../api/tokenBudgetApi';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { fetchTokenBudget, resetTokenBudget } from '../api/tokenBudgetApi';
 
 const POLL_MS = 2000;
 
@@ -29,5 +29,15 @@ export function useTokenBudget({ sessionId, online }) {
     };
   }, [sessionId, online]);
 
-  return state;
+  const reset = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      await resetTokenBudget(sessionId);
+      setState({ budget: 0, consumed: 0, remaining: -1, overrun: false });
+    } catch (err) {
+      console.error('[useTokenBudget] reset failed:', err);
+    }
+  }, [sessionId]);
+
+  return { ...state, reset };
 }

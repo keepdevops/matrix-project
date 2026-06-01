@@ -36,12 +36,14 @@ AttemptResult call_agent_once(const Agent& agent,
                 messages.push_back({{"role", "system"}, {"content", system_prompt}});
             messages.push_back({{"role", "user"}, {"content", eff_prompt}});
         }
-        json body = {{"messages", messages}, {"max_tokens", agent.max_tokens}};
+        int out_cap = agent.max_output_tokens > 0 ? agent.max_output_tokens : agent.max_tokens;
+        json body = {{"messages", messages}, {"max_tokens", out_cap}};
         if (!agent.model.empty() && (agent.backend == "docker" || agent.backend == "vllm"
                                      || agent.backend == "docker-vllm")) {
             body["model"] = agent.model;
         }
         if (agent.engine == "llama") {
+            if (agent.max_output_tokens > 0) body["num_predict"] = agent.max_output_tokens;
             body["cache_prompt"] = true;
             body["stop"] = {"<|im_end|>", "<|im_start|>",
                             "<|eot_id|>", "<|start_header_id|>",
