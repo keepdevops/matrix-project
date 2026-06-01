@@ -103,6 +103,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/rag_config.cpp" \
    "$CPP_SRC/rag_embed.cpp" \
    "$CPP_SRC/rag_client.cpp" \
+   "$CPP_SRC/rag_client_http.cpp" \
    "$ROOT/build/blake2b.o" \
    -I"$CPP_SRC" \
    "${MOD_LINK[@]}" \
@@ -169,6 +170,7 @@ c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
   "$ROOT/tests/cpp/rag_embed_test.cpp" \
   "$CPP_SRC/rag_embed.cpp" \
   "$CPP_SRC/rag_client.cpp" \
+  "$CPP_SRC/rag_client_http.cpp" \
   "$ROOT/build/blake2b.o" \
   -I"$CPP_SRC" \
   -I"$LIBPQ_INC" -L"$LIBPQ_LIB" -lpq
