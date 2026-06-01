@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-
-const TWEEN_MS = 200; // settle before the next sample arrives
+import React from 'react';
+import useKvPressureGauge from './useKvPressureGauge';
 
 function colorFor(pct) {
   if (pct >= 90) return 'var(--kv-crit, #ff4136)';
@@ -9,58 +8,12 @@ function colorFor(pct) {
 }
 
 export default function KvPressureGauge({ online, readings = [], fetchFailed = false }) {
-  const [displayPct, setDisplayPct] = useState(0);
-  // current = last value actually painted; used as the "from" anchor so a new
-  // sample arriving mid-tween picks up where we are, not where we started.
-  const tweenRef = useRef({ current: 0, from: 0, to: 0, start: 0, raf: 0 });
-
-  useEffect(() => {
-    const t = tweenRef.current;
-    return () => { if (t.raf) cancelAnimationFrame(t.raf); };
-  }, []);
-
-  const tweenTo = useCallback((target) => {
-    const t = tweenRef.current;
-    // Guard against non-finite samples (e.g. transient 0/0 from a freshly
-    // cleared KV cache). Without this, NaN/Infinity poisons t.current and
-    // every subsequent tween stays NaN forever.
-    const safeTarget = Number.isFinite(target)
-      ? Math.max(0, Math.min(100, target))
-      : 0;
-    if (!Number.isFinite(t.current)) t.current = 0;
-    if (t.raf) cancelAnimationFrame(t.raf);
-    t.from = t.current;
-    t.to = safeTarget;
-    t.start = performance.now();
-    const step = (now) => {
-      const k = Math.min(1, (now - t.start) / TWEEN_MS);
-      const eased = 1 - Math.pow(1 - k, 2); // ease-out quad — quicker initial jump
-      t.current = t.from + (t.to - t.from) * eased;
-      setDisplayPct(t.current);
-      if (k < 1) t.raf = requestAnimationFrame(step);
-      else t.raf = 0;
-    };
-    t.raf = requestAnimationFrame(step);
-  }, []);
-
-  useEffect(() => {
-    if (!online) {
-      tweenRef.current.current = 0;
-      setDisplayPct(0);
-      return;
-    }
-    const liveFinite = readings.filter(r => r.ok && r.backend !== 'mlx' && Number.isFinite(r.usage));
-    if (liveFinite.length > 0) {
-      const target = Math.max(...liveFinite.map(r => r.usage)) * 100;
-      tweenTo(target);
-    }
-  }, [online, readings, tweenTo]);
+  const { displayPct } = useKvPressureGauge({ online, readings });
 
   if (!online) return null;
 
   const live = readings.filter(r => r.ok && r.backend !== 'mlx');
-  const showErr =
-    live.length === 0 && (fetchFailed || readings.length > 0);
+  const showErr = live.length === 0 && (fetchFailed || readings.length > 0);
   if (live.length === 0) {
     if (showErr) {
       return (
@@ -83,8 +36,7 @@ export default function KvPressureGauge({ online, readings = [], fetchFailed = f
       const pct = (r.usage * 100).toFixed(0);
       const tokens = (r.kv_used != null && r.kv_total != null)
         ? ` ${r.kv_used}/${r.kv_total}` : '';
-      const slots = (r.slots_total)
-        ? ` busy ${r.slots_busy ?? 0}/${r.slots_total}` : '';
+      const slots = r.slots_total ? ` busy ${r.slots_busy ?? 0}/${r.slots_total}` : '';
       return `:${r.port}${r.backend ? ` (${r.backend})` : ''} ${pct}%${tokens}${slots}`;
     })
     .join(' · ');
@@ -96,15 +48,8 @@ export default function KvPressureGauge({ online, readings = [], fetchFailed = f
         {live.map(r => {
           const pct = Math.round(r.usage * 100);
           return (
-            <div
-              key={r.port}
-              className="kv-gauge-seg"
-              style={{ width: `${100 / live.length}%` }}
-            >
-              <div
-                className="kv-gauge-fill"
-                style={{ width: `${pct}%`, background: colorFor(pct) }}
-              />
+            <div key={r.port} className="kv-gauge-seg" style={{ width: `${100 / live.length}%` }}>
+              <div className="kv-gauge-fill" style={{ width: `${pct}%`, background: colorFor(pct) }} />
             </div>
           );
         })}
