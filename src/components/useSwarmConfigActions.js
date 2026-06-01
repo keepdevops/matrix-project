@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { invalidateModelsCache } from '../api/swarmApi';
-import { getProfileRoles, chooseModelForRole } from './SwarmConfig.helpers';
+import { getProfileRoles, chooseModelForRole } from './SwarmConfig.layoutHelpers';
 
 /**
  * Action callbacks for the swarm configure panel.

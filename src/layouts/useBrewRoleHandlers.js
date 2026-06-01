@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
-import {
-  PROFILE_CUSTOM, getProfileRoles, chooseModelForRole,
-} from '../components/SwarmConfig.helpers';
+import { PROFILE_CUSTOM } from '../components/SwarmConfig.helpers';
+import { getProfileRoles, chooseModelForRole } from '../components/SwarmConfig.layoutHelpers';
 
 export function useBrewRoleHandlers({
   roles, models, engine, engineModels, profileThresholds,

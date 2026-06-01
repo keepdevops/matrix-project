@@ -1,4 +1,5 @@
-import { shortName, parseModelSizeBillions } from './SwarmConfig.helpers';
+import { shortName } from './SwarmConfig.helpers';
+import { parseModelSizeBillions } from './SwarmConfig.layoutHelpers';
 
 export function kvGbPer1kTokens(modelSizeB, engine) {
   if (engine === 'mlx')  return 0.08;
