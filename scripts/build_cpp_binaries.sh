@@ -136,6 +136,7 @@ c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy_configure_kill_prepare.cpp" \
   "$CPP_SRC/proxy_configure_coordinator_startup.cpp" \
   "$CPP_SRC/proxy_validate.cpp" \
+  "$CPP_SRC/proxy_validate_vllm.cpp" \
   "$CPP_SRC/proxy_validate_gguf.cpp" \
   "$CPP_SRC/matrix_env.cpp" \
   -I"$CPP_SRC" \

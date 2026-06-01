@@ -8,7 +8,7 @@ import {
   setActiveMode,
 } from '../api/swarmApi';
 import { useKvPoller } from './useKvPoller';
-import { fetchModeAgents } from '../api/agentsApi';
+import { fetchModeAgents } from '../api/modesApi';
 import { computeModeReadiness } from '../utils/modeReadiness';
 import { applyModeManifest } from '../utils/modeManifest';
 
