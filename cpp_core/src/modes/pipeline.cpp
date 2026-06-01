@@ -1,8 +1,7 @@
 #include "mode.h"
 #include "pipeline_exec.h"
 #include "pipeline_order.h"
-#include "pipeline_prompts.h"
-#include "pipeline_stage_loop.h"
+#include "pipeline_stage_run.h"
 #include "../agent_client.h"
 #include "../mode_module.h"
 
@@ -44,41 +43,10 @@ json run_pipeline(const ModeContext& ctx) {
     json errors = json::array(), stage_outputs = json::array();
     std::string prev_agent, prev_output, final_output;
 
-    const size_t total = effective_order.size();
-    size_t step = 0;
-    for (const auto& name : effective_order) {
-        auto it = by_name.find(name);
-        if (it == by_name.end()) {
-            std::cerr << "⚠️  [pipeline] skipping unknown agent '" << name << "'" << std::endl;
-            missing.push_back(name); continue;
-        }
-        if (ctx.quality_pass && name != ctx.quality_pass_target) {
-            std::cout << "⏭️  [pipeline] quality_pass: skipping stage '" << name << "'" << std::endl;
-            continue;
-        }
-        ++step;
-        std::cout << "🔗 [pipeline] step " << step << "/" << total
-                  << " → " << name << (ctx.quality_pass ? " (quality pass)" : "") << std::endl;
-
-        std::string prev_for_prompt = pipeline_stage::compact_context(
-            prev_output, prev_agent, stage_context_chars, (int)step, stage_compaction);
-        const std::string staged = prev_agent.empty()
-            ? ctx.prompt_for(name)
-            : build_pipeline_staged_user_prompt(ctx.prompt_for(name), prev_agent, prev_for_prompt);
-        std::string result = call_agent(*it->second,
-            mode_module::pipeline_stage_prompt(staged, name, preset));
-        agent_outputs[name] = result;
-        executed.push_back(name);
-        stage_outputs.push_back({{"step", (int)step}, {"agent", name}, {"output", result}});
-
-        if (modes::is_error_response(result, name)) {
-            std::cerr << "❌ [pipeline] step " << step << " (" << name
-                      << ") failed; downstream stages will use the last good output" << std::endl;
-            errors.push_back({{"step", (int)step}, {"agent", name}, {"detail", result.substr(0, 200)}});
-        } else {
-            prev_agent = name; prev_output = result; final_output = result;
-        }
-    }
+    pipeline_stage_run::run_stage_loop(
+        ctx, by_name, effective_order, stage_context_chars, preset,
+        agent_outputs, stage_outputs, stage_compaction,
+        executed, missing, errors, prev_agent, prev_output, final_output);
 
     if (executed.empty())
         pipeline_exec::run_fallback(ctx, by_name, agent_outputs, stage_outputs,
