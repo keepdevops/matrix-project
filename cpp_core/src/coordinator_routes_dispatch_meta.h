@@ -3,6 +3,7 @@
 #include "coordinator_routes_includes.h"
 #include "agent_metrics.h"
 #include "token_ledger.h"
+#include "tes.h"
 #include <chrono>
 #include <vector>
 #include <string>
@@ -42,6 +43,11 @@ inline void stamp_envelope(
     }
     if (effective_max_select >= 0)
         envelope["meta"]["effective_max_select"] = effective_max_select;
+
+    // TES computed after token_budget is written
+    double tes_val = tes::compute(envelope["meta"]);
+    if (tes_val > 0.0)
+        envelope["meta"]["tes"] = tes_val;
 }
 
 } // namespace dispatch_meta

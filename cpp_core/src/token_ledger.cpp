@@ -63,4 +63,26 @@ nlohmann::json snapshot(const std::string& session_id) {
     };
 }
 
+int session_total_consumed() {
+    std::lock_guard<std::mutex> lk(g_mu);
+    int total = 0;
+    for (const auto& kv : g_ledger) total += kv.second.consumed;
+    return total;
+}
+
+nlohmann::json all_sessions_snapshot() {
+    std::lock_guard<std::mutex> lk(g_mu);
+    auto arr = nlohmann::json::array();
+    for (const auto& kv : g_ledger) {
+        arr.push_back({
+            {"session_id", kv.first},
+            {"budget",     kv.second.budget},
+            {"consumed",   kv.second.consumed},
+            {"remaining",  kv.second.remaining()},
+            {"overrun",    kv.second.overrun()},
+        });
+    }
+    return arr;
+}
+
 } // namespace token_ledger

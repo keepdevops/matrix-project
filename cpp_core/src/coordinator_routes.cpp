@@ -1,6 +1,7 @@
 #include "coordinator_routes.h"
 #include "coordinator_routes_internal.h"
 #include "coordinator_routes_token_budget.h"
+#include "coordinator_routes_metrics.h"
 
 void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_core(svr, st);
@@ -13,4 +14,5 @@ void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_misc(svr, st);
     register_coordinator_routes_rag_health(svr, st);
     token_budget_routes::register_routes(svr, st);
+    register_coordinator_routes_metrics(svr, st);
 }
