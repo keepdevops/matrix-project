@@ -4,7 +4,7 @@
 #include "proxy_configure_health.h"
 #include "proxy_configure_kill_prepare.h"
 #include "proxy_configure_coordinator_startup.h"
-#include "proxy_configure_health.h"
+#include "proxy_configure_health_docker.h"
 #include "proxy_validate.h"
 #include "proxy_validate_vllm.h"
 #include "matrix_env.h"
