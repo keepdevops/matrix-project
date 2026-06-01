@@ -4,6 +4,7 @@
 
 #include "coordinator_context.h"
 #include "token_ledger.h"
+#include "agent_health.h"
 #include "httplib.h"
 #include <sstream>
 #include <string>
@@ -37,6 +38,26 @@ inline void register_coordinator_routes_metrics(httplib::Server& svr, Coordinato
             out << "matrix_token_overrun{session=\"" << sid << "\"} "
                 << (s.value("overrun", false) ? 1 : 0) << "\n";
         }
+
+        // Circuit breaker metrics
+        auto health = agent_health::snapshot();
+        out << "# HELP matrix_agent_breaker_open Circuit breaker open (1) or closed (0)\n"
+            << "# TYPE matrix_agent_breaker_open gauge\n";
+        for (const auto& [name, val] : health.items())
+            out << "matrix_agent_breaker_open{agent=\"" << name << "\"} "
+                << (val.value("tripped", false) ? 1 : 0) << "\n";
+
+        out << "# HELP matrix_agent_breaker_failures Recent failures in sliding window\n"
+            << "# TYPE matrix_agent_breaker_failures gauge\n";
+        for (const auto& [name, val] : health.items())
+            out << "matrix_agent_breaker_failures{agent=\"" << name << "\"} "
+                << val.value("recent_failures", 0) << "\n";
+
+        out << "# HELP matrix_agent_breaker_cooldown_ms Cooldown remaining in ms\n"
+            << "# TYPE matrix_agent_breaker_cooldown_ms gauge\n";
+        for (const auto& [name, val] : health.items())
+            out << "matrix_agent_breaker_cooldown_ms{agent=\"" << name << "\"} "
+                << val.value("cooldown_remaining_ms", 0) << "\n";
 
         res.set_content(out.str(), "text/plain; version=0.0.4; charset=utf-8");
     });
