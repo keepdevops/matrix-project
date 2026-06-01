@@ -87,6 +87,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/swarm_config_store.cpp" \
    "$CPP_SRC/swarm_config_roster.cpp" \
    "$CPP_SRC/agent_client.cpp" \
+   "$CPP_SRC/agent_client_http.cpp" \
    "$CPP_SRC/agent_client_pool.cpp" \
    "$CPP_SRC/agent_health.cpp" \
    "$CPP_SRC/agent_metrics.cpp" \

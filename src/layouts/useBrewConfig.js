@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   fetchSwarmConfig, fetchModels, fetchAgents, invalidateModelsCache,
 } from '../api/swarmApi';
 import {
-  PROFILE_CUSTOM, PROFILE_SAFE, computeLayout, getProfileRoles, chooseModelForRole,
+  PROFILE_CUSTOM, PROFILE_SAFE, computeLayout,
 } from '../components/SwarmConfig.helpers';
 import { computeRiskEstimate, RAM_WARN_GB } from '../components/SwarmConfig.risk';
+import { useBrewRoleHandlers } from './useBrewRoleHandlers';
 
 const VLLM_PRESTARTED = [
   { port: 8080, model: 'Qwen2.5-14B' },
@@ -37,8 +38,7 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
   const [editingAgent, setEditingAgent] = useState(null);
   const [loadError, setLoadError]       = useState('');
   const [loadRetries, setLoadRetries]   = useState(0);
-  // Read hostMemory via ref so hostMemory polling doesn't re-trigger the full
-  // fetch effect (which would override user-initiated selection changes).
+
   const hostMemoryRef = useRef(hostMemory);
   useEffect(() => { hostMemoryRef.current = hostMemory; }, [hostMemory]);
 
@@ -64,8 +64,7 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
         const mem = hostMemoryRef.current;
         const liveUsedGb = mem?.ok && Number.isFinite(mem.used_gb) ? mem.used_gb : null;
         const defaultProfile = liveUsedGb !== null && liveUsedGb > RAM_WARN_GB
-          ? PROFILE_SAFE
-          : (liveAgents.length > 0 ? PROFILE_CUSTOM : PROFILE_SAFE);
+          ? PROFILE_SAFE : (liveAgents.length > 0 ? PROFILE_CUSTOM : PROFILE_SAFE);
         setActiveProfile(defaultProfile);
       })
       .catch(e => { if (!cancelled) setLoadError(e.message); });
@@ -74,86 +73,10 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
 
   const engineModels = useMemo(() => models.filter(m => m.backend === engine), [models, engine]);
 
-  const pickModelForRole = useCallback((roleName) => {
-    const role = roles.find(r => r.name === roleName);
-    const back = role?.engine || role?.backend || engine;
-    const cands = models.filter(m => m.backend === back).length
-      ? models.filter(m => m.backend === back) : engineModels;
-    return chooseModelForRole(roleName, cands);
-  }, [roles, models, engine, engineModels]);
-
-  const handleEngineChange = useCallback(id => {
-    setEngine(id);
-    setSelected(new Set());
-    setRoleModels({});
-    setActiveProfile(PROFILE_CUSTOM);
-  }, []);
-
-  const toggleRole = useCallback(name => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-        const path = chooseModelForRole(name, models.filter(m => {
-          const role = roles.find(r => r.name === name);
-          const back = role?.engine || role?.backend || engine;
-          return m.backend === back;
-        }));
-        if (path) setRoleModels(rm => ({ ...rm, [name]: path }));
-      }
-      return next;
-    });
-    setActiveProfile(PROFILE_CUSTOM);
-  }, [models, roles, engine]);
-
-  const setModel = useCallback((name, model) => {
-    setRoleModels(prev => ({ ...prev, [name]: model }));
-    setActiveProfile(PROFILE_CUSTOM);
-  }, []);
-
-  const selectAllRoles = useCallback(() => {
-    const nextModels = {};
-    roles.forEach(r => {
-      const path = chooseModelForRole(r.name, models.filter(m => {
-        const back = r.engine || r.backend || engine;
-        return m.backend === back;
-      }));
-      if (path) nextModels[r.name] = path;
-    });
-    setRoleModels(prev => ({ ...prev, ...nextModels }));
-    setSelected(new Set(roles.map(r => r.name)));
-    setActiveProfile(PROFILE_CUSTOM);
-  }, [roles, models, engine]);
-
-  const clearAllRoles = useCallback(() => {
-    setSelected(new Set());
-    setActiveProfile(PROFILE_CUSTOM);
-  }, []);
-
-  // reset is the useDeploy reset — passed by caller to sync deploy state on profile change.
-  const applyProfile = useCallback((profileId, reset) => {
-    if (profileId === PROFILE_CUSTOM) { setActiveProfile(PROFILE_CUSTOM); return; }
-    const roleMap   = new Map(roles.map(r => [r.name, r]));
-    const ctxMap    = Object.fromEntries(roles.map(r => [r.name, r.context ?? 0]));
-    const roleNames = getProfileRoles(profileId, roles.map(r => r.name), ctxMap, profileThresholds);
-    const picked    = roleNames.filter(n => roleMap.has(n));
-    const nextModels = {};
-    for (const rn of picked) {
-      const role = roleMap.get(rn);
-      const back = role?.engine || role?.backend || engine;
-      const cands = models.filter(m => m.backend === back).length
-        ? models.filter(m => m.backend === back)
-        : models.filter(m => m.backend === engine);
-      const path = chooseModelForRole(rn, cands);
-      if (path) nextModels[rn] = path;
-    }
-    setSelected(new Set(picked));
-    setRoleModels(nextModels);
-    setActiveProfile(profileId);
-    reset?.();
-  }, [roles, models, engine, profileThresholds]);
+  const handlers = useBrewRoleHandlers({
+    roles, models, engine, engineModels, profileThresholds,
+    setEngine, setSelected, setRoleModels, setActiveProfile,
+  });
 
   const riskEstimate = useMemo(
     () => computeRiskEstimate(roles, selected, roleModels, models, hostMemory, activeMode),
@@ -179,8 +102,8 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
     roles, setRoles, models, selected, setSelected, roleModels, setRoleModels,
     engine, activeProfile, profileThresholds, editingAgent, setEditingAgent,
     loadError, setLoadError, loadRetries, setLoadRetries, invalidateModelsCache,
-    engineModels, pickModelForRole, riskEstimate, serverLayout,
+    engineModels, riskEstimate, serverLayout,
     canDeploy, agentCount, rosterPct, configLines,
-    handleEngineChange, toggleRole, setModel, selectAllRoles, clearAllRoles, applyProfile,
+    ...handlers,
   };
 }

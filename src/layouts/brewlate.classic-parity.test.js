@@ -73,7 +73,7 @@ const FEATURE_PARITY = [
   {
     id: 'pipeline-metrics',
     label: 'Pipeline stages + agent metrics',
-    classic: ['layouts/DefaultLayout.js'],
+    classic: ['layouts/DefaultLayout.js', 'layouts/DefaultLayoutMain.js'],
     brewlate: ['layouts/BrewSessionTab.js', 'layouts/BrewBroadcastTab.js'],
     classicMatch: [/PipelineStageOutputs/, /MetricsStrip/],
     brewlateMatch: [/PipelineStageOutputs/, /MetricsStrip/],
@@ -97,7 +97,7 @@ const FEATURE_PARITY = [
   {
     id: 'flat-compare',
     label: 'Flat mode variant compare',
-    classic: ['layouts/DefaultLayout.js'],
+    classic: ['layouts/DefaultLayout.js', 'layouts/DefaultLayoutMain.js'],
     brewlate: ['layouts/BrewAgentsTab.js'],
     classicMatch: [/CompareVariantsPanel/, /activeMode === 'flat'/],
     brewlateMatch: [/CompareVariantsPanel/, /activeMode === 'flat'/],
@@ -105,7 +105,7 @@ const FEATURE_PARITY = [
   {
     id: 'rag-sources',
     label: 'RAG sources after dispatch',
-    classic: ['layouts/DefaultLayout.js'],
+    classic: ['layouts/DefaultLayout.js', 'layouts/DefaultLayoutMain.js'],
     brewlate: ['layouts/BrewSessionTab.js'],
     classicMatch: [/RagSources rag=\{lastMeta/],
     brewlateMatch: [/RagSources rag=\{lastMeta/],

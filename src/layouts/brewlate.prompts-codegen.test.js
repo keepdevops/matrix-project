@@ -19,7 +19,7 @@ describe('Prompts and code generation', () => {
     'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
     'layouts/BrewRagTab.js',
   ].map(f => read(f)).join('\n');
-  const classic = read('layouts/DefaultLayout.js');
+  const classic = read('layouts/DefaultLayout.js') + read('layouts/DefaultLayoutMain.js');
   const prompt = read('components/PromptInput.js') + read('components/usePromptInput.js');
   const stream = read('api/streamApi.js');
   const submitHandlers = read('hooks/useSubmitHandlers.js');

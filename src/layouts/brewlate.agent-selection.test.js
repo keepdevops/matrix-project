@@ -26,7 +26,7 @@ const ALL_ROLES = [
 
 describe('Brewlatte agent selection', () => {
   const brewSrc = read('layouts/BrewlateLayout.js') + [
-    'layouts/useBrewConfig.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewConfigAgentsSection.js',
+    'layouts/useBrewConfig.js', 'layouts/useBrewRoleHandlers.js', 'layouts/BrewConfigPanel.js', 'layouts/BrewConfigAgentsSection.js',
     'layouts/BrewRightPanel.js',
     'layouts/BrewPreviewPanel.js', 'layouts/BrewOverlays.js', 'layouts/BrewHistoryDropdown.js',
     'layouts/BrewSessionTab.js', 'layouts/BrewAgentsTab.js', 'layouts/BrewBroadcastTab.js',
