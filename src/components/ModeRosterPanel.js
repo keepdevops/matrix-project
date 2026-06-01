@@ -1,87 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { fetchModes, fetchModeAgents, fetchAgents } from '../api/swarmApi';
+import React from 'react';
 import RosterGrid from './RosterGrid';
 import PipelineOrderEditor from './PipelineOrderEditor';
 import ModeOptions from './ModeOptions';
 import { useModeHealth } from '../hooks/useModeHealth';
-import { useModeSave } from '../hooks/useModeSave';
+import { useModeRosterState } from './useModeRosterState';
 import {
   CircuitBreakerBanner, ModeTabBar, OverrideToggle, RosterFooter,
 } from './ModeRosterPanelControls';
 
 export default function ModeRosterPanel() {
-  const [modes, setModes]               = useState([]);
-  const [activeTab, setActiveTab]       = useState(null);
-  const [available, setAvailable]       = useState([]);
-  const [selected, setSelected]         = useState([]);
-  const [explicit, setExplicit]         = useState(false);
-  const [maxSelect, setMaxSelect]       = useState('');
-  const [synthesizer, setSynthesizer]   = useState('');
-  const [variantPolicy, setVariantPolicy]     = useState('standard');
-  const [pipelinePreset, setPipelinePreset]   = useState('');
-  const [synthesisPolicy, setSynthesisPolicy] = useState('summary');
-  const [classifierPolicy, setClassifierPolicy] = useState('standard');
-  const [pipelineOrder, setPipelineOrder]       = useState([]);
-  const [usePipelineOrder, setUsePipelineOrder] = useState(false);
-  const [stageContextChars, setStageContextChars] = useState('');
-
   const { tripped } = useModeHealth();
-  const { busy, error, staleAgents, savedAt, save, clearOverride } = useModeSave({
-    setSelected, setExplicit, setPipelineOrder, setUsePipelineOrder,
-  });
-
-  const [loadError, setLoadError] = useState('');
-
-  const loadModes = useCallback(async () => {
-    setLoadError('');
-    try {
-      const [m, a] = await Promise.all([fetchModes(), fetchAgents()]);
-      setModes(m);
-      setAvailable((a || []).map(x => x.name));
-      setActiveTab(prev => prev || (m.find(x => x.active) || m[0])?.name || null);
-    } catch (e) {
-      console.error('[ModeRosterPanel] loadModes failed:', e);
-      setLoadError('Failed to load modes — is the coordinator running?');
-    }
-  }, []);
-
-  useEffect(() => { loadModes(); }, [loadModes]);
-
-  useEffect(() => {
-    const onChange = (e) => {
-      loadModes();
-      if (e?.detail?.mode) setActiveTab(e.detail.mode);
-    };
-    window.addEventListener('mode-roster-changed', onChange);
-    return () => window.removeEventListener('mode-roster-changed', onChange);
-  }, [loadModes]);
-
-  useEffect(() => {
-    if (!activeTab) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchModeAgents(activeTab);
-        if (cancelled) return;
-        setSelected(data.explicit ? (data.agents || []) : []);
-        setExplicit(!!data.explicit);
-        if (data.available) setAvailable(data.available);
-        setMaxSelect(Number.isInteger(data.max_select) ? String(data.max_select) : '');
-        setSynthesizer(typeof data.synthesizer === 'string' ? data.synthesizer : '');
-        setVariantPolicy(typeof data.variant_policy === 'string' ? data.variant_policy : 'standard');
-        setPipelinePreset(typeof data.preset === 'string' ? data.preset : '');
-        setSynthesisPolicy(typeof data.synthesis_policy === 'string' ? data.synthesis_policy : 'summary');
-        setClassifierPolicy(typeof data.classifier_policy === 'string' ? data.classifier_policy : 'standard');
-        const ord = Array.isArray(data.order) ? data.order : [];
-        setPipelineOrder(ord);
-        setUsePipelineOrder(ord.length > 0);
-      } catch (e) {
-        if (!cancelled) { setSelected([]); setExplicit(false); }
-        console.error('ModeRosterPanel: fetchModeAgents failed:', e);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [activeTab]);
+  const {
+    modes, activeTab, setActiveTab,
+    available, selected, setSelected,
+    explicit, setExplicit,
+    maxSelect, setMaxSelect,
+    synthesizer, setSynthesizer,
+    variantPolicy, setVariantPolicy,
+    pipelinePreset, setPipelinePreset,
+    synthesisPolicy, setSynthesisPolicy,
+    classifierPolicy, setClassifierPolicy,
+    pipelineOrder, setPipelineOrder,
+    usePipelineOrder, setUsePipelineOrder,
+    stageContextChars, setStageContextChars,
+    loadError,
+    busy, error, staleAgents, savedAt, save, clearOverride,
+  } = useModeRosterState();
 
   const isPipeline = activeTab === 'pipeline';
   const addAgent  = name => setSelected(prev => (isPipeline || !prev.includes(name)) ? [...prev, name] : prev);
@@ -119,42 +63,29 @@ export default function ModeRosterPanel() {
       </div>
 
       <CircuitBreakerBanner tripped={tripped} />
-
       <ModeTabBar modes={modes} activeTab={activeTab} onSelect={setActiveTab} />
-
-      <OverrideToggle
-        explicit={explicit} available={available} busy={busy}
-        onEnable={() => setExplicit(true)}
-        onClear={() => clearOverride(activeTab)}
-      />
+      <OverrideToggle explicit={explicit} available={available} busy={busy}
+        onEnable={() => setExplicit(true)} onClear={() => clearOverride(activeTab)} />
 
       {explicit && (
         <>
           <RosterGrid selected={selected} available={available} isPipeline={isPipeline}
-                      onAdd={addAgent} onRemove={removeAt} onMove={moveAgent} />
-          <ModeOptions
-            activeTab={activeTab} available={available}
+            onAdd={addAgent} onRemove={removeAt} onMove={moveAgent} />
+          <ModeOptions activeTab={activeTab} available={available}
             synthesizer={synthesizer} setSynthesizer={setSynthesizer}
             variantPolicy={variantPolicy} setVariantPolicy={setVariantPolicy}
             pipelinePreset={pipelinePreset} setPipelinePreset={setPipelinePreset}
             stageContextChars={stageContextChars} setStageContextChars={setStageContextChars}
             synthesisPolicy={synthesisPolicy} setSynthesisPolicy={setSynthesisPolicy}
             classifierPolicy={classifierPolicy} setClassifierPolicy={setClassifierPolicy}
-            maxSelect={maxSelect} setMaxSelect={setMaxSelect}
-          />
-
+            maxSelect={maxSelect} setMaxSelect={setMaxSelect} />
           {isPipeline && (
-            <PipelineOrderEditor
-              pipelineOrder={pipelineOrder} setPipelineOrder={setPipelineOrder}
+            <PipelineOrderEditor pipelineOrder={pipelineOrder} setPipelineOrder={setPipelineOrder}
               usePipelineOrder={usePipelineOrder} setUsePipelineOrder={setUsePipelineOrder}
-              selected={selected} available={available} pipelinePreset={pipelinePreset}
-            />
+              selected={selected} available={available} pipelinePreset={pipelinePreset} />
           )}
-
-          <RosterFooter
-            busy={busy} error={error} staleAgents={staleAgents}
-            savedAt={savedAt} onSave={handleSave}
-          />
+          <RosterFooter busy={busy} error={error} staleAgents={staleAgents}
+            savedAt={savedAt} onSave={handleSave} />
         </>
       )}
     </div>
