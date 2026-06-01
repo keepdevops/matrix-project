@@ -5,6 +5,7 @@ import {
   MIN_TIMEOUT, MAX_TIMEOUT, MIN_GPU_LAYERS, MAX_GPU_LAYERS,
   MIN_CONCURRENCY, MAX_CONCURRENCY,
   MIN_MAX_INPUT_TOKENS, MAX_MAX_INPUT_TOKENS,
+  MIN_MAX_OUTPUT_TOKENS, MAX_MAX_OUTPUT_TOKENS,
 } from './TokenBudgetGrid';
 
 export default function TokenBudgetRow({ role, drafts, errors, notices, busy, isDirty, setDraft, saveOne }) {
@@ -18,6 +19,7 @@ export default function TokenBudgetRow({ role, drafts, errors, notices, busy, is
   const gpuVal = drafts[role.name]?.gpu_layers ?? role.gpu_layers ?? '';
   const concVal = drafts[role.name]?.max_concurrency ?? role.max_concurrency ?? '';
   const mitVal = drafts[role.name]?.max_input_tokens ?? role.max_input_tokens ?? '';
+  const motVal = drafts[role.name]?.max_output_tokens ?? role.max_output_tokens ?? '';
   const inputStyle = { padding: '0.05rem 0.25rem', fontSize: '0.78rem', width: '100%', lineHeight: 1.2 };
   const tooltip = err
     ? `${role.name} :${role.port} — ${err}`
@@ -48,6 +50,10 @@ export default function TokenBudgetRow({ role, drafts, errors, notices, busy, is
       <input type="number" min={MIN_MAX_INPUT_TOKENS} max={MAX_MAX_INPUT_TOKENS} step={256} value={mitVal}
         onChange={e => setDraft(role.name, 'max_input_tokens', e.target.value)} disabled={isBusy} style={inputStyle}
         title="Max input tokens per request (0 = no cap). Truncates prompt before dispatch."
+        placeholder="0" />
+      <input type="number" min={MIN_MAX_OUTPUT_TOKENS} max={MAX_MAX_OUTPUT_TOKENS} step={64} value={motVal}
+        onChange={e => setDraft(role.name, 'max_output_tokens', e.target.value)} disabled={isBusy} style={inputStyle}
+        title="Generation length cap sent as num_predict to llama (0 = use max_tokens)."
         placeholder="0" />
       <Button variant="ghost" size="xs" onClick={() => saveOne(role)} disabled={!dirty || isBusy}
         title={err || note || (dirty ? 'Save changes' : 'No changes')}

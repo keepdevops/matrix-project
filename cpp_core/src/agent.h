@@ -33,5 +33,8 @@ struct Agent {
 
     /// Hard input truncation in tokens (approximate: 4 chars ≈ 1 token).
     /// 0 = no cap (default). Set via agents[].max_input_tokens in swarm-config.
-    int max_input_tokens = 0;
+    int max_input_tokens  = 0;
+    /// Generation length cap. Maps to num_predict (llama) or max_tokens override.
+    /// 0 = use agent.max_tokens (default).
+    int max_output_tokens = 0;
 };
