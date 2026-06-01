@@ -1,13 +1,15 @@
 #pragma once
 #include "router_dispatch.h"
+#include "../agent_client.h"
 #include "../kv_router.h"
 #include <iostream>
 #include <future>
+#include <unordered_set>
 
 namespace router_dispatch_collect {
 
 inline void launch_agents(
-    StreamState& st,
+    router_dispatch::StreamState& st,
     const std::unordered_map<std::string, const Agent*>& by_name,
     const ModeContext& ctx) {
     for (const auto& name : st.selected) {
@@ -21,7 +23,7 @@ inline void launch_agents(
 }
 
 inline void apply_fallback_selection(
-    StreamState& st,
+    router_dispatch::StreamState& st,
     std::vector<Agent>& agents,
     const std::unordered_map<std::string, const Agent*>& by_name,
     const std::vector<std::string>& fallback,
@@ -50,7 +52,7 @@ inline void apply_fallback_selection(
     launch_agents(st, by_name, ctx);
 }
 
-inline nlohmann::json collect_agent_outputs(StreamState& st, nlohmann::json& meta) {
+inline nlohmann::json collect_agent_outputs(router_dispatch::StreamState& st, nlohmann::json& meta) {
     nlohmann::json agent_outputs = nlohmann::json::object();
     if (!st.agent_futures.empty()) {
         for (auto& fut : st.agent_futures) {
