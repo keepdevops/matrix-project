@@ -34,3 +34,6 @@ export const PROFILES = [
 export function getEngineLabel(engineId) {
   return ENGINES.find(e => e.id === engineId)?.label ?? engineId;
 }
+
+// Layout + profile + model helpers — re-exported for callers that import from here
+export { parseModelSizeBillions, computeLayout, getProfileRoles, chooseModelForRole } from './SwarmConfig.layoutHelpers';

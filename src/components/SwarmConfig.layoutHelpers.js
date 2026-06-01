@@ -1,4 +1,5 @@
-import { shortName } from './SwarmConfig.helpers';
+// shortName defined locally to avoid circular dep with SwarmConfig.helpers
+const shortName = p => p.replace(/\.gguf$/, '').split('/').pop();
 
 export function parseModelSizeBillions(modelPath) {
   const m = shortName(modelPath).match(/(\d+(?:\.\d+)?)b/i);
