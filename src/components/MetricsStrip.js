@@ -28,6 +28,22 @@ export default function MetricsStrip({ envelope }) {
         <span className="metrics-strip-totals">
           {wallMs != null && `wall ${(wallMs / 1000).toFixed(2)}s · `}
           agent ms {(totalAgentMs / 1000).toFixed(2)}s · {totalTokens} tok
+          {meta.context_gate?.triggered && (
+            <span title={`Prompt compressed: ${meta.context_gate.original_chars} → ${meta.context_gate.summary_chars} chars`}
+                  style={{ marginLeft: '0.4rem', opacity: 0.8, fontSize: '0.72rem',
+                           background: 'var(--color-primary, #4a9eff)', color: '#fff',
+                           padding: '0 0.3rem', borderRadius: 3 }}>
+              CTX
+            </span>
+          )}
+          {meta.auto_clear_kv && (
+            <span title="KV cache auto-cleared (high pressure + topic switch)"
+                  style={{ marginLeft: '0.3rem', opacity: 0.8, fontSize: '0.72rem',
+                           background: 'var(--kv-warn, #ffae00)', color: '#000',
+                           padding: '0 0.3rem', borderRadius: 3 }}>
+              KV↺
+            </span>
+          )}
         </span>
       </div>
       <div className="metrics-strip-rows">
