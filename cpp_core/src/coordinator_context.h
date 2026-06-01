@@ -39,7 +39,9 @@ struct CoordinatorState {
     json startup_config;
 
     /// Global session token budget from coordinator.token_budget (0 = unlimited).
-    int global_token_budget = 0;
+    int global_token_budget  = 0;
+    /// When true, dispatch returns HTTP 429 if the session ledger is in overrun.
+    bool reject_on_overrun   = false;
 
     context_gate::Config  context_gate_config;
     kv_auto_clear::Config kv_auto_clear_config;

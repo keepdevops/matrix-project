@@ -8,6 +8,7 @@ function PromptInput({
   onSubmit,
   loading = false,
   disabled = false,
+  budgetExhausted = false,
   externalPrompt,
   externalTemperature,
   onPromptConsumed,
@@ -66,9 +67,15 @@ function PromptInput({
           selectedRagAgents={selectedRagAgents} setSelectedRagAgents={setSelectedRagAgents}
           activeAgents={activeAgents} loading={loading} disabled={disabled}
         />
+        {budgetExhausted && (
+          <span style={{ fontSize: '0.72rem', color: 'var(--color-danger, #ef4444)', alignSelf: 'center' }}
+                title="Token budget exhausted — reset to continue">
+            Budget exhausted
+          </span>
+        )}
         <PromptInputActions
           backend={backend} onBackendChange={onBackendChange}
-          loading={loading} disabled={disabled} prompt={prompt}
+          loading={loading} disabled={disabled || budgetExhausted} prompt={prompt}
           canContinue={canContinue} onQualityPass={onQualityPass} temperature={temperature}
           submitLabel={submitLabel} submitLoadingLabel={submitLoadingLabel} qualityPassLabel={qualityPassLabel}
         />
