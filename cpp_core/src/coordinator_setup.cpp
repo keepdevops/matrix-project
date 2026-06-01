@@ -77,5 +77,7 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
             state.global_token_budget = coord["token_budget"].get<int>();
         state.context_gate_config  = context_gate::load(coord);
         state.kv_auto_clear_config = kv_auto_clear::load(coord);
+        if (coord.contains("reject_on_overrun") && coord["reject_on_overrun"].is_boolean())
+            state.reject_on_overrun = coord["reject_on_overrun"].get<bool>();
     }
 }

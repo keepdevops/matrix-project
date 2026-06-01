@@ -75,6 +75,19 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 
             // Adaptive max_select: shrink under KV pressure or budget overrun
             auto ledger = token_ledger::get(dreq.session_id);
+
+            // Hard-stop on overrun when configured
+            if (st.reject_on_overrun && ledger.overrun()) {
+                session_context::clear();
+                res.status = 429;
+                res.set_content(json({
+                    {"error",      "token_budget_exceeded"},
+                    {"session_id", dreq.session_id},
+                    {"consumed",   ledger.consumed},
+                    {"budget",     ledger.budget},
+                }).dump(), "application/json");
+                return;
+            }
             int base_max_select = cfg_for_mode.value("max_select", 5);
             int effective_max_select = base_max_select;
             if (dreq.kv_pressure > 0.85 || ledger.overrun())

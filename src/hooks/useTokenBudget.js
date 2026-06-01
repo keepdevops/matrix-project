@@ -3,9 +3,10 @@ import { fetchTokenBudget, resetTokenBudget } from '../api/tokenBudgetApi';
 
 const POLL_MS = 2000;
 
-export function useTokenBudget({ sessionId, online }) {
+export function useTokenBudget({ sessionId, online, onOverrun }) {
   const [state, setState] = useState({ budget: 0, consumed: 0, remaining: -1, overrun: false });
   const timerRef = useRef(null);
+  const overrunFiredRef = useRef(false);
 
   useEffect(() => {
     if (!online || !sessionId) {
@@ -16,7 +17,14 @@ export function useTokenBudget({ sessionId, online }) {
     const poll = async () => {
       try {
         const data = await fetchTokenBudget(sessionId);
-        if (!cancelled && data) setState(data);
+        if (!cancelled && data) {
+          setState(data);
+          if (data.overrun && !overrunFiredRef.current) {
+            overrunFiredRef.current = true;
+            onOverrun?.();
+          }
+          if (!data.overrun) overrunFiredRef.current = false;
+        }
       } catch (err) {
         console.error('[useTokenBudget] fetch failed:', err);
       }
@@ -27,7 +35,7 @@ export function useTokenBudget({ sessionId, online }) {
       cancelled = true;
       clearTimeout(timerRef.current);
     };
-  }, [sessionId, online]);
+  }, [sessionId, online, onOverrun]);
 
   const reset = useCallback(async () => {
     if (!sessionId) return;

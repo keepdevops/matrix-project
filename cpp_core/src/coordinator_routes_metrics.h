@@ -40,4 +40,10 @@ inline void register_coordinator_routes_metrics(httplib::Server& svr, Coordinato
 
         res.set_content(out.str(), "text/plain; version=0.0.4; charset=utf-8");
     });
+
+    // JSON version of session snapshots — used by TokenBudgetDashboard
+    svr.Get("/api/metrics-json", [](const httplib::Request& /*req*/, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(token_ledger::all_sessions_snapshot().dump(), "application/json");
+    });
 }

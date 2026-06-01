@@ -62,6 +62,16 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
             if (gb > 0) token_ledger::set_budget(sreq.session_id, gb);
         }
 
+        // Hard-stop on overrun before opening the stream
+        if (st.reject_on_overrun && token_ledger::get(sreq.session_id).overrun()) {
+            res.status = 429;
+            res.set_content(json({
+                {"error",      "token_budget_exceeded"},
+                {"session_id", sreq.session_id},
+            }).dump(), "application/json");
+            return;
+        }
+
         res.set_chunked_content_provider("text/event-stream",
             [agents_snap, prompt_snap, user_prompt_snap, cfg_snap, mode_snap, cancel,
              session_id_snap, run_id_snap, parent_run_id_snap, temperature_snap, &st]
