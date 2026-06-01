@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import './App.css';
 import './styles/responsive.css';
 import './themes/light.css';
@@ -23,6 +23,7 @@ import { useMemoryPressure } from './hooks/useMemoryPressure';
 import { useAppLayoutProps } from './hooks/useAppLayoutProps';
 import { useAppHandlers } from './hooks/useAppHandlers';
 import { useAppState } from './hooks/useAppState';
+import { useAppCallbacks } from './hooks/useAppCallbacks';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
@@ -65,21 +66,17 @@ function App() {
     handleHistorySelect, handleSwitchSession, handleClearSession,
   } = useSessionHandlers({ setResponses, setFinalAnswer, setLastMeta, setCurrentSession, history });
 
+  const { onModeWarning, onMemoryPressureWarning, onSaveCodeToast } = useAppCallbacks({ showToast });
+
   const {
     pendingPrompt, handleSubmit, handleQualityPass,
     handleFollowUp, handleSendBestContinue, handleSaveCode,
   } = useSubmitHandlers({
     submit, loadHistory, currentSession, activeMode, useRag,
     responses, activeAgents, flatPickAgent, modeWarnings, memoryPressure, hostMemory,
-    onModeWarning: useCallback((warnings) => { showToast(warnings[0], 'warn'); }, [showToast]),
-    onSaveCodeToast: showToast,
-    onMemoryPressureWarning: useCallback((pressure) => {
-      const msg = pressure.warnings[0] || 'Elevated memory pressure';
-      const hint = pressure.suggestFlatMode
-        ? ' — try flat mode or SAFE profile'
-        : pressure.suggestSafeProfile ? ' — try SAFE profile in CONFIGURE' : '';
-      showToast(`${msg}${hint}`, 'warn');
-    }, [showToast]),
+    onModeWarning,
+    onSaveCodeToast,
+    onMemoryPressureWarning,
   });
 
   const {
