@@ -117,6 +117,7 @@ echo "Building proxy..."
 c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy.cpp" \
   "$CPP_SRC/proxy_routes.cpp" \
+  "$CPP_SRC/proxy_routes_system.cpp" \
   "$CPP_SRC/proxy_routes_convert.cpp" \
   "$CPP_SRC/proxy_routes_convert_jobs.cpp" \
   "$CPP_SRC/proxy_routes_orchestrate.cpp" \
