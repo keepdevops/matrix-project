@@ -1,5 +1,5 @@
 import { getModeMemoryWeight } from '../utils/modeManifest';
-import { buildRiskGroups, scoreGroups, mlxModelRam } from './SwarmConfig.risk.helpers';
+import { buildRiskGroups, scoreGroups, mlxModelRam, modelWeightRam } from './SwarmConfig.risk.helpers';
 
 export const RAM_TOTAL_GB    = 36;  // fallback when host total unavailable
 export const RAM_MODEL_GB    = 17;
@@ -30,21 +30,23 @@ export function riskBandLabel(band) {
 
 export function computeRiskEstimate(roles, selected, roleModels, models, hostMemory = null, activeMode = null) {
   const { groups, readyAgents } = buildRiskGroups(roles, selected, roleModels, models);
-  const computed       = scoreGroups(groups, models);
-  const mlxModelRamGb  = mlxModelRam(groups, models);
-  const totalKvGb      = computed.reduce((sum, g) => sum + g.kvGb, 0);
+  const computed         = scoreGroups(groups, models);
+  const modelWeightRamGb = modelWeightRam(groups, models);
+  const mlxModelRamGb    = mlxModelRam(groups, models); // kept for return value / UI breakdown
+  const totalKvGb        = computed.reduce((sum, g) => sum + g.kvGb, 0);
 
-  const liveUsedGb   = hostMemory?.ok && Number.isFinite(hostMemory.used_gb)   ? hostMemory.used_gb   : null;
-  const liveTotalGb  = hostMemory?.ok && Number.isFinite(hostMemory.total_gb)  ? hostMemory.total_gb  : null;
-  const ramTotalGb   = liveTotalGb ?? RAM_TOTAL_GB;
-  const baseRamGb    = liveUsedGb  ?? RAM_MODEL_GB + RAM_OS_GB;
-  const ramSource    = liveUsedGb !== null ? 'host' : 'estimate';
-  const modeWeight   = getModeMemoryWeight(activeMode);
+  const liveUsedGb  = hostMemory?.ok && Number.isFinite(hostMemory.used_gb)  ? hostMemory.used_gb  : null;
+  const liveTotalGb = hostMemory?.ok && Number.isFinite(hostMemory.total_gb) ? hostMemory.total_gb : null;
+  const ramTotalGb  = liveTotalGb ?? RAM_TOTAL_GB;
+  // Base = OS overhead only; model weights are estimated per-group below
+  const ramSource      = 'estimate';
+  const modeWeight     = getModeMemoryWeight(activeMode);
   const modeOverheadGb = (modeWeight - 1) * 1.5;
-  const totalRamGb   = baseRamGb + totalKvGb + mlxModelRamGb + modeOverheadGb;
-  const band         = getRiskBand(totalRamGb, ramTotalGb);
-  const warnGb       = ramTotalGb * RAM_WARN_RATIO;
-  const liveRamHigh  = liveUsedGb !== null && liveUsedGb > warnGb;
+  const totalRamGb     = RAM_OS_GB + modelWeightRamGb + totalKvGb + modeOverheadGb;
+  const band           = getRiskBand(totalRamGb, ramTotalGb);
+  const warnGb         = ramTotalGb * RAM_WARN_RATIO;
+  // liveRamHigh: host is currently under pressure regardless of our projection
+  const liveRamHigh    = liveUsedGb !== null && liveUsedGb > warnGb;
 
   const blockGb = ramTotalGb * RAM_BLOCK_RATIO;
   const blockedGroups = [
@@ -57,7 +59,7 @@ export function computeRiskEstimate(roles, selected, roleModels, models, hostMem
   return {
     groups: computed.sort((a, b) => b.kvGb - a.kvGb),
     readyAgents, totalScore: totalRamGb, totalRamGb, ramTotalGb, totalKvGb,
-    mlxModelRamGb, modeOverheadGb, activeMode,
+    modelWeightRamGb, mlxModelRamGb, modeOverheadGb, activeMode,
     liveUsedGb, liveTotalGb, ramSource, liveRamHigh,
     band, blockedGroups, warnGroups,
   };
