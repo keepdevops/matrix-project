@@ -73,6 +73,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_routes_architect_stream.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream_modes.cpp" \
    "$CPP_SRC/coordinator_routes_architect_stream_pipeline.cpp" \
+   "$CPP_SRC/coordinator_routes_architect_stream_router.cpp" \
    "$CPP_SRC/coordinator_routes_architect_synthesis.cpp" \
    "$CPP_SRC/coordinator_routes_architect_persist.cpp" \
    "$CPP_SRC/coordinator_routes_filters.cpp" \
