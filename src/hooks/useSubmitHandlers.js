@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 import { splitIntoChunks } from '../api/orchestrateApi';
 import { getModeManifestEntry } from '../utils/modeManifest';
 import { buildQualityPassInstruction, buildSendBestContinueOpts, execSaveCode } from './useSubmitHandlers.helpers';
-export { buildCodeExport } from '../utils/codeSave'; // re-export for static audits
 import { qualityPassContextPolicy } from '../utils/qualityPassContext';
+export { buildCodeExport } from '../utils/codeSave'; // re-export for static audits
 
 const PYTHON_ORCHESTRATE_MODES = new Set(['map_reduce', 'speculative', 'critic_debate', 'tree_of_thought']);
 
