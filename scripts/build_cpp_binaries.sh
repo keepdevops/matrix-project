@@ -52,6 +52,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    -I"$PROM_INC" -L"$PROM_LIB" \
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
+   "$CPP_SRC/coordinator_startup.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
    "$CPP_SRC/config/path_expand.cpp" \
@@ -113,6 +114,7 @@ echo "Building proxy..."
 c++ -std=c++17 -O2 -o "$ROOT/proxy" \
   "$CPP_SRC/proxy.cpp" \
   "$CPP_SRC/proxy_routes.cpp" \
+  "$CPP_SRC/proxy_routes_local.cpp" \
   "$CPP_SRC/proxy_routes_convert.cpp" \
   "$CPP_SRC/proxy_routes_orchestrate.cpp" \
   "$CPP_SRC/proxy_file_io.cpp" \
