@@ -5,10 +5,9 @@ import { useDeploy } from '../components/SwarmConfig.deploy';
 import { useBrewlateLayout } from './useBrewlateLayout';
 import BrewHeader from './BrewHeader';
 import { useBrewConfig } from './useBrewConfig';
-import BrewConfigPanel from './BrewConfigPanel';
 import BrewConfigUnavailable from './BrewConfigUnavailable';
 import BrewHistoryDropdown from './BrewHistoryDropdown';
-import BrewRightPanel from './BrewRightPanel';
+import BrewlateLayoutBody from './BrewlateLayoutBody';
 import BrewOverlays from './BrewOverlays';
 
 export default function BrewlateLayout({
@@ -44,7 +43,6 @@ export default function BrewlateLayout({
 
   const brewConfig = useBrewConfig({ online, activeAgents, hostMemory, activeMode });
   const { roles, setRoles, editingAgent, setEditingAgent, loadError, setLoadRetries, invalidateModelsCache } = brewConfig;
-
   const rolesByName = useMemo(() => Object.fromEntries(roles.map(r => [r.name, r])), [roles]);
 
   if (loadError) {
@@ -73,42 +71,28 @@ export default function BrewlateLayout({
         <BrewHistoryDropdown history={history} onHistorySelect={onHistorySelect} />
       )}
 
-      <div className="brew-body">
-        <BrewConfigPanel
-          {...brewConfig}
-          status={status} statusMsg={statusMsg} agentStatuses={agentStatuses}
-          deploy={deploy} reset={reset}
-          showMonitor={showMonitor} setShowMonitor={setShowMonitor}
-          showAgentsPopout={showAgentsPopout} setShowAgentsPopout={setShowAgentsPopout}
-          setLeftPopout={setLeftPopout}
-          online={online} activeAgents={activeAgents} kvReadings={kvReadings}
-          kvFetchFailed={kvFetchFailed} excludedBreaker={excludedBreaker}
-          cacheStatus={cacheStatus} onClearCache={onClearCache}
-          responses={responses} agentErrors={agentErrors} lastMeta={lastMeta}
-        />
-
-        <BrewRightPanel
-          deployed={deployed} rightTab={rightTab} onTabChange={setRightTab}
-          preview={{ rosterPct: brewConfig.rosterPct, serverLayout: brewConfig.serverLayout, configLines: brewConfig.configLines }}
-          rolesByName={rolesByName}
-          session={{
-            history, currentSession, responses, finalAnswer, loading, error, pendingPrompt,
-            lastMeta, stageOutputs, excludedBreaker, selectedPrompt, selectedTemperature,
-            useRag, backend, online, activeAgents, activeMode, onSubmit, onFollowUp,
-            onClearSession, onSwitchSession, onQualityPass, onPromptConsumed, onSaveCode,
-            onUseRagChange, switchBackend, onExpandProgrammer,
-          }}
-          agents={{
-            activeAgents, responses, agentErrors, loading, lastMeta, activeMode,
-            flatPickAgent, onPickFlatAgent, onSaveCode, onSendBestContinue,
-          }}
-          broadcast={{
-            activeAgents, responses, agentErrors, loading, lastMeta, stageOutputs,
-            activeMode, flatPickAgent, onPickFlatAgent, onSaveCode,
-          }}
-          rag={{ useRag, onUseRagChange, activeAgents, loading, online, lastMeta, onOpenRagAdmin }}
-        />
-      </div>
+      <BrewlateLayoutBody
+        brewConfig={brewConfig} status={status} statusMsg={statusMsg}
+        agentStatuses={agentStatuses} deploy={deploy} reset={reset}
+        showMonitor={showMonitor} setShowMonitor={setShowMonitor}
+        showAgentsPopout={showAgentsPopout} setShowAgentsPopout={setShowAgentsPopout}
+        setLeftPopout={setLeftPopout} online={online} activeAgents={activeAgents}
+        kvReadings={kvReadings} kvFetchFailed={kvFetchFailed} excludedBreaker={excludedBreaker}
+        cacheStatus={cacheStatus} onClearCache={onClearCache}
+        responses={responses} agentErrors={agentErrors} lastMeta={lastMeta}
+        deployed={deployed} rightTab={rightTab} onTabChange={setRightTab}
+        rolesByName={rolesByName} history={history} currentSession={currentSession}
+        finalAnswer={finalAnswer} loading={loading} error={error} pendingPrompt={pendingPrompt}
+        stageOutputs={stageOutputs} selectedPrompt={selectedPrompt}
+        selectedTemperature={selectedTemperature} useRag={useRag} backend={backend}
+        activeMode={activeMode} flatPickAgent={flatPickAgent}
+        onPickFlatAgent={onPickFlatAgent} onSaveCode={onSaveCode}
+        onSendBestContinue={onSendBestContinue} onSubmit={onSubmit}
+        onFollowUp={onFollowUp} onClearSession={onClearSession} onSwitchSession={onSwitchSession}
+        onQualityPass={onQualityPass} onPromptConsumed={onPromptConsumed}
+        onUseRagChange={onUseRagChange} switchBackend={switchBackend}
+        onExpandProgrammer={onExpandProgrammer} onOpenRagAdmin={onOpenRagAdmin}
+      />
 
       <BrewOverlays
         editingAgent={editingAgent} setEditingAgent={setEditingAgent} setRoles={setRoles}

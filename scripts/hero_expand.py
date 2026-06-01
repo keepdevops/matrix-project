@@ -20,7 +20,6 @@ Prerequisites:
 """
 
 import os
-import sys
 
 from playwright.sync_api import sync_playwright
 
@@ -30,6 +29,7 @@ from demo_utils import (
     wait_for_agents_ready,
 )
 from hero_expand_actions import run_scenario
+from hero_mlx_checks import check_dev_server, open_videos
 
 BASE_DIR = "/tmp/hero-expand"
 
@@ -45,14 +45,7 @@ PROMPT_FLAT = (
 
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
-
-    import urllib.request
-    try:
-        urllib.request.urlopen("http://localhost:3000", timeout=5)
-    except Exception:
-        print("❌  Dev server not reachable at http://localhost:3000", file=sys.stderr)
-        print("    Run: npm start", file=sys.stderr)
-        sys.exit(1)
+    check_dev_server()
 
     all_videos = []
 
@@ -92,7 +85,7 @@ def main():
                     mov = run_scenario(page, mode, prompt, shots_dir)
                     all_videos.append(mov)
                 except Exception as exc:
-                    print(f"\n❌  {mode} scenario failed: {exc}", file=sys.stderr)
+                    print(f"\n❌  {mode} scenario failed: {exc}", flush=True)
                     os.makedirs(shots_dir, exist_ok=True)
                     shot(page, shots_dir, "ERROR")
 
@@ -109,15 +102,7 @@ def main():
         finally:
             browser.close()
 
-    print(f"\nProduced {len(all_videos)} video(s):\n")
-    for v in all_videos:
-        size = os.path.getsize(v) / (1024 * 1024) if os.path.exists(v) else 0
-        print(f"  🎬  {v}  ({size:.1f} MB)")
-
-    import subprocess
-    if all_videos:
-        subprocess.run(["open"] + [v for v in all_videos if os.path.exists(v)])
-
+    open_videos(all_videos)
     print(f"\nAll screenshots: {BASE_DIR}/\n")
 
 
