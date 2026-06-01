@@ -3,6 +3,8 @@
 #include "coordinator_routes_architect_stream_modes.h"
 #include "coordinator_routes_architect_persist.h"
 #include "coordinator_routes_architect_stream_parse.h"
+#include "session_context.h"
+#include "token_ledger.h"
 #include "session_store.h"
 
 void register_coordinator_routes_architect_stream(httplib::Server& svr, CoordinatorState& st) {
@@ -51,10 +53,20 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
         auto user_prompt_snap   = std::make_shared<std::string>(sreq.user_prompt);
         agent_metrics::reset();
 
+        // Budget: apply global budget to session before streaming begins
+        {
+            int gb = st.global_token_budget;
+            if (cfg_for_mode.contains("token_budget")
+                && cfg_for_mode["token_budget"].is_number_integer())
+                gb = cfg_for_mode["token_budget"].get<int>();
+            if (gb > 0) token_ledger::set_budget(sreq.session_id, gb);
+        }
+
         res.set_chunked_content_provider("text/event-stream",
             [agents_snap, prompt_snap, user_prompt_snap, cfg_snap, mode_snap, cancel,
              session_id_snap, run_id_snap, parent_run_id_snap, temperature_snap, &st]
             (size_t /*offset*/, httplib::DataSink& sink) -> bool {
+                session_context::set(*session_id_snap);
                 std::mutex sink_mu;
                 WriteEventFn write_event = [&](const std::string& event,
                                                const std::string& data_json) {
@@ -96,6 +108,7 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                     *session_id_snap, *run_id_snap, *parent_run_id_snap,
                     outputs, st, write_event);
 
+                session_context::clear();
                 {
                     std::lock_guard<std::mutex> lock(sink_mu);
                     if (sink.is_writable()) {

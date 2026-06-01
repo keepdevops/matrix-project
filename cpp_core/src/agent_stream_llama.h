@@ -9,6 +9,8 @@
 #include "httplib.h"
 #include "json.hpp"
 #include "kv_router.h"
+#include "session_context.h"
+#include "token_ledger.h"
 #include "utf8_sanitize.h"
 
 #include <atomic>
@@ -83,6 +85,10 @@ inline std::string stream_llama(const Agent& agent,
         long words = 1;
         for (char c : accumulated) if (c == ' ') ++words;
         agent_metrics::record(agent.name, ms, words, -1);
+        // Approximate token counts (4 chars ≈ 1 token) for ledger accounting
+        long ptoks = static_cast<long>((system_prompt.size() + prompt.size()) / 4 + 1);
+        long ctoks = static_cast<long>(accumulated.size() / 4 + 1);
+        token_ledger::add(session_context::current(), ptoks, ctoks);
     }
     return accumulated;
 }
