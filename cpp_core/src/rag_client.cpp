@@ -1,16 +1,12 @@
 #include "rag_client.h"
+#include "rag_client_conn.h"
 #include "rag_client_http.h"
 #include "rag_embed.h"
 
-#include <libpq-fe.h>
-
 #include <iostream>
-#include <mutex>
 #include <sstream>
 
 namespace rag {
-
-namespace {
 
 constexpr const char* kSearchSql =
     "SELECT id, source_path, chunk_idx, content, "
@@ -19,42 +15,9 @@ constexpr const char* kSearchSql =
     " ORDER BY embedding <=> $1::vector "
     " LIMIT $2";
 
-struct Conn {
-    std::mutex mu;
-    PGconn*    pg  = nullptr;
-    std::string current_dsn;
-
-    ~Conn() { if (pg) PQfinish(pg); }
-};
-
-Conn& conn_singleton() {
-    static Conn c;
-    return c;
-}
-
-bool ensure_open_locked(Conn& c, const std::string& dsn) {
-    if (c.pg && PQstatus(c.pg) == CONNECTION_OK && c.current_dsn == dsn) {
-        return true;
-    }
-    if (c.pg) { PQfinish(c.pg); c.pg = nullptr; }
-    c.pg = PQconnectdb(dsn.c_str());
-    c.current_dsn = dsn;
-    if (PQstatus(c.pg) != CONNECTION_OK) {
-        std::cerr << "❌ [rag] connect failed: "
-                  << PQerrorMessage(c.pg) << std::endl;
-        PQfinish(c.pg);
-        c.pg = nullptr;
-        return false;
-    }
-    return true;
-}
-
-} // namespace
-
 std::vector<Hit> retrieve(const Settings& s, const std::string& query) {
     std::vector<Hit> hits;
-    if (!s.enabled) return hits;
-    if (query.empty()) return hits;
+    if (!s.enabled || query.empty()) return hits;
     std::vector<double> emb;
     if (s.embedder == "hash") {
         emb = hash_embed(query);
@@ -69,17 +32,16 @@ std::vector<Hit> retrieve(const Settings& s, const std::string& query) {
     std::string lit = vec_literal(emb);
     std::string k   = std::to_string(s.top_k);
 
-    Conn& c = conn_singleton();
+    rag_conn::Conn& c = rag_conn::singleton();
     std::lock_guard<std::mutex> lock(c.mu);
-    if (!ensure_open_locked(c, s.dsn)) return hits;
+    if (!rag_conn::ensure_open_locked(c, s.dsn)) return hits;
 
     const char* params[2] = { lit.c_str(), k.c_str() };
     PGresult* res = PQexecParams(
-        c.pg, kSearchSql, 2, nullptr, params, nullptr, nullptr, /*text*/0);
+        c.pg, kSearchSql, 2, nullptr, params, nullptr, nullptr, 0);
     if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
         std::cerr << "❌ [rag] search failed: "
-                  << (res ? PQresultErrorMessage(res) : "no result")
-                  << std::endl;
+                  << (res ? PQresultErrorMessage(res) : "no result") << std::endl;
         if (res) PQclear(res);
         return hits;
     }
@@ -117,9 +79,9 @@ bool health_check(const Settings& s, std::string* error_out) {
         if (error_out) *error_out = "rag.enabled is false";
         return false;
     }
-    Conn& c = conn_singleton();
+    rag_conn::Conn& c = rag_conn::singleton();
     std::lock_guard<std::mutex> lock(c.mu);
-    if (!ensure_open_locked(c, s.dsn)) {
+    if (!rag_conn::ensure_open_locked(c, s.dsn)) {
         if (error_out) *error_out = "pgvector connect failed";
         return false;
     }
@@ -135,7 +97,7 @@ bool health_check(const Settings& s, std::string* error_out) {
 }
 
 void shutdown_for_test() {
-    Conn& c = conn_singleton();
+    rag_conn::Conn& c = rag_conn::singleton();
     std::lock_guard<std::mutex> lock(c.mu);
     if (c.pg) { PQfinish(c.pg); c.pg = nullptr; c.current_dsn.clear(); }
 }
