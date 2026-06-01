@@ -8,3 +8,5 @@ export * from './agentsApi';
 export * from './configApi';
 export * from './configureApi';
 export * from './orchestrateApi';
+// Direct re-exports for modesApi symbols — webpack HMR loses nested re-export chains
+export { fetchModes, fetchActiveMode, setActiveMode, fetchModeAgents, setModeAgents } from './modesApi';

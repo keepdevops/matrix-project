@@ -2,6 +2,7 @@
 #include "pipeline_exec.h"
 #include "pipeline_order.h"
 #include "pipeline_prompts.h"
+#include "pipeline_stage_loop.h"
 #include "../agent_client.h"
 #include "../mode_module.h"
 
@@ -28,8 +29,7 @@ json run_pipeline(const ModeContext& ctx) {
     json stage_compaction = json::array();
 
     std::string synth_name_for_filter;
-    if (ctx.mode_config.contains("synthesizer")
-        && ctx.mode_config["synthesizer"].is_string())
+    if (ctx.mode_config.contains("synthesizer") && ctx.mode_config["synthesizer"].is_string())
         synth_name_for_filter = ctx.mode_config["synthesizer"].get<std::string>();
 
     auto resolved = pipeline_order::resolve_effective_order(ctx, synth_name_for_filter);
@@ -40,10 +40,8 @@ json run_pipeline(const ModeContext& ctx) {
     pipeline_exec::AgentMap by_name;
     for (const auto& a : ctx.agents) by_name[a.name] = &a;
 
-    std::vector<std::string> executed;
-    std::vector<std::string> missing;
-    json errors = json::array();
-    json stage_outputs = json::array();
+    std::vector<std::string> executed, missing;
+    json errors = json::array(), stage_outputs = json::array();
     std::string prev_agent, prev_output, final_output;
 
     const size_t total = effective_order.size();
@@ -52,8 +50,7 @@ json run_pipeline(const ModeContext& ctx) {
         auto it = by_name.find(name);
         if (it == by_name.end()) {
             std::cerr << "⚠️  [pipeline] skipping unknown agent '" << name << "'" << std::endl;
-            missing.push_back(name);
-            continue;
+            missing.push_back(name); continue;
         }
         if (ctx.quality_pass && name != ctx.quality_pass_target) {
             std::cout << "⏭️  [pipeline] quality_pass: skipping stage '" << name << "'" << std::endl;
@@ -63,16 +60,8 @@ json run_pipeline(const ModeContext& ctx) {
         std::cout << "🔗 [pipeline] step " << step << "/" << total
                   << " → " << name << (ctx.quality_pass ? " (quality pass)" : "") << std::endl;
 
-        std::string prev_for_prompt = prev_output;
-        if (!prev_agent.empty() && stage_context_chars > 0
-            && prev_for_prompt.size() > static_cast<size_t>(stage_context_chars)) {
-            const size_t half = static_cast<size_t>(stage_context_chars) / 2;
-            prev_for_prompt = prev_for_prompt.substr(0, half)
-                + "\n\n[... previous stage output compacted ...]\n\n"
-                + prev_for_prompt.substr(prev_for_prompt.size() - half);
-            stage_compaction.push_back({{"before_step", (int)step}, {"source_agent", prev_agent},
-                {"original_chars", (int)prev_output.size()}, {"kept_chars", (int)prev_for_prompt.size()}});
-        }
+        std::string prev_for_prompt = pipeline_stage::compact_context(
+            prev_output, prev_agent, stage_context_chars, (int)step, stage_compaction);
         const std::string staged = prev_agent.empty()
             ? ctx.prompt_for(name)
             : build_pipeline_staged_user_prompt(ctx.prompt_for(name), prev_agent, prev_for_prompt);
@@ -91,11 +80,9 @@ json run_pipeline(const ModeContext& ctx) {
         }
     }
 
-    if (executed.empty()) {
+    if (executed.empty())
         pipeline_exec::run_fallback(ctx, by_name, agent_outputs, stage_outputs,
                                     executed, final_output, meta);
-    }
-
     if (executed.empty()) {
         std::cerr << "❌ [pipeline] no active agents available" << std::endl;
         meta["error"] = "no active agents available for pipeline";
@@ -123,13 +110,7 @@ json run_pipeline(const ModeContext& ctx) {
 }
 
 struct Register {
-    Register() {
-        modes::register_mode({
-            "pipeline",
-            "Sequential chain — each agent receives the previous agent's output.",
-            run_pipeline
-        });
-    }
+    Register() { modes::register_mode({"pipeline", "Sequential chain — each agent receives the previous agent's output.", run_pipeline}); }
 } _reg;
 
 } // namespace
