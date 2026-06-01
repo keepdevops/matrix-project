@@ -12,6 +12,7 @@ export function useSubmitHandlers({
   responses, activeAgents, flatPickAgent,
   modeWarnings = [], memoryPressure = null, hostMemory = null,
   kvReadings = [],
+  qualityPassTarget = null,
   onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
 }) {
   const [pendingPrompt, setPendingPrompt] = useState(null);
@@ -74,11 +75,13 @@ export function useSubmitHandlers({
   }, [submit, loadHistory, currentSession, activeMode, useRag, modeWarnings, memoryPressure, onModeWarning, onMemoryPressureWarning]);
 
   const handleQualityPass = useCallback(async (temperature = 0.2) => {
+    const policy = qualityPassContextPolicy(activeMode || 'pipeline');
+    if (qualityPassTarget) policy.target_agent = qualityPassTarget;
     await handleSubmit(buildQualityPassInstruction(), temperature, {
       followup: true, qualityPass: true,
-      contextPolicy: qualityPassContextPolicy(activeMode || 'pipeline'),
+      contextPolicy: policy,
     });
-  }, [handleSubmit, activeMode]);
+  }, [handleSubmit, activeMode, qualityPassTarget]);
 
   const handleFollowUp = useCallback(async (text, contextPolicy) => {
     await handleSubmit(text, 0.5, { followup: true, contextPolicy });

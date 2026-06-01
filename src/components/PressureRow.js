@@ -74,6 +74,21 @@ export default function PressureRow({ entry }) {
             {Number.isFinite(tps) && tps > 0 ? `${tps.toFixed(0)}` : '—'}
           </span>
         </div>
+
+        {Number.isFinite(entry.draft_acceptance_rate) && (
+          <div className="pcluster-bar"
+               title={`Speculative draft acceptance: ${(entry.draft_acceptance_rate * 100).toFixed(0)}%`}>
+            <span className="pcluster-bar-label">S</span>
+            <div className="pcluster-bar-track">
+              <div className="pcluster-bar-fill"
+                style={{ width: `${Math.min(100, entry.draft_acceptance_rate * 100).toFixed(0)}%`,
+                         background: colorForRate(entry.draft_acceptance_rate * 100) }} />
+            </div>
+            <span className="pcluster-bar-val">
+              {(entry.draft_acceptance_rate * 100).toFixed(0)}%
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
