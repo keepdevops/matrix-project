@@ -1,6 +1,6 @@
 import { extractAllCodeBlocks, MIN_CODE_CHARS } from './codeExtractor';
-export { buildZipBlob } from './codeSave.zip';
 import { buildZipBlob as _buildZipBlob } from './codeSave.zip';
+export { buildZipBlob } from './codeSave.zip';
 
 const EXT_BY_LANG = {
   python: 'py', javascript: 'js', typescript: 'ts', cpp: 'cpp', rust: 'rs',
