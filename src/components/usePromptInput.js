@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import useRagHealth from '../hooks/useRagHealth';
 import { useModeParams } from './ModeParamControls';
+import { usePromptInputRag } from './usePromptInputRag';
 
 /** State, effects, and submit handlers for PromptInput. */
 export function usePromptInput({
@@ -18,32 +19,10 @@ export function usePromptInput({
   const [prompt, setPrompt] = useState('');
   const { buildModeOpts, ...modeParamFields } = useModeParams();
   const [temperature, setTemperature] = useState(0.2);
-  const [ragTopK, setRagTopK] = useState(() => {
-    const raw = parseInt(
-      typeof window !== 'undefined' && localStorage.getItem('rag.top_k'),
-      10,
-    );
-    return Number.isFinite(raw) && raw >= 1 && raw <= 20 ? raw : 3;
-  });
-  const [selectedRagAgents, setSelectedRagAgents] = useState([]);
-  const [ragMinScore, setRagMinScore] = useState(() => {
-    const raw = parseFloat(
-      typeof window !== 'undefined' && localStorage.getItem('rag.min_score'),
-    );
-    return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 1.0;
-  });
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem('rag.top_k', String(ragTopK));
-        localStorage.setItem('rag.min_score', String(ragMinScore));
-      } catch (err) {
-        console.error('[rag] persist params failed:', err);
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [ragTopK, ragMinScore]);
+  const {
+    ragTopK, setRagTopK, ragMinScore, setRagMinScore,
+    selectedRagAgents, setSelectedRagAgents,
+  } = usePromptInputRag();
 
   const textareaRef = useRef(null);
 
@@ -80,34 +59,16 @@ export function usePromptInput({
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    submitPrompt();
-  };
+  const handleSubmit = (e) => { e.preventDefault(); submitPrompt(); };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      submitPrompt();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitPrompt(); }
   };
 
   return {
-    ragHealth,
-    prompt,
-    setPrompt,
-    temperature,
-    setTemperature,
-    ragTopK,
-    setRagTopK,
-    ragMinScore,
-    setRagMinScore,
-    selectedRagAgents,
-    setSelectedRagAgents,
-    textareaRef,
-    modeParamFields,
-    handleSubmit,
-    handleKeyDown,
-    submitPrompt,
+    ragHealth, prompt, setPrompt, temperature, setTemperature,
+    ragTopK, setRagTopK, ragMinScore, setRagMinScore,
+    selectedRagAgents, setSelectedRagAgents,
+    textareaRef, modeParamFields, handleSubmit, handleKeyDown, submitPrompt,
   };
 }
