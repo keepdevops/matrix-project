@@ -59,6 +59,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/coordinator_context.cpp" \
    "$CPP_SRC/mode_module.cpp" \
    "$CPP_SRC/session_store.cpp" \
+   "$CPP_SRC/session_store_continuation.cpp" \
    "$CPP_SRC/synthesis_budget.cpp" \
    "$CPP_SRC/synthesis_budget_assemble.cpp" \
    "$CPP_SRC/synthesis_tiered.cpp" \
@@ -95,6 +96,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/host_memory.cpp" \
    "$CPP_SRC/pressure.cpp" \
    "$CPP_SRC/pressure_evict.cpp" \
+   "$CPP_SRC/pressure_evict_port.cpp" \
    "$CPP_SRC/response_cache.cpp" \
    "$CPP_SRC/mlx_inflight.cpp" \
    "$CPP_SRC/kv_router.cpp" \
