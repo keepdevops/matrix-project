@@ -77,6 +77,9 @@ from demo_utils_broadcast import (  # noqa: E402
     broadcast,
     wait_for_response,
     follow_up,
+)
+
+from demo_utils_video import (  # noqa: E402
     wait_for_agents_ready,
     stitch_video,
 )

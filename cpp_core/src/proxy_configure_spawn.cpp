@@ -1,5 +1,6 @@
 #include "proxy_configure.h"
 #include "proxy_configure_internal.h"
+#include "proxy_configure_spawn_args.h"
 #include "matrix_env.h"
 #include <iostream>
 #include <map>
@@ -68,13 +69,12 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
     int hf_n = 0;
     int llama_n = 0;
     for (const auto& [port, g] : pgs) {
-        // Stagger llama loads so multiple large GGUFs don't race unified memory.
         if (g.backend == "llama") {
-            if (llama_n++ > 0)
-                std::this_thread::sleep_for(std::chrono::seconds(5));
+            if (llama_n++ > 0) std::this_thread::sleep_for(std::chrono::seconds(5));
         }
         std::string log = proj + "/agent_logs/" + std::to_string(port) + ".log";
         std::string ps  = std::to_string(port);
+
         if (g.backend == "docker") {
             std::cout << "[Configure] DOCKER :" << port << " model=" << g.model
                       << " [" << join_names(g.names) << "]\n";
@@ -106,43 +106,8 @@ void spawn_inference_servers(const std::map<int, PortGroup>& pgs,
             std::cout << "[Configure] DOCKER-vLLM :" << port << " gpu_mem=" << gmu_buf
                       << " [" << join_names(g.names) << "]\n";
         } else {
-            // llama backend
-            int ctx = g.context * (int)g.names.size();
-            if (ctx > g.ctx_cap) {
-                std::cerr << "[Configure] WARNING: effective ctx "
-                          << ctx << " exceeds cap " << g.ctx_cap
-                          << " on port " << port << "; truncating. "
-                          << "Lower per-agent 'context' or set 'ctx_cap' "
-                          << "in agent config to suppress." << std::endl;
-                ctx = g.ctx_cap;
-            }
-            // --fit off: llama.cpp b8763 has a contiguity assert bug in the
-            // automatic param-fitting path (ggml_reshape_2d); disable it.
-            std::vector<std::string> args = {
-                "-m", g.model, "-c", std::to_string(ctx), "--port", ps,
-                "--n-gpu-layers", std::to_string(g.gpu_layers),
-                "--parallel", std::to_string(g.names.size()),
-                "--metrics", "--slot-save-path", g_env.matrix_slots_dir,
-                "--fit", "off"
-            };
-            if (g.flash_attn) {
-                args.push_back("--flash-attn"); args.push_back("on");
-                args.push_back("--cache-type-k"); args.push_back("q8_0");
-                args.push_back("--cache-type-v"); args.push_back("q8_0");
-            }
-            if (g.n_batch > 0) {
-                args.push_back("--batch-size");
-                args.push_back(std::to_string(g.n_batch));
-            }
-            if (!g.draft_model.empty()) {
-                args.push_back("--model-draft");
-                args.push_back(g.draft_model);
-                if (g.draft_max > 0) {
-                    args.push_back("--draft-max");
-                    args.push_back(std::to_string(g.draft_max));
-                }
-            }
-            for (const auto& ea : g.extra_args) args.push_back(ea);
+            int ctx = 0;
+            auto args = spawn_args::build_llama_args(g, ps, ctx);
             spawn_detached(g_env.llama_server_bin, args, log);
             std::cout << "[Configure] LLAMA :" << port << " ctx=" << ctx
                       << (g.flash_attn ? " flash_attn+kv_q8" : "")
