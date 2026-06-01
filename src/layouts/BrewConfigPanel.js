@@ -1,20 +1,16 @@
 import React from 'react';
-import { ENGINES, PROFILES } from '../components/SwarmConfig.helpers';
 import BrewMonitorPopout from './BrewMonitorPopout';
 import BrewResourcePopout from './BrewResourcePopout';
 import BrewConfigAgentsSection from './BrewConfigAgentsSection';
+import BrewConfigEngineProfile from './BrewConfigEngineProfile';
 
 export default function BrewConfigPanel({
-  // config state
   roles, setRoles, models, selected, roleModels, engine, activeProfile, engineModels,
   editingAgent, setEditingAgent, loadError, loadRetries, setLoadRetries, invalidateModelsCache,
   riskEstimate, serverLayout, canDeploy, agentCount, rosterPct, configLines,
   handleEngineChange, toggleRole, setModel, selectAllRoles, clearAllRoles, applyProfile,
-  // deploy state
   status, statusMsg, agentStatuses, deploy, reset,
-  // popout state
   showMonitor, setShowMonitor, showAgentsPopout, setShowAgentsPopout, setLeftPopout,
-  // external
   online, activeAgents, kvReadings, kvFetchFailed, excludedBreaker,
   cacheStatus, onClearCache, responses, agentErrors, lastMeta,
 }) {
@@ -42,86 +38,26 @@ export default function BrewConfigPanel({
       </div>
 
       <BrewMonitorPopout
-        open={showMonitor}
-        onClose={() => setShowMonitor(false)}
-        online={online}
-        kvReadings={kvReadings}
-        kvFetchFailed={kvFetchFailed}
-        activeAgents={activeAgents}
-        engine={engine}
-        excludedBreaker={excludedBreaker}
-        cacheStatus={cacheStatus}
-        onClearCache={onClearCache}
+        open={showMonitor} onClose={() => setShowMonitor(false)}
+        online={online} kvReadings={kvReadings} kvFetchFailed={kvFetchFailed}
+        activeAgents={activeAgents} engine={engine} excludedBreaker={excludedBreaker}
+        cacheStatus={cacheStatus} onClearCache={onClearCache}
       />
 
       <div className="brew-panel-scroll">
-        <div className="brew-section">
-          <div className="brew-section-header">
-            <span className="brew-section-title">Engines</span>
-          </div>
-          <div className="brew-section-body">
-            <div className="brew-engine-pills">
-              {ENGINES.map(e => {
-                const count = models.filter(m => m.backend === e.backend).length;
-                return (
-                  <button
-                    key={e.id}
-                    type="button"
-                    className={`brew-engine-pill${engine === e.id ? ' active' : ''}${count === 0 ? ' disabled' : ''}`}
-                    onClick={() => count > 0 && handleEngineChange(e.id)}
-                    title={`${count} model${count !== 1 ? 's' : ''} available`}
-                  >
-                    {e.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="brew-section">
-          <div className="brew-section-header">
-            <span className="brew-section-title">Profile</span>
-          </div>
-          <div className="brew-section-body">
-            <div className="brew-profile-label">Preset</div>
-            <div className="brew-profile-dropdowns">
-              <select
-                className="brew-profile-select"
-                value={activeProfile}
-                onChange={e => applyProfile(e.target.value, reset)}
-              >
-                {PROFILES.map(([id, label]) => (
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <p className="brew-profile-hint">
-              Presets fill the roster; use <strong>Custom</strong> and click agents to pick individually.
-            </p>
-          </div>
-        </div>
+        <BrewConfigEngineProfile
+          models={models} engine={engine} handleEngineChange={handleEngineChange}
+          activeProfile={activeProfile} applyProfile={applyProfile} reset={reset}
+        />
 
         <BrewConfigAgentsSection
-          roles={roles}
-          setRoles={setRoles}
-          models={models}
-          selected={selected}
-          roleModels={roleModels}
-          engineModels={engineModels}
-          engine={engine}
-          showAgentsPopout={showAgentsPopout}
-          setShowAgentsPopout={setShowAgentsPopout}
-          selectAllRoles={selectAllRoles}
-          clearAllRoles={clearAllRoles}
-          toggleRole={toggleRole}
-          setModel={setModel}
-          setEditingAgent={setEditingAgent}
-          agentStatuses={agentStatuses}
-          responses={responses}
-          agentErrors={agentErrors}
-          lastMeta={lastMeta}
-          setLeftPopout={setLeftPopout}
+          roles={roles} setRoles={setRoles} models={models} selected={selected}
+          roleModels={roleModels} engineModels={engineModels} engine={engine}
+          showAgentsPopout={showAgentsPopout} setShowAgentsPopout={setShowAgentsPopout}
+          selectAllRoles={selectAllRoles} clearAllRoles={clearAllRoles}
+          toggleRole={toggleRole} setModel={setModel} setEditingAgent={setEditingAgent}
+          agentStatuses={agentStatuses} responses={responses} agentErrors={agentErrors}
+          lastMeta={lastMeta} setLeftPopout={setLeftPopout}
         />
 
         {(canDeploy || online) && (
