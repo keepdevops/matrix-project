@@ -16,6 +16,10 @@ struct ModeContext {
     bool quality_pass = false;
     std::string quality_pass_target = "programmer"; // agent to re-run on quality pass
 
+    // Token budget context — injected into Foreman/classifier prompt when set.
+    int    budget_remaining = -1;   // -1 = unlimited; ≥0 = tokens left this session
+    double kv_pressure      = 0.0;  // 0–1 KV cache fill ratio from frontend
+
     // Per-agent RAG targeting: when non-empty, only named agents receive rag_context_block.
     // When empty, rag_context_block is already baked into user_prompt (legacy path).
     std::string rag_context_block;

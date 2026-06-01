@@ -4,6 +4,7 @@ import {
   MIN_CONTEXT, MAX_CONTEXT, MIN_MAX_TOKENS, MAX_MAX_TOKENS,
   MIN_TIMEOUT, MAX_TIMEOUT, MIN_GPU_LAYERS, MAX_GPU_LAYERS,
   MIN_CONCURRENCY, MAX_CONCURRENCY,
+  MIN_MAX_INPUT_TOKENS, MAX_MAX_INPUT_TOKENS,
 } from './TokenBudgetGrid';
 
 export default function TokenBudgetRow({ role, drafts, errors, notices, busy, isDirty, setDraft, saveOne }) {
@@ -16,6 +17,7 @@ export default function TokenBudgetRow({ role, drafts, errors, notices, busy, is
   const toVal = drafts[role.name]?.read_timeout_secs ?? role.read_timeout_secs ?? '';
   const gpuVal = drafts[role.name]?.gpu_layers ?? role.gpu_layers ?? '';
   const concVal = drafts[role.name]?.max_concurrency ?? role.max_concurrency ?? '';
+  const mitVal = drafts[role.name]?.max_input_tokens ?? role.max_input_tokens ?? '';
   const inputStyle = { padding: '0.05rem 0.25rem', fontSize: '0.78rem', width: '100%', lineHeight: 1.2 };
   const tooltip = err
     ? `${role.name} :${role.port} — ${err}`
@@ -43,6 +45,10 @@ export default function TokenBudgetRow({ role, drafts, errors, notices, busy, is
         disabled={isBusy || role.max_concurrency === undefined} style={inputStyle}
         title={role.max_concurrency === undefined ? 'Not configurable for this agent' : 'Max concurrent requests'}
         placeholder={role.max_concurrency === undefined ? '—' : ''} />
+      <input type="number" min={MIN_MAX_INPUT_TOKENS} max={MAX_MAX_INPUT_TOKENS} step={256} value={mitVal}
+        onChange={e => setDraft(role.name, 'max_input_tokens', e.target.value)} disabled={isBusy} style={inputStyle}
+        title="Max input tokens per request (0 = no cap). Truncates prompt before dispatch."
+        placeholder="0" />
       <Button variant="ghost" size="xs" onClick={() => saveOne(role)} disabled={!dirty || isBusy}
         title={err || note || (dirty ? 'Save changes' : 'No changes')}
         style={err ? { borderColor: 'var(--color-error)' } : note ? { borderColor: 'var(--color-primary)' } : undefined}>

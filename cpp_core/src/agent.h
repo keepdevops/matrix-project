@@ -30,4 +30,8 @@ struct Agent {
     /// 1 = serialized (default for mlx, which cannot handle concurrent requests).
     /// >1 = counted semaphore (useful for vllm with known concurrency limits).
     int max_concurrency = 0;
+
+    /// Hard input truncation in tokens (approximate: 4 chars ≈ 1 token).
+    /// 0 = no cap (default). Set via agents[].max_input_tokens in swarm-config.
+    int max_input_tokens = 0;
 };

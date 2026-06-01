@@ -2,6 +2,7 @@
 #include "coordinator_routes_dispatch_prepare.h"
 #include "coordinator_routes_includes.h"
 #include "agent_metrics.h"
+#include "token_ledger.h"
 #include <chrono>
 #include <vector>
 #include <string>
@@ -14,7 +15,8 @@ inline void stamp_envelope(
     const RagResult& rag,
     const std::vector<std::string>& excluded_unhealthy,
     const std::string& qp_target,
-    std::chrono::steady_clock::time_point dispatch_t0)
+    std::chrono::steady_clock::time_point dispatch_t0,
+    int effective_max_select = -1)
 {
     if (!envelope.contains("meta") || !envelope["meta"].is_object())
         envelope["meta"] = json::object();
@@ -34,6 +36,12 @@ inline void stamp_envelope(
         envelope["meta"]["timings"] = agent_metrics::snapshot();
         envelope["meta"]["wall_ms"] = total_ms;
     }
+    // Token budget snapshot
+    if (!dreq.session_id.empty()) {
+        envelope["meta"]["token_budget"] = token_ledger::snapshot(dreq.session_id);
+    }
+    if (effective_max_select >= 0)
+        envelope["meta"]["effective_max_select"] = effective_max_select;
 }
 
 } // namespace dispatch_meta

@@ -36,6 +36,9 @@ struct CoordinatorState {
     /// Root JSON loaded at startup (used for optional response-cache block).
     json startup_config;
 
+    /// Global session token budget from coordinator.token_budget (0 = unlimited).
+    int global_token_budget = 0;
+
     SwarmPaths swarm_paths() const {
         return SwarmPaths{config_path_global, source_config_path_global};
     }

@@ -5,6 +5,8 @@
 #include "json.hpp"
 #include "kv_router.h"
 #include "mlx_inflight.h"
+#include "session_context.h"
+#include "token_ledger.h"
 #include "utf8_sanitize.h"
 
 #include <chrono>
@@ -20,13 +22,19 @@ AttemptResult call_agent_once(const Agent& agent,
         auto cli_ptr = pool_checkout(agent.port, agent.read_timeout_secs);
         httplib::Client& cli = *cli_ptr;
 
+        // Enforce max_input_tokens cap: ~4 chars per token (rough estimate)
+        const std::string& eff_prompt = (agent.max_input_tokens > 0
+            && (int)prompt.size() > agent.max_input_tokens * 4)
+            ? prompt.substr(0, static_cast<size_t>(agent.max_input_tokens) * 4)
+            : prompt;
+
         json messages = json::array();
         if (agent.engine == "mlx" && !system_prompt.empty()) {
-            messages.push_back({{"role", "user"}, {"content", system_prompt + "\n\n" + prompt}});
+            messages.push_back({{"role", "user"}, {"content", system_prompt + "\n\n" + eff_prompt}});
         } else {
             if (!system_prompt.empty())
                 messages.push_back({{"role", "system"}, {"content", system_prompt}});
-            messages.push_back({{"role", "user"}, {"content", prompt}});
+            messages.push_back({{"role", "user"}, {"content", eff_prompt}});
         }
         json body = {{"messages", messages}, {"max_tokens", agent.max_tokens}};
         if (!agent.model.empty() && (agent.backend == "docker" || agent.backend == "vllm"
@@ -66,6 +74,7 @@ AttemptResult call_agent_once(const Agent& agent,
                 out.ok = true;
                 double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
                 agent_metrics::record(agent.name, ms, ctoks, ptoks);
+                token_ledger::add(session_context::current(), ptoks, ctoks);
             } else {
                 out.retryable = true;
             }

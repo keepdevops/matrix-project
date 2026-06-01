@@ -11,6 +11,7 @@ export function useSubmitHandlers({
   submit, loadHistory, currentSession, activeMode, useRag,
   responses, activeAgents, flatPickAgent,
   modeWarnings = [], memoryPressure = null, hostMemory = null,
+  kvReadings = [],
   onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
 }) {
   const [pendingPrompt, setPendingPrompt] = useState(null);
@@ -56,7 +57,11 @@ export function useSubmitHandlers({
           max_context_chars: 20000,
         };
       }
-      const result = await submit(prompt, temperature, { useRag, ...autoOpts });
+      // Compute max KV usage ratio to pass to coordinator for adaptive max_select
+      const kvPressure = kvReadings.length > 0
+        ? Math.max(...kvReadings.filter(r => r.ok && Number.isFinite(r.usage)).map(r => r.usage), 0)
+        : 0;
+      const result = await submit(prompt, temperature, { useRag, kvPressure, ...autoOpts });
       if (activeMode === 'cascade' && result?.final === null && !opts.followup) {
         onModeWarning?.(['cascade ran without synthesis — synthesizer may not be deployed']);
       }

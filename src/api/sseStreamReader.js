@@ -13,6 +13,8 @@ export function buildStreamBody(prompt, temperature, opts = {}, extra = {}) {
     body.rag_min_score = opts.ragMinScore;
   if (Array.isArray(opts.ragAgents) && opts.ragAgents.length > 0)
     body.rag_agents = opts.ragAgents;
+  if (typeof opts.kvPressure === 'number' && Number.isFinite(opts.kvPressure))
+    body.kv_pressure = opts.kvPressure;
   return body;
 }
 

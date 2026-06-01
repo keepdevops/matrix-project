@@ -50,8 +50,21 @@ json run_router(const ModeContext& ctx) {
               << " choices=" << cc.choices.size()
               << " max_select=" << cc.max_select << std::endl;
 
+    // Prepend budget/KV hint so the Foreman can prefer fewer agents under pressure.
+    // In user message (not system) to avoid polluting the KV cache.
+    std::string classifier_user_prompt = ctx.user_prompt;
+    {
+        std::string hint;
+        if (ctx.budget_remaining >= 0)
+            hint += "[Token budget: " + std::to_string(ctx.budget_remaining) + " remaining]\n";
+        if (ctx.kv_pressure > 0.5)
+            hint += "[KV cache: " + std::to_string((int)(ctx.kv_pressure * 100))
+                  + "% full — prefer fewer agents]\n";
+        if (!hint.empty()) classifier_user_prompt = hint + "\n" + classifier_user_prompt;
+    }
+
     auto prompt = router_classifier::build_classifier_prompt(
-        cc.choices, by_name, agents, ctx.user_prompt, cc.max_select, classifier_policy);
+        cc.choices, by_name, agents, classifier_user_prompt, cc.max_select, classifier_policy);
     if (!prompt.load_csv.empty()) meta["load_hint"] = prompt.load_csv;
 
     router_dispatch::StreamState st;
