@@ -6,6 +6,9 @@ export const RAM_MODEL_GB    = 17;
 export const RAM_OS_GB       = 4;
 export const RAM_BLOCK_RATIO = 0.92; // >92% total → high risk
 export const RAM_WARN_RATIO  = 0.78; // >78% total → medium risk
+// Derived fallback constants for callers that need absolute GB values
+export const RAM_BLOCK_GB = RAM_TOTAL_GB * RAM_BLOCK_RATIO; // ~33 GB at 36 GB total
+export const RAM_WARN_GB  = RAM_TOTAL_GB * RAM_WARN_RATIO;  // ~28 GB at 36 GB total
 
 export function getRiskBand(totalRamGb, ramTotalGb = RAM_TOTAL_GB) {
   const blockGb = ramTotalGb * RAM_BLOCK_RATIO;
