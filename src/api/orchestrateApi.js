@@ -31,6 +31,7 @@ export async function submitOrchestrate(mode, prompt, params = {}, opts = {}) {
     body.use_rag = true;
     if (opts.ragTopK) body.rag_top_k = opts.ragTopK;
     if (typeof opts.ragMinScore === 'number') body.rag_min_score = opts.ragMinScore;
+    if (opts.ragRerank) body.rag_rerank = true;
   }
   let res;
   try {

@@ -2,6 +2,7 @@
 #include "coordinator_routes_dispatch_history.h"
 #include "rag_client.h"
 #include "rag_config.h"
+#include "rag_rerank.h"
 #include "session_store.h"
 #include <iostream>
 #include <unordered_set>
@@ -18,6 +19,7 @@ DispatchRequest dispatch_parse_request(const json& body) {
     r.use_rag         = body.value("use_rag", false);
     r.rag_top_k       = body.value("rag_top_k", 0);
     r.rag_min_score   = body.value("rag_min_score", -1.0);
+    r.rag_rerank      = body.value("rag_rerank", false);
     if (body.contains("rag_agents") && body["rag_agents"].is_array()) {
         for (const auto& a : body["rag_agents"])
             if (a.is_string()) r.rag_agents.insert(a.get<std::string>());
@@ -45,21 +47,39 @@ RagResult dispatch_build_rag(const DispatchRequest& req, CoordinatorState& st) {
     }
 
     auto hits = rag::retrieve(rag_s, req.prompt);
+
+    json sources = json::array();
+    if (req.rag_rerank && !hits.empty()) {
+        auto scored = rag_rerank::rerank(req.prompt, hits);
+        std::vector<rag::Hit> reordered;
+        reordered.reserve(scored.size());
+        for (const auto& s : scored) {
+            reordered.push_back(s.hit);
+            sources.push_back({{"source_path", s.hit.source_path},
+                               {"chunk_idx",   s.hit.chunk_idx},
+                               {"distance",    s.hit.distance},
+                               {"relevance",   s.relevance},
+                               {"content",     s.hit.content}});
+        }
+        hits = std::move(reordered);
+    } else {
+        for (const auto& h : hits)
+            sources.push_back({{"source_path", h.source_path}, {"chunk_idx", h.chunk_idx},
+                               {"distance", h.distance}, {"content", h.content}});
+    }
+
     std::string block = rag::render_context_block(hits);
     if (!block.empty()) {
         if (req.rag_agents.empty()) result.effective_prompt = block + result.effective_prompt;
         else result.rag_block = block;
     }
 
-    json sources = json::array();
-    for (const auto& h : hits)
-        sources.push_back({{"source_path", h.source_path}, {"chunk_idx", h.chunk_idx},
-                           {"distance", h.distance}, {"content", h.content}});
     json rag_agents_arr = json::array();
     for (const auto& n : req.rag_agents) rag_agents_arr.push_back(n);
 
     result.rag_meta = {{"requested", true}, {"used", !hits.empty()},
-                       {"top_k", rag_s.top_k}, {"min_score", rag_s.min_score}, {"hits", sources}};
+                       {"top_k", rag_s.top_k}, {"min_score", rag_s.min_score},
+                       {"reranked", req.rag_rerank}, {"hits", sources}};
     if (!req.rag_agents.empty()) result.rag_meta["targeted_agents"] = rag_agents_arr;
     return result;
 }
