@@ -53,6 +53,9 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
+   "$CPP_SRC/config/coordinator_config_validate_common.cpp" \
+   "$CPP_SRC/config/coordinator_config_validate_modes.cpp" \
+   "$CPP_SRC/config/coordinator_config_validate_presets.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
    "$CPP_SRC/config/path_expand.cpp" \
    "$CPP_SRC/telemetry.cpp" \
@@ -102,6 +105,8 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/rag_config.cpp" \
    "$CPP_SRC/rag_embed.cpp" \
    "$CPP_SRC/rag_client.cpp" \
+   "$CPP_SRC/rag_client_embed.cpp" \
+   "$CPP_SRC/rag_client_pg.cpp" \
    "$ROOT/build/blake2b.o" \
    -I"$CPP_SRC" \
    "${MOD_LINK[@]}" \
@@ -166,6 +171,8 @@ c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
   "$ROOT/tests/cpp/rag_embed_test.cpp" \
   "$CPP_SRC/rag_embed.cpp" \
   "$CPP_SRC/rag_client.cpp" \
+  "$CPP_SRC/rag_client_embed.cpp" \
+  "$CPP_SRC/rag_client_pg.cpp" \
   "$ROOT/build/blake2b.o" \
   -I"$CPP_SRC" \
   -I"$LIBPQ_INC" -L"$LIBPQ_LIB" -lpq
