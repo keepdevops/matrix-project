@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import './App.css';
 import './styles/responsive.css';
 import './themes/light.css';
@@ -13,16 +13,13 @@ import './themes/cvd-light-blue-orange.css';
 import './themes/cvd-light-tritanopia.css';
 import './themes/cvd-light-amber.css';
 import { useToast } from './components/ToastManager';
-import { useSwarm } from './hooks/useSwarm';
-import { useCoordinatorState } from './hooks/useCoordinatorState';
+import { useAppCoreState } from './hooks/useAppCoreState';
 import { useLayoutPreference } from './hooks/useLayoutPreference';
 import { useSwarmPolling } from './hooks/useSwarmPolling';
 import { useSubmitHandlers } from './hooks/useSubmitHandlers';
 import { useSessionHandlers } from './hooks/useSessionHandlers';
-import { useMemoryPressure } from './hooks/useMemoryPressure';
 import { useAppLayoutProps } from './hooks/useAppLayoutProps';
 import { useAppHandlers } from './hooks/useAppHandlers';
-import { useAppState } from './hooks/useAppState';
 import { useAppCallbacks } from './hooks/useAppCallbacks';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
@@ -35,25 +32,14 @@ function App() {
     submit, loadHistory, checkStatus,
     setResponses, setFinalAnswer, lastMeta, setLastMeta,
     currentSession, setCurrentSession, backend, switchBackend,
-  } = useSwarm();
-
-  const {
     activeAgents, modes, activeMode, kvReadings, kvFetchFailed, hostMemory,
     flatPickAgent, setFlatPickAgent, modeWarnings, refreshModes, refreshAgents, handleModeChange,
-  } = useCoordinatorState(online);
-
-  const warningsByMode = useMemo(
-    () => (activeMode && modeWarnings.length > 0 ? { [activeMode]: modeWarnings } : {}),
-    [activeMode, modeWarnings]
-  );
-  const memoryPressure = useMemoryPressure({ online, activeAgents, activeMode, kvReadings, hostMemory });
-
-  const {
+    memoryPressure,
     showConfig, setShowConfig, deployPending, setDeployPending,
     showHelp, setShowHelp, showConverter, setShowConverter,
     showRagAdmin, setShowRagAdmin, showCachePanel, setShowCachePanel,
     cacheStatus, setCacheStatus, useRag, setUseRag, warningsByModeWithMemory,
-  } = useAppState({ error, showToast, activeMode, modeWarnings, memoryPressure, warningsByMode });
+  } = useAppCoreState({ showToast });
 
   const { layout, theme, setLayout, setTheme } = useLayoutPreference();
 
@@ -74,9 +60,7 @@ function App() {
   } = useSubmitHandlers({
     submit, loadHistory, currentSession, activeMode, useRag,
     responses, activeAgents, flatPickAgent, modeWarnings, memoryPressure, hostMemory,
-    onModeWarning,
-    onSaveCodeToast,
-    onMemoryPressureWarning,
+    onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
   });
 
   const {
