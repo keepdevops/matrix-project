@@ -1,6 +1,7 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
 #include "coordinator_routes_modes_put_impl.h"
+#include "coordinator_routes_modes_put_apply.h"
 
 void handle_mode_agents_put(CoordinatorState& st,
                              const std::string& mode_name,
@@ -64,47 +65,20 @@ void handle_mode_agents_put(CoordinatorState& st,
             std::lock_guard<std::mutex> lock(st.modes_config_mutex);
             if (!st.modes_config.contains(mode_name) || !st.modes_config[mode_name].is_object())
                 st.modes_config[mode_name] = json::object();
-            if (has_agents) st.modes_config[mode_name]["agents"] = na.normalized;
-            if (has_max)    st.modes_config[mode_name]["max_select"] = max_select_val;
-            if (has_synth) {
-                if (body["synthesizer"].is_null() || body["synthesizer"].get<std::string>().empty()) {
-                    st.modes_config[mode_name].erase("synthesizer");
-                } else {
-                    const std::string sn = body["synthesizer"].get<std::string>();
-                    if (active_names.count(sn)) st.modes_config[mode_name]["synthesizer"] = sn;
-                    else unknown_synth_name = sn;
-                }
-            }
-            auto apply_string_option = [&](const char* key, bool present) {
-                if (!present) return;
-                if (body[key].is_null() || body[key].get<std::string>().empty())
-                    st.modes_config[mode_name].erase(key);
-                else
-                    st.modes_config[mode_name][key] = body[key].get<std::string>();
-            };
-            apply_string_option("variant_policy", has_variant);
-            apply_string_option("preset", has_preset);
-            apply_string_option("synthesis_policy", has_synth_policy);
-            apply_string_option("classifier_policy", has_classifier_policy);
+            auto& cfg = st.modes_config[mode_name];
+            if (has_agents) cfg["agents"] = na.normalized;
+            if (has_max)    cfg["max_select"] = max_select_val;
+            if (has_synth)  modes_put_apply::apply_synthesizer(body, cfg, active_names, unknown_synth_name);
+            modes_put_apply::apply_string_option(body, cfg, "variant_policy",       has_variant);
+            modes_put_apply::apply_string_option(body, cfg, "preset",               has_preset);
+            modes_put_apply::apply_string_option(body, cfg, "synthesis_policy",     has_synth_policy);
+            modes_put_apply::apply_string_option(body, cfg, "classifier_policy",    has_classifier_policy);
             if (has_stage_context) {
                 int v = body["stage_context_chars"].get<int>();
                 if (v < 0) v = 0;
-                st.modes_config[mode_name]["stage_context_chars"] = v;
+                cfg["stage_context_chars"] = v;
             }
-            if (has_order && mode_name == "pipeline") {
-                if (body["order"].is_null()) {
-                    st.modes_config[mode_name].erase("order");
-                } else {
-                    json normalized_order = json::array();
-                    for (const auto& item : body["order"]) {
-                        if (!item.is_string()) continue;
-                        const std::string n = item.get<std::string>();
-                        if (active_names.count(n)) normalized_order.push_back(n);
-                    }
-                    if (normalized_order.empty()) st.modes_config[mode_name].erase("order");
-                    else st.modes_config[mode_name]["order"] = normalized_order;
-                }
-            }
+            if (has_order) modes_put_apply::apply_order(body, cfg, mode_name, active_names);
             persisted = coordinator_persist_modes_locked(st);
         }
         std::cout << "🧩 [modes/" << mode_name << "/agents] "

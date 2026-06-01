@@ -3,9 +3,9 @@
 
 #include "httplib.h"
 #include "json.hpp"
+#include "config_service_handlers.h"
 
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -14,42 +14,6 @@ using json = nlohmann::json;
 
 static std::mutex g_mu;
 static std::string g_config_path;
-
-static bool read_doc(json& doc) {
-    std::ifstream in(g_config_path);
-    if (!in.is_open()) return false;
-    try {
-        doc = json::parse(in);
-    } catch (...) {
-        return false;
-    }
-    return true;
-}
-
-static bool atomic_write_doc(const json& doc) {
-    const std::string tmp = g_config_path + ".tmp";
-    {
-        std::ofstream out(tmp);
-        if (!out.is_open()) return false;
-        out << doc.dump(2);
-    }
-    if (std::rename(tmp.c_str(), g_config_path.c_str()) != 0) return false;
-    return true;
-}
-
-/// Minimal structural checks so bad PUTs do not corrupt disk.
-static bool validate_put_document(const json& doc) {
-    if (!doc.is_object()) return false;
-    if (!doc.contains("agents") || !doc["agents"].is_array()) return false;
-    for (const auto& a : doc["agents"]) {
-        if (!a.is_object()) return false;
-        if (!a.contains("name") || !a["name"].is_string()) return false;
-    }
-    if (doc.contains("coordinator")) {
-        if (!doc["coordinator"].is_object()) return false;
-    }
-    return true;
-}
 
 int main(int argc, char* argv[]) {
     int port = 8011;
@@ -89,7 +53,7 @@ int main(int argc, char* argv[]) {
         res.set_header("Access-Control-Allow-Origin", "*");
         std::lock_guard<std::mutex> lk(g_mu);
         json doc;
-        if (!read_doc(doc)) {
+        if (!config_svc::read_doc(g_config_path, doc)) {
             res.status = 404;
             res.set_content(R"({"error":"cannot read config file"})", "application/json");
             return;
@@ -107,14 +71,14 @@ int main(int argc, char* argv[]) {
             res.set_content(R"({"error":"invalid JSON"})", "application/json");
             return;
         }
-        if (!validate_put_document(doc)) {
+        if (!config_svc::validate_put_body(doc)) {
             res.status = 400;
             res.set_content(R"({"error":"validation failed: require agents[] with name strings"})",
                             "application/json");
             return;
         }
         std::lock_guard<std::mutex> lk(g_mu);
-        if (!atomic_write_doc(doc)) {
+        if (!config_svc::atomic_write_doc(g_config_path, doc)) {
             res.status = 500;
             res.set_content(R"({"error":"write failed"})", "application/json");
             return;
