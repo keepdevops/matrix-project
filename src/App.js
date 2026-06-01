@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import './App.css';
 import './styles/responsive.css';
 import './themes/light.css';
@@ -22,6 +22,7 @@ import { useSessionHandlers } from './hooks/useSessionHandlers';
 import { useMemoryPressure } from './hooks/useMemoryPressure';
 import { useAppLayoutProps } from './hooks/useAppLayoutProps';
 import { useAppHandlers } from './hooks/useAppHandlers';
+import { useAppState } from './hooks/useAppState';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
@@ -45,23 +46,15 @@ function App() {
     [activeMode, modeWarnings]
   );
   const memoryPressure = useMemoryPressure({ online, activeAgents, activeMode, kvReadings, hostMemory });
-  const warningsByModeWithMemory = useMemo(() => {
-    if (!memoryPressure?.warnings?.length || !activeMode) return warningsByMode;
-    const memHints = memoryPressure.warnings.slice(0, 2);
-    const existing = warningsByMode[activeMode] ?? [];
-    return { ...warningsByMode, [activeMode]: [...existing, ...memHints] };
-  }, [warningsByMode, memoryPressure, activeMode]);
+
+  const {
+    showConfig, setShowConfig, deployPending, setDeployPending,
+    showHelp, setShowHelp, showConverter, setShowConverter,
+    showRagAdmin, setShowRagAdmin, showCachePanel, setShowCachePanel,
+    cacheStatus, setCacheStatus, useRag, setUseRag, warningsByModeWithMemory,
+  } = useAppState({ error, showToast, activeMode, modeWarnings, memoryPressure, warningsByMode });
 
   const { layout, theme, setLayout, setTheme } = useLayoutPreference();
-
-  const [showConfig, setShowConfig]         = useState(true);
-  const [deployPending, setDeployPending]   = useState(false);
-  const [showHelp, setShowHelp]             = useState(false);
-  const [showConverter, setShowConverter]   = useState(false);
-  const [showRagAdmin, setShowRagAdmin]     = useState(false);
-  const [showCachePanel, setShowCachePanel] = useState(false);
-  const [cacheStatus, setCacheStatus]       = useState('idle');
-  const [useRag, setUseRag]                 = useState(false);
 
   useSwarmPolling({ checkStatus, loadHistory, refreshAgents, refreshModes, online });
 
@@ -102,19 +95,6 @@ function App() {
   });
 
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
-
-  useEffect(() => () => { mountedRef.current = false; }, [mountedRef]);
-
-  useEffect(() => {
-    if (error && error !== prevError.current) {
-      const msg = error.includes('Coordinator offline')
-        ? 'Swarm not running — open CONFIGURE and launch the swarm.'
-        : `ERROR: ${error}`;
-      showToast(msg, 'error');
-    }
-    prevError.current = error;
-  }, [error, showToast]);
-
   const excludedBreaker = lastMeta?.excluded_unhealthy || [];
   const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
 
@@ -141,8 +121,5 @@ function App() {
   const Layout = LAYOUTS[layout]?.component ?? BrewlateLayout;
   return <Layout {...layoutProps} />;
 }
-
-// Ref for prevError lives outside the component to survive re-renders without state overhead.
-const prevError = { current: null };
 
 export default App;
