@@ -1,24 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import AppHeader from '../components/AppHeader';
 import PromptInput from '../components/PromptInput';
-import AgentGrid from '../components/AgentGrid';
-import HelpModal from '../components/HelpModal';
 import FinalAnswerPanel from '../components/FinalAnswerPanel';
 import RagSources from '../components/RagSources';
-import RagAdmin from '../components/RagAdmin';
-import CachePanel from '../components/CachePanel';
 import ConversationThread from '../components/ConversationThread';
 import MetricsStrip from '../components/MetricsStrip';
+import MinimalLayoutAgents from './MinimalLayoutAgents';
 import './MinimalLayout.css';
-
-const EXPAND_PROGRAMMER_OPTS = {
-  followup: true,
-  contextPolicy: {
-    include: ['original_prompt', 'final', 'programmer'],
-    target_agent: 'programmer',
-    max_context_chars: 24000,
-  },
-};
 
 export default function MinimalLayout({
   online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
@@ -38,36 +26,18 @@ export default function MinimalLayout({
   onSaveCode, onPickFlatAgent, onSendBestContinue,
   onUseRagChange, selectedPrompt, selectedTemperature,
 }) {
-  const [showAgents, setShowAgents] = useState(false);
-
-  const agentCount = Object.keys(responses).length;
-
   return (
     <div className="ml-root">
       <AppHeader
-        online={online}
-        activeAgents={activeAgents}
-        modes={modes}
-        activeMode={activeMode}
-        kvReadings={kvReadings}
-        kvFetchFailed={kvFetchFailed}
-        cacheStatus={cacheStatus}
-        showConfigPanel={showConfigPanel}
-        theme={theme}
-        layout={layout}
-        historyCount={history.length}
-        onModeChange={onModeChange}
-        onClearCache={onClearCache}
-        onToggleConfig={onToggleConfig}
-        onToggleHistory={onToggleHistory}
-        onOpenConverter={onOpenConverter}
-        onOpenRagAdmin={onOpenRagAdmin}
-        onOpenCachePanel={onOpenCachePanel}
-        onOpenHelp={onOpenHelp}
-        onSetTheme={onSetTheme}
-        onSetLayout={onSetLayout}
-        warningsByMode={warningsByMode}
-        memoryPressure={memoryPressure}
+        online={online} activeAgents={activeAgents} modes={modes} activeMode={activeMode}
+        kvReadings={kvReadings} kvFetchFailed={kvFetchFailed} cacheStatus={cacheStatus}
+        showConfigPanel={showConfigPanel} theme={theme} layout={layout}
+        historyCount={history.length} onModeChange={onModeChange} onClearCache={onClearCache}
+        onToggleConfig={onToggleConfig} onToggleHistory={onToggleHistory}
+        onOpenConverter={onOpenConverter} onOpenRagAdmin={onOpenRagAdmin}
+        onOpenCachePanel={onOpenCachePanel} onOpenHelp={onOpenHelp}
+        onSetTheme={onSetTheme} onSetLayout={onSetLayout}
+        warningsByMode={warningsByMode} memoryPressure={memoryPressure}
       />
 
       <div className="ml-body">
@@ -86,15 +56,10 @@ export default function MinimalLayout({
 
         <div className="ml-chat">
           <ConversationThread
-            history={history}
-            sessionId={currentSession?.sessionId}
-            responses={responses}
-            finalAnswer={finalAnswer}
-            loading={loading}
-            pendingPrompt={pendingPrompt}
-            onFollowUp={onFollowUp}
-            onClear={onClearSession}
-            onSwitchSession={onSwitchSession}
+            history={history} sessionId={currentSession?.sessionId}
+            responses={responses} finalAnswer={finalAnswer} loading={loading}
+            pendingPrompt={pendingPrompt} onFollowUp={onFollowUp}
+            onClear={onClearSession} onSwitchSession={onSwitchSession}
           />
           <FinalAnswerPanel text={finalAnswer} />
           <RagSources rag={lastMeta?.rag} />
@@ -102,54 +67,23 @@ export default function MinimalLayout({
 
         <div className="ml-input-bar">
           <PromptInput
-            onSubmit={onSubmit}
-            loading={loading}
-            disabled={!online}
-            externalPrompt={selectedPrompt}
-            externalTemperature={selectedTemperature}
-            onPromptConsumed={onPromptConsumed}
-            canContinue={Boolean(currentSession?.sessionId)}
-            onQualityPass={onQualityPass}
-            useRag={useRag}
-            onUseRagChange={onUseRagChange}
-            activeAgents={activeAgents}
-            backend={backend}
-            onBackendChange={switchBackend}
+            onSubmit={onSubmit} loading={loading} disabled={!online}
+            externalPrompt={selectedPrompt} externalTemperature={selectedTemperature}
+            onPromptConsumed={onPromptConsumed} canContinue={Boolean(currentSession?.sessionId)}
+            onQualityPass={onQualityPass} useRag={useRag} onUseRagChange={onUseRagChange}
+            activeAgents={activeAgents} backend={backend} onBackendChange={switchBackend}
           />
           <MetricsStrip envelope={{ meta: lastMeta }} />
         </div>
 
-        {agentCount > 0 && (
-          <div className="ml-agents-toggle">
-            <button
-              className="ml-agents-btn"
-              onClick={() => setShowAgents(v => !v)}
-            >
-              {showAgents ? '▲ Hide' : '▼ Show'} agent responses ({agentCount})
-            </button>
-          </div>
-        )}
-
-        {showAgents && (
-          <div className="ml-agents-panel">
-            <AgentGrid
-              activeAgents={activeAgents}
-              responses={responses}
-              loading={loading}
-              timings={lastMeta?.timings || {}}
-              onSaveCode={onSaveCode}
-              flatPickMode={activeMode === 'flat'}
-              pickedFlatAgent={flatPickAgent}
-              onPickFlatAgent={onPickFlatAgent}
-              onExpandProgrammer={(instruction) => onSubmit(instruction, 0.2, EXPAND_PROGRAMMER_OPTS)}
-            />
-          </div>
-        )}
+        <MinimalLayoutAgents
+          activeAgents={activeAgents} responses={responses} loading={loading}
+          lastMeta={lastMeta} activeMode={activeMode} flatPickAgent={flatPickAgent}
+          onPickFlatAgent={onPickFlatAgent} onSaveCode={onSaveCode} onSubmit={onSubmit}
+          showHelp={showHelp} showRagAdmin={showRagAdmin} showCachePanel={showCachePanel}
+          onOpenHelp={onOpenHelp} onOpenRagAdmin={onOpenRagAdmin} onOpenCachePanel={onOpenCachePanel}
+        />
       </div>
-
-      {showHelp && <HelpModal onClose={onOpenHelp} />}
-      {showRagAdmin && <RagAdmin onClose={onOpenRagAdmin} />}
-      {showCachePanel && <CachePanel onClose={onOpenCachePanel} />}
     </div>
   );
 }
