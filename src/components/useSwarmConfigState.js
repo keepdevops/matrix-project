@@ -3,16 +3,14 @@ import {
   fetchSwarmConfig,
   fetchModels,
   fetchAgents,
-  invalidateModelsCache,
 } from '../api/swarmApi';
 import {
   PROFILE_SAFE,
   PROFILE_MAX,
   computeLayout,
-  getProfileRoles,
-  chooseModelForRole,
 } from './SwarmConfig.helpers';
 import { computeRiskEstimate } from './SwarmConfig.risk';
+import { useSwarmConfigActions } from './useSwarmConfigActions';
 
 const VLLM_PRESTARTED_PORTS = [
   { port: 8080, model: 'Qwen2.5-14B' },
@@ -21,7 +19,7 @@ const VLLM_PRESTARTED_PORTS = [
   { port: 8083, model: 'Phi-4-mini' },
 ];
 
-/** Swarm configure panel state, effects, handlers, and derived layout/risk. */
+/** Swarm configure panel state, effects, and derived layout/risk. */
 export function useSwarmConfigState({ reset }) {
   const [roles, setRoles] = useState([]);
   const [models, setModels] = useState([]);
@@ -48,11 +46,8 @@ export function useSwarmConfigState({ reset }) {
         if (config.coordinator?.profiles) setProfileThresholds(config.coordinator.profiles);
         setModels(modelList);
         setSelected(new Set(activeAgents.map(a => a.name)));
-
         const running = activeAgents[0];
-        const detectedEngine = running ? (running.engine || running.backend || 'llama') : 'llama';
-        setEngine(detectedEngine);
-
+        setEngine(running ? (running.engine || running.backend || 'llama') : 'llama');
         const preselected = {};
         activeAgents.forEach(a => { if (a.model) preselected[a.name] = a.model; });
         setRoleModels(preselected);
@@ -65,45 +60,6 @@ export function useSwarmConfigState({ reset }) {
   const engineModels = useMemo(() => models.filter(m => m.backend === engine), [models, engine]);
   const hasEngineModels = engineModels.length > 0;
 
-  const handleEngineChange = useCallback(newEngine => {
-    setEngine(newEngine);
-    setSelected(new Set());
-    setRoleModels({});
-  }, []);
-
-  const toggleRole = useCallback(name => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-
-  const setModel = useCallback((name, model) => {
-    setRoleModels(prev => ({ ...prev, [name]: model }));
-  }, []);
-
-  const applyProfile = useCallback(profileId => {
-    const roleMap = new Map(roles.map(r => [r.name, r]));
-    const roleContextMap = Object.fromEntries(roles.map(r => [r.name, r.context ?? 0]));
-    const roleNames = getProfileRoles(profileId, roles.map(r => r.name), roleContextMap, profileThresholds);
-    const selectedNames = roleNames.filter(name => roleMap.has(name));
-    const nextRoleModels = {};
-    for (const roleName of selectedNames) {
-      const role = roleMap.get(roleName);
-      const backend = role?.engine || role?.backend || engine;
-      const backendModels = models.filter(m => m.backend === backend);
-      const candidates = backendModels.length ? backendModels : models.filter(m => m.backend === engine);
-      const modelPath = chooseModelForRole(roleName, candidates);
-      if (modelPath) nextRoleModels[roleName] = modelPath;
-    }
-    setSelected(new Set(selectedNames));
-    setRoleModels(nextRoleModels);
-    setActiveProfile(profileId);
-    reset?.();
-  }, [roles, models, engine, profileThresholds, reset]);
-
   const riskEstimate = useMemo(
     () => computeRiskEstimate(roles, selected, roleModels, models),
     [roles, selected, roleModels, models],
@@ -115,13 +71,10 @@ export function useSwarmConfigState({ reset }) {
       .filter(Boolean),
   )), [roleModels, models]);
 
-  const isMixedBackends = activeBackends.length > 1;
-
   let layout = useMemo(
     () => computeLayout(roles, selected, roleModels, models),
     [roles, selected, roleModels, models],
   );
-
   if (engine === 'vllm') {
     layout = VLLM_PRESTARTED_PORTS.map(({ port, model }) =>
       layout.find(s => s.port === port) || { port, model, agents: [], parallel: 0, engine: 'vllm' }
@@ -130,40 +83,21 @@ export function useSwarmConfigState({ reset }) {
 
   const canDeploy = selected.size > 0 && Array.from(selected).some(n => roleModels[n]);
 
-  const retryLoad = useCallback(() => {
-    invalidateModelsCache();
-    setLoadRetries(r => r + 1);
-  }, []);
-
-  const handleAgentSaved = useCallback((saved) => {
-    const next = typeof saved === 'string' ? { system_prompt: saved } : (saved || {});
-    setRoles(prev => prev.map(r =>
-      (r.name === editingAgent?.name ? { ...r, ...next } : r)));
-  }, [editingAgent]);
+  const actions = useSwarmConfigActions({
+    roles, models, engine, profileThresholds, editingAgent,
+    setEngine, setSelected, setRoleModels, setActiveProfile, setLoadRetries, setRoles,
+    reset,
+  });
 
   return {
-    roles,
-    setRoles,
-    models,
-    selected,
-    roleModels,
-    engine,
-    loadError,
-    activeProfile,
-    editingAgent,
-    setEditingAgent,
-    engineModels,
-    hasEngineModels,
-    handleEngineChange,
-    toggleRole,
-    setModel,
-    applyProfile,
-    riskEstimate,
-    layout,
-    activeBackends,
-    isMixedBackends,
+    roles, setRoles,
+    models, selected, roleModels, engine,
+    loadError, activeProfile,
+    editingAgent, setEditingAgent,
+    engineModels, hasEngineModels,
+    riskEstimate, layout, activeBackends,
+    isMixedBackends: activeBackends.length > 1,
     canDeploy,
-    retryLoad,
-    handleAgentSaved,
+    ...actions,
   };
 }
