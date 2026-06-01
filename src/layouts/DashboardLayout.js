@@ -1,21 +1,14 @@
 import React, { useMemo } from 'react';
 import AppHeader from '../components/AppHeader';
-import PromptInput from '../components/PromptInput';
-import AgentGrid from '../components/AgentGrid';
-import MetricsStrip from '../components/MetricsStrip';
 import SwarmConfig from '../components/SwarmConfig';
 import ModelConverter from '../components/ModelConverter';
 import HelpModal from '../components/HelpModal';
-import FinalAnswerPanel from '../components/FinalAnswerPanel';
-import RagSources from '../components/RagSources';
 import RagAdmin from '../components/RagAdmin';
 import CachePanel from '../components/CachePanel';
 import PressureCluster from '../components/PressureCluster';
-import PipelineStageOutputs from '../components/PipelineStageOutputs';
-import CompareVariantsPanel from '../components/CompareVariantsPanel';
-import ConversationThread from '../components/ConversationThread';
+import DashboardStatTile from './DashboardStatTile';
+import DashboardLayoutGrid from './DashboardLayoutGrid';
 import './DashboardLayout.css';
-import StatTile from './DashboardStatTile';
 
 function DashboardLayout({
   online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed,
@@ -66,24 +59,12 @@ function DashboardLayout({
 
       {/* ── Stats bar ── */}
       <div className="dl-stats-bar">
-        <StatTile
-          label="Status"
-          value={online ? 'ONLINE' : 'OFFLINE'}
-          accent={online}
-        />
-        <StatTile label="Mode"    value={activeMode || '—'} />
-        <StatTile label="Agents"  value={agentCount} sub={`${responseCount} responded`} />
-        {avgMs !== null && <StatTile label="Avg latency" value={`${avgMs}ms`} />}
-        {kvPct !== null && (
-          <StatTile
-            label="KV usage"
-            value={`${kvPct}%`}
-            accent={kvPct > 80}
-          />
-        )}
-        {lastMeta?.wall_ms && (
-          <StatTile label="Wall time" value={`${Math.round(lastMeta.wall_ms)}ms`} />
-        )}
+        <DashboardStatTile label="Status" value={online ? 'ONLINE' : 'OFFLINE'} accent={online} />
+        <DashboardStatTile label="Mode"   value={activeMode || '—'} />
+        <DashboardStatTile label="Agents" value={agentCount} sub={`${responseCount} responded`} />
+        {avgMs !== null && <DashboardStatTile label="Avg latency" value={`${avgMs}ms`} />}
+        {kvPct !== null && <DashboardStatTile label="KV usage" value={`${kvPct}%`} accent={kvPct > 80} />}
+        {lastMeta?.wall_ms && <DashboardStatTile label="Wall time" value={`${Math.round(lastMeta.wall_ms)}ms`} />}
         <div className="dl-stats-pressure">
           <PressureCluster online={online} readings={kvReadings} fetchFailed={kvFetchFailed} />
         </div>
@@ -104,11 +85,7 @@ function DashboardLayout({
       )}
 
       {/* ── Config / converter panels ── */}
-      {showConverter && (
-        <div className="dl-panel-overlay">
-          <ModelConverter standalone />
-        </div>
-      )}
+      {showConverter && <div className="dl-panel-overlay"><ModelConverter standalone /></div>}
       {!showConverter && showConfigPanel && <SwarmConfig onDeployed={onDeployed} />}
 
       {showHistory && history.length > 0 && (
@@ -128,71 +105,19 @@ function DashboardLayout({
 
       {/* ── Main grid ── */}
       {!showConfigPanel && (
-        <div className="dl-grid">
-          {/* Left column: chat */}
-          <div className="dl-col-chat">
-            <div className="dl-card">
-              <div className="dl-card-title">Prompt</div>
-              <PromptInput
-                onSubmit={onSubmit} loading={loading} disabled={!online}
-                externalPrompt={selectedPrompt} externalTemperature={selectedTemperature}
-                onPromptConsumed={onPromptConsumed}
-                canContinue={Boolean(currentSession?.sessionId)}
-                onQualityPass={onQualityPass} useRag={useRag} onUseRagChange={onUseRagChange}
-                activeAgents={activeAgents} backend={backend} onBackendChange={switchBackend}
-              />
-            </div>
-
-            <div className="dl-card dl-card--grow">
-              <div className="dl-card-title">Conversation</div>
-              <ConversationThread
-                history={history} sessionId={currentSession?.sessionId}
-                responses={responses} finalAnswer={finalAnswer} loading={loading}
-                pendingPrompt={pendingPrompt} onFollowUp={onFollowUp}
-                onClear={onClearSession} onSwitchSession={onSwitchSession}
-              />
-            </div>
-
-            <div className="dl-card">
-              <div className="dl-card-title">Final Answer</div>
-              <FinalAnswerPanel text={finalAnswer} />
-              <RagSources rag={lastMeta?.rag} />
-            </div>
-          </div>
-
-          {/* Right column: agents + metrics */}
-          <div className="dl-col-agents">
-            <div className="dl-card">
-              <div className="dl-card-title">Metrics</div>
-              <MetricsStrip envelope={{ meta: lastMeta }} />
-              <PipelineStageOutputs stageOutputs={stageOutputs} />
-            </div>
-
-            <div className="dl-card dl-card--grow">
-              <div className="dl-card-title">Agent Responses</div>
-              <AgentGrid
-                activeAgents={activeAgents} responses={responses} loading={loading}
-                timings={lastMeta?.timings || {}} onSaveCode={onSaveCode}
-                flatPickMode={activeMode === 'flat'} pickedFlatAgent={flatPickAgent}
-                onPickFlatAgent={onPickFlatAgent}
-                onExpandProgrammer={(instruction) => onSubmit(instruction, 0.2, {
-                  followup: true,
-                  contextPolicy: {
-                    include: ['original_prompt', 'final', 'programmer'],
-                    target_agent: 'programmer', max_context_chars: 24000,
-                  },
-                })}
-              />
-              {activeMode === 'flat' && Object.keys(responses).length > 0 && (
-                <CompareVariantsPanel
-                  activeAgents={activeAgents} responses={responses} loading={loading}
-                  flatPickAgent={flatPickAgent} onPickAgent={onPickFlatAgent}
-                  onSendBest={() => onSendBestContinue(0.2)}
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <DashboardLayoutGrid
+          online={online} activeAgents={activeAgents} activeMode={activeMode}
+          responses={responses} finalAnswer={finalAnswer} loading={loading}
+          error={error} history={history} lastMeta={lastMeta}
+          currentSession={currentSession} backend={backend} switchBackend={switchBackend}
+          pendingPrompt={pendingPrompt} flatPickAgent={flatPickAgent}
+          excludedBreaker={excludedBreaker} stageOutputs={stageOutputs}
+          useRag={useRag} selectedPrompt={selectedPrompt} selectedTemperature={selectedTemperature}
+          onSubmit={onSubmit} onQualityPass={onQualityPass} onPromptConsumed={onPromptConsumed}
+          onFollowUp={onFollowUp} onClearSession={onClearSession} onSwitchSession={onSwitchSession}
+          onSaveCode={onSaveCode} onPickFlatAgent={onPickFlatAgent}
+          onSendBestContinue={onSendBestContinue} onUseRagChange={onUseRagChange}
+        />
       )}
 
       {showHelp      && <HelpModal  onClose={onOpenHelp} />}
