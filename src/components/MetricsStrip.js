@@ -10,6 +10,8 @@ export default function MetricsStrip({ envelope }) {
   const meta = envelope?.meta || {};
   const timings = meta.timings;
   const wallMs = meta.wall_ms;
+  const tb = meta.token_budget || {};
+  const tes = meta.tes;
   if (!timings || typeof timings !== 'object' || Object.keys(timings).length === 0) {
     return null;
   }
@@ -44,8 +46,39 @@ export default function MetricsStrip({ envelope }) {
               KV↺
             </span>
           )}
+          {tes != null && (
+            <span title={`Token Efficiency Score: ${tes.toFixed(2)} tok/ms`}
+                  style={{ marginLeft: '0.4rem', opacity: 0.85, fontSize: '0.72rem',
+                           background: 'var(--color-success, #22c55e)', color: '#fff',
+                           padding: '0 0.3rem', borderRadius: 3 }}>
+              TES {tes.toFixed(2)}
+            </span>
+          )}
         </span>
       </div>
+      {tb.budget > 0 && (
+        <div className="metrics-strip-budget">
+          <span className="metrics-strip-budget-label">SESSION TOKENS</span>
+          <span className="metrics-strip-budget-value">
+            {tb.consumed ?? 0} / {tb.budget}
+            {tb.overrun && (
+              <span style={{ marginLeft: '0.3rem', color: 'var(--color-danger, #ef4444)',
+                             fontWeight: 600 }}>OVERRUN</span>
+            )}
+          </span>
+          <div className="metrics-strip-budget-bar">
+            <div className="metrics-strip-budget-bar-fill"
+                 style={{
+                   width: `${Math.min(100, ((tb.consumed ?? 0) / tb.budget) * 100).toFixed(1)}%`,
+                   background: tb.overrun
+                     ? 'var(--color-danger, #ef4444)'
+                     : (tb.consumed / tb.budget > 0.9
+                       ? 'var(--kv-warn, #ffae00)'
+                       : 'var(--color-primary, #4a9eff)'),
+                 }} />
+          </div>
+        </div>
+      )}
       <div className="metrics-strip-rows">
         {rows.map(r => {
           const pct = totalAgentMs > 0 ? (r.total_ms / totalAgentMs) * 100 : 0;

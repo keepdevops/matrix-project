@@ -60,6 +60,12 @@ export const Turn = memo(function Turn({ entry, finalAnswer }) {
         }
       </div>
       <AgentExpander entry={entry} />
+      {entry._meta?.tes != null && (
+        <div className="ct-tes-badge"
+             title={`Token Efficiency Score: ${entry._meta.tes.toFixed(2)} tok/ms`}>
+          TES {entry._meta.tes.toFixed(2)}
+        </div>
+      )}
     </div>
   );
 }, (prev, next) =>

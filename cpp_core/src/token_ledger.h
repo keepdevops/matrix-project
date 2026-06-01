@@ -32,4 +32,10 @@ void reset(const std::string& session_id);
 /// JSON snapshot: {session_id, budget, consumed, remaining, overrun}.
 nlohmann::json snapshot(const std::string& session_id);
 
+/// Sum of consumed tokens across all active sessions (for Prometheus export).
+int session_total_consumed();
+
+/// All sessions as a JSON array (for Prometheus endpoint).
+nlohmann::json all_sessions_snapshot();
+
 } // namespace token_ledger
