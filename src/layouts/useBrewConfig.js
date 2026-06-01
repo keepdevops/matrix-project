@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   fetchSwarmConfig, fetchModels, fetchAgents, invalidateModelsCache,
 } from '../api/swarmApi';
@@ -37,6 +37,10 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
   const [editingAgent, setEditingAgent] = useState(null);
   const [loadError, setLoadError]       = useState('');
   const [loadRetries, setLoadRetries]   = useState(0);
+  // Read hostMemory via ref so hostMemory polling doesn't re-trigger the full
+  // fetch effect (which would override user-initiated selection changes).
+  const hostMemoryRef = useRef(hostMemory);
+  useEffect(() => { hostMemoryRef.current = hostMemory; }, [hostMemory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,8 +61,8 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
         const preselected = {};
         liveAgents.forEach(a => { if (a.model) preselected[a.name] = a.model; });
         setRoleModels(preselected);
-        const liveUsedGb = hostMemory?.ok && Number.isFinite(hostMemory.used_gb)
-          ? hostMemory.used_gb : null;
+        const mem = hostMemoryRef.current;
+        const liveUsedGb = mem?.ok && Number.isFinite(mem.used_gb) ? mem.used_gb : null;
         const defaultProfile = liveUsedGb !== null && liveUsedGb > RAM_WARN_GB
           ? PROFILE_SAFE
           : (liveAgents.length > 0 ? PROFILE_CUSTOM : PROFILE_SAFE);
@@ -66,7 +70,7 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
       })
       .catch(e => { if (!cancelled) setLoadError(e.message); });
     return () => { cancelled = true; };
-  }, [loadRetries, hostMemory]);
+  }, [loadRetries]);
 
   const engineModels = useMemo(() => models.filter(m => m.backend === engine), [models, engine]);
 

@@ -11,10 +11,12 @@ function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
-function layoutPropKeys(appSrc) {
-  const block = appSrc.match(/const layoutProps = useMemo\(\(\) => \(\{([\s\S]*?)\}\), \[/);
-  if (!block) throw new Error('layoutProps block not found');
-  return [...block[1].matchAll(/^\s+(\w+),?\s*$/gm)].map(m => m[1]);
+function layoutPropKeys(_appSrc) {
+  // useMemo was extracted to hooks/useAppLayoutProps.js in MS-41
+  const hookSrc = read('hooks/useAppLayoutProps.js');
+  const block = hookSrc.match(/return useMemo\(\(\) => \(\{([\s\S]*?)\}\), \[/);
+  if (!block) throw new Error('layoutProps useMemo block not found in hooks/useAppLayoutProps.js');
+  return [...block[1].matchAll(/^\s+(\w+)[,:]/gm)].map(m => m[1]).filter(Boolean);
 }
 
 function layoutParams(src, exportName) {
@@ -118,6 +120,8 @@ const BREWLATE_ONLY_OPTIONAL = new Set([
 const CLASSIC_UNUSED = new Set([
   'agentErrors', 'warningsByMode', 'onCloseHelp', 'onCloseRagAdmin', 'onCloseCachePanel',
   'hostMemory',
+  // DefaultLayout constructs its own onExpandProgrammer from onSubmit rather than accepting it as a prop.
+  'onExpandProgrammer',
 ]);
 
 describe('Brewlate vs classic parity', () => {
