@@ -1,8 +1,7 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "coordinator_routes_modes_put_impl.h"
 
-// Handles PUT /api/modes/<name>/agents. Extracted from coordinator_routes_modes.cpp
-// to keep each file under 300 LOC.
 void handle_mode_agents_put(CoordinatorState& st,
                              const std::string& mode_name,
                              const httplib::Request& req,
@@ -39,34 +38,21 @@ void handle_mode_agents_put(CoordinatorState& st,
                             "application/json");
             return;
         }
+
         std::set<std::string> active_names;
         for (const auto& a : st.agents) active_names.insert(a.name);
-        json normalized = json::array();
-        json unknown = json::array();
-        std::set<std::string> normalized_seen;
-        size_t requested_count = 0;
-        if (has_agents) {
-            for (const auto& item : body["agents"]) {
-                if (!item.is_string()) continue;
-                ++requested_count;
-                const std::string n = item.get<std::string>();
-                if (active_names.count(n)) {
-                    if (mode_name == "pipeline" || normalized_seen.insert(n).second)
-                        normalized.push_back(n);
-                } else {
-                    unknown.push_back(n);
-                }
-            }
-        }
-        if (has_agents && requested_count > 0 && normalized.empty()) {
+
+        auto na = modes_put_impl::normalize_agents(body, active_names, mode_name);
+        if (has_agents && na.requested_count > 0 && na.normalized.empty()) {
             res.status = 409;
             res.set_content(json({
                 {"error","all requested agents unknown — refusing to erase roster"},
-                {"mode", mode_name}, {"unknown", unknown},
+                {"mode", mode_name}, {"unknown", na.unknown},
                 {"hint","send agents:[] explicitly to clear the override"}
             }).dump(), "application/json");
             return;
         }
+
         std::string unknown_synth_name;
         int max_select_val = 0;
         if (has_max) {
@@ -78,7 +64,7 @@ void handle_mode_agents_put(CoordinatorState& st,
             std::lock_guard<std::mutex> lock(st.modes_config_mutex);
             if (!st.modes_config.contains(mode_name) || !st.modes_config[mode_name].is_object())
                 st.modes_config[mode_name] = json::object();
-            if (has_agents) st.modes_config[mode_name]["agents"] = normalized;
+            if (has_agents) st.modes_config[mode_name]["agents"] = na.normalized;
             if (has_max)    st.modes_config[mode_name]["max_select"] = max_select_val;
             if (has_synth) {
                 if (body["synthesizer"].is_null() || body["synthesizer"].get<std::string>().empty()) {
@@ -122,38 +108,16 @@ void handle_mode_agents_put(CoordinatorState& st,
             persisted = coordinator_persist_modes_locked(st);
         }
         std::cout << "🧩 [modes/" << mode_name << "/agents] "
-                  << (has_agents ? std::to_string(normalized.size()) + " agent(s) " : "")
+                  << (has_agents ? std::to_string(na.normalized.size()) + " agent(s) " : "")
                   << (has_max ? "max_select=" + std::to_string(max_select_val) : "")
                   << (persisted ? "" : " (persistence FAILED)") << std::endl;
-        json out = {
-            {"mode", mode_name}, {"agents", normalized}, {"unknown", unknown},
-            {"unknown_synthesizer", unknown_synth_name.empty() ? json(nullptr) : json(unknown_synth_name)},
-            {"persisted", persisted}
-        };
-        if (has_max)              out["max_select"]         = max_select_val;
-        if (has_variant)          out["variant_policy"]     = body["variant_policy"];
-        if (has_preset)           out["preset"]             = body["preset"];
-        if (has_synth_policy)     out["synthesis_policy"]   = body["synthesis_policy"];
-        if (has_classifier_policy) out["classifier_policy"] = body["classifier_policy"];
-        if (has_stage_context)    out["stage_context_chars"]= body["stage_context_chars"];
-        if (has_order && mode_name == "pipeline") {
-            if (body["order"].is_null()) {
-                out["order"] = nullptr;
-            } else {
-                json normalized_order = json::array();
-                json unknown_order = json::array();
-                std::set<std::string> active_names_out;
-                for (const auto& a : st.agents) active_names_out.insert(a.name);
-                for (const auto& item : body["order"]) {
-                    if (!item.is_string()) continue;
-                    const std::string n = item.get<std::string>();
-                    if (active_names_out.count(n)) normalized_order.push_back(n);
-                    else unknown_order.push_back(n);
-                }
-                out["order"] = normalized_order;
-                if (!unknown_order.empty()) out["unknown_order"] = unknown_order;
-            }
-        }
+
+        json out = modes_put_impl::build_response(
+            body, mode_name, na.normalized, na.unknown, unknown_synth_name,
+            max_select_val, has_max, has_agents, has_variant, has_preset,
+            has_synth_policy, has_classifier_policy, has_stage_context,
+            has_order, persisted, active_names);
+
         if (!has_agents) {
             std::lock_guard<std::mutex> lock(st.modes_config_mutex);
             if (st.modes_config.contains(mode_name)
