@@ -76,6 +76,9 @@ PortBuildResult proxy_configure_build_port_groups(nlohmann::json agents) {
         if (bk == "docker") key = "docker:shared";
         else if (bk == "docker-vllm" && fixed_port > 0) key = "docker-vllm:" + std::to_string(fixed_port);
         else if ((bk == "mlx" || bk == "vllm") && fixed_port > 0) key = bk + ":" + std::to_string(fixed_port);
+        // Llama: group by model path only. server_group is a UI label; splitting the
+        // same GGUF across groups duplicates ~18GB+ GPU loads and causes Metal OOM.
+        else if (bk == "llama") key = bk + ":" + model;
         else key = bk + ":" + model + ":" + sg;
         if (!key_to_port.count(key)) {
             if (bk == "docker") key_to_port[key] = PROXY_CONFIGURE_DOCKER_PORT;
