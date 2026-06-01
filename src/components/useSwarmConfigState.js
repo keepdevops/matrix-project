@@ -7,8 +7,8 @@ import {
 import {
   PROFILE_SAFE,
   PROFILE_MAX,
-  computeLayout,
 } from './SwarmConfig.helpers';
+import { computeLayout } from './SwarmConfig.layoutHelpers';
 import { computeRiskEstimate } from './SwarmConfig.risk';
 import { useSwarmConfigActions } from './useSwarmConfigActions';
 

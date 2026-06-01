@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   fetchSwarmConfig, fetchModels, fetchAgents, invalidateModelsCache,
 } from '../api/swarmApi';
-import {
-  PROFILE_CUSTOM, PROFILE_SAFE, computeLayout,
-} from '../components/SwarmConfig.helpers';
+import { PROFILE_CUSTOM, PROFILE_SAFE } from '../components/SwarmConfig.helpers';
+import { computeLayout } from '../components/SwarmConfig.layoutHelpers';
 import { computeRiskEstimate, RAM_WARN_GB } from '../components/SwarmConfig.risk';
 import { useBrewRoleHandlers } from './useBrewRoleHandlers';
 

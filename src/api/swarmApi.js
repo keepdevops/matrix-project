@@ -4,6 +4,8 @@
  */
 export * from './ragApi';
 export * from './streamApi';
+// Direct re-exports for streamApi symbols that go through a nested chain
+export { submitPromptStream, submitPromptStreamMlx } from './streamApi.stream';
 export * from './agentsApi';
 export * from './configApi';
 export * from './configureApi';
