@@ -75,5 +75,7 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
         const auto& coord = config["coordinator"];
         if (coord.contains("token_budget") && coord["token_budget"].is_number_integer())
             state.global_token_budget = coord["token_budget"].get<int>();
+        state.context_gate_config  = context_gate::load(coord);
+        state.kv_auto_clear_config = kv_auto_clear::load(coord);
     }
 }

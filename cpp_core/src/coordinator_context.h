@@ -4,6 +4,8 @@
 // JSON shape checks at startup: config/coordinator_config_validate.h
 
 #include "agent.h"
+#include "context_gate.h"
+#include "kv_auto_clear.h"
 #include "json.hpp"
 #include "swarm_config_store.h"
 
@@ -38,6 +40,11 @@ struct CoordinatorState {
 
     /// Global session token budget from coordinator.token_budget (0 = unlimited).
     int global_token_budget = 0;
+
+    context_gate::Config  context_gate_config;
+    kv_auto_clear::Config kv_auto_clear_config;
+    kv_auto_clear::State  kv_auto_clear_state;
+    std::mutex            kv_auto_clear_mutex;
 
     SwarmPaths swarm_paths() const {
         return SwarmPaths{config_path_global, source_config_path_global};

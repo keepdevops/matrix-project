@@ -5,6 +5,8 @@
 #include "coordinator_routes_dispatch_history.h"
 #include "session_context.h"
 #include "token_ledger.h"
+#include "context_gate.h"
+#include "kv_auto_clear.h"
 #include <algorithm>
 #include <unordered_set>
 
@@ -36,6 +38,14 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 
             RagResult rag = dispatch_build_rag(dreq, st);
             dreq.effective_prompt = rag.effective_prompt;
+
+            // Summarization gate: compress prompt if it exceeds max_input_chars
+            nlohmann::json gate_meta;
+            {
+                std::vector<Agent> gate_agents = filter_agents_for_mode(st, modes::active());
+                dreq.effective_prompt = context_gate::maybe_summarise(
+                    st.context_gate_config, gate_agents, dreq.effective_prompt, gate_meta);
+            }
 
             std::cout << "📝 Prompt: " << dreq.prompt
                       << (dreq.followup ? " (follow-up)" : "") << std::endl;
@@ -121,11 +131,24 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 
             dispatch_meta::stamp_envelope(envelope, dreq, rag, excluded_unhealthy,
                                           qp_target, dispatch_t0, effective_max_select);
+            if (gate_meta.value("triggered", false))
+                envelope["meta"]["context_gate"] = gate_meta;
 
             dispatch_write_history(st, envelope, dreq.prompt, dreq.temperature, ms,
                                    dreq.session_id, dreq.run_id, dreq.parent_run_id,
                                    dreq.effective_prompt, dreq.followup,
                                    dreq.quality_pass, mode_name, dreq.compaction);
+
+            // Auto KV clear: fire after dispatch if pressure + query divergence threshold met
+            if (dreq.kv_pressure > 0.0) {
+                std::lock_guard<std::mutex> lk(st.kv_auto_clear_mutex);
+                if (kv_auto_clear::should_clear(
+                        st.kv_auto_clear_state, dreq.prompt,
+                        dreq.kv_pressure, st.kv_auto_clear_config)) {
+                    kv_auto_clear::clear_kv(st.agents);
+                    envelope["meta"]["auto_clear_kv"] = true;
+                }
+            }
 
             session_context::clear();
             res.set_content(envelope.dump(), "application/json");
