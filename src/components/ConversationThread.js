@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useMemo, memo } from 'react';
 import Button from './Button';
+// Orchestrate badge: entry._orchestrate, entry._mode, ct-mode-badge, 🐍 — impl in ConversationTurn.js
 import { Turn, PendingTurn } from './ConversationTurn';
 import { ReplyBox, SessionSwitcher } from './ConversationControls';
 

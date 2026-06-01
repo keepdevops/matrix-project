@@ -1,4 +1,5 @@
 import React from 'react';
+// RAG: lastMeta?.rag passed to RagSources — impl in DefaultLayoutMain.js
 import AppHeader from '../components/AppHeader';
 import SwarmConfig from '../components/SwarmConfig';
 import ModelConverter from '../components/ModelConverter';

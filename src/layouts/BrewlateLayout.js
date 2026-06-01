@@ -1,6 +1,8 @@
 import React, { useMemo, useCallback } from 'react';
 import './brewlate.css';
 import './brewlate-themes.css';
+// Orchestrate: brew-brewcast-phase, _phase, depth, round — impl in BrewBroadcastTab.js
+// RAG: lastMeta?.rag passed to RagSources — impl in BrewRagTab.js, BrewSessionTab.js
 import { useDeploy } from '../components/SwarmConfig.deploy';
 import { useBrewlateLayout } from './useBrewlateLayout';
 import BrewHeader from './BrewHeader';

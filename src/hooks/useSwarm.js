@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { clearMlxSession, fetchHistory, checkHealth } from '../api/swarmApi';
+// Orchestrate: saveOrchestrateHistory, rag_chunks→ragMeta, timings — impl in useOrchestrateStream.js
 import { useSwarmSubmit } from './useSwarmSubmit';
 
 export function useSwarm() {

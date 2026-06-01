@@ -43,7 +43,14 @@ export default function PressureCluster({
   const mlx = useMemo(() => readings.filter(r => r && r.backend === 'mlx' && r.ok), [readings]);
   const sortedMlx = useMemo(() => mlx.slice().sort((a, b) => a.port - b.port), [mlx]);
 
-  if (!online) return null;
+  if (!online) {
+    return (
+      <div className="pcluster pcluster--idle" role="status">
+        <div className="pcluster-title">MLX pressure</div>
+        <div className="pcluster-empty">offline</div>
+      </div>
+    );
+  }
 
   if (errored && mlx.length === 0) {
     return (
