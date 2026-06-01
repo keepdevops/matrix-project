@@ -1,5 +1,5 @@
 import { normalizeLanguage, detectLanguage, isLikelyCode } from './codeExtractorDetect';
-import { FENCE_RE, parseFenceInfo, extractFilenameFromComments, extractAllCodeBlocks, hasExtractableCode } from './codeExtractorFence.parse';
+import { FENCE_RE, parseFenceInfo, extractAllCodeBlocks } from './codeExtractorFence.parse';
 // Direct re-exports — webpack HMR loses import-then-re-export patterns
 export { parseFenceInfo, extractFilenameFromComments, extractAllCodeBlocks, hasExtractableCode } from './codeExtractorFence.parse';
 
