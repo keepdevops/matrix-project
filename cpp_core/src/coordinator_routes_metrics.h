@@ -5,6 +5,7 @@
 #include "coordinator_context.h"
 #include "token_ledger.h"
 #include "agent_health.h"
+#include "response_cache.h"
 #include "httplib.h"
 #include <sstream>
 #include <string>
@@ -58,6 +59,23 @@ inline void register_coordinator_routes_metrics(httplib::Server& svr, Coordinato
         for (const auto& [name, val] : health.items())
             out << "matrix_agent_breaker_cooldown_ms{agent=\"" << name << "\"} "
                 << val.value("cooldown_remaining_ms", 0) << "\n";
+
+        // Response cache metrics
+        {
+            auto cs = response_cache::stats();
+            out << "# HELP matrix_cache_hits_total Response cache hits since startup\n"
+                << "# TYPE matrix_cache_hits_total counter\n"
+                << "matrix_cache_hits_total " << cs.hits << "\n"
+                << "# HELP matrix_cache_misses_total Response cache misses since startup\n"
+                << "# TYPE matrix_cache_misses_total counter\n"
+                << "matrix_cache_misses_total " << cs.misses << "\n"
+                << "# HELP matrix_cache_size Current cached entries\n"
+                << "# TYPE matrix_cache_size gauge\n"
+                << "matrix_cache_size " << cs.size << "\n"
+                << "# HELP matrix_cache_evictions_total LRU evictions since startup\n"
+                << "# TYPE matrix_cache_evictions_total counter\n"
+                << "matrix_cache_evictions_total " << cs.evictions << "\n";
+        }
 
         res.set_content(out.str(), "text/plain; version=0.0.4; charset=utf-8");
     });
