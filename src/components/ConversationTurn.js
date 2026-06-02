@@ -2,6 +2,7 @@ import React, { useState, memo } from 'react';
 import Button from './Button';
 import ForkButton from './ForkButton';
 import ResponseRating from './ResponseRating';
+import QualityScoreBadge from './QualityScoreBadge';
 import { bestAgentText, METADATA_KEYS } from '../utils/conversationHelpers';
 
 function AgentExpander({ entry }) {
@@ -71,6 +72,7 @@ export const Turn = memo(function Turn({ entry, finalAnswer, onForked }) {
         )}
         <ForkButton runId={entry._run_id} onForked={onForked} />
         <ResponseRating runId={entry._run_id} />
+        <QualityScoreBadge score={entry._meta?.quality_score} />
       </div>
     </div>
   );

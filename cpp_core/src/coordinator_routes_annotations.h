@@ -5,6 +5,7 @@
 // GET  /api/annotations
 
 #include "coordinator_context.h"
+#include "rl_trajectory_logger.h"
 #include "httplib.h"
 #include "json.hpp"
 #include <chrono>
@@ -44,6 +45,8 @@ inline void register_coordinator_routes_annotations(httplib::Server& svr,
         };
         { std::lock_guard<std::mutex> lk(st.annotations_mutex);
           st.annotations[run_id] = ann; }
+        // Live-update trajectory quality score if this run is still in the buffer
+        rl_traj::update_annotation(run_id, rating, ann.value("comment", ""));
         res.set_content(nlohmann::json({{"saved", true}, {"run_id", run_id}}).dump(),
                         "application/json");
     });
