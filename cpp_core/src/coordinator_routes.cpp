@@ -5,6 +5,7 @@
 #include "coordinator_routes_history_search.h"
 #include "coordinator_routes_history_fork.h"
 #include "coordinator_routes_history_diff.h"
+#include "coordinator_routes_session_export.h"
 
 void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_core(svr, st);
@@ -21,4 +22,5 @@ void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_history_search(svr, st);
     register_coordinator_routes_history_fork(svr, st);
     register_coordinator_routes_history_diff(svr, st);
+    register_coordinator_routes_session_export(svr, st);
 }
