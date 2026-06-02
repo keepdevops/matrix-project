@@ -68,7 +68,21 @@ export default function BrewMonitorStats({
       </div>
 
       <div className="brew-resource-section brew-resource-section--pressure brew-resource-section--last">
-        <div className="brew-res-layout-title">Port Pressure</div>
+        {online && kvReadings && kvReadings.filter(r => r.backend !== 'mlx' && r.ok).length > 0 && (
+          <div style={{ marginBottom: '0.4rem' }}>
+            <div className="brew-res-layout-title" style={{ marginBottom: '0.2rem' }}>Llama Ports</div>
+            {kvReadings.filter(r => r.backend !== 'mlx' && r.ok).map(r => (
+              <div key={r.port} style={{ fontSize: '0.72rem', opacity: 0.8,
+                                         display: 'flex', justifyContent: 'space-between',
+                                         marginBottom: '0.1rem' }}>
+                <span>:{r.port} <span style={{ opacity: 0.6 }}>{(r.names || []).join(', ')}</span></span>
+                <span>{r.kv_cache_usage_ratio != null
+                  ? `KV ${Math.round(r.kv_cache_usage_ratio * 100)}%`
+                  : 'no data'}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <PressureCluster
           online={online}
           readings={kvReadings}
