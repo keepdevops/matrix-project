@@ -1,5 +1,7 @@
 import React from 'react';
 import MetricsStripBadges from './MetricsStripBadges';
+import ImportanceBar from './ImportanceBar';
+import TruncationBadge from './TruncationBadge';
 
 export default function MetricsStrip({ envelope }) {
   const meta = envelope?.meta || {};
@@ -28,6 +30,7 @@ export default function MetricsStrip({ envelope }) {
           {wallMs != null && `wall ${(wallMs / 1000).toFixed(2)}s · `}
           agent ms {(totalAgentMs / 1000).toFixed(2)}s · {totalTokens} tok
           <MetricsStripBadges meta={meta} excluded={excluded} tes={tes} />
+          <TruncationBadge truncation={meta.truncation} />
         </span>
       </div>
       {tb.budget > 0 && (
@@ -67,6 +70,7 @@ export default function MetricsStrip({ envelope }) {
           );
         })}
       </div>
+      <ImportanceBar importance={meta.importance} />
     </div>
   );
 }
