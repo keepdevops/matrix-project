@@ -3,6 +3,7 @@
 // and recency heuristics. Guides importance-ordered partial KV eviction.
 
 #include "agent.h"
+#include "kv_layer_entropy.h"
 #include "symbolic_importance.h"
 #include "json.hpp"
 #include <algorithm>
@@ -33,7 +34,8 @@ struct SlotScore {
 inline SlotScore score_port(int port,
                              const std::string& recent_output,
                              int age_turns,
-                             double kv_fill_ratio) {
+                             double kv_fill_ratio,
+                             const kv_layer::LayerProfile* layer = nullptr) {
     SlotScore s;
     s.port = port;
 
@@ -50,8 +52,14 @@ inline SlotScore score_port(int port,
     // High fill = more pressure = lower effective importance (trigger eviction)
     double pressure_penalty = kv_fill_ratio * 0.2;
 
+    double layer_score = 0.0;
+    if (layer) layer_score = (1.0 - layer->eviction_priority) * 0.3;
+
     s.importance = std::max(0.0, std::min(1.0,
-        text_score * 0.5 + recency * 0.3 - pressure_penalty + 0.2));
+        text_score * (layer ? 0.35 : 0.5)
+        + recency * 0.3
+        + layer_score
+        - pressure_penalty + 0.2));
     return s;
 }
 
