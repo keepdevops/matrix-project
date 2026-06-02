@@ -44,7 +44,7 @@ export default function BrewlateLayout({
   const { status, statusMsg, agentStatuses, deploy, reset } = useDeploy({ onDeployed: handleDeployedInternal });
 
   const brewConfig = useBrewConfig({ online, activeAgents, hostMemory, activeMode });
-  const { roles, setRoles, editingAgent, setEditingAgent, loadError, setLoadRetries, invalidateModelsCache } = brewConfig;
+  const { roles, setRoles, models, roleModels, editingAgent, setEditingAgent, loadError, setLoadRetries, invalidateModelsCache } = brewConfig;
   const rolesByName = useMemo(() => Object.fromEntries(roles.map(r => [r.name, r])), [roles]);
 
   if (loadError) {
@@ -98,6 +98,7 @@ export default function BrewlateLayout({
 
       <BrewOverlays
         editingAgent={editingAgent} setEditingAgent={setEditingAgent} setRoles={setRoles}
+        models={models} roleModels={roleModels}
         showConverter={showConverter} onOpenConverter={onOpenConverter}
         showHelp={showHelp} onCloseHelp={onCloseHelp}
         activeAgents={activeAgents}
