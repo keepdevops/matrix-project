@@ -31,7 +31,7 @@ export default function BrewlateLayoutBody({
 
       <BrewRightPanel
         deployed={deployed} rightTab={rightTab} onTabChange={onTabChange}
-        preview={{ rosterPct: brewConfig.rosterPct, serverLayout: brewConfig.serverLayout, configLines: brewConfig.configLines }}
+        preview={{ rosterPct: brewConfig.rosterPct, serverLayout: brewConfig.serverLayout, configLines: brewConfig.configLines, engine: brewConfig.engine }}
         rolesByName={rolesByName}
         session={{
           history, currentSession, responses, finalAnswer, loading, error, pendingPrompt,

@@ -110,6 +110,14 @@ const FEATURE_PARITY = [
     classicMatch: [/RagSources rag=\{lastMeta/],
     brewlateMatch: [/RagSources rag=\{lastMeta/],
   },
+  {
+    id: 'vllm-panel',
+    label: 'vLLM panel in pre-deploy preview (engine === vllm)',
+    classic: ['components/ServerLayoutPreview.js'],
+    brewlate: ['layouts/BrewPreviewPanel.js'],
+    classicMatch: [/VllmPanel/, /engine === 'vllm'/],
+    brewlateMatch: [/VllmPanel/, /engine === 'vllm'/],
+  },
 ];
 
 const BREWLATE_ONLY_OPTIONAL = new Set([
