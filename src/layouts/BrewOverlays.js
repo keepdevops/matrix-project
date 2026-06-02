@@ -1,5 +1,5 @@
 import React from 'react';
-import AgentPromptModal from '../components/AgentPromptModal';
+import BrewEditRoleModal from './BrewEditRoleModal';
 import HelpModal from '../components/HelpModal';
 import RagAdmin from '../components/RagAdmin';
 import CachePanel from '../components/CachePanel';
@@ -10,6 +10,8 @@ export default function BrewOverlays({
   editingAgent,
   setEditingAgent,
   setRoles,
+  models = [],
+  roleModels = {},
   showConverter,
   onOpenConverter,
   showHelp,
@@ -25,14 +27,14 @@ export default function BrewOverlays({
   return (
     <>
       {editingAgent && (
-        <AgentPromptModal
-          agent={editingAgent}
-          defaultPrompt={editingAgent.system_prompt}
+        <BrewEditRoleModal
+          role={editingAgent}
+          models={models}
+          roleModels={roleModels}
           onClose={() => setEditingAgent(null)}
-          onSaved={(saved) => {
-            const next = typeof saved === 'string' ? { system_prompt: saved } : (saved || {});
+          onSaved={(patch) => {
             setRoles(prev => prev.map(r =>
-              r.name === editingAgent.name ? { ...r, ...next } : r
+              r.name === editingAgent.name ? { ...r, ...patch } : r
             ));
             setEditingAgent(null);
           }}

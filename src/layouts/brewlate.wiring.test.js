@@ -144,10 +144,11 @@ describe('Brewlate wiring audit', () => {
     expect(brewSrc).toMatch(/PipelineStageOutputs/);
     expect(brewSrc).toMatch(/MetricsStrip/);
     expect(brewSrc).toMatch(/onSaveCode=\{onSaveCode\}/);
-    expect(brewSrc).toMatch(/AgentPromptModal/);
+    // Agent edit modal surfaced via BrewOverlays → BrewEditRoleModal
+    expect(read('layouts/BrewOverlays.js')).toMatch(/BrewEditRoleModal/);
     expect(brewSrc).toMatch(/BrewAgentsPopout/);
     expect(read('layouts/BrewAgentsPopout.js')).toMatch(/TokenBudgetPanel/);
-    expect(read('components/AgentPromptModal.js')).toMatch(/setAgentSystemPrompt/);
+    expect(read('layouts/BrewEditRoleModal.js')).toMatch(/brew-modal-tab/);
   });
 
   it('all Matrix themes define Brewlate palette overrides', () => {
