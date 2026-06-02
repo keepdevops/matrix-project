@@ -8,17 +8,20 @@ export default function useBrewEditRoleModal({ role, roleModels, onClose, onSave
   const [model, setModel]       = useState(roleModels[role.name] || '');
   const [context, setContext]   = useState(role.context ?? 0);
   const [temp, setTemp]         = useState(role.temperature ?? 0.7);
-  const [topP, setTopP]         = useState(role.top_p ?? 0.9);
-  const [topK, setTopK]         = useState(role.top_k ?? 40);
-  const [maxTok, setMaxTok]     = useState(role.max_tokens ?? 2048);
+  const [minP, setMinP]         = useState(role.min_p ?? 0.0);
+  const [topP, setTopP]         = useState(role.top_p ?? 0.92);
+  const [topK, setTopK]         = useState(role.top_k ?? 50);
+  const [maxTok, setMaxTok]     = useState(role.max_tokens ?? 8192);
   const [maxTokOn, setMaxTokOn] = useState(Boolean(role.max_tokens));
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState(null);
   const [perms, setPerms] = useState({
-    webSearch:    role.permissions?.webSearch    ?? true,
-    codeExec:     role.permissions?.codeExec     ?? true,
-    dalleImage:   role.permissions?.dalleImage   ?? true,
-    functionCall: role.permissions?.functionCall ?? false,
+    webSearch:     role.permissions?.webSearch     ?? false,
+    codeExec:      role.permissions?.codeExec      ?? false,
+    dalleImage:    role.permissions?.dalleImage    ?? false,
+    functionCall:  role.permissions?.functionCall  ?? false,
+    memoryAccess:  role.permissions?.memoryAccess  ?? false,
+    chainOfThought: role.permissions?.chainOfThought ?? false,
   });
   const togglePerm = key => setPerms(p => ({ ...p, [key]: !p[key] }));
 
@@ -51,8 +54,9 @@ export default function useBrewEditRoleModal({ role, roleModels, onClose, onSave
         else if (!maxTokOn) patch.max_tokens = null;
       }
       patch.temperature = parseFloat(temp);
-      patch.top_p = parseFloat(topP);
-      patch.top_k = parseInt(topK, 10);
+      patch.min_p       = parseFloat(minP);
+      patch.top_p       = parseFloat(topP);
+      patch.top_k       = parseInt(topK, 10);
       patch.permissions = { ...perms };
       onSaved(patch);
       onClose();
@@ -66,7 +70,8 @@ export default function useBrewEditRoleModal({ role, roleModels, onClose, onSave
 
   return {
     tab, setTab, name, setName, prompt, setPrompt, model, setModel,
-    context, setContext, temp, setTemp, topP, setTopP, topK, setTopK,
+    context, setContext, temp, setTemp, minP, setMinP,
+    topP, setTopP, topK, setTopK,
     maxTok, setMaxTok, maxTokOn, setMaxTokOn, perms, togglePerm,
     busy, error, handleSave,
   };

@@ -1,13 +1,14 @@
 import React from 'react';
-import { BrewBasicTab, BrewAdvancedTab } from './BrewEditRoleModalTabs';
+import { BrewBasicTab, BrewAdvancedTab, BrewToolsTab } from './BrewEditRoleModalTabs';
 import useBrewEditRoleModal from './useBrewEditRoleModal';
 
-const TABS = ['Basic', 'Advanced'];
+const TABS = ['Basic', 'Advanced', 'Tools'];
 
 export default function BrewEditRoleModal({ role, models, roleModels, onClose, onSaved }) {
   const {
     tab, setTab, name, setName, prompt, setPrompt, model, setModel,
-    context, setContext, temp, setTemp, topP, setTopP, topK, setTopK,
+    context, setContext, temp, setTemp, minP, setMinP,
+    topP, setTopP, topK, setTopK,
     maxTok, setMaxTok, maxTokOn, setMaxTokOn, perms, togglePerm,
     busy, error, handleSave,
   } = useBrewEditRoleModal({ role, roleModels, onClose, onSaved });
@@ -43,11 +44,15 @@ export default function BrewEditRoleModal({ role, models, roleModels, onClose, o
           )}
           {tab === 'Advanced' && (
             <BrewAdvancedTab
-              temp={temp} setTemp={setTemp} topP={topP} setTopP={setTopP}
+              temp={temp} setTemp={setTemp} minP={minP} setMinP={setMinP}
+              topP={topP} setTopP={setTopP}
               topK={topK} setTopK={setTopK} maxTok={maxTok} setMaxTok={setMaxTok}
               maxTokOn={maxTokOn} setMaxTokOn={setMaxTokOn}
               perms={perms} togglePerm={togglePerm}
             />
+          )}
+          {tab === 'Tools' && (
+            <BrewToolsTab perms={perms} togglePerm={togglePerm} />
           )}
         </div>
 

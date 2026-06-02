@@ -48,29 +48,32 @@ export function BrewBasicTab({
 }
 
 export function BrewAdvancedTab({
-  temp, setTemp, topP, setTopP, topK, setTopK,
+  temp, setTemp, minP, setMinP, topP, setTopP, topK, setTopK,
   maxTok, setMaxTok, maxTokOn, setMaxTokOn,
   perms, togglePerm,
 }) {
   return (
     <>
       <div className="brew-adv-card">
-        <SliderRow label="Temperature" min={0} max={2}   step={0.01} value={temp}   onChange={setTemp} />
-        <SliderRow label="Top-P"       min={0} max={1}   step={0.01} value={topP}   onChange={setTopP} />
-        <SliderRow label="Top-K"       min={0} max={200} step={1}    value={topK}   onChange={setTopK} />
+        <SliderRow label="Temperature" min={0}   max={2}     step={0.01} value={temp} onChange={setTemp} />
+        <SliderRow label="Min-P"       min={0}   max={1}     step={0.01} value={minP} onChange={setMinP} />
+        <SliderRow label="Top-P"       min={0}   max={1}     step={0.01} value={topP} onChange={setTopP} />
+        <SliderRow label="Top-K"       min={0}   max={200}   step={1}    value={topK} onChange={setTopK} />
         <SliderRow
-          label="Max Tokens" min={256} max={8192} step={256} value={maxTok} onChange={setMaxTok}
+          label="Max Tokens" min={256} max={32768} step={256} value={maxTok} onChange={setMaxTok}
           showToggle toggleOn={maxTokOn} onToggleChange={setMaxTokOn}
         />
       </div>
 
       <div className="brew-adv-card">
-        <div className="brew-perm-title">Permissions</div>
+        <div className="brew-perm-title">Enhanced Parameters</div>
         {[
-          ['webSearch',    'Web Search'],
-          ['codeExec',     'Code Execution'],
-          ['dalleImage',   'DALL-E Image Generation'],
-          ['functionCall', 'Function Calling'],
+          ['webSearch',      'Web Search'],
+          ['codeExec',       'Code Execution'],
+          ['dalleImage',     'Image Generation (DALL-E)'],
+          ['functionCall',   'Function Calling'],
+          ['memoryAccess',   'Memory Access'],
+          ['chainOfThought', 'Chain of Thought'],
         ].map(([key, label]) => (
           <div key={key} className="brew-perm-row">
             <span className="brew-perm-label">{label}</span>
@@ -79,5 +82,29 @@ export function BrewAdvancedTab({
         ))}
       </div>
     </>
+  );
+}
+
+export function BrewToolsTab({ perms, togglePerm }) {
+  return (
+    <div className="brew-adv-card">
+      <div className="brew-perm-title">Agent Tools</div>
+      {[
+        ['webSearch',      'Web Search',               'Search the web for current information'],
+        ['codeExec',       'Code Execution',            'Run code snippets and return output'],
+        ['dalleImage',     'Image Generation (DALL-E)', 'Generate images from text descriptions'],
+        ['functionCall',   'Function Calling',          'Call structured functions / tool use'],
+        ['memoryAccess',   'Memory Access',             'Read and write persistent memory'],
+        ['chainOfThought', 'Chain of Thought',          'Enable explicit reasoning steps'],
+      ].map(([key, label, desc]) => (
+        <div key={key} className="brew-perm-row brew-perm-row--with-desc">
+          <div>
+            <span className="brew-perm-label">{label}</span>
+            <div className="brew-perm-desc">{desc}</div>
+          </div>
+          <Toggle checked={perms[key]} onChange={() => togglePerm(key)} />
+        </div>
+      ))}
+    </div>
   );
 }
