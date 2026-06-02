@@ -12,6 +12,8 @@
 #include "rag_embed.h"
 #include "context_gate.h"
 #include "kv_auto_clear.h"
+#include "rl_trajectory_logger.h"
+#include "token_ledger.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -228,6 +230,48 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     kv_auto_clear::clear_kv(st.agents);
                     envelope["meta"]["auto_clear_kv"] = true;
                 }
+            }
+
+            // Assemble and record RL trajectory
+            {
+                rl_traj::Trajectory traj;
+                traj.session_id       = dreq.session_id;
+                traj.run_id           = dreq.run_id;
+                traj.mode             = mode_name;
+                traj.prompt           = dreq.prompt;
+                traj.timestamp_ms     = ms;
+                traj.kv_pressure_before = dreq.kv_pressure;
+                traj.kv_auto_cleared  = envelope["meta"].value("auto_clear_kv", false);
+
+                const auto& m = envelope["meta"];
+                if (m.contains("token_budget") && m["token_budget"].is_object()) {
+                    traj.tokens_consumed = m["token_budget"].value("consumed", 0);
+                    traj.budget          = m["token_budget"].value("budget", 0);
+                }
+                traj.tes = m.value("tes", 0.0);
+
+                if (m.contains("context_gate") && m["context_gate"].value("triggered", false)) {
+                    traj.gate_triggered = true;
+                    traj.fidelity_ratio = m["context_gate"].value("fidelity_ratio", 1.0);
+                }
+                if (m.contains("rag") && m["rag"].is_object()) {
+                    traj.rag_hits = m["rag"].value("hits", nlohmann::json::array());
+                    int hits   = (int)traj.rag_hits.size();
+                    int top_k  = m["rag"].value("top_k", 0);
+                    traj.rag_hit_rate = (top_k > 0) ? (double)hits / top_k : 0.0;
+                }
+                if (m.contains("contracts")) traj.contracts = m["contracts"];
+                traj.any_overrun = m.value("contract_overrun", false);
+
+                if (m.contains("importance") && m["importance"].is_object())
+                    for (const auto& [k, v] : m["importance"].items())
+                        if (v.is_number()) traj.importance_scores[k] = v.get<double>();
+
+                if (envelope.contains("agents") && envelope["agents"].is_object())
+                    for (const auto& [k, v] : envelope["agents"].items())
+                        if (v.is_string()) traj.agent_outputs[k] = v.get<std::string>();
+
+                rl_traj::record(std::move(traj));
             }
 
             session_context::clear();
