@@ -10,8 +10,8 @@
 #include <sstream>
 #include <string>
 
-inline void register_coordinator_routes_metrics(httplib::Server& svr, CoordinatorState& /*st*/) {
-    svr.Get("/api/metrics", [](const httplib::Request& /*req*/, httplib::Response& res) {
+inline void register_coordinator_routes_metrics(httplib::Server& svr, CoordinatorState& st) {
+    svr.Get("/api/metrics", [&st](const httplib::Request& /*req*/, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         auto sessions = token_ledger::all_sessions_snapshot();
 
@@ -76,6 +76,13 @@ inline void register_coordinator_routes_metrics(httplib::Server& svr, Coordinato
                 << "# TYPE matrix_cache_evictions_total counter\n"
                 << "matrix_cache_evictions_total " << cs.evictions << "\n";
         }
+
+        // Speculative decoding config (static — from agent config, not live)
+        out << "# HELP matrix_agent_draft_max Speculative draft tokens configured (0 = disabled)\n"
+            << "# TYPE matrix_agent_draft_max gauge\n";
+        for (const auto& a : st.agents)
+            out << "matrix_agent_draft_max{agent=\"" << a.name << "\"} "
+                << a.draft_max << "\n";
 
         res.set_content(out.str(), "text/plain; version=0.0.4; charset=utf-8");
     });
