@@ -33,6 +33,14 @@ else
   MOD_LINK+=( -Wl,--whole-archive "$ROOT/build/libmatrix_modes.a" -Wl,--no-whole-archive )
 fi
 
+# MS-132: opt-in flag for the native MLX coordinator routes.
+# Set MATRIX_MLX_NATIVE_COORD=1 in the environment to enable.
+MLX_FLAGS=()
+if [ "${MATRIX_MLX_NATIVE_COORD:-0}" = "1" ]; then
+  MLX_FLAGS+=("-DMATRIX_MLX_NATIVE_COORD=1")
+  echo "MLX native coordinator routes ENABLED (MATRIX_MLX_NATIVE_COORD=1)"
+fi
+
 echo "Building coordinator..."
 # prometheus-cpp (header + core lib) is required for /metrics. Installed via
 # `brew install prometheus-cpp`. Headers at /opt/homebrew/include/prometheus,
@@ -48,7 +56,7 @@ LIBPQ_LIB="$LIBPQ_PREFIX/lib"
 # Compile vendored BLAKE2b as C (header uses extern "C" for C++ callers).
 cc -std=c99 -O2 -c -o "$ROOT/build/blake2b.o" "$CPP_SRC/blake2b.c"
 
-c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
+c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" -o "$ROOT/coordinator" \
    -I"$PROM_INC" -L"$PROM_LIB" \
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
@@ -66,6 +74,7 @@ c++ -std=c++17 -O2 -o "$ROOT/coordinator" \
    "$CPP_SRC/synthesis_budget_assemble.cpp" \
    "$CPP_SRC/synthesis_tiered.cpp" \
    "$CPP_SRC/coordinator_routes.cpp" \
+   "$CPP_SRC/coordinator_routes_mlx.cpp" \
    "$CPP_SRC/coordinator_routes_agents_meta.cpp" \
    "$CPP_SRC/coordinator_routes_agent_tokens.cpp" \
    "$CPP_SRC/coordinator_routes_core.cpp" \

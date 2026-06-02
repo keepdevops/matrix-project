@@ -1,5 +1,8 @@
 #include "coordinator_routes.h"
 #include "coordinator_routes_internal.h"
+#ifdef MATRIX_MLX_NATIVE_COORD
+#include "coordinator_routes_mlx.h"
+#endif
 #include "coordinator_routes_token_budget.h"
 #include "coordinator_routes_metrics.h"
 #include "coordinator_routes_history_search.h"
@@ -37,4 +40,7 @@ void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_simulate(svr, st);
     register_coordinator_routes_negotiate(svr, st);
     register_coordinator_routes_push(svr, st);
+#ifdef MATRIX_MLX_NATIVE_COORD
+    register_coordinator_routes_mlx(svr, st);
+#endif
 }
