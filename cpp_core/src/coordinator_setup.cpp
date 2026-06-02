@@ -79,5 +79,7 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
         state.kv_auto_clear_config = kv_auto_clear::load(coord);
         if (coord.contains("reject_on_overrun") && coord["reject_on_overrun"].is_boolean())
             state.reject_on_overrun = coord["reject_on_overrun"].get<bool>();
+        if (coord.contains("templates") && coord["templates"].is_object())
+            state.templates = coord["templates"];
     }
 }
