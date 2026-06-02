@@ -9,6 +9,7 @@
 #include "json.hpp"
 #include "swarm_config_store.h"
 
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -45,6 +46,9 @@ struct CoordinatorState {
 
     json       templates = json::object();
     std::mutex templates_mutex;
+
+    std::map<std::string, json> annotations;
+    std::mutex                  annotations_mutex;
 
     context_gate::Config  context_gate_config;
     kv_auto_clear::Config kv_auto_clear_config;
