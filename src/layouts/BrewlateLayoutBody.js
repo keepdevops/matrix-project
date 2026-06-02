@@ -3,7 +3,7 @@ import BrewConfigPanel from './BrewConfigPanel';
 import BrewRightPanel from './BrewRightPanel';
 
 export default function BrewlateLayoutBody({
-  brewConfig, status, statusMsg, agentStatuses, deploy, reset,
+  brewConfig, status, statusMsg, logTail, agentStatuses, deploy, reset,
   showMonitor, setShowMonitor, showAgentsPopout, setShowAgentsPopout,
   setLeftPopout, online, activeAgents, kvReadings, kvFetchFailed,
   excludedBreaker, cacheStatus, onClearCache, responses, agentErrors,
@@ -18,7 +18,7 @@ export default function BrewlateLayoutBody({
     <div className="brew-body">
       <BrewConfigPanel
         {...brewConfig}
-        status={status} statusMsg={statusMsg} agentStatuses={agentStatuses}
+        status={status} statusMsg={statusMsg} logTail={logTail} agentStatuses={agentStatuses}
         deploy={deploy} reset={reset}
         showMonitor={showMonitor} setShowMonitor={setShowMonitor}
         showAgentsPopout={showAgentsPopout} setShowAgentsPopout={setShowAgentsPopout}
