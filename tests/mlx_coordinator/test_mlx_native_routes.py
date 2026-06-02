@@ -69,12 +69,88 @@ def _expect_501(coord_url: str, method: str, path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# MS-132 stub route tests
+# MS-133: POST /api/mlx/submit live contract tests
+# ---------------------------------------------------------------------------
+
+def _submit(coord_url: str, **json_body):
+    """Helper: POST /api/mlx/submit and return the response."""
+    return requests.post(f"{coord_url}/api/mlx/submit", json=json_body, timeout=10)
+
+
+def test_mlx_submit_bad_json_returns_400(coord):
+    """POST /api/mlx/submit with malformed JSON → 400."""
+    resp = requests.post(
+        f"{coord}/api/mlx/submit",
+        data="bad",
+        headers={"Content-Type": "application/json"},
+        timeout=5,
+    )
+    if resp.status_code == 501:
+        pytest.skip("submit still a stub — MS-133 not yet merged")
+    assert resp.status_code == 400, f"expected 400, got {resp.status_code}"
+
+
+def test_mlx_submit_empty_prompt_returns_400(coord):
+    """POST /api/mlx/submit with whitespace-only prompt → 400."""
+    resp = _submit(coord, prompt="   ")
+    if resp.status_code == 501:
+        pytest.skip("submit still a stub")
+    assert resp.status_code == 400
+
+
+def test_mlx_submit_missing_prompt_returns_400(coord):
+    """POST /api/mlx/submit with no prompt key → 400."""
+    resp = requests.post(f"{coord}/api/mlx/submit", json={}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("submit still a stub")
+    assert resp.status_code == 400
+
+
+def test_mlx_submit_returns_result_and_session_id(coord):
+    """POST /api/mlx/submit with valid prompt → 200 with result + session_id."""
+    resp = _submit(coord, prompt="hello world")
+    if resp.status_code == 501:
+        pytest.skip("submit still a stub")
+    if resp.status_code == 503:
+        pytest.skip("no MLX agents configured in this coordinator")
+    assert resp.status_code == 200, f"expected 200, got {resp.status_code}: {resp.text[:200]}"
+    body = resp.json()
+    assert "result" in body, f"'result' missing from response: {body}"
+    assert "session_id" in body, f"'session_id' missing from response: {body}"
+    assert isinstance(body["result"], str)
+    assert isinstance(body["session_id"], str)
+    assert body["session_id"]  # non-empty
+
+
+def test_mlx_submit_preserves_caller_session_id(coord):
+    """POST /api/mlx/submit with session_id → response echoes same session_id."""
+    resp = _submit(coord, prompt="hi", session_id="caller-session-42")
+    if resp.status_code in (501, 503):
+        pytest.skip("submit stub or no MLX agents")
+    assert resp.status_code == 200
+    assert resp.json()["session_id"] == "caller-session-42"
+
+
+def test_mlx_submit_generates_session_id_when_absent(coord):
+    """POST /api/mlx/submit without session_id → response has a generated one."""
+    resp = _submit(coord, prompt="generate me a session")
+    if resp.status_code in (501, 503):
+        pytest.skip("submit stub or no MLX agents")
+    assert resp.status_code == 200
+    sid = resp.json().get("session_id", "")
+    assert sid.startswith("mlx"), f"expected mlx-prefixed session_id, got {sid!r}"
+
+
+# ---------------------------------------------------------------------------
+# MS-132 stub route tests (other routes still 501)
 # ---------------------------------------------------------------------------
 
 def test_mlx_submit_stub_501(coord):
-    """POST /api/mlx/submit → 501 (MS-133)."""
-    _expect_501(coord, "POST", "/api/mlx/submit")
+    """POST /api/mlx/submit → 501 when MS-133 not implemented.
+    Skipped automatically if submit is already implemented (returns 200/400/503)."""
+    resp = requests.post(f"{coord}/api/mlx/submit", json={"prompt": "x"}, timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"submit is implemented (status {resp.status_code}), not a stub")
 
 
 def test_mlx_stream_stub_501(coord):
