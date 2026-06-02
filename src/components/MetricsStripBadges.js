@@ -43,6 +43,12 @@ export default function MetricsStripBadges({ meta, excluded, tes }) {
           OVER {overrunAgents.length}
         </span>
       )}
+      {meta.kv_layer_eviction && meta.kv_layer_eviction.length > 0 && (
+        <span title={`Layer-priority KV eviction: ports ${meta.kv_layer_eviction.join(', ')}`}
+              style={chip({ background: '#0891b2' })}>
+          LYR {meta.kv_layer_eviction.length}
+        </span>
+      )}
       {tes != null && (
         <span title={`Token Efficiency Score: ${tes.toFixed(2)} tok/ms`}
               style={chip({ background: 'var(--color-success, #22c55e)' })}>
