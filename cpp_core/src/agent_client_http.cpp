@@ -5,6 +5,7 @@
 #include "json.hpp"
 #include "kv_router.h"
 #include "mlx_inflight.h"
+#include "prefix_cache.h"
 #include "session_context.h"
 #include "token_ledger.h"
 #include "utf8_sanitize.h"
@@ -62,6 +63,7 @@ AttemptResult call_agent_once(const Agent& agent,
             }
             if (agent.engine == "llama") {
                 kv_router::note_prefix(agent.name, system_prompt + "\n" + prompt);
+                prefix_cache::record(agent.port, system_prompt + "\n" + prompt);
             }
             long ctoks = -1, ptoks = -1;
             if (j.contains("usage") && j["usage"].is_object()) {
