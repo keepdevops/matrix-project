@@ -15,3 +15,13 @@ export async function forkSession(runId) {
   if (!res.ok) throw new Error(`fork failed (${res.status})`);
   return res.json();
 }
+
+export async function diffHistory(runIdA, runIdB) {
+  const res = await fetch(`${API_BASE}/history/diff`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ run_id_a: runIdA, run_id_b: runIdB }),
+  });
+  if (!res.ok) throw new Error(`diff failed (${res.status})`);
+  return res.json();
+}
