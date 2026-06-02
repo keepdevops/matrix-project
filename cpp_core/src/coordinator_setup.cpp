@@ -73,8 +73,7 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
     setup_wire::apply_coordinator_section(state, config);
     if (config.contains("coordinator")) {
         const auto& coord = config["coordinator"];
-        if (coord.contains("token_budget") && coord["token_budget"].is_number_integer())
-            state.global_token_budget = coord["token_budget"].get<int>();
+        state.token_budget_hierarchy = load_budget_hierarchy(coord);
         state.context_gate_config  = context_gate::load(coord);
         state.kv_auto_clear_config = kv_auto_clear::load(coord);
         if (coord.contains("reject_on_overrun") && coord["reject_on_overrun"].is_boolean())

@@ -4,8 +4,10 @@
 // JSON shape checks at startup: config/coordinator_config_validate.h
 
 #include "agent.h"
+#include "agent_contract.h"
 #include "context_gate.h"
 #include "kv_auto_clear.h"
+#include "token_budget_hierarchy.h"
 #include "json.hpp"
 #include "swarm_config_store.h"
 
@@ -39,10 +41,15 @@ struct CoordinatorState {
     /// Root JSON loaded at startup (used for optional response-cache block).
     json startup_config;
 
-    /// Global session token budget from coordinator.token_budget (0 = unlimited).
-    int global_token_budget  = 0;
+    /// Hierarchical token budget (global → mode → agent).
+    BudgetHierarchy token_budget_hierarchy;
     /// When true, dispatch returns HTTP 429 if the session ledger is in overrun.
-    bool reject_on_overrun   = false;
+    bool reject_on_overrun = false;
+    /// Per-dispatch contract ledger (reset each run, guarded by contract_mutex).
+    ContractLedger contract_ledger;
+
+    // Keep backward-compat accessor for code that reads global_token_budget directly.
+    int global_token_budget() const { return token_budget_hierarchy.global; }
 
     json       templates = json::object();
     std::mutex templates_mutex;
