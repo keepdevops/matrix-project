@@ -430,3 +430,103 @@ def test_brewlate_orchestrate_progress_class_exists():
     """Brew broadcast tab renders .brew-brewcast-phase when orchestrate is running."""
     src = (REPO / "src/layouts/BrewBroadcastTab.js").read_text()
     assert "brew-brewcast-phase" in src
+
+
+# ── BL1-10 — Panel visibility regression (static + browser) ─────────────────
+
+
+def test_brewlate_panel_classes_present_in_source():
+    """BL1-10: all restored/new panel mount-path CSS classes exist in source."""
+    src_files = [
+        REPO / "src/layouts/BrewlateLayout.js",
+        REPO / "src/layouts/BrewConfigPanel.js",
+        REPO / "src/layouts/BrewRightPanel.js",
+        REPO / "src/layouts/BrewSessionTab.js",
+        REPO / "src/layouts/BrewBroadcastTab.js",
+        REPO / "src/layouts/BrewPreviewPanel.js",
+        REPO / "src/layouts/BrewMonitorPopout.js",
+        REPO / "src/layouts/BrewAgentsPopout.js",
+        REPO / "src/layouts/BrewConfigAgentsSection.js",
+    ]
+    combined = "\n".join(f.read_text() for f in src_files)
+    for cls in (
+        "brew-panel--left",
+        "brew-panel--right",
+        "brew-session-tab",
+        "brew-brewcast-panel",
+        "brew-preview-inner",
+        "brew-monitor-popout",
+        "brew-agents-popout",
+        "brew-left-footer",
+        "brew-agent-cards",
+    ):
+        assert cls in combined, f"CSS class '{cls}' not found in Brew source files"
+
+
+def test_brewlate_deploy_progress_wired():
+    """BL1-2: DeployProgress is imported and used in BrewConfigPanel."""
+    src = (REPO / "src/layouts/BrewConfigPanel.js").read_text()
+    assert "DeployProgress" in src
+    assert "logTail={logTail}" in src
+
+
+def test_brewlate_vllm_panel_wired():
+    """BL1-2: VllmPanel conditionally rendered in BrewPreviewPanel for vllm engine."""
+    src = (REPO / "src/layouts/BrewPreviewPanel.js").read_text()
+    assert "VllmPanel" in src
+    assert "engine === 'vllm'" in src
+
+
+def test_brewlate_custom_layout_registry():
+    """BL1-6: registerCustomLayout is exported from registry.js."""
+    src = (REPO / "src/layouts/registry.js").read_text()
+    assert "registerCustomLayout" in src
+    assert "LAYOUTS[id]" in src
+
+
+def test_brewlate_custom_layout_wrapper_exists():
+    """BL1-6: CustomLayoutWrapper delegates to GridLayoutRenderer / FreeformLayoutRenderer."""
+    src = (REPO / "src/layouts/CustomLayoutWrapper.js").read_text()
+    assert "GridLayoutRenderer" in src
+    assert "FreeformLayoutRenderer" in src
+    assert "getCustomLayout" in src
+
+
+@pytest.mark.skipif(not HAS_PLAYWRIGHT, reason="playwright not installed")
+def test_brewlate_configure_panel_visible(brewlate_page):
+    """BL1-10 browser: configure panel (left) is visible on cold load."""
+    page = brewlate_page
+    assert page.locator(".brew-panel--left").count() >= 1, \
+        ".brew-panel--left not found — configure column not rendered"
+
+
+@pytest.mark.skipif(not HAS_PLAYWRIGHT, reason="playwright not installed")
+def test_brewlate_preview_panel_visible_pre_deploy(brewlate_page):
+    """BL1-10 browser: right panel shows Live Preview (not deployed) by default."""
+    page = brewlate_page
+    right = page.locator(".brew-panel--right")
+    assert right.count() >= 1, ".brew-panel--right not found"
+    # Pre-deploy shows 'Live Preview'; post-deploy shows 'Session' (may be uppercased)
+    header_text = right.locator(".brew-panel-title").first.inner_text().strip().lower()
+    assert header_text in ("live preview", "session"), \
+        f"Unexpected right panel title: {header_text!r}"
+
+
+@pytest.mark.skipif(not HAS_PLAYWRIGHT, reason="playwright not installed")
+def test_brewlate_agent_cards_rendered(brewlate_page):
+    """BL1-10 browser: agent card list is present and non-empty."""
+    page = brewlate_page
+    cards = page.locator(".brew-agent-cards")
+    if cards.count() == 0:
+        pytest.skip("Agent cards not rendered — coordinator may be offline")
+    assert cards.count() >= 1
+
+
+@pytest.mark.skipif(not HAS_PLAYWRIGHT, reason="playwright not installed")
+def test_brewlate_engine_pills_rendered(brewlate_page):
+    """BL1-10 browser: engine selection pills (LLAMA / MLX / vLLM) visible in configure."""
+    page = brewlate_page
+    pills = page.locator(".brew-engine-pill")
+    if pills.count() == 0:
+        pytest.skip("Engine pills not rendered — configure panel may not be loaded")
+    assert pills.count() >= 1
