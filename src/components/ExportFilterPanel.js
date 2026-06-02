@@ -3,13 +3,15 @@ import Button from './Button';
 import { exportTrajectories } from '../api/trajectoryApi';
 
 export default function ExportFilterPanel({ sessionId }) {
-  const [sid,    setSid]    = useState(sessionId || '');
-  const [from,   setFrom]   = useState('');
-  const [to,     setTo]     = useState('');
+  const [sid,        setSid]        = useState(sessionId || '');
+  const [from,       setFrom]       = useState('');
+  const [to,         setTo]         = useState('');
+  const [minQuality, setMinQuality] = useState(0);
   const [format, setFormat] = useState('jsonl');
 
   const handleExport = () => {
-    exportTrajectories({ sessionId: sid.trim(), from, to, format });
+    exportTrajectories({ sessionId: sid.trim(), from, to, format,
+                         minQuality: minQuality > 0 ? minQuality : undefined });
   };
 
   const inputStyle = { padding: '0.2rem 0.35rem', fontSize: '0.78rem',
@@ -41,6 +43,15 @@ export default function ExportFilterPanel({ sessionId }) {
             <option value="jsonl">JSONL (distillation app)</option>
             <option value="json">JSON array</option>
           </select>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ opacity: 0.65 }}>Min quality</span>
+          <input type="range" min="0" max="1" step="0.1" value={minQuality}
+                 onChange={e => setMinQuality(parseFloat(e.target.value))}
+                 style={{ flex: 1 }} />
+          <span style={{ width: '2.5rem', opacity: 0.8 }}>
+            {minQuality > 0 ? minQuality.toFixed(1) : 'any'}
+          </span>
         </label>
         <Button variant="outline-primary" size="sm" onClick={handleExport}>
           ↓ Export

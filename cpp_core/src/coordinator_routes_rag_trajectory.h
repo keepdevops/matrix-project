@@ -7,6 +7,7 @@
 #include "rl_trajectory_logger.h"
 #include "httplib.h"
 #include "json.hpp"
+#include <sstream>
 #include <string>
 
 inline void register_coordinator_routes_rag_trajectory(httplib::Server& svr,
@@ -25,8 +26,13 @@ inline void register_coordinator_routes_rag_trajectory(httplib::Server& svr,
         res.set_header("Access-Control-Allow-Origin", "*");
         const std::string sid = req.has_param("session_id")
             ? req.get_param_value("session_id") : "";
+        double min_quality = -1.0;
+        if (req.has_param("min_quality")) {
+            try { min_quality = std::stod(req.get_param_value("min_quality")); }
+            catch (...) {}
+        }
 
-        std::string jsonl = rl_traj::export_jsonl(sid);
+        std::string jsonl = rl_traj::export_jsonl_filtered(sid, min_quality);
         const std::string fname = "trajectories"
             + (sid.empty() ? "" : "-" + sid.substr(0, 12)) + ".jsonl";
 
