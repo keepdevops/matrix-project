@@ -28,6 +28,21 @@ inline void register_get_delete_routes(httplib::Server& svr, CoordinatorState& s
         res.set_content(st.presets.dump(), "application/json");
     });
 
+    svr.Get(R"(/api/presets/([^/]+)/export)",
+            [&st](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        const std::string name = decode(req.matches[1]);
+        std::lock_guard<std::mutex> lk(st.presets_mutex);
+        if (!st.presets.contains(name)) {
+            res.status = 404;
+            res.set_content("{\"error\":\"preset not found\"}", "application/json");
+            return;
+        }
+        const std::string filename = name + ".json";
+        res.set_header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        res.set_content(st.presets[name].dump(2), "application/json");
+    });
+
     svr.Delete(R"(/api/presets/([^/]+))",
                [&st](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");

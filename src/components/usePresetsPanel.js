@@ -73,5 +73,5 @@ export function usePresetsPanel() {
     }
   };
 
-  return { presets, busy, error, newName, setNewName, savedAt, handleSave, handleApply, handleDelete };
+  return { presets, busy, error, newName, setNewName, savedAt, handleSave, handleApply, handleDelete, reload };
 }

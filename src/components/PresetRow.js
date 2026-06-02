@@ -1,7 +1,7 @@
 import React from 'react';
-import Button from './Button';
+import PresetActions from './PresetActions';
 
-export default function PresetRow({ name, bundle, busy, onApply, onDelete }) {
+export default function PresetRow({ name, bundle, busy, onApply, onDelete, onDuplicated }) {
   return (
     <div className="preset-row">
       <div className="preset-row-info">
@@ -13,14 +13,8 @@ export default function PresetRow({ name, bundle, busy, onApply, onDelete }) {
           {Number.isInteger(bundle.max_select) && ` · max=${bundle.max_select}`}
         </div>
       </div>
-      <Button variant="outline-primary" size="sm" className="preset-row-apply"
-        onClick={() => onApply(name)} disabled={busy}>
-        Apply
-      </Button>
-      <Button variant="outline-error" size="xs" className="preset-row-delete"
-        onClick={() => onDelete(name)} disabled={busy}>
-        ✕
-      </Button>
+      <PresetActions name={name} busy={busy}
+        onApply={onApply} onDelete={onDelete} onDuplicated={onDuplicated} />
     </div>
   );
 }

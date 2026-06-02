@@ -1,12 +1,13 @@
 import React from 'react';
 import Button from './Button';
 import PresetRow from './PresetRow';
+import PresetImport from './PresetImport';
 import { usePresetsPanel } from './usePresetsPanel';
 
 export default function PresetsPanel() {
   const {
     presets, busy, error, newName, setNewName, savedAt,
-    handleSave, handleApply, handleDelete,
+    handleSave, handleApply, handleDelete, reload,
   } = usePresetsPanel();
 
   return (
@@ -37,9 +38,12 @@ export default function PresetsPanel() {
       <div className="presets-list">
         {Object.entries(presets).map(([name, bundle]) => (
           <PresetRow key={name} name={name} bundle={bundle} busy={busy}
-            onApply={handleApply} onDelete={handleDelete} />
+            onApply={handleApply} onDelete={handleDelete}
+            onDuplicated={reload} />
         ))}
       </div>
+
+      <PresetImport onImported={reload} />
 
       <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', minHeight: '1.1rem' }}>
         {error && <span style={{ color: 'var(--brew-kv-crit, #e55)' }}>{error}</span>}
