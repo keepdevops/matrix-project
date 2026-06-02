@@ -6,6 +6,7 @@
 #include "token_ledger.h"
 #include "agent_health.h"
 #include "response_cache.h"
+#include "rl_trajectory_logger.h"
 #include "httplib.h"
 #include <sstream>
 #include <string>
@@ -83,6 +84,23 @@ inline void register_coordinator_routes_metrics(httplib::Server& svr, Coordinato
         for (const auto& a : st.agents)
             out << "matrix_agent_draft_max{agent=\"" << a.name << "\"} "
                 << a.draft_max << "\n";
+
+        // RL trajectory rolling stats
+        {
+            auto stats = rl_traj::rolling_stats(50);
+            out << "# HELP matrix_tes_avg Rolling avg TES (last 50 runs)\n"
+                << "# TYPE matrix_tes_avg gauge\n"
+                << "matrix_tes_avg " << stats.avg_tes << "\n"
+                << "# HELP matrix_importance_avg Rolling avg symbolic importance\n"
+                << "# TYPE matrix_importance_avg gauge\n"
+                << "matrix_importance_avg " << stats.avg_importance << "\n"
+                << "# HELP matrix_rag_hit_rate Rolling avg RAG hit rate\n"
+                << "# TYPE matrix_rag_hit_rate gauge\n"
+                << "matrix_rag_hit_rate " << stats.avg_rag_rate << "\n"
+                << "# HELP matrix_trajectory_count Total RL trajectories recorded\n"
+                << "# TYPE matrix_trajectory_count counter\n"
+                << "matrix_trajectory_count " << stats.count << "\n";
+        }
 
         res.set_content(out.str(), "text/plain; version=0.0.4; charset=utf-8");
     });
