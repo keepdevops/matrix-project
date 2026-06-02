@@ -5,6 +5,7 @@
 
 #include "agent.h"
 #include "agent_client.h"
+#include "symbolic_importance.h"
 #include "json.hpp"
 #include <iostream>
 #include <string>
@@ -65,13 +66,22 @@ inline std::string maybe_summarise(
               << "; compressing via " << agent->name << std::endl;
 
     std::string summary = call_agent_with_system(*agent, kSystem, prompt);
+    // Fidelity ratio: compare importance scores of original vs summary
+    double imp_orig    = symbolic_importance::score(prompt, (double)prompt.size());
+    double imp_summary = symbolic_importance::score(summary, (double)prompt.size());
+    double fidelity    = (imp_orig > 0.0) ? imp_summary / imp_orig : 1.0;
+
     gate_meta = {
-        {"triggered",      true},
-        {"original_chars", (int)prompt.size()},
-        {"summary_chars",  (int)summary.size()},
-        {"agent",          agent->name},
+        {"triggered",           true},
+        {"original_chars",      (int)prompt.size()},
+        {"summary_chars",       (int)summary.size()},
+        {"agent",               agent->name},
+        {"importance_original", imp_orig},
+        {"importance_summary",  imp_summary},
+        {"fidelity_ratio",      fidelity},
     };
-    std::cout << "✅ [context_gate] compressed to " << summary.size() << " chars" << std::endl;
+    std::cout << "✅ [context_gate] compressed to " << summary.size()
+              << " chars (fidelity=" << (int)(fidelity * 100) << "%)" << std::endl;
     return summary;
 }
 

@@ -5,10 +5,12 @@
 
 #include "agent.h"
 #include "coordinator_kv_ops.h"
+#include "kv_importance_indexer.h"
 #include "rag_embed.h"
 #include "json.hpp"
 #include <cmath>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -70,14 +72,29 @@ inline bool should_clear(State& st, const std::string& query, double kv_pressure
     return fire;
 }
 
-// Clear llama KV caches on all agent ports.
-inline void clear_kv(const std::vector<Agent>& agents) {
-    auto results = coordinator_kv_ops::clear_kv_on_ports(
-        coordinator_kv_ops::agent_port_slots(agents));
+// Clear llama KV caches. When scores is non-null, only clears ports whose
+// importance ≤ threshold (importance-ordered partial eviction).
+inline void clear_kv(const std::vector<Agent>& agents,
+                     const std::vector<kv_importance::SlotScore>* scores = nullptr,
+                     double importance_threshold = 1.0) {
+    std::map<int,int> slots;
+    for (const auto& a : agents) {
+        if (scores) {
+            bool low = false;
+            for (const auto& s : *scores)
+                if (s.port == a.port && s.should_evict(importance_threshold)) { low = true; break; }
+            if (!low) {
+                std::cout << "⏭️  [kv_auto_clear] port:" << a.port << " retained (importance)" << std::endl;
+                continue;
+            }
+        }
+        slots[a.port] = 0;
+    }
+    if (slots.empty()) { std::cout << "⏭️  [kv_auto_clear] all ports retained" << std::endl; return; }
+    auto results = coordinator_kv_ops::clear_kv_on_ports(slots);
     int ok = 0;
     for (const auto& r : results) if (r.second.empty() || r.second == "ok") ++ok;
-    std::cout << "✅ [kv_auto_clear] cleared " << ok << "/" << results.size()
-              << " port(s)" << std::endl;
+    std::cout << "✅ [kv_auto_clear] cleared " << ok << "/" << results.size() << " port(s)" << std::endl;
 }
 
 } // namespace kv_auto_clear

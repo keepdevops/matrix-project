@@ -13,9 +13,10 @@ export default function MetricsStripBadges({ meta, excluded, tes }) {
   return (
     <>
       {meta.context_gate?.triggered && (
-        <span title={`Prompt compressed: ${meta.context_gate.original_chars} → ${meta.context_gate.summary_chars} chars`}
+        <span title={`Prompt compressed: ${meta.context_gate.original_chars} → ${meta.context_gate.summary_chars} chars${meta.context_gate.fidelity_ratio != null ? ` · fidelity ${Math.round(meta.context_gate.fidelity_ratio * 100)}%` : ''}`}
               style={chip({ background: 'var(--color-primary, #4a9eff)' })}>
-          CTX
+          CTX{meta.context_gate.fidelity_ratio != null
+            ? ` ${Math.round(meta.context_gate.fidelity_ratio * 100)}%` : ''}
         </span>
       )}
       {meta.auto_clear_kv && (
