@@ -5,6 +5,7 @@
 #include "coordinator_routes_dispatch_history.h"
 #include "session_context.h"
 #include "token_ledger.h"
+#include "token_budget_hierarchy.h"
 #include "context_gate.h"
 #include "kv_auto_clear.h"
 #include <algorithm>
@@ -67,7 +68,8 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             }
 
             // Token budget: mode override > global; set if not already budgeted this session
-            int effective_budget = st.global_token_budget;
+            // Resolve budget: agent-level > mode-level > global (hierarchy)
+            int effective_budget = resolve_budget(st.token_budget_hierarchy, mode_name);
             if (cfg_for_mode.contains("token_budget") && cfg_for_mode["token_budget"].is_number_integer())
                 effective_budget = cfg_for_mode["token_budget"].get<int>();
             if (effective_budget > 0)
@@ -119,6 +121,17 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 std::cerr << std::endl;
             }
 
+            // Init per-agent contracts using hierarchy budgets
+            {
+                std::lock_guard<std::mutex> lk(st.contract_ledger.mu);
+                st.contract_ledger.contracts.clear();
+                st.contract_ledger.audit.clear();
+            }
+            for (const auto& a : mode_agents) {
+                int alloc = resolve_budget(st.token_budget_hierarchy, mode_name, a.name);
+                st.contract_ledger.init(a.name, alloc);
+            }
+
             const std::string qp_target = dreq.context_policy.value("target_agent", std::string("programmer"));
             ModeContext ctx{mode_agents, dreq.effective_prompt, dreq.temperature,
                             cfg_for_mode, dreq.quality_pass, qp_target,
@@ -146,6 +159,16 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                                           qp_target, dispatch_t0, effective_max_select);
             if (gate_meta.value("triggered", false))
                 envelope["meta"]["context_gate"] = gate_meta;
+
+            // Contract snapshot in meta
+            {
+                auto snap = st.contract_ledger.snapshot();
+                if (!snap.empty()) {
+                    envelope["meta"]["contracts"] = snap;
+                    if (st.contract_ledger.any_overrun())
+                        envelope["meta"]["contract_overrun"] = true;
+                }
+            }
 
             dispatch_write_history(st, envelope, dreq.prompt, dreq.temperature, ms,
                                    dreq.session_id, dreq.run_id, dreq.parent_run_id,

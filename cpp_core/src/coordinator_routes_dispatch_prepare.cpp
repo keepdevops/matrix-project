@@ -3,7 +3,10 @@
 #include "rag_client.h"
 #include "rag_config.h"
 #include "rag_rerank.h"
+#include "rag_trajectory.h"
+#include "session_context.h"
 #include "session_store.h"
+#include <chrono>
 #include <iostream>
 #include <unordered_set>
 
@@ -81,5 +84,20 @@ RagResult dispatch_build_rag(const DispatchRequest& req, CoordinatorState& st) {
                        {"top_k", rag_s.top_k}, {"min_score", rag_s.min_score},
                        {"reranked", req.rag_rerank}, {"hits", sources}};
     if (!req.rag_agents.empty()) result.rag_meta["targeted_agents"] = rag_agents_arr;
+
+    // Record RAG trajectory for distillation pipeline
+    if (!hits.empty()) {
+        long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        rag_trajectory::Entry traj;
+        traj.session_id   = req.session_id;
+        traj.run_id       = req.run_id;
+        traj.query        = req.prompt;
+        traj.hits         = sources;
+        traj.reranked     = req.rag_rerank;
+        traj.timestamp_ms = now_ms;
+        rag_trajectory::record(std::move(traj));
+    }
+
     return result;
 }

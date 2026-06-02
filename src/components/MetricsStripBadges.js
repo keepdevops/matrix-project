@@ -6,6 +6,10 @@ const chip = (extra) => ({
 });
 
 export default function MetricsStripBadges({ meta, excluded, tes }) {
+  const overrunAgents = (meta.contracts || [])
+    .filter(c => c.overrun)
+    .map(c => c.agent);
+
   return (
     <>
       {meta.context_gate?.triggered && (
@@ -24,6 +28,12 @@ export default function MetricsStripBadges({ meta, excluded, tes }) {
         <span title={`Excluded (circuit open): ${excluded.join(', ')}`}
               style={chip({ background: 'var(--color-danger, #ef4444)' })}>
           EXCL {excluded.length}
+        </span>
+      )}
+      {overrunAgents.length > 0 && (
+        <span title={`Contract overrun: ${overrunAgents.join(', ')}`}
+              style={chip({ background: 'var(--color-danger, #ef4444)' })}>
+          OVER {overrunAgents.length}
         </span>
       )}
       {tes != null && (

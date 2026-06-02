@@ -5,6 +5,7 @@
 #include "coordinator_routes_architect_stream_parse.h"
 #include "session_context.h"
 #include "token_ledger.h"
+#include "token_budget_hierarchy.h"
 #include "session_store.h"
 
 void register_coordinator_routes_architect_stream(httplib::Server& svr, CoordinatorState& st) {
@@ -55,7 +56,7 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
 
         // Budget: apply global budget to session before streaming begins
         {
-            int gb = st.global_token_budget;
+            int gb = resolve_budget(st.token_budget_hierarchy, mode_name);
             if (cfg_for_mode.contains("token_budget")
                 && cfg_for_mode["token_budget"].is_number_integer())
                 gb = cfg_for_mode["token_budget"].get<int>();
