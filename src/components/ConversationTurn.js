@@ -1,5 +1,6 @@
 import React, { useState, memo } from 'react';
 import Button from './Button';
+import ForkButton from './ForkButton';
 import { bestAgentText, METADATA_KEYS } from '../utils/conversationHelpers';
 
 function AgentExpander({ entry }) {
@@ -25,7 +26,7 @@ function AgentExpander({ entry }) {
   );
 }
 
-export const Turn = memo(function Turn({ entry, finalAnswer }) {
+export const Turn = memo(function Turn({ entry, finalAnswer, onForked }) {
   const synth = entry._final || finalAnswer || null;
   const fallback = !synth ? bestAgentText(entry) : null;
   const swarmText = synth || fallback;
@@ -60,16 +61,20 @@ export const Turn = memo(function Turn({ entry, finalAnswer }) {
         }
       </div>
       <AgentExpander entry={entry} />
-      {entry._meta?.tes != null && (
-        <div className="ct-tes-badge"
-             title={`Token Efficiency Score: ${entry._meta.tes.toFixed(2)} tok/ms`}>
-          TES {entry._meta.tes.toFixed(2)}
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.2rem' }}>
+        {entry._meta?.tes != null && (
+          <span className="ct-tes-badge"
+                title={`Token Efficiency Score: ${entry._meta.tes.toFixed(2)} tok/ms`}>
+            TES {entry._meta.tes.toFixed(2)}
+          </span>
+        )}
+        <ForkButton runId={entry._run_id} onForked={onForked} />
+      </div>
     </div>
   );
 }, (prev, next) =>
   prev.entry === next.entry && prev.finalAnswer === next.finalAnswer
+  && prev.onForked === next.onForked
 );
 
 export function PendingTurn({ prompt }) {

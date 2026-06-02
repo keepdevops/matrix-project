@@ -6,3 +6,12 @@ export async function searchHistory(query, limit = 20) {
   if (!res.ok) throw new Error(`history search failed (${res.status})`);
   return res.json();
 }
+
+export async function forkSession(runId) {
+  const res = await fetch(
+    `${API_BASE}/history/${encodeURIComponent(runId)}/fork`,
+    { method: 'POST' }
+  );
+  if (!res.ok) throw new Error(`fork failed (${res.status})`);
+  return res.json();
+}
