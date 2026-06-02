@@ -1,5 +1,6 @@
 import React from 'react';
 import { useHistorySearch } from '../hooks/useHistorySearch';
+import ForkButton from './ForkButton';
 
 function truncate(s, n) {
   if (typeof s !== 'string') return '';
@@ -12,7 +13,7 @@ function formatTs(ts) {
   catch { return ''; }
 }
 
-export default function HistorySearch({ onSelect }) {
+export default function HistorySearch({ onSelect, onForked }) {
   const { query, setQuery, results, loading, error } = useHistorySearch();
 
   return (
@@ -34,18 +35,22 @@ export default function HistorySearch({ onSelect }) {
         {results.map((entry, i) => (
           <div key={entry._run_id || i}
                className="history-search-row"
-               onClick={() => onSelect?.(entry)}
-               style={{ padding: '0.3rem 0.4rem', cursor: 'pointer',
-                        borderBottom: '1px solid var(--border-dim, #1a1a1a)' }}>
-            <div style={{ fontWeight: 500 }}>{truncate(entry.prompt, 80)}</div>
-            <div style={{ opacity: 0.5, fontSize: '0.7rem', marginTop: '0.1rem' }}>
-              {formatTs(entry.timestamp)}
-              {entry._session_id && (
-                <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
-                  {String(entry._session_id).slice(0, 8)}
-                </span>
-              )}
+               style={{ padding: '0.3rem 0.4rem',
+                        borderBottom: '1px solid var(--border-dim, #1a1a1a)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => onSelect?.(entry)}>
+              <div style={{ fontWeight: 500 }}>{truncate(entry.prompt, 80)}</div>
+              <div style={{ opacity: 0.5, fontSize: '0.7rem', marginTop: '0.1rem' }}>
+                {formatTs(entry.timestamp)}
+                {entry._session_id && (
+                  <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
+                    {String(entry._session_id).slice(0, 8)}
+                  </span>
+                )}
+              </div>
             </div>
+            <ForkButton runId={entry._run_id} onForked={onForked}
+                        style={{ marginLeft: '0.5rem', flexShrink: 0 }} />
           </div>
         ))}
       </div>
