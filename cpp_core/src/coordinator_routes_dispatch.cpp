@@ -6,9 +6,15 @@
 #include "session_context.h"
 #include "token_ledger.h"
 #include "token_budget_hierarchy.h"
+#include "adaptive_select.h"
+#include "symbolic_importance.h"
+#include "rag_trajectory.h"
+#include "rag_embed.h"
 #include "context_gate.h"
 #include "kv_auto_clear.h"
 #include <algorithm>
+#include <cmath>
+#include <map>
 #include <unordered_set>
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
@@ -91,17 +97,13 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 return;
             }
             int base_max_select = cfg_for_mode.value("max_select", 5);
-            int effective_max_select = base_max_select;
-            if (dreq.kv_pressure > 0.85 || ledger.overrun())
-                effective_max_select = std::max(1, base_max_select - 2);
-            else if (dreq.kv_pressure > 0.70)
-                effective_max_select = std::max(1, base_max_select - 1);
-            if (effective_max_select != base_max_select) {
-                std::cout << "🎛️  [dispatch] adaptive max_select: " << base_max_select
-                          << " → " << effective_max_select
-                          << " (kv=" << (int)(dreq.kv_pressure * 100) << "%"
-                          << (ledger.overrun() ? " overrun" : "") << ")" << std::endl;
-            }
+            // Use contract-aware, importance-rewarding adaptive select
+            adaptive_select::Factors asel_factors{
+                base_max_select, dreq.kv_pressure,
+                st.contract_ledger.any_overrun(),
+                -1.0  // importance from previous run; updated post-dispatch
+            };
+            int effective_max_select = adaptive_select::compute(asel_factors);
             cfg_for_mode["max_select"] = effective_max_select;
 
             std::vector<Agent> mode_agents = filter_agents_for_mode(st, mode_name);
@@ -159,6 +161,48 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                                           qp_target, dispatch_t0, effective_max_select);
             if (gate_meta.value("triggered", false))
                 envelope["meta"]["context_gate"] = gate_meta;
+
+            // Symbolic importance scoring on agent outputs
+            {
+                std::map<std::string, std::string> outputs;
+                if (envelope.contains("agents") && envelope["agents"].is_object()) {
+                    for (const auto& [k, v] : envelope["agents"].items())
+                        if (v.is_string()) outputs[k] = v.get<std::string>();
+                }
+                if (!outputs.empty()) {
+                    auto ranked = symbolic_importance::rank(outputs);
+                    double avg_imp = symbolic_importance::average(ranked);
+                    nlohmann::json imp_json = nlohmann::json::object();
+                    for (const auto& [name, sc] : ranked) imp_json[name] = sc;
+                    envelope["meta"]["importance"] = imp_json;
+                    envelope["meta"]["avg_importance"] = avg_imp;
+                    // Enrich RAG trajectory with similarity-to-action (hash embed proxy)
+                    if (!dreq.session_id.empty()) {
+                        auto q_emb = rag::hash_embed(dreq.prompt);
+                        std::map<std::string, double> sims;
+                        for (const auto& [name, text] : outputs) {
+                            auto r_emb = rag::hash_embed(text);
+                            if (!q_emb.empty() && !r_emb.empty() && q_emb.size() == r_emb.size()) {
+                                double dot = 0.0, na = 0.0, nb = 0.0;
+                                for (size_t i = 0; i < q_emb.size(); ++i) {
+                                    dot += q_emb[i] * r_emb[i];
+                                    na  += q_emb[i] * q_emb[i];
+                                    nb  += r_emb[i] * r_emb[i];
+                                }
+                                sims[name] = (na > 0 && nb > 0)
+                                    ? dot / (std::sqrt(na) * std::sqrt(nb)) : 0.0;
+                            }
+                        }
+                        // Update the most-recent trajectory entry for this run
+                        // (rag_trajectory doesn't support mutable update; store in meta for now)
+                        if (!sims.empty()) {
+                            nlohmann::json sim_json = nlohmann::json::object();
+                            for (const auto& [k, v] : sims) sim_json[k] = v;
+                            envelope["meta"]["rag_agent_similarities"] = sim_json;
+                        }
+                    }
+                }
+            }
 
             // Contract snapshot in meta
             {
