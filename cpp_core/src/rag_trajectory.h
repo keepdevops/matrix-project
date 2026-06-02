@@ -17,8 +17,11 @@ struct Entry {
     std::string            query;
     std::vector<double>    query_embedding; // may be empty if embed unavailable
     nlohmann::json         hits;            // array of {source, distance, relevance?}
-    bool                   reranked = false;
-    long long              timestamp_ms = 0;
+    bool                   reranked           = false;
+    long long              timestamp_ms       = 0;
+    double                 kv_pressure_before = 0.0;
+    double                 kv_pressure_after  = 0.0;
+    nlohmann::json         kv_importance_scores; // port → {importance, should_evict}
 };
 
 namespace detail {
@@ -47,13 +50,17 @@ inline nlohmann::json snapshot(const std::string& session_id = "") {
     for (auto it = detail::buf().rbegin(); it != detail::buf().rend(); ++it) {
         if (!session_id.empty() && it->session_id != session_id) continue;
         nlohmann::json j = {
-            {"session_id",  it->session_id},
-            {"run_id",      it->run_id},
-            {"query",       it->query},
-            {"hits",        it->hits},
-            {"reranked",    it->reranked},
-            {"timestamp_ms", it->timestamp_ms},
+            {"session_id",          it->session_id},
+            {"run_id",              it->run_id},
+            {"query",               it->query},
+            {"hits",                it->hits},
+            {"reranked",            it->reranked},
+            {"timestamp_ms",        it->timestamp_ms},
+            {"kv_pressure_before",  it->kv_pressure_before},
+            {"kv_pressure_after",   it->kv_pressure_after},
         };
+        if (!it->kv_importance_scores.is_null())
+            j["kv_importance_scores"] = it->kv_importance_scores;
         if (!it->query_embedding.empty())
             j["query_embedding"] = it->query_embedding;
         arr.push_back(j);
