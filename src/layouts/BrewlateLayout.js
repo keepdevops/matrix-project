@@ -41,7 +41,7 @@ export default function BrewlateLayout({
     onDeployed?.();
   }, [setDeployed, onDeployed]);
 
-  const { status, statusMsg, agentStatuses, deploy, reset } = useDeploy({ onDeployed: handleDeployedInternal });
+  const { status, statusMsg, logTail, agentStatuses, deploy, reset } = useDeploy({ onDeployed: handleDeployedInternal });
 
   const brewConfig = useBrewConfig({ online, activeAgents, hostMemory, activeMode });
   const { roles, setRoles, models, roleModels, editingAgent, setEditingAgent, loadError, setLoadRetries, invalidateModelsCache } = brewConfig;
@@ -74,7 +74,7 @@ export default function BrewlateLayout({
       )}
 
       <BrewlateLayoutBody
-        brewConfig={brewConfig} status={status} statusMsg={statusMsg}
+        brewConfig={brewConfig} status={status} statusMsg={statusMsg} logTail={logTail}
         agentStatuses={agentStatuses} deploy={deploy} reset={reset}
         showMonitor={showMonitor} setShowMonitor={setShowMonitor}
         showAgentsPopout={showAgentsPopout} setShowAgentsPopout={setShowAgentsPopout}

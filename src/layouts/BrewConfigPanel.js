@@ -3,13 +3,14 @@ import BrewMonitorPopout from './BrewMonitorPopout';
 import BrewResourcePopout from './BrewResourcePopout';
 import BrewConfigAgentsSection from './BrewConfigAgentsSection';
 import BrewConfigEngineProfile from './BrewConfigEngineProfile';
+import { DeployProgress } from '../components/DeployProgress';
 
 export default function BrewConfigPanel({
   roles, setRoles, models, selected, roleModels, engine, activeProfile, engineModels,
   editingAgent, setEditingAgent, loadError, loadRetries, setLoadRetries, invalidateModelsCache,
   riskEstimate, serverLayout, canDeploy, agentCount, rosterPct, configLines,
   handleEngineChange, toggleRole, setModel, selectAllRoles, clearAllRoles, applyProfile,
-  status, statusMsg, agentStatuses, deploy, reset,
+  status, statusMsg, logTail, agentStatuses, deploy, reset,
   showMonitor, setShowMonitor, showAgentsPopout, setShowAgentsPopout, setLeftPopout,
   online, activeAgents, kvReadings, kvFetchFailed, excludedBreaker,
   cacheStatus, onClearCache, responses, agentErrors, lastMeta,
@@ -65,7 +66,7 @@ export default function BrewConfigPanel({
         )}
 
         <div className="brew-left-footer">
-          {statusMsg && <div className="brew-deploy-status">{statusMsg}</div>}
+          <DeployProgress status={status} statusMsg={statusMsg} logTail={logTail} />
           <button
             type="button"
             className="brew-launch-btn"

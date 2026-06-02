@@ -1,8 +1,9 @@
 import React from 'react';
 import ModeRosterPanel from '../components/ModeRosterPanel';
 import PresetsPanel from '../components/PresetsPanel';
+import VllmPanel from '../components/VllmPanel';
 
-export default function BrewPreviewPanel({ rosterPct, serverLayout, configLines }) {
+export default function BrewPreviewPanel({ rosterPct, serverLayout, configLines, engine }) {
   return (
     <div className="brew-preview-inner">
       <div>
@@ -34,6 +35,11 @@ export default function BrewPreviewPanel({ rosterPct, serverLayout, configLines 
           ))}
         </div>
       </div>
+      {engine === 'vllm' && (
+        <div className="brew-preview-vllm">
+          <VllmPanel />
+        </div>
+      )}
       <div className="brew-preview-roster">
         <ModeRosterPanel />
         <PresetsPanel />

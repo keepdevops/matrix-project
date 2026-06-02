@@ -14,6 +14,14 @@ export const LAYOUTS = {
   dashboard: { label: 'Dashboard', component: DashboardLayout },
 };
 
+/**
+ * Registers a custom editor layout into LAYOUTS at runtime.
+ * Called by EditorShell on save and by useCustomLayouts on startup.
+ */
+export function registerCustomLayout(id, label, component) {
+  LAYOUTS[id] = { label, component };
+}
+
 export const THEMES = {
   dark:      { label: '☾ Dark' },
   light:     { label: '☀ Light' },

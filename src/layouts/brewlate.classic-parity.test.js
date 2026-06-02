@@ -110,6 +110,22 @@ const FEATURE_PARITY = [
     classicMatch: [/RagSources rag=\{lastMeta/],
     brewlateMatch: [/RagSources rag=\{lastMeta/],
   },
+  {
+    id: 'vllm-panel',
+    label: 'vLLM panel in pre-deploy preview (engine === vllm)',
+    classic: ['components/ServerLayoutPreview.js'],
+    brewlate: ['layouts/BrewPreviewPanel.js'],
+    classicMatch: [/VllmPanel/, /engine === 'vllm'/],
+    brewlateMatch: [/VllmPanel/, /engine === 'vllm'/],
+  },
+  {
+    id: 'deploy-progress',
+    label: 'DeployProgress shown during deploy / error with log tail',
+    classic: ['components/ServerLayoutPreview.js'],
+    brewlate: ['layouts/BrewConfigPanel.js'],
+    classicMatch: [/DeployProgress/, /status=\{status\}/, /logTail=\{logTail\}/],
+    brewlateMatch: [/DeployProgress/, /status=\{status\}/, /logTail=\{logTail\}/],
+  },
 ];
 
 const BREWLATE_ONLY_OPTIONAL = new Set([

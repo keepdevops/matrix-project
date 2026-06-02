@@ -264,6 +264,34 @@ Select a layout via the **layout switcher** in the header or append `?layout=<na
 
 The layout persists in the URL across reloads. The **visual layout editor** (`/editor`) lets power users arrange custom dashboards in flow, freeform, or grid modes with localStorage persistence.
 
+### Brewlatte panel map
+
+The `brewlate` layout is a single-screen shell split into a **left configure column** and a **right panel**:
+
+| Area | Panel | Trigger / Default |
+|------|-------|-------------------|
+| Left — header actions | **MONITOR** popout | Click `MONITOR` button (shown when deployable or online) |
+| Left — header actions | **BUDGETS** popout | Click `BUDGETS` button (per-agent token budgets) |
+| Left — configure | Engine pills (LLAMA / MLX / vLLM) | Always visible |
+| Left — configure | Profile dropdown (Safe / Balanced / Max / Mixed / Custom) | Always visible |
+| Left — configure | Agent card list | Always visible; checkbox + model select per agent |
+| Left — configure | Resource / Risk card | Shown when `canDeploy \|\| online` |
+| Left — footer | **DeployProgress** bar | Visible during `deploying` or `error` status |
+| Left — footer | **Brew** button | Always visible; disabled until ≥1 agent + model selected |
+| Right (pre-deploy) | **Live Preview** — server layout table | Default until swarm deploys |
+| Right (pre-deploy) | **VllmPanel** — Docker server controls | Shown when `engine === 'vllm'` |
+| Right (pre-deploy) | Mode roster + Presets | Always in preview |
+| Right (deployed) — tabs | **Session** — conversation, code output, RAG sources, metrics | Default after deploy; auto-returns after dispatch |
+| Right (deployed) — tabs | **Agents** — agent grid + compare variants | Manual |
+| Right (deployed) — tabs | **Modes** — mode roster + presets | Manual |
+| Right (deployed) — tabs | **Live** (brewcast) — real-time agent grid + pipeline stages | Auto-activates while `loading` |
+| Right (deployed) — tabs | **RAG** — ingest controls | Manual |
+| Overlays | Edit Role modal (Basic / Advanced / Tools tabs) | Click ✏ on any agent card |
+| Overlays | Help, RAG Admin, Cache, Converter | Header utilities menu |
+| Overlays | Agent response popout | Click ⤢ on any runtime card |
+
+**Keyboard navigation:** agent cards support Enter/Space; all popouts close on Escape; BUDGETS and MONITOR triggers expose `aria-expanded`.
+
 ---
 
 ## 11. Per-run metrics

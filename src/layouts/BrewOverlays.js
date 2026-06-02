@@ -46,7 +46,7 @@ export default function BrewOverlays({
           <div className="brew-modal-panel" onClick={e => e.stopPropagation()} role="dialog" aria-label="GGUF to MLX converter">
             <div className="brew-modal-panel-header">
               <h2 className="brew-modal-panel-title">GGUF → MLX</h2>
-              <button type="button" className="brew-header-btn" onClick={onOpenConverter}>✕</button>
+              <button type="button" className="brew-header-btn" onClick={onOpenConverter} aria-label="Close converter">✕</button>
             </div>
             <div className="brew-converter"><ModelConverter standalone /></div>
           </div>
