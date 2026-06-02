@@ -31,6 +31,12 @@ export default function MetricsStripBadges({ meta, excluded, tes }) {
           EXCL {excluded.length}
         </span>
       )}
+      {meta.supervisor?.any_intervention && (
+        <span title={`Supervisor intervened: ${(meta.supervisor.decisions || []).filter(d => d.action !== 'ok').map(d => `${d.agent}→${d.action}`).join(', ')}`}
+              style={chip({ background: '#7c3aed', marginLeft: '0.4rem' })}>
+          SUPV
+        </span>
+      )}
       {overrunAgents.length > 0 && (
         <span title={`Contract overrun: ${overrunAgents.join(', ')}`}
               style={chip({ background: 'var(--color-danger, #ef4444)' })}>

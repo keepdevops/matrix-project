@@ -13,6 +13,7 @@
 #include "context_gate.h"
 #include "kv_auto_clear.h"
 #include "rl_trajectory_logger.h"
+#include "swarm_supervisor.h"
 #include "token_ledger.h"
 #include <algorithm>
 #include <cmath>
@@ -136,6 +137,24 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                 st.contract_ledger.init(a.name, alloc);
             }
 
+            // Supervisor policy: analyse + apply before mode run
+            nlohmann::json supervisor_meta;
+            if (st.supervisor_enabled) {
+                auto recent = rl_traj::snapshot(dreq.session_id);
+                // Limit to last 5 for perf
+                if (recent.size() > 5) recent = nlohmann::json(
+                    std::vector<nlohmann::json>(recent.begin(), recent.begin() + 5));
+                auto supv = swarm_supervisor::analyse(
+                    mode_agents, st.contract_ledger,
+                    dreq.kv_pressure, recent, true);
+                if (supv.any_intervention) {
+                    mode_agents = swarm_supervisor::apply(mode_agents, supv);
+                    std::lock_guard<std::mutex> lk(st.supervisor_audit_mutex);
+                    st.supervisor_audit.push_back(supv.audit_entry);
+                }
+                supervisor_meta = supv.audit_entry;
+            }
+
             const std::string qp_target = dreq.context_policy.value("target_agent", std::string("programmer"));
             ModeContext ctx{mode_agents, dreq.effective_prompt, dreq.temperature,
                             cfg_for_mode, dreq.quality_pass, qp_target,
@@ -163,6 +182,8 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                                           qp_target, dispatch_t0, effective_max_select);
             if (gate_meta.value("triggered", false))
                 envelope["meta"]["context_gate"] = gate_meta;
+            if (st.supervisor_enabled && !supervisor_meta.is_null())
+                envelope["meta"]["supervisor"] = supervisor_meta;
 
             // Symbolic importance scoring on agent outputs
             {
