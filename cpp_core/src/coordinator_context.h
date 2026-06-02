@@ -43,6 +43,9 @@ struct CoordinatorState {
     /// When true, dispatch returns HTTP 429 if the session ledger is in overrun.
     bool reject_on_overrun   = false;
 
+    json       templates = json::object();
+    std::mutex templates_mutex;
+
     context_gate::Config  context_gate_config;
     kv_auto_clear::Config kv_auto_clear_config;
     kv_auto_clear::State  kv_auto_clear_state;
