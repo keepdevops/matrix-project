@@ -80,5 +80,7 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
             state.reject_on_overrun = coord["reject_on_overrun"].get<bool>();
         if (coord.contains("templates") && coord["templates"].is_object())
             state.templates = coord["templates"];
+        if (coord.contains("supervisor") && coord["supervisor"].is_object())
+            state.supervisor_enabled = coord["supervisor"].value("enabled", false);
     }
 }

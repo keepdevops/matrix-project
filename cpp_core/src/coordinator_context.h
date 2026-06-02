@@ -57,6 +57,11 @@ struct CoordinatorState {
     std::map<std::string, json> annotations;
     std::mutex                  annotations_mutex;
 
+    // Supervisor policy engine
+    bool       supervisor_enabled = false;
+    json       supervisor_audit   = json::array();
+    std::mutex supervisor_audit_mutex;
+
     context_gate::Config  context_gate_config;
     kv_auto_clear::Config kv_auto_clear_config;
     kv_auto_clear::State  kv_auto_clear_state;
