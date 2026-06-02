@@ -82,5 +82,10 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
             state.templates = coord["templates"];
         if (coord.contains("supervisor") && coord["supervisor"].is_object())
             state.supervisor_enabled = coord["supervisor"].value("enabled", false);
+        if (coord.contains("distillation") && coord["distillation"].is_object()) {
+            const auto& d = coord["distillation"];
+            state.distillation_push_url          = d.value("push_url", "");
+            state.distillation_quality_threshold = d.value("quality_threshold", 0.6);
+        }
     }
 }

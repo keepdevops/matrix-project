@@ -57,6 +57,10 @@ struct CoordinatorState {
     std::map<std::string, json> annotations;
     std::mutex                  annotations_mutex;
 
+    // Distillation app integration
+    std::string distillation_push_url;
+    double      distillation_quality_threshold = 0.6;
+
     // Supervisor policy engine
     bool       supervisor_enabled = false;
     json       supervisor_audit   = json::array();

@@ -1,17 +1,40 @@
 import React, { useState } from 'react';
 import Button from './Button';
 import { exportTrajectories } from '../api/trajectoryApi';
+import { pushTrajectories } from '../api/distillationApi';
 
 export default function ExportFilterPanel({ sessionId }) {
   const [sid,        setSid]        = useState(sessionId || '');
   const [from,       setFrom]       = useState('');
   const [to,         setTo]         = useState('');
   const [minQuality, setMinQuality] = useState(0);
-  const [format, setFormat] = useState('jsonl');
+  const [format,     setFormat]     = useState('jsonl');
+  const [pushUrl,    setPushUrl]    = useState('');
+  const [pushStatus, setPushStatus] = useState(null);
+  const [pushing,    setPushing]    = useState(false);
 
-  const handleExport = () => {
+  const handleExport = () =>
     exportTrajectories({ sessionId: sid.trim(), from, to, format,
                          minQuality: minQuality > 0 ? minQuality : undefined });
+
+  const handlePush = async () => {
+    if (!pushUrl.trim()) return;
+    setPushing(true); setPushStatus(null);
+    try {
+      const r = await pushTrajectories({
+        sessionId: sid.trim() || undefined,
+        minQuality: minQuality > 0 ? minQuality : undefined,
+        targetUrl: pushUrl.trim(),
+      });
+      setPushStatus(r.pushed
+        ? `✓ Pushed ${r.lines} records (HTTP ${r.status_code})`
+        : `✗ ${r.error || 'push failed'}`);
+    } catch (err) {
+      setPushStatus(`✗ ${err.message}`);
+      console.error('[ExportFilterPanel] push failed:', err);
+    } finally {
+      setPushing(false);
+    }
   };
 
   const inputStyle = { padding: '0.2rem 0.35rem', fontSize: '0.78rem',
@@ -56,6 +79,28 @@ export default function ExportFilterPanel({ sessionId }) {
         <Button variant="outline-primary" size="sm" onClick={handleExport}>
           ↓ Export
         </Button>
+
+        <div style={{ borderTop: '1px solid var(--border-dim, #1a1a1a)',
+                      paddingTop: '0.3rem', marginTop: '0.1rem' }}>
+          <div style={{ opacity: 0.65, marginBottom: '0.2rem' }}>Push to distillation app</div>
+          <input style={inputStyle} value={pushUrl}
+                 onChange={e => setPushUrl(e.target.value)}
+                 placeholder="http://localhost:8765" />
+          <Button variant="outline-primary" size="sm"
+                  onClick={handlePush}
+                  disabled={pushing || !pushUrl.trim()}
+                  style={{ marginTop: '0.25rem', width: '100%' }}>
+            {pushing ? 'Pushing…' : '→ Push'}
+          </Button>
+          {pushStatus && (
+            <div style={{ marginTop: '0.2rem', fontSize: '0.7rem',
+                          color: pushStatus.startsWith('✓')
+                            ? 'var(--color-success, #22c55e)'
+                            : 'var(--color-danger, #ef4444)' }}>
+              {pushStatus}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

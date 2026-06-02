@@ -12,6 +12,7 @@
 #include "coordinator_routes_supervisor.h"
 #include "coordinator_routes_simulate.h"
 #include "coordinator_routes_negotiate.h"
+#include "coordinator_routes_push.h"
 
 void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_core(svr, st);
@@ -35,4 +36,5 @@ void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_supervisor(svr, st);
     register_coordinator_routes_simulate(svr, st);
     register_coordinator_routes_negotiate(svr, st);
+    register_coordinator_routes_push(svr, st);
 }

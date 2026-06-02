@@ -14,10 +14,12 @@
 #include "kv_auto_clear.h"
 #include "rl_trajectory_logger.h"
 #include "swarm_supervisor.h"
+#include "coordinator_routes_push.h"
 #include "token_ledger.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <thread>
 #include <unordered_set>
 
 void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState& st) {
@@ -292,7 +294,36 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                     for (const auto& [k, v] : envelope["agents"].items())
                         if (v.is_string()) traj.agent_outputs[k] = v.get<std::string>();
 
+                // Capture quality score after record() computes it
+                double recorded_quality = -1.0;
+                {
+                    // Peek at the last recorded entry's quality score
+                    auto snap = rl_traj::snapshot(dreq.session_id);
+                    if (!snap.empty()) recorded_quality = snap[0].value("quality_score", -1.0);
+                }
                 rl_traj::record(std::move(traj));
+
+                // Async quality webhook — non-blocking
+                if (!st.distillation_push_url.empty()
+                    && recorded_quality >= st.distillation_quality_threshold) {
+                    std::string push_url = st.distillation_push_url;
+                    std::string sid_snap = dreq.session_id;
+                    std::string rid_snap = dreq.run_id;
+                    double q = recorded_quality;
+                    std::thread([push_url, sid_snap, rid_snap, q]() {
+                        try {
+                            nlohmann::json payload = {
+                                {"event",        "trajectory_quality"},
+                                {"session_id",   sid_snap},
+                                {"run_id",       rid_snap},
+                                {"quality_score", q},
+                            };
+                            distillation_push::post_jsonl(
+                                push_url + "/api/webhook/trajectory",
+                                payload.dump());
+                        } catch (...) {}
+                    }).detach();
+                }
             }
 
             session_context::clear();
