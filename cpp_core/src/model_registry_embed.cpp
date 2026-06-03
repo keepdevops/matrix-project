@@ -1,28 +1,26 @@
 #ifdef MATRIX_MLX_EMBED
-// MS-161 Phase B: in-process MLX model registry + serialized GPU lane.
+// MS-68 Phase 2a: in-process MLX generation for model_mem::ModelRegistry.
+// Folded in from MS-161's mlx_inproc::MlxModelRegistry — same interpreter
+// lifecycle, serialized GPU lane, and PyIter_Next streaming. The only change:
+// these are now ModelRegistry members, and each call is recorded against the
+// (model_id, quant) accounting entries via note_generation().
 
-#include "mlx_model_registry.h"
+#include "model_registry.h"
 
 #include <Python.h>
 
-#include <chrono>
-#include <cstdlib>
-#include <map>
-#include <mutex>
-#include <set>
 #include <sstream>
 #include <stdexcept>
-#include <string>
+#include <vector>
 
-namespace mlx_inproc {
+namespace model_mem {
 namespace {
 
 // ── Interpreter lifecycle ─────────────────────────────────────────────────────
-// Self-contained (this TU never co-links with mlx_embed_generate's generate
-// path in one binary — the coordinator calls only the registry). Init once,
-// then release the GIL so httplib worker threads can PyGILState_Ensure.
+// Init once, then release the GIL so httplib worker threads can PyGILState_Ensure.
 bool        g_init = false;
 std::mutex  g_init_mu;
+std::mutex  g_lane_mu;   // serializes ALL generation (one GPU — MS-160)
 
 std::string resolve_home() {
     const char* env = std::getenv("MLX_ENV_PREFIX");
@@ -48,14 +46,11 @@ void ensure_interp() {
     if (PyStatus_Exception(st))
         throw std::runtime_error(std::string("Py init: ")
                                  + (st.err_msg ? st.err_msg : "?"));
-    // Release the GIL held by this (initializing) thread so worker threads can
-    // acquire it via PyGILState_Ensure. We never use the main thread for Python
-    // again — all access is lane-serialized through PyGILState.
-    PyEval_SaveThread();
+    PyEval_SaveThread();   // never use the main thread for Python again
     g_init = true;
 }
 
-// Run code, return str(result_var). MUST hold the GIL (PyGILState_Ensure).
+// Run code, return str(result_var). MUST hold the GIL.
 std::string py_run_read(const char* code, const char* result_var) {
     PyObject* m = PyImport_AddModule("__main__");
     PyObject* d = PyModule_GetDict(m);
@@ -83,28 +78,25 @@ std::string esc(const std::string& s) {
     return o;
 }
 
-// ── Registry state (C++ side metadata; models live resident in Python) ────────
-struct ModelMeta {
-    std::set<std::string> agents_seen;
-    long                  calls = 0;
-    std::chrono::steady_clock::time_point last_used = std::chrono::steady_clock::now();
-};
-
-std::mutex                        g_lane_mu;   // serializes ALL generation (one GPU)
-std::mutex                        g_meta_mu;   // guards the metadata map
-std::map<std::string, ModelMeta>  g_meta;
-
 }  // namespace
 
-GenResult MlxModelRegistry::generate(const Agent& agent,
-                                     const std::string& prompt,
-                                     int max_tokens) {
+void ModelRegistry::note_generation(const std::string& model_id,
+                                    const std::string& quant,
+                                    const std::string& agent_name) {
+    const ModelKey key{model_id, quant.empty() ? "default" : quant};
+    std::lock_guard<std::mutex> lk(mu_);
+    auto& e = entries_[key];
+    e.agents_seen.insert(agent_name);
+    e.gen_calls += 1;
+    e.last_used = std::chrono::steady_clock::now();
+}
+
+GenResult ModelRegistry::generate(const Agent& agent, const std::string& prompt,
+                                  int max_tokens) {
     GenResult r;
     const std::string model_path = agent.model;
     if (model_path.empty()) { r.error = "agent has no model path"; return r; }
 
-    // The lane: one in-flight generation per process (MS-160 — no concurrency
-    // benefit on a single GPU, and concurrent submission OOMs).
     std::lock_guard<std::mutex> lane(g_lane_mu);
     try {
         ensure_interp();
@@ -115,7 +107,7 @@ GenResult MlxModelRegistry::generate(const Agent& agent,
              << "globals().setdefault('__mlx_reg__', {})\n"
              << "_p = '" << esc(model_path) << "'\n"
              << "if _p not in __mlx_reg__:\n"
-             << "    __mlx_reg__[_p] = _mlxlm.load(_p)\n"   // load-once, resident
+             << "    __mlx_reg__[_p] = _mlxlm.load(_p)\n"
              << "_m, _tk = __mlx_reg__[_p]\n"
              << "_s = _t.perf_counter()\n"
              << "_o = _mlxlm.generate(_m, _tk, prompt='" << esc(prompt)
@@ -131,7 +123,7 @@ GenResult MlxModelRegistry::generate(const Agent& agent,
 
         const auto comma = meta.find(',');
         if (comma != std::string::npos) {
-            r.n_tokens   = std::stoi(meta.substr(0, comma));
+            r.n_tokens = std::stoi(meta.substr(0, comma));
             const double ms = std::stod(meta.substr(comma + 1));
             r.tok_s = ms > 0 ? r.n_tokens / (ms / 1000.0) : 0.0;
         }
@@ -141,23 +133,12 @@ GenResult MlxModelRegistry::generate(const Agent& agent,
         r.error = e.what();
     }
 
-    {
-        std::lock_guard<std::mutex> mlk(g_meta_mu);
-        auto& mm = g_meta[model_path];
-        mm.agents_seen.insert(agent.name);
-        mm.calls += 1;
-        mm.last_used = std::chrono::steady_clock::now();
-    }
+    note_generation(model_path, agent.quant, agent.name);
     return r;
 }
 
-// MS-161 Phase C: streaming generation. Drives mlx_lm.stream_generate (a Python
-// generator) by stepping it from C++ via PyIter_Next, emitting each chunk's
-// .text through on_token. Serialized through the same lane as generate().
-GenResult MlxModelRegistry::generate_stream(const Agent& agent,
-                                            const std::string& prompt,
-                                            int max_tokens,
-                                            const OnToken& on_token) {
+GenResult ModelRegistry::generate_stream(const Agent& agent, const std::string& prompt,
+                                         int max_tokens, const OnToken& on_token) {
     GenResult r;
     const std::string model_path = agent.model;
     if (model_path.empty()) { r.error = "agent has no model path"; return r; }
@@ -167,7 +148,6 @@ GenResult MlxModelRegistry::generate_stream(const Agent& agent,
         ensure_interp();
         PyGILState_STATE gil = PyGILState_Ensure();
 
-        // Load (if needed) + build the generator into __main__.__reg_stream__.
         std::ostringstream code;
         code << "import mlx_lm as _mlxlm\n"
              << "globals().setdefault('__mlx_reg__', {})\n"
@@ -186,13 +166,12 @@ GenResult MlxModelRegistry::generate_stream(const Agent& agent,
 
         PyObject* gen = PyDict_GetItemString(main_dict, "__reg_stream__");  // borrowed
         if (!gen) { PyGILState_Release(gil); r.error = "generator not created"; return r; }
-        Py_INCREF(gen);  // own a ref for the iteration
+        Py_INCREF(gen);
 
         std::string assembled;
         int n_tok = 0;
         PyObject* item = nullptr;
         while ((item = PyIter_Next(gen)) != nullptr) {
-            // GenerationResponse.text is the incremental chunk for this step.
             PyObject* tattr = PyObject_GetAttrString(item, "text");
             if (tattr) {
                 const char* tc = PyUnicode_AsUTF8(tattr);
@@ -207,8 +186,7 @@ GenResult MlxModelRegistry::generate_stream(const Agent& agent,
             Py_DECREF(item);
         }
         Py_DECREF(gen);
-        if (PyErr_Occurred()) { PyErr_Print(); }   // iteration error (not StopIteration)
-        // Drop the generator reference held in __main__.
+        if (PyErr_Occurred()) { PyErr_Print(); }
         PyDict_DelItemString(main_dict, "__reg_stream__");
         PyGILState_Release(gil);
 
@@ -220,24 +198,19 @@ GenResult MlxModelRegistry::generate_stream(const Agent& agent,
         r.error = e.what();
     }
 
-    {
-        std::lock_guard<std::mutex> mlk(g_meta_mu);
-        auto& mm = g_meta[model_path];
-        mm.agents_seen.insert(agent.name);
-        mm.calls += 1;
-        mm.last_used = std::chrono::steady_clock::now();
-    }
+    note_generation(model_path, agent.quant, agent.name);
     return r;
 }
 
-int MlxModelRegistry::evict_idle(int max_idle_secs) {
-    std::vector<std::string> stale;
+int ModelRegistry::evict_idle(int max_idle_secs) {
+    std::vector<ModelKey> stale;
     {
-        std::lock_guard<std::mutex> mlk(g_meta_mu);
+        std::lock_guard<std::mutex> lk(mu_);
         const auto now = std::chrono::steady_clock::now();
-        for (auto& [path, mm] : g_meta) {
-            const double idle = std::chrono::duration<double>(now - mm.last_used).count();
-            if (idle > max_idle_secs) stale.push_back(path);
+        for (auto& [key, e] : entries_) {
+            if (e.gen_calls == 0) continue;   // no resident model under this key
+            const double idle = std::chrono::duration<double>(now - e.last_used).count();
+            if (idle > max_idle_secs) stale.push_back(key);
         }
     }
     if (stale.empty()) return 0;
@@ -245,45 +218,20 @@ int MlxModelRegistry::evict_idle(int max_idle_secs) {
     std::lock_guard<std::mutex> lane(g_lane_mu);   // touch Python under the lane
     ensure_interp();
     PyGILState_STATE gil = PyGILState_Ensure();
-    for (const auto& path : stale) {
+    for (const auto& key : stale) {
         std::ostringstream code;
-        code << "globals().setdefault('__mlx_reg__', {}).pop('" << esc(path) << "', None)\n"
+        code << "globals().setdefault('__mlx_reg__', {}).pop('"
+             << esc(key.model_id) << "', None)\n"
              << "__reg_evicted__ = '1'\n";
         py_run_read(code.str().c_str(), "__reg_evicted__");
     }
     PyGILState_Release(gil);
 
-    std::lock_guard<std::mutex> mlk(g_meta_mu);
-    for (const auto& path : stale) g_meta.erase(path);
+    std::lock_guard<std::mutex> lk(mu_);
+    for (const auto& key : stale) entries_.erase(key);
     return static_cast<int>(stale.size());
 }
 
-int MlxModelRegistry::resident_count() const {
-    std::lock_guard<std::mutex> mlk(g_meta_mu);
-    return static_cast<int>(g_meta.size());
-}
-
-nlohmann::json MlxModelRegistry::snapshot() const {
-    std::lock_guard<std::mutex> mlk(g_meta_mu);
-    nlohmann::json arr = nlohmann::json::array();
-    const auto now = std::chrono::steady_clock::now();
-    for (const auto& [path, mm] : g_meta) {
-        arr.push_back({
-            {"model",       path},
-            {"agents_seen", static_cast<int>(mm.agents_seen.size())},
-            {"calls",       mm.calls},
-            {"idle_secs",   static_cast<int>(
-                std::chrono::duration<double>(now - mm.last_used).count())},
-        });
-    }
-    return arr;
-}
-
-MlxModelRegistry& mlx_models() {
-    static MlxModelRegistry reg;
-    return reg;
-}
-
-}  // namespace mlx_inproc
+}  // namespace model_mem
 
 #endif  // MATRIX_MLX_EMBED
