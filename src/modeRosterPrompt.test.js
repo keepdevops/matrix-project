@@ -212,24 +212,24 @@ describe('computeModeReadiness — null / edge inputs', () => {
 // ---------------------------------------------------------------------------
 
 describe('qualityPassContextPolicy — budgets per mode', () => {
-  it('pipeline gets 30000 budget', () => {
-    expect(qualityPassContextPolicy('pipeline').max_context_chars).toBe(30000);
+  it('pipeline gets 4500 budget', () => {
+    expect(qualityPassContextPolicy('pipeline').max_context_chars).toBe(4500);
   });
 
-  it('flat gets 32000 budget', () => {
-    expect(qualityPassContextPolicy('flat').max_context_chars).toBe(32000);
+  it('flat gets 5000 budget', () => {
+    expect(qualityPassContextPolicy('flat').max_context_chars).toBe(5000);
   });
 
-  it('cascade gets 34000 budget', () => {
-    expect(qualityPassContextPolicy('cascade').max_context_chars).toBe(34000);
+  it('cascade gets 5500 budget', () => {
+    expect(qualityPassContextPolicy('cascade').max_context_chars).toBe(5500);
   });
 
-  it('router gets 34000 budget', () => {
-    expect(qualityPassContextPolicy('router').max_context_chars).toBe(34000);
+  it('router gets 5500 budget', () => {
+    expect(qualityPassContextPolicy('router').max_context_chars).toBe(5500);
   });
 
-  it('unknown mode falls back to 30000 budget', () => {
-    expect(qualityPassContextPolicy('unknown').max_context_chars).toBe(30000);
+  it('unknown mode falls back to 4500 budget', () => {
+    expect(qualityPassContextPolicy('unknown').max_context_chars).toBe(4500);
   });
 
   test.each(ALL_MODES)('%s includes original_prompt in context', (mode) => {
@@ -322,7 +322,7 @@ describe('useSubmitHandlers — pipeline mode prompts', () => {
     const [instruction, , callOpts] = submit.mock.calls[0];
     expect(instruction).toMatch(/compile errors/);
     expect(callOpts.qualityPass).toBe(true);
-    expect(callOpts.contextPolicy.max_context_chars).toBe(30000);
+    expect(callOpts.contextPolicy.max_context_chars).toBe(4500);
   });
 });
 
@@ -345,11 +345,11 @@ describe('useSubmitHandlers — cascade mode prompts', () => {
     );
   });
 
-  it('quality pass uses cascade budget (34000)', async () => {
+  it('quality pass uses cascade budget (5500)', async () => {
     const { submit, opts } = makeHook({ activeMode: 'cascade' });
     const { result } = renderHook(() => useSubmitHandlers(opts));
     await act(async () => { await result.current.handleQualityPass(); });
-    expect(submit.mock.calls[0][2].contextPolicy.max_context_chars).toBe(34000);
+    expect(submit.mock.calls[0][2].contextPolicy.max_context_chars).toBe(5500);
   });
 });
 
@@ -362,11 +362,11 @@ describe('useSubmitHandlers — router mode prompts', () => {
     expect(submit.mock.calls[0][2].contextPolicy?.include).not.toContain('final');
   });
 
-  it('quality pass uses router budget (34000)', async () => {
+  it('quality pass uses router budget (5500)', async () => {
     const { submit, opts } = makeHook({ activeMode: 'router' });
     const { result } = renderHook(() => useSubmitHandlers(opts));
     await act(async () => { await result.current.handleQualityPass(); });
-    expect(submit.mock.calls[0][2].contextPolicy.max_context_chars).toBe(34000);
+    expect(submit.mock.calls[0][2].contextPolicy.max_context_chars).toBe(5500);
   });
 });
 
@@ -449,7 +449,7 @@ describe('useSubmitHandlers — handleSendBestContinue', () => {
     const [, , callOpts] = submit.mock.calls[0];
     expect(callOpts.contextPolicy.target_agent).toBe('programmer');
     expect(callOpts.contextPolicy.include).toContain('programmer');
-    expect(callOpts.contextPolicy.max_context_chars).toBe(30000);
+    expect(callOpts.contextPolicy.max_context_chars).toBe(4500);
   });
 });
 

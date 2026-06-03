@@ -106,10 +106,10 @@ describe('computeRiskEstimate — live hostMemory hardware matrix', () => {
     expect(e.band.id).toBe('high');
   });
 
-  it('16 GB machine (live): same roster is LOW', () => {
+  it('16 GB machine (live): same roster is MEDIUM (RAM_OS_GB=9 + 4GB model = 14GB = 87% of 16GB)', () => {
     const e = computeRiskEstimate(roles, selected, roleModels, MODELS, liveHost(6, 16));
     expect(e.ramTotalGb).toBe(16);
-    expect(e.band.id).toBe('low');
+    expect(e.band.id).toBe('medium');
   });
 
   it('32 GB machine (live): heavy roster stays MEDIUM or better', () => {

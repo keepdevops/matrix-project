@@ -55,7 +55,8 @@ export function useSubmitHandlers({
         autoOpts.followup = true;
         autoOpts.contextPolicy = autoOpts.contextPolicy || {
           include: hasFinal ? ['original_prompt', 'final'] : ['original_prompt'],
-          max_context_chars: 20000,
+          // Sized for --ctx-size 2048 on M3 Max; was 20000 (exceeded server window)
+          max_context_chars: 5000,
         };
       }
       // Compute max KV usage ratio to pass to coordinator for adaptive max_select
