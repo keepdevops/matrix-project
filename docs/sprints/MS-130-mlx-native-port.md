@@ -18,28 +18,19 @@
 
 ## Status (2026-06-02)
 
-**Where we are:** Sprint 3 cleanup landed; ~**74 pts / 89** in `main`. MS-141 live-coordinator sign-off and MS-137 cascade synthesizer are the remaining gates before MS-146.
+**Where we are:** ~**87 pts / 89** in `main`. One gate left: MS-146 production sign-off.
 
 | Sprint | Progress | Gate |
 |--------|----------|------|
 | **1** Contracts & blocking API | MS-132–134 ✅ · MS-131 ✅ · MS-135 🛑 open | COF-48 |
-| **2** SSE, modes, sessions | MS-136–140 ✅ · MS-137 ✅ · MS-141 🛑 open | COF-54 |
+| **2** SSE, modes, sessions | MS-136–140 ✅ · MS-137 ✅ · MS-141 ✅ | COF-54 |
 | **3** Decommission & ship | MS-142 ✅ · MS-143 ✅ · MS-144 ✅ · MS-145 ✅ · MS-146 🛑 open | COF-59 |
 
-**Confirmed done (post-d1e836f audit):**
-- `session_id` non-string → 400 in `coordinator_routes_mlx.cpp` lines 312–315 ✅
-- `matrix-2-launch.sh` starts orchestrate sidecar on `:3003` only; MLX on `:3002` ✅
-- `hero_mlx_checks.py` checks `:3002/api/mlx/health` ✅
-- `production/nginx.conf` routes all `/api/` → `:3002` (no `:3003` upstream) ✅
-- `docker/Dockerfile.metal` exists at `docker/Dockerfile.metal` ✅
-- `src/api/base.js` → `:3002` for both `API_BASE` and `MLX_API_BASE` ✅
-- `src/api/base.test.js` — base URL tests added; 19/19 pass (1112 total) ✅
-- `HelpModalReferenceDocs.js` accurately describes `:3003` as orchestrate sidecar only ✅
+**MS-141 PASS (2026-06-02):** 195 passed / 9 skipped / 0 failed on live C++ coordinator.
 
-**Remaining blocker before MS-146:**
-- **MS-141** — live sign-off: `pytest tests/mlx_coordinator` against running C++ coordinator (146 pass / 58 skip without coordinator) + Brewlatte 2-turn smoke.
+**Remaining before MS-146:** Brewlatte 2-turn smoke (`?layout=brewlatte` → BREW → follow-up BREW).
 
-**Next:** start coordinator → run `pytest tests/mlx_coordinator` → Brewlatte smoke → MS-146.
+**Next:** Brewlatte smoke → MS-146 gate → ship.
 
 ---
 
