@@ -2,6 +2,7 @@
 // MS-161 Phase B: in-process MLX model registry + serialized GPU lane.
 
 #include "mlx_model_registry.h"
+#include "model_registry.h"   // MS-68 2a: bridge load/evict to unified registry
 
 #include <Python.h>
 
@@ -87,6 +88,7 @@ std::string esc(const std::string& s) {
 struct ModelMeta {
     std::set<std::string> agents_seen;
     long                  calls = 0;
+    std::string           quant;   // MS-68 2a: for release key on eviction
     std::chrono::steady_clock::time_point last_used = std::chrono::steady_clock::now();
 };
 
@@ -143,10 +145,15 @@ GenResult MlxModelRegistry::generate(const Agent& agent,
 
     {
         std::lock_guard<std::mutex> mlk(g_meta_mu);
+        const bool first_load = (g_meta.find(model_path) == g_meta.end());
         auto& mm = g_meta[model_path];
         mm.agents_seen.insert(agent.name);
         mm.calls += 1;
         mm.last_used = std::chrono::steady_clock::now();
+        if (first_load) {
+            mm.quant = agent.quant;
+            model_mem::ModelRegistry::instance().acquire(model_path, agent.quant);
+        }
     }
     return r;
 }
@@ -222,10 +229,15 @@ GenResult MlxModelRegistry::generate_stream(const Agent& agent,
 
     {
         std::lock_guard<std::mutex> mlk(g_meta_mu);
+        const bool first_load = (g_meta.find(model_path) == g_meta.end());
         auto& mm = g_meta[model_path];
         mm.agents_seen.insert(agent.name);
         mm.calls += 1;
         mm.last_used = std::chrono::steady_clock::now();
+        if (first_load) {
+            mm.quant = agent.quant;
+            model_mem::ModelRegistry::instance().acquire(model_path, agent.quant);
+        }
     }
     return r;
 }
@@ -254,7 +266,13 @@ int MlxModelRegistry::evict_idle(int max_idle_secs) {
     PyGILState_Release(gil);
 
     std::lock_guard<std::mutex> mlk(g_meta_mu);
-    for (const auto& path : stale) g_meta.erase(path);
+    for (const auto& path : stale) {
+        auto it = g_meta.find(path);
+        if (it != g_meta.end()) {
+            model_mem::ModelRegistry::instance().release(path, it->second.quant);
+            g_meta.erase(it);
+        }
+    }
     return static_cast<int>(stale.size());
 }
 

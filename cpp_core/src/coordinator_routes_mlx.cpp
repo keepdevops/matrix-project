@@ -6,6 +6,7 @@
 #include "coordinator_routes_architect_persist.h"
 #include "mlx_inflight.h"
 #include "mlx_session_store.h"
+#include "model_registry.h"   // MS-68 2a: always-on pressure snapshot
 #ifdef MATRIX_MLX_INPROC
 #include "mlx_model_registry.h"
 #endif
@@ -336,11 +337,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             inflight[k] = inflight.contains(k) ? inflight[k].get<int>() + c : c;
         }
         json out = {{"inflight", inflight}, {"sessions", mlx_sessions().snapshot()}};
-#ifdef MATRIX_MLX_INPROC
-        // MS-161 Phase D: surface resident in-process models + count.
-        out["resident_models"] = mlx_inproc::mlx_models().snapshot();
-        out["resident_count"]  = mlx_inproc::mlx_models().resident_count();
-#endif
+        // MS-68 2a: always surface resident model count from unified registry.
+        auto reg_snap = model_mem::ModelRegistry::instance().snapshot();
+        out["resident_count"]  = reg_snap.value("resident_count", 0);
+        out["resident_models"] = reg_snap.value("models", nlohmann::json::array());
         cors(res);
         res.set_content(out.dump(), "application/json");
     });

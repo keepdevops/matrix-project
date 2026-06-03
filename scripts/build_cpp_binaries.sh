@@ -105,6 +105,7 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${SANITIZE_FLAGS[@]}" "${INPROC_FLAGS[@]}"
    "$CPP_SRC/session_store.cpp" \
    "$CPP_SRC/session_store_text.cpp" \
    "$CPP_SRC/token_ledger.cpp" \
+   "$CPP_SRC/model_registry.cpp" \
    "$CPP_SRC/rss_generator.cpp" \
    "$CPP_SRC/synthesis_budget.cpp" \
    "$CPP_SRC/synthesis_budget_assemble.cpp" \
