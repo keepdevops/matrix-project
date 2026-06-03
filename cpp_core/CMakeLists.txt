@@ -122,6 +122,15 @@ if(EXISTS "${PY_INCLUDE}/Python.h" AND EXISTS "${PY_LIB}")
   set_target_properties(mlx_generate_probe PROPERTIES
     BUILD_RPATH  "${MLX_PREFIX}/lib"
     INSTALL_RPATH "${MLX_PREFIX}/lib")
+
+  # MS-153: warm/cold/RSS benchmark probe (reuses matrix_mlx_generate_lib).
+  add_executable(mlx_bench_probe
+    ../tests/cpp/mlx_bench_probe.cpp)
+  target_link_libraries(mlx_bench_probe PRIVATE matrix_mlx_generate_lib)
+  target_compile_definitions(mlx_bench_probe PRIVATE MATRIX_MLX_EMBED=1)
+  set_target_properties(mlx_bench_probe PROPERTIES
+    BUILD_RPATH  "${MLX_PREFIX}/lib"
+    INSTALL_RPATH "${MLX_PREFIX}/lib")
 else()
   message(WARNING
     "Python 3.12 not found at ${MLX_PREFIX} — skipping mlx_generate_probe. "
