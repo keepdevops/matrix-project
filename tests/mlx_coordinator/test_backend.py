@@ -9,7 +9,9 @@ from orchestration.mlx_coordinator.backend import MlxBackend, get_pressure, _inf
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    # asyncio.get_event_loop() is deprecated in 3.12 when no loop exists;
+    # asyncio.run() creates a fresh loop each call, safe for sync test helpers.
+    return asyncio.run(coro)
 
 
 def _reset_inflight():
