@@ -14,16 +14,16 @@
 
 | Method | Path | Python handler | C++ handler (target) | Sprint |
 |--------|------|----------------|----------------------|--------|
-| POST | `/api/mlx/stream` | `handle_stream` | `mlx_routes::handle_stream` | MS-136 |
-| POST | `/api/mlx/submit` | `handle_submit` | `mlx_routes::handle_submit` | MS-133 |
-| GET | `/api/mlx/health` | `handle_health` | `mlx_routes::handle_health` | MS-134 |
-| GET | `/api/mlx/pressure` | `handle_pressure` | `mlx_routes::handle_pressure` | MS-134 |
-| GET | `/api/mlx/agents` | `handle_agents` | `mlx_routes::handle_agents` | MS-139 |
-| GET | `/api/mlx/modes` | `handle_modes` | `mlx_routes::handle_modes` | MS-139 |
-| POST | `/api/mlx/modes/active` | `handle_set_mode` | `mlx_routes::handle_set_mode` | MS-139 |
-| POST | `/api/mlx/session/clear` | `handle_session_clear` | `mlx_routes::handle_session_clear` | MS-140 |
-| POST | `/api/orchestrate` | `handle_orchestrate` | proxy → sidecar or MS-142 router | MS-142 |
-| POST | `/api/orchestrate/stream` | `handle_orchestrate_stream` | proxy → sidecar or MS-142 router | MS-142 |
+| POST | `/api/mlx/stream` | `handle_stream` | `register_coordinator_routes_mlx` | ✅ MS-136 |
+| POST | `/api/mlx/submit` | `handle_submit` | `register_coordinator_routes_mlx` | ✅ MS-133 |
+| GET | `/api/mlx/health` | `handle_health` | `register_coordinator_routes_mlx` | ✅ MS-134 |
+| GET | `/api/mlx/pressure` | `handle_pressure` | `register_coordinator_routes_mlx` | ✅ MS-134 |
+| GET | `/api/mlx/agents` | `handle_agents` | `register_coordinator_routes_mlx` | ✅ MS-139 |
+| GET | `/api/mlx/modes` | `handle_modes` | `register_coordinator_routes_mlx` | ✅ MS-137 |
+| POST | `/api/mlx/modes/active` | `handle_set_mode` | `register_coordinator_routes_mlx` | ✅ MS-137 |
+| POST | `/api/mlx/session/clear` | `handle_session_clear` | `register_coordinator_routes_mlx` | ✅ MS-140 |
+| POST | `/api/orchestrate` | `handle_orchestrate` | `proxy_routes_orchestrate` → sidecar `:3003` | ✅ MS-142 |
+| POST | `/api/orchestrate/stream` | `handle_orchestrate_stream` | `proxy_routes_orchestrate` → sidecar `:3003` | ✅ MS-142 |
 
 **URL bases (post MS-143):**
 
@@ -258,22 +258,23 @@ C++ must expose equivalent fields: `name`, `port`, `engine`, `model`, `system_pr
 
 **Decision: Option A — minimal Python sidecar for `/api/orchestrate*` only.**
 
-The Python `orchestration.mlx_coordinator.service_orchestrate` process continues
-to handle `POST /api/orchestrate` and `POST /api/orchestrate/stream`. No MLX
-chat traffic (`/api/mlx/*`) reaches Python after MS-143.
+`orchestration/mlx_coordinator/sidecar.py` — a lean aiohttp process started by
+`brewctl launch` — serves only `POST /api/orchestrate` and
+`POST /api/orchestrate/stream`. No `/api/mlx/*` traffic reaches Python.
+Port: `ORCH_SIDECAR_PORT` (default **3003**); proxy forwards via `g_env.python_coord_port`.
 
 Rationale:
 - `map_reduce`, `speculative`, `critic_debate`, `tree_of_thought` use complex
   async Python orchestration (chunking, multi-agent fan-out, scratchpad) that
   has no C++ equivalent in MVP scope.
-- The sidecar stays wired at the **proxy** level, not `:3003` — it becomes an
-  internal subprocess of the proxy process (MS-144).
-- Full C++ orchestrate modes are deferred to **MS-170** (post-ship).
+- Sidecar has no `mlx.core` dependency — works on any engine (llama/mlx share
+  the OpenAI `/v1/chat/completions` HTTP API).
+- Full C++ orchestrate modes deferred to **MS-170** (post-ship).
 
-Traffic routing after MS-143 / MS-144:
-- `/api/mlx/*`       → C++ coordinator `:3002` (native, no Python)
-- `/api/orchestrate*` → proxy → Python sidecar (in-process, no `:3003` port)
-- `/api/architect*`  → C++ coordinator `:3002` (unchanged)
+Traffic routing after MS-142 / MS-143 / MS-144:
+- `/api/mlx/*`        → C++ coordinator `:3002` (native, no Python)
+- `/api/orchestrate*` → C++ proxy → Python sidecar `:3003` (`ORCH_SIDECAR_PORT`)
+- `/api/architect*`   → C++ coordinator `:3002` (unchanged)
 
 ## 6.1 Mode mapping (Python → C++)
 
@@ -372,3 +373,4 @@ pytest tests/mlx_coordinator -v
 |------|-------|--------|
 | 2026-06-02 | MS-131 | Initial scaffold — Metal/CUDA/CPU columns, route matrix |
 | 2026-06-02 | MS-130 v2 | MVP scope: macOS + HTTP only; MS-170 owns native multi-platform |
+| 2026-06-02 | #265 | All `/api/mlx/*` routes implemented in C++; orchestrate still `:3003` proxy |

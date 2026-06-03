@@ -86,10 +86,22 @@ def _make_app(backend_obj=None, agents=None, mode="flat"):
         a["backends"] = backends
         a["sessions"] = SessionStore()
         a["active_mode"] = mode
-        a["_cleanup_task"] = asyncio.create_task(asyncio.sleep(9999))
+        task = asyncio.create_task(asyncio.sleep(9999))
+        a["_cleanup_task"] = task
+
+    async def _shutdown(a):
+        task = a.get("_cleanup_task")
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     app.on_startup.clear()
     app.on_startup.append(_startup)
+    app.on_shutdown.clear()
+    app.on_shutdown.append(_shutdown)
     return app
 
 
@@ -439,6 +451,10 @@ class TestInflightReturnsToZero(AioHTTPTestCase):
     async def get_application(self):
         self._port = 9991
 
+        import aiohttp
+        def aiohttp_error():
+            return aiohttp.ClientError("fake connection error")
+
         async def _failing_stream(req):
             from orchestration.mlx_coordinator.backend import _inc, _dec
             await _inc(self._port)
@@ -446,10 +462,6 @@ class TestInflightReturnsToZero(AioHTTPTestCase):
                 raise aiohttp_error()
             finally:
                 await _dec(self._port)
-
-        import aiohttp
-        def aiohttp_error():
-            return aiohttp.ClientError("fake connection error")
 
         b = MagicMock(spec=MlxBackend)
         b.generate_stream = MagicMock(side_effect=_failing_stream)
@@ -461,10 +473,17 @@ class TestInflightReturnsToZero(AioHTTPTestCase):
 
     @unittest_run_loop
     async def test_inflight_zero_after_backend_errors(self):
-        _inflight.clear()
+        # Snapshot all other ports so we only assert on ours
+        before = {k: v for k, v in _inflight.items() if k != self._port}
+        _inflight[self._port] = 0  # reset just this port
         for _ in range(10):
             await self.client.post("/api/mlx/submit", json={"prompt": "hi"})
+        # Yield so any pending finally-block decrements complete
+        for _ in range(10):
+            await asyncio.sleep(0)
         assert _inflight.get(self._port, 0) == 0
+        # Restore other ports to avoid contaminating subsequent tests
+        _inflight.update(before)
 
 
 # ---------------------------------------------------------------------------

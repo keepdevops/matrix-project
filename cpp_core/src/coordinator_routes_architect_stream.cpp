@@ -7,6 +7,9 @@
 #include "token_ledger.h"
 #include "token_budget_hierarchy.h"
 #include "session_store.h"
+#ifdef MATRIX_MLX_NATIVE_COORD
+#include "mlx_session_store.h"
+#endif
 
 void register_coordinator_routes_architect_stream(httplib::Server& svr, CoordinatorState& st) {
     svr.Post("/api/architect/stream", [&st](const httplib::Request& req, httplib::Response& res) {
@@ -100,17 +103,32 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                 std::map<std::string, std::string> outputs;
                 std::vector<std::string> participants;
 
+#ifdef MATRIX_MLX_NATIVE_COORD
+                // MS-149: seed mlx_sessions with the user turn once if any MLX
+                // agent is in the run, so stream_mlx can inject history.
+                {
+                    bool has_mlx = false;
+                    for (const auto& a : *agents_snap)
+                        if (a.engine == "mlx") { has_mlx = true; break; }
+                    if (has_mlx) {
+                        mlx_sessions().cleanup_idle();
+                        mlx_sessions().append_message(
+                            *session_id_snap, "user", *user_prompt_snap);
+                    }
+                }
+#endif
+
                 if (*mode_snap == "pipeline") {
                     run_stream_pipeline_mode(*agents_snap, *cfg_snap, synth_name,
                         synth_agent, *prompt_snap, *mode_snap, cancel.get(),
-                        write_event, outputs, participants);
+                        write_event, outputs, participants, *session_id_snap);
                 } else if (*mode_snap == "router") {
                     run_stream_router_mode(*agents_snap, *cfg_snap, *prompt_snap,
-                        cancel.get(), write_event, outputs);
+                        cancel.get(), write_event, outputs, *session_id_snap);
                 } else {
                     run_stream_broadcast_mode(*agents_snap, synth_name, *mode_snap,
                         synth_agent, *prompt_snap, cancel.get(), write_event,
-                        outputs, participants);
+                        outputs, participants, *session_id_snap);
                 }
 
                 write_event("metrics", agent_metrics::snapshot().dump());

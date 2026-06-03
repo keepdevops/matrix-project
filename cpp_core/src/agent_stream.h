@@ -24,10 +24,12 @@ using OnChunk = std::function<void(const std::string& delta)>;
 // Stream a single agent. Returns the full assembled response. If `cancel` is
 // flipped to true mid-stream, the call returns early with whatever has been
 // received so far. `cancel` may be null.
+// `session_id` injects mlx_session_store history for MLX engines; ignored otherwise.
 std::string stream_agent(const Agent& agent,
                          const std::string& system_prompt,
                          const std::string& prompt,
                          OnChunk on_chunk,
-                         std::atomic<bool>* cancel = nullptr);
+                         std::atomic<bool>* cancel = nullptr,
+                         const std::string& session_id = "");
 
 } // namespace agent_stream

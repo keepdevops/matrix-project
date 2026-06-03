@@ -55,3 +55,7 @@ __pycache__/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# CMake build probe artifacts (MS-151 mlx_embed)
+__cmake_systeminformation/
+cpp_core/build/

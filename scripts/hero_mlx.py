@@ -17,10 +17,9 @@ Usage:
 
 Prerequisites:
     - Dev server:   npm start            (http://localhost:3000)
-    - MLX coord:    brewctl up           (port 3003 must be running)
-    - Switch UI to MLX backend before or pass --backend mlx (handled below)
+    - Proxy/coord:  brewctl launch       (C++ coordinator on :3002)
 
-Note: if the MLX coordinator is not running, the script exits cleanly
+Note: if the C++ coordinator is not reachable, the script exits cleanly
       with a helpful message rather than timing out.
 """
 

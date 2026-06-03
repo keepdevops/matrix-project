@@ -9,6 +9,9 @@
 #include "session_context.h"
 #include "token_ledger.h"
 #include "utf8_sanitize.h"
+#ifdef MATRIX_MLX_NATIVE_COORD
+#include "mlx_session_store.h"
+#endif
 
 #include <chrono>
 #include <iostream>
@@ -17,7 +20,8 @@ using json = nlohmann::json;
 
 AttemptResult call_agent_once(const Agent& agent,
                               const std::string& system_prompt,
-                              const std::string& prompt) {
+                              const std::string& prompt,
+                              const std::string& session_id) {
     AttemptResult out;
     try {
         auto cli_ptr = pool_checkout(agent.port, agent.read_timeout_secs);
@@ -30,12 +34,26 @@ AttemptResult call_agent_once(const Agent& agent,
             : prompt;
 
         json messages = json::array();
-        if (agent.engine == "mlx" && !system_prompt.empty()) {
-            messages.push_back({{"role", "user"}, {"content", system_prompt + "\n\n" + eff_prompt}});
-        } else {
-            if (!system_prompt.empty())
-                messages.push_back({{"role", "system"}, {"content", system_prompt}});
-            messages.push_back({{"role", "user"}, {"content", eff_prompt}});
+        bool history_injected = false;
+#ifdef MATRIX_MLX_NATIVE_COORD
+        if (agent.engine == "mlx" && !session_id.empty()) {
+            auto hist = mlx_sessions().get_messages(session_id);
+            if (!hist.empty()) {
+                if (!system_prompt.empty())
+                    messages.push_back({{"role", "system"}, {"content", system_prompt}});
+                for (const auto& m : hist) messages.push_back(m);
+                history_injected = true;
+            }
+        }
+#endif
+        if (!history_injected) {
+            if (agent.engine == "mlx" && !system_prompt.empty()) {
+                messages.push_back({{"role", "user"}, {"content", system_prompt + "\n\n" + eff_prompt}});
+            } else {
+                if (!system_prompt.empty())
+                    messages.push_back({{"role", "system"}, {"content", system_prompt}});
+                messages.push_back({{"role", "user"}, {"content", eff_prompt}});
+            }
         }
         int out_cap = agent.max_output_tokens > 0 ? agent.max_output_tokens : agent.max_tokens;
         json body = {{"messages", messages}, {"max_tokens", out_cap}};

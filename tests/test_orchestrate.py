@@ -321,3 +321,55 @@ class TestOrchestrateStreamEndpoint(AioHTTPTestCase):
         for agent_id, timing in done_data["meta"]["timings"].items():
             assert "completion_tokens" in timing
             assert timing["total_ms"] == 0
+
+
+# ---------------------------------------------------------------------------
+# MS-142: sidecar static contract tests
+# ---------------------------------------------------------------------------
+
+def test_ms142_sidecar_module_exists():
+    """MS-142: orchestration/mlx_coordinator/sidecar.py must exist."""
+    import pathlib
+    sidecar = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "orchestration" / "mlx_coordinator" / "sidecar.py"
+    )
+    assert sidecar.is_file(), "MS-142: sidecar.py not found"
+    src = sidecar.read_text()
+    assert "register_orchestrate_routes" in src, "sidecar must register orchestrate routes"
+    assert "make_sidecar_app" in src, "sidecar must expose make_sidecar_app()"
+    assert "mlx.core" not in src, "sidecar must not import mlx.core (no GPU dependency)"
+
+
+def test_ms142_launch_starts_sidecar():
+    """MS-142: launch.py must spawn the orchestrate sidecar."""
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "orchestration" / "lifecycle" / "launch.py"
+    ).read_text()
+    assert "sidecar" in src, "launch.py must start the orchestrate sidecar"
+    assert "ORCH_SIDECAR_PORT" in src, "launch.py must respect ORCH_SIDECAR_PORT"
+
+
+def test_ms142_sidecar_make_app_contract():
+    """MS-142: make_sidecar_app returns an aiohttp.web.Application."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from aiohttp.web import Application
+    from orchestration.mlx_coordinator.sidecar import make_sidecar_app
+
+    with patch("orchestration.mlx_coordinator.sidecar.SwarmFactory") as mock_factory:
+        mock_factory.return_value.load_swarm.return_value = {
+            "worker": MagicMock(
+                port=8083, engine="mlx", server_group=None,
+                system_prompt="You are a worker.", max_tokens=512,
+            )
+        }
+        with patch("orchestration.mlx_coordinator.sidecar.MlxBackend"):
+            app = make_sidecar_app()
+
+    assert isinstance(app, Application)
+    paths = {str(r) for r in app.router.resources()}
+    assert any("orchestrate" in p for p in paths), (
+        "make_sidecar_app must register /api/orchestrate routes"
+    )

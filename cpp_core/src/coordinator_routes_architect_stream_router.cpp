@@ -10,7 +10,8 @@ void run_stream_router_mode(const std::vector<Agent>& agents,
                             const std::string& prompt,
                             std::atomic<bool>* cancel,
                             const WriteEventFn& write_event,
-                            std::map<std::string, std::string>& outputs) {
+                            std::map<std::string, std::string>& outputs,
+                            const std::string& session_id) {
     std::string classifier_name = cfg.value("classifier", std::string(""));
     int max_select = cfg.value("max_select", 3);
     std::map<std::string, const Agent*> by_name;
@@ -51,5 +52,5 @@ void run_stream_router_mode(const std::vector<Agent>& agents,
     }).dump());
     std::vector<const Agent*> selected_agents;
     for (const auto& n : picked) selected_agents.push_back(by_name[n]);
-    stream_parallel_agents(selected_agents, prompt, cancel, write_event, outputs);
+    stream_parallel_agents(selected_agents, prompt, cancel, write_event, outputs, session_id);
 }

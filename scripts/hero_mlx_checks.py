@@ -15,12 +15,12 @@ def check_dev_server(url="http://localhost:3000"):
         sys.exit(1)
 
 
-def check_mlx_coordinator(url="http://localhost:3003/api/mlx/health"):
+def check_mlx_coordinator(url="http://localhost:3002/api/mlx/health"):
     try:
         urllib.request.urlopen(url, timeout=3)
     except Exception:
-        print(f"❌  MLX coordinator not reachable at {url}", file=sys.stderr)
-        print("    Run: brewctl up  or start the MLX coordinator manually", file=sys.stderr)
+        print(f"❌  C++ MLX coordinator not reachable at {url}", file=sys.stderr)
+        print("    Run: brewctl launch  (starts proxy on :3002)", file=sys.stderr)
         sys.exit(1)
 
 
