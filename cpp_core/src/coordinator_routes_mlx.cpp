@@ -315,11 +315,14 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             const int c = mlx_inflight::get(agent.port);
             inflight[k] = inflight.contains(k) ? inflight[k].get<int>() + c : c;
         }
+        json out = {{"inflight", inflight}, {"sessions", mlx_sessions().snapshot()}};
+#ifdef MATRIX_MLX_INPROC
+        // MS-161 Phase D: surface resident in-process models + count.
+        out["resident_models"] = mlx_inproc::mlx_models().snapshot();
+        out["resident_count"]  = mlx_inproc::mlx_models().resident_count();
+#endif
         cors(res);
-        res.set_content(
-            json{{"inflight", inflight},
-                 {"sessions", mlx_sessions().snapshot()}}.dump(),
-            "application/json");
+        res.set_content(out.dump(), "application/json");
     });
 
     // ── GET /api/mlx/agents — MLX agent roster (MS-139) ─────────────────────
