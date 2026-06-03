@@ -13,12 +13,13 @@ void stream_parallel_agents(const std::vector<const Agent*>& parallel_agents,
                             const std::string& prompt,
                             std::atomic<bool>* cancel,
                             const WriteEventFn& write_event,
-                            std::map<std::string, std::string>& outputs) {
+                            std::map<std::string, std::string>& outputs,
+                            const std::string& session_id) {
     std::mutex out_mu;
     std::vector<std::thread> threads;
     threads.reserve(parallel_agents.size());
     for (const Agent* a : parallel_agents) {
-        threads.emplace_back([a, &prompt, cancel, &write_event, &outputs, &out_mu]() {
+        threads.emplace_back([a, &prompt, &session_id, cancel, &write_event, &outputs, &out_mu]() {
             std::string assembled;
             std::string batch;
             auto flush_batch = [&]() {
@@ -33,7 +34,7 @@ void stream_parallel_agents(const std::vector<const Agent*>& parallel_agents,
                 if (batch.size() >= TOKEN_BATCH_BYTES) flush_batch();
             };
             try {
-                agent_stream::stream_agent(*a, a->system_prompt, prompt, on_chunk, cancel);
+                agent_stream::stream_agent(*a, a->system_prompt, prompt, on_chunk, cancel, session_id);
             } catch (const std::exception& e) {
                 flush_batch();
                 write_event("error",
@@ -58,14 +59,15 @@ void run_stream_broadcast_mode(const std::vector<Agent>& agents,
                                std::atomic<bool>* cancel,
                                const WriteEventFn& write_event,
                                std::map<std::string, std::string>& outputs,
-                               std::vector<std::string>& participants) {
+                               std::vector<std::string>& participants,
+                               const std::string& session_id) {
     std::vector<const Agent*> bcast;
     for (const auto& a : agents) {
         if (a.name == synth_name) continue;
         bcast.push_back(&a);
         participants.push_back(a.name);
     }
-    stream_parallel_agents(bcast, prompt, cancel, write_event, outputs);
+    stream_parallel_agents(bcast, prompt, cancel, write_event, outputs, session_id);
     if (mode == "cascade") {
         run_stream_synthesis(synth_agent, prompt, mode, participants, outputs, cancel, write_event);
     }

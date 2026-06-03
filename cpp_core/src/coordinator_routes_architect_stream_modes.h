@@ -9,11 +9,14 @@
 #include <string>
 #include <vector>
 
+// session_id is threaded through to stream_agent for MLX history injection (MS-149).
+// Non-MLX agents ignore it.
 void stream_parallel_agents(const std::vector<const Agent*>& parallel_agents,
                             const std::string& prompt,
                             std::atomic<bool>* cancel,
                             const WriteEventFn& write_event,
-                            std::map<std::string, std::string>& outputs);
+                            std::map<std::string, std::string>& outputs,
+                            const std::string& session_id = "");
 
 void run_stream_pipeline_mode(const std::vector<Agent>& agents,
                               const nlohmann::json& cfg,
@@ -24,14 +27,16 @@ void run_stream_pipeline_mode(const std::vector<Agent>& agents,
                               std::atomic<bool>* cancel,
                               const WriteEventFn& write_event,
                               std::map<std::string, std::string>& outputs,
-                              std::vector<std::string>& participants);
+                              std::vector<std::string>& participants,
+                              const std::string& session_id = "");
 
 void run_stream_router_mode(const std::vector<Agent>& agents,
                             const nlohmann::json& cfg,
                             const std::string& prompt,
                             std::atomic<bool>* cancel,
                             const WriteEventFn& write_event,
-                            std::map<std::string, std::string>& outputs);
+                            std::map<std::string, std::string>& outputs,
+                            const std::string& session_id = "");
 
 void run_stream_broadcast_mode(const std::vector<Agent>& agents,
                                const std::string& synth_name,
@@ -41,4 +46,5 @@ void run_stream_broadcast_mode(const std::vector<Agent>& agents,
                                std::atomic<bool>* cancel,
                                const WriteEventFn& write_event,
                                std::map<std::string, std::string>& outputs,
-                               std::vector<std::string>& participants);
+                               std::vector<std::string>& participants,
+                               const std::string& session_id = "");

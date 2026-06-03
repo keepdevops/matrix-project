@@ -13,6 +13,9 @@
 #include "session_context.h"
 #include "token_ledger.h"
 #include "utf8_sanitize.h"
+#ifdef MATRIX_MLX_NATIVE_COORD
+#include "mlx_session_store.h"
+#endif
 
 #include <atomic>
 #include <chrono>
@@ -96,13 +99,15 @@ inline std::string stream_llama(const Agent& agent,
 }
 
 // MS-148: true SSE streaming for mlx_lm.server (stream=true + sse::drain_frames).
-// Replaces stream_mlx_oneshot (blocking one-shot) to reduce TTFB.
-// Uses the stream connection pool for keep-alive reuse across calls.
+// MS-149: session_id injects mlx_session_store history (caller appends user
+//         message before calling, so get_messages returns full history including
+//         current turn — don't add the current prompt again).
 inline std::string stream_mlx(const Agent& agent,
                                const std::string& system_prompt_in,
                                const std::string& prompt_in,
                                OnChunk on_chunk,
-                               std::atomic<bool>* cancel = nullptr) {
+                               std::atomic<bool>* cancel = nullptr,
+                               const std::string& session_id = "") {
     mlx_inflight::Scope inflight(agent.port);
     semaphore_acquire(agent.port);
 
@@ -113,9 +118,23 @@ inline std::string stream_mlx(const Agent& agent,
     const std::string prompt        = sanitize_invalid_utf8(prompt_in);
 
     json messages = json::array();
-    if (!system_prompt.empty())
-        messages.push_back({{"role", "system"}, {"content", system_prompt}});
-    messages.push_back({{"role", "user"}, {"content", prompt}});
+    bool history_injected = false;
+#ifdef MATRIX_MLX_NATIVE_COORD
+    if (!session_id.empty()) {
+        auto hist = mlx_sessions().get_messages(session_id);
+        if (!hist.empty()) {
+            if (!system_prompt.empty())
+                messages.push_back({{"role", "system"}, {"content", system_prompt}});
+            for (const auto& m : hist) messages.push_back(m);
+            history_injected = true;
+        }
+    }
+#endif
+    if (!history_injected) {
+        if (!system_prompt.empty())
+            messages.push_back({{"role", "system"}, {"content", system_prompt}});
+        messages.push_back({{"role", "user"}, {"content", prompt}});
+    }
 
     json body = {
         {"messages",   messages},
@@ -166,6 +185,11 @@ inline std::string stream_mlx(const Agent& agent,
         agent_metrics::record(agent.name, ms, ctoks, -1);
         long ptoks   = static_cast<long>((system_prompt.size() + prompt.size()) / 4 + 1);
         token_ledger::add(session_context::current(), ptoks, ctoks);
+#ifdef MATRIX_MLX_NATIVE_COORD
+        // MS-149: record assistant response in the MLX session store
+        if (!session_id.empty())
+            mlx_sessions().append_message(session_id, "assistant", accumulated);
+#endif
     }
     return accumulated;
 }

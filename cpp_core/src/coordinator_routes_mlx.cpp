@@ -3,6 +3,7 @@
 #include "agent_client.h"
 #include "agent_client_pool.h"
 #include "agent_stream.h"
+#include "coordinator_routes_architect_persist.h"
 #include "mlx_inflight.h"
 #include "mlx_session_store.h"
 #include "session_store.h"
@@ -80,16 +81,18 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
 
         std::string session_id = trim(body.value("session_id", std::string("")));
         if (session_id.empty()) session_id = session_new_id("mlx");
+        const double temperature = body.value("temperature", 0.7);
 
         std::vector<Agent> mlx_agents;
         for (const auto& a : st.agents)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
 
-        // Track user message before dispatch; evict stale sessions opportunistically
+        // Track user message; evict stale sessions opportunistically
         mlx_sessions().cleanup_idle();
         mlx_sessions().append_message(session_id, "user", prompt);
 
+        // Flat broadcast — collect per-agent outputs for history
         std::vector<std::future<std::string>> futures;
         futures.reserve(mlx_agents.size());
         for (const auto& agent : mlx_agents) {
@@ -99,9 +102,19 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             }));
         }
         std::string result;
-        for (auto& fut : futures) result += fut.get();
-
+        std::map<std::string, std::string> outputs;
+        for (size_t i = 0; i < futures.size(); ++i) {
+            const std::string text = futures[i].get();
+            outputs[mlx_agents[i].name] = text;
+            result += text;
+        }
         mlx_sessions().append_message(session_id, "assistant", result);
+
+        // MS-149: persist to global history + sessions (same path as architect routes)
+        const std::string run_id = session_new_id("run");
+        persist_stream_run(prompt, temperature, read_mode(), session_id, run_id, "",
+                           outputs, st,
+                           [](const std::string&, const std::string&) {});
 
         cors(res);
         res.set_content(
@@ -123,6 +136,8 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
 
         std::string session_id = trim(body.value("session_id", std::string("")));
         if (session_id.empty()) session_id = session_new_id("mlx");
+        const double temperature = body.value("temperature", 0.7);
+        const std::string run_id = session_new_id("run");
 
         std::vector<Agent> mlx_agents;
         for (const auto& a : st.agents)
@@ -139,7 +154,8 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         res.set_header("Cache-Control", "no-cache");
 
         res.set_chunked_content_provider("text/event-stream",
-            [mlx_agents, prompt, session_id, mode](size_t, httplib::DataSink& sink) -> bool {
+            [mlx_agents, prompt, session_id, mode, temperature, run_id, &st]
+            (size_t, httplib::DataSink& sink) -> bool {
 
             std::mutex sink_mu;
             auto emit = [&](const std::string& event, const json& data) {
@@ -149,28 +165,33 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                 sink.write(frame.data(), frame.size());
             };
 
-            // Per-agent helper: agent_start → stream (token events) → agent_end
+            // Per-agent helper: agent_start → stream (tokens) → agent_end
+            // Collects output per agent for history persistence (MS-149)
+            std::mutex out_mu;
+            std::map<std::string, std::string> outputs;
+
             auto run_one = [&](const Agent& agent) {
                 emit("agent_start", {{"agent_id", agent.name}});
+                std::string agent_out;
                 try {
                     std::lock_guard<std::mutex> port_lk(
                         mlx_coordinator::port_mutex(agent.port));
-                    agent_stream::stream_agent(agent, agent.system_prompt, prompt,
+                    agent_out = agent_stream::stream_agent(
+                        agent, agent.system_prompt, prompt,
                         [&](const std::string& delta) {
                             emit("token", {{"text", delta}, {"agent_id", agent.name}});
-                        });
+                        },
+                        nullptr, session_id);
                 } catch (const std::exception& e) {
                     emit("error", {{"error", e.what()}, {"agent_id", agent.name}});
                 }
+                { std::lock_guard<std::mutex> lk(out_mu); outputs[agent.name] = agent_out; }
                 emit("agent_end", {{"agent_id", agent.name}});
             };
 
             if (mode == "pipeline") {
-                // Sequential — each agent waits for the previous to complete
                 for (const auto& agent : mlx_agents) run_one(agent);
             } else {
-                // flat / cascade — parallel broadcast
-                // cascade synthesizer step deferred to MS-138 (no role designation yet)
                 std::vector<std::future<void>> futures;
                 futures.reserve(mlx_agents.size());
                 for (const auto& a : mlx_agents)
@@ -178,6 +199,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                         [a, &run_one]() { run_one(a); }));
                 for (auto& f : futures) f.get();
             }
+
+            // MS-149: persist run to global history + sessions; emit session event
+            persist_stream_run(prompt, temperature, mode, session_id, run_id, "",
+                               outputs, st, emit);
 
             emit("done", {{"session_id", session_id}});
             std::lock_guard<std::mutex> lk(sink_mu);

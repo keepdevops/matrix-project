@@ -19,7 +19,8 @@ static constexpr int RETRY_BACKOFF_MS = 250;
 
 static std::string call_agent_impl(const Agent& agent,
                                    const std::string& system_prompt_in,
-                                   const std::string& prompt_in) {
+                                   const std::string& prompt_in,
+                                   const std::string& session_id = "") {
     std::string system_prompt = system_prompt_in;
     if (!agent.description.empty()) {
         system_prompt = "# Role\n" + agent.description + "\n\n" + system_prompt_in;
@@ -37,7 +38,7 @@ static std::string call_agent_impl(const Agent& agent,
 
     AttemptResult attempt;
     for (int i = 0; i < RETRY_ATTEMPTS; ++i) {
-        attempt = call_agent_once(agent, system_prompt, prompt);
+        attempt = call_agent_once(agent, system_prompt, prompt, session_id);
         if (attempt.ok || !attempt.retryable) break;
         if (i + 1 < RETRY_ATTEMPTS) {
             std::cerr << "🔁 [retry] " << agent.name << " transient failure; "
@@ -62,6 +63,12 @@ static std::string call_agent_impl(const Agent& agent,
 
 std::string call_agent(const Agent& agent, const std::string& prompt) {
     return call_agent_impl(agent, agent.system_prompt, prompt);
+}
+
+std::string call_agent_in_session(const Agent& agent,
+                                  const std::string& prompt,
+                                  const std::string& session_id) {
+    return call_agent_impl(agent, agent.system_prompt, prompt, session_id);
 }
 
 std::string call_agent_with_system(const Agent& agent,

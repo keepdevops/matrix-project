@@ -12,4 +12,5 @@ struct AttemptResult {
 
 AttemptResult call_agent_once(const Agent& agent,
                               const std::string& system_prompt,
-                              const std::string& prompt);
+                              const std::string& prompt,
+                              const std::string& session_id = "");

@@ -16,7 +16,8 @@ void run_stream_pipeline_mode(const std::vector<Agent>& agents,
                               std::atomic<bool>* cancel,
                               const WriteEventFn& write_event,
                               std::map<std::string, std::string>& outputs,
-                              std::vector<std::string>& participants) {
+                              std::vector<std::string>& participants,
+                              const std::string& session_id) {
     std::vector<const Agent*> order;
     if (cfg.contains("agents") && cfg["agents"].is_array() && !cfg["agents"].empty()) {
         std::map<std::string, const Agent*> by_name;
@@ -52,7 +53,7 @@ void run_stream_pipeline_mode(const std::vector<Agent>& agents,
                 nlohmann::json({{"agent", a->name}, {"delta", delta}}).dump());
         };
         try {
-            agent_stream::stream_agent(*a, a->system_prompt, staged, on_chunk, cancel);
+            agent_stream::stream_agent(*a, a->system_prompt, staged, on_chunk, cancel, session_id);
         } catch (const std::exception& e) {
             write_event("error",
                 nlohmann::json({{"agent", a->name}, {"error", e.what()}}).dump());
