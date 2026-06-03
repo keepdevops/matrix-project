@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mlx-parity-schema
+        name: MLX parity schema (MS-131)
+        language: script
+        entry: scripts/validate_mlx_parity_schema.sh
+        files: ^docs/mlx-native-api-parity\.md$
+        pass_filenames: false
