@@ -1,0 +1,300 @@
+#ifdef MATRIX_MLX_NATIVE_COORD
+#include "coordinator_routes_mlx.h"
+#include "agent_client.h"
+#include "agent_stream.h"
+#include "mlx_inflight.h"
+#include "mlx_session_store.h"
+#include "session_store.h"
+#include "json.hpp"
+
+#include <future>
+#include <mutex>
+#include <set>
+#include <string>
+#include <vector>
+
+using json = nlohmann::json;
+
+namespace {
+
+// ── Active mode state (MS-137) ───────────────────────────────────────────────
+// Protected by a mutex; read/written from concurrent request threads.
+static std::string s_active_mlx_mode = "flat";
+static std::mutex  s_mode_mu;
+
+const std::set<std::string> VALID_MLX_MODES = {"flat", "pipeline", "cascade"};
+
+std::string read_mode() {
+    std::lock_guard<std::mutex> lk(s_mode_mu);
+    return s_active_mlx_mode;
+}
+void write_mode(const std::string& m) {
+    std::lock_guard<std::mutex> lk(s_mode_mu);
+    s_active_mlx_mode = m;
+}
+
+// ── Response helpers ─────────────────────────────────────────────────────────
+void cors(httplib::Response& res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+}
+
+void err(httplib::Response& res, int status, const char* msg) {
+    cors(res);
+    res.status = status;
+    res.set_content(json{{"error", msg}}.dump(), "application/json");
+}
+
+void stub_501(httplib::Response& res, const char* route, const char* ms) {
+    cors(res);
+    res.status = 501;
+    res.set_content(
+        json{{"error", "not implemented"}, {"route", route},
+             {"status", "stub — " + std::string(ms)}}.dump(),
+        "application/json");
+}
+
+std::string trim(std::string s) {
+    const auto ws = " \t\r\n";
+    s.erase(0, s.find_first_not_of(ws));
+    const auto last = s.find_last_not_of(ws);
+    if (last != std::string::npos) s.erase(last + 1);
+    else s.clear();
+    return s;
+}
+
+}  // namespace
+
+void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st) {
+    // ── POST /api/mlx/submit — flat broadcast, blocking (MS-133) ─────────────
+    svr.Post("/api/mlx/submit", [&st](const httplib::Request& req,
+                                      httplib::Response& res) {
+        json body;
+        try {
+            body = json::parse(req.body);
+            if (!body.is_object()) throw std::runtime_error("expected JSON object");
+        } catch (const std::exception&) { err(res, 400, "invalid JSON"); return; }
+
+        std::string prompt = trim(body.value("prompt", std::string("")));
+        if (prompt.empty()) { err(res, 400, "'prompt' required"); return; }
+
+        std::string session_id = trim(body.value("session_id", std::string("")));
+        if (session_id.empty()) session_id = session_new_id("mlx");
+
+        std::vector<Agent> mlx_agents;
+        for (const auto& a : st.agents)
+            if (a.engine == "mlx") mlx_agents.push_back(a);
+        if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
+
+        // Track user message before dispatch; evict stale sessions opportunistically
+        mlx_sessions().cleanup_idle();
+        mlx_sessions().append_message(session_id, "user", prompt);
+
+        std::vector<std::future<std::string>> futures;
+        futures.reserve(mlx_agents.size());
+        for (const auto& agent : mlx_agents) {
+            futures.push_back(std::async(std::launch::async, [agent, prompt]() {
+                std::lock_guard<std::mutex> lk(mlx_coordinator::port_mutex(agent.port));
+                return call_agent(agent, prompt);
+            }));
+        }
+        std::string result;
+        for (auto& fut : futures) result += fut.get();
+
+        mlx_sessions().append_message(session_id, "assistant", result);
+
+        cors(res);
+        res.set_content(
+            json{{"result", result}, {"session_id", session_id}}.dump(),
+            "application/json");
+    });
+
+    // ── POST /api/mlx/stream — SSE, mode-aware dispatch (MS-136 / MS-137) ────
+    svr.Post("/api/mlx/stream", [&st](const httplib::Request& req,
+                                      httplib::Response& res) {
+        json body;
+        try {
+            body = json::parse(req.body);
+            if (!body.is_object()) throw std::runtime_error("expected JSON object");
+        } catch (const std::exception&) { err(res, 400, "invalid JSON"); return; }
+
+        std::string prompt = trim(body.value("prompt", std::string("")));
+        if (prompt.empty()) { err(res, 400, "'prompt' required"); return; }
+
+        std::string session_id = trim(body.value("session_id", std::string("")));
+        if (session_id.empty()) session_id = session_new_id("mlx");
+
+        std::vector<Agent> mlx_agents;
+        for (const auto& a : st.agents)
+            if (a.engine == "mlx") mlx_agents.push_back(a);
+        if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
+
+        // Track user message; evict stale sessions opportunistically
+        mlx_sessions().cleanup_idle();
+        mlx_sessions().append_message(session_id, "user", prompt);
+
+        const std::string mode = read_mode();  // snapshot before entering the stream
+
+        res.set_header("X-Session-Id", session_id);
+        res.set_header("Cache-Control", "no-cache");
+
+        res.set_chunked_content_provider("text/event-stream",
+            [mlx_agents, prompt, session_id, mode](size_t, httplib::DataSink& sink) -> bool {
+
+            std::mutex sink_mu;
+            auto emit = [&](const std::string& event, const json& data) {
+                std::lock_guard<std::mutex> lk(sink_mu);
+                if (!sink.is_writable()) return;
+                std::string frame = "event: " + event + "\ndata: " + data.dump() + "\n\n";
+                sink.write(frame.data(), frame.size());
+            };
+
+            // Per-agent helper: agent_start → stream (token events) → agent_end
+            auto run_one = [&](const Agent& agent) {
+                emit("agent_start", {{"agent_id", agent.name}});
+                try {
+                    std::lock_guard<std::mutex> port_lk(
+                        mlx_coordinator::port_mutex(agent.port));
+                    agent_stream::stream_agent(agent, agent.system_prompt, prompt,
+                        [&](const std::string& delta) {
+                            emit("token", {{"text", delta}, {"agent_id", agent.name}});
+                        });
+                } catch (const std::exception& e) {
+                    emit("error", {{"error", e.what()}, {"agent_id", agent.name}});
+                }
+                emit("agent_end", {{"agent_id", agent.name}});
+            };
+
+            if (mode == "pipeline") {
+                // Sequential — each agent waits for the previous to complete
+                for (const auto& agent : mlx_agents) run_one(agent);
+            } else {
+                // flat / cascade — parallel broadcast
+                // cascade synthesizer step deferred to MS-138 (no role designation yet)
+                std::vector<std::future<void>> futures;
+                futures.reserve(mlx_agents.size());
+                for (const auto& a : mlx_agents)
+                    futures.push_back(std::async(std::launch::async,
+                        [a, &run_one]() { run_one(a); }));
+                for (auto& f : futures) f.get();
+            }
+
+            emit("done", {{"session_id", session_id}});
+            std::lock_guard<std::mutex> lk(sink_mu);
+            sink.done();
+            return true;
+        });
+    });
+
+    // ── GET /api/mlx/health — probe /v1/models per MLX port (MS-134) ────────
+    svr.Get("/api/mlx/health", [&st](const httplib::Request&, httplib::Response& res) {
+        json backends = json::object();
+        bool all_ok = true;
+        for (const auto& agent : st.agents) {
+            if (agent.engine != "mlx") continue;
+            httplib::Client cli("127.0.0.1", agent.port);
+            cli.set_connection_timeout(2);
+            cli.set_read_timeout(2);
+            auto r = cli.Get("/v1/models");
+            const bool ok = r && r->status == 200;
+            if (!ok) all_ok = false;
+            backends[agent.name] = {
+                {"ok", ok},
+                {"detail", (ok ? "port " : "port ") + std::to_string(agent.port)
+                            + (ok ? " ok" : " unreachable")},
+            };
+        }
+        cors(res);
+        res.status = (backends.empty() || all_ok) ? 200 : 503;
+        res.set_content(
+            json{{"ok", backends.empty() || all_ok}, {"backends", backends}}.dump(),
+            "application/json");
+    });
+
+    // ── GET /api/mlx/pressure — inflight counts + session count (MS-134) ─────
+    svr.Get("/api/mlx/pressure", [&st](const httplib::Request&, httplib::Response& res) {
+        json inflight = json::object();
+        for (const auto& agent : st.agents) {
+            if (agent.engine != "mlx") continue;
+            const std::string k = std::to_string(agent.port);
+            const int c = mlx_inflight::get(agent.port);
+            inflight[k] = inflight.contains(k) ? inflight[k].get<int>() + c : c;
+        }
+        cors(res);
+        res.set_content(
+            json{{"inflight", inflight},
+                 {"sessions", mlx_sessions().snapshot()}}.dump(),
+            "application/json");
+    });
+
+    // ── GET /api/mlx/agents — MLX agent roster (MS-139) ─────────────────────
+    svr.Get("/api/mlx/agents", [&st](const httplib::Request&, httplib::Response& res) {
+        // Return {agent_name: {port, engine, model, system_prompt}} — parity with Python
+        json agents = json::object();
+        for (const auto& a : st.agents) {
+            if (a.engine != "mlx") continue;
+            agents[a.name] = {
+                {"port",          a.port},
+                {"engine",        a.engine},
+                {"model",         a.model},
+                {"system_prompt", a.system_prompt},
+                {"context",       a.context_window},
+                {"max_tokens",    a.max_tokens},
+            };
+        }
+        cors(res);
+        res.set_content(agents.dump(), "application/json");
+    });
+
+    // ── GET /api/mlx/modes — supported modes + active (MS-137) ───────────────
+    svr.Get("/api/mlx/modes", [](const httplib::Request&, httplib::Response& res) {
+        cors(res);
+        res.set_content(
+            json{{"modes",  json(VALID_MLX_MODES)},
+                 {"active", read_mode()}}.dump(),
+            "application/json");
+    });
+
+    // ── POST /api/mlx/modes/active — set active mode (MS-137) ────────────────
+    svr.Post("/api/mlx/modes/active", [](const httplib::Request& req,
+                                         httplib::Response& res) {
+        json body;
+        try {
+            body = json::parse(req.body);
+            if (!body.is_object()) throw std::runtime_error("expected JSON object");
+        } catch (const std::exception&) { err(res, 400, "invalid JSON"); return; }
+
+        const std::string mode = trim(body.value("mode", std::string("")));
+        if (!VALID_MLX_MODES.count(mode)) {
+            err(res, 400, "unknown mode — valid: flat, pipeline, cascade");
+            return;
+        }
+        write_mode(mode);
+        cors(res);
+        res.set_content(json{{"active", mode}}.dump(), "application/json");
+    });
+
+    // ── POST /api/mlx/session/clear — explicit session flush (MS-140) ────────
+    svr.Post("/api/mlx/session/clear", [](const httplib::Request& req,
+                                          httplib::Response& res) {
+        json body;
+        try {
+            body = json::parse(req.body);
+            if (!body.is_object()) throw std::runtime_error("expected JSON object");
+        } catch (const std::exception&) { err(res, 400, "invalid JSON"); return; }
+
+        const std::string session_id = trim(body.value("session_id", std::string("")));
+        cors(res);
+        if (!session_id.empty()) {
+            const bool cleared = mlx_sessions().clear(session_id);
+            res.set_content(
+                json{{"cleared", cleared ? json::array({session_id})
+                                         : json::array()}}.dump(),
+                "application/json");
+        } else {
+            const int count = mlx_sessions().clear_all();
+            res.set_content(json{{"cleared_count", count}}.dump(), "application/json");
+        }
+    });
+}
+
+#endif  // MATRIX_MLX_NATIVE_COORD

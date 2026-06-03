@@ -144,25 +144,17 @@ def run_launch() -> int:
             print("FATAL: react-scripts patch failed — run npm install")
             return 3
 
-    mlx_coord_port = int(env.get("MLX_COORD_PORT", "3003"))
-    stale_mlx = lsof_pids_on_port(mlx_coord_port)
+    # MS-144: Python mlx-coordinator (:3003) decommissioned.
+    # /api/mlx/* is now served by the C++ coordinator at :3002 (MATRIX_MLX_NATIVE_COORD=1).
+    # Clean up any stale :3003 process from a previous installation.
+    stale_mlx = lsof_pids_on_port(3003)
     if stale_mlx:
-        print(f"Stopping stale MLX coordinator (pid={stale_mlx}) ...")
+        print("Stopping stale legacy MLX coordinator on :3003 ...")
         survivors = kill_pids(stale_mlx)
         if survivors:
-            logger.error("stale MLX coordinator pids still alive: %s", survivors)
+            logger.warning("stale :3003 pids still alive: %s", survivors)
         else:
             time.sleep(0.3)
-
-    print("Starting MLX coordinator ...")
-    import sys
-    mlx_pid = _spawn(
-        [sys.executable, "-m", "orchestration.mlx_coordinator.service",
-         "--port", str(mlx_coord_port)],
-        logs / "mlx_coordinator.log", env,
-    )
-    with pid_file.open("a") as f:
-        f.write(f"{mlx_pid}\n")
 
     print("Starting UI (npm start) ...")
     npm = shutil.which("npm") or "npm"
@@ -170,7 +162,7 @@ def run_launch() -> int:
     with pid_file.open("a") as f:
         f.write(f"{ui_pid}\n")
 
-    print(f"proxy pid={proxy_pid}  mlx-coord pid={mlx_pid}  ui pid={ui_pid}")
+    print(f"proxy pid={proxy_pid}  ui pid={ui_pid}")
     print("SWARM MATRIX started -> http://localhost:3000")
     print("=" * 60)
     return 0

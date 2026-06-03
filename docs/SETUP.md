@@ -78,7 +78,7 @@ python3 scripts/brewctl check
 ```
 
 Verifies:
-- Required ports are free (3000, 3002, 8000, 3003 for MLX).
+- Required ports are free (3000, 3002, 8000).
 - `llama-server` and/or `mlx_lm` binaries are on PATH.
 - At least one model file is accessible under `MATRIX_MODEL_DIR`.
 - Node / npm versions satisfy requirements.
@@ -108,7 +108,7 @@ python3 scripts/brewctl launch
 Starts:
 - **React UI** on `:3000`
 - **Node proxy** on `:3002`
-- MLX coordinator (Python) on `:3003` if any MLX agents are configured.
+- **C++ coordinator** at `:3002` handles MLX agents natively (no separate `:3003` process).
 
 Open `http://localhost:3000` → **CONFIGURE** → choose engine + agents → **LAUNCH SWARM** → wait for ONLINE.
 

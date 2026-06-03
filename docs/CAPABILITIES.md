@@ -384,7 +384,7 @@ runs the real coordinator binary on port 18000. No real models needed — runs i
 | `MATRIX_COORDINATOR_PORT` | `8000` | Coordinator listen port. Tests use 18000. |
 | `MATRIX_PROXY_PORT` | `3002` | Proxy listen port. |
 | `MATRIX_UI_PORT` | `3000` | React dev server port. |
-| `MATRIX_MLX_COORDINATOR_PORT` | `3003` | Python MLX coordinator port (hard backend barrier — all MLX inference routes here). |
+| `MATRIX_MLX_COORDINATOR_PORT` | *(removed)* | Decommissioned — MLX routes served by C++ coordinator at `:3002` (MS-144). |
 | `MATRIX_ACTIVE_CONFIG` | `~/.matrix/run/matrix-active-config.json` | Where the proxy stages the deployed config. |
 | `MATRIX_SOURCE_CONFIG` | (unset) | If set, coordinator mirrors per-mode + preset edits to this path so they survive UI redeploy. |
 | `MATRIX_MODEL_DIR` | `/Users/Shared/llama/models` (Darwin) | Root for model paths. Agent profiles under `config/agents/*.json` reference models via `${MATRIX_MODEL_DIR}/...`; the loader (`orchestration/manager.py`) and `scripts/build_swarm_config.py` expand the variable at load time and fail loudly on unresolved `${VAR}`. Also scanned by the proxy for model discovery. |
@@ -395,17 +395,32 @@ runs the real coordinator binary on port 18000. No real models needed — runs i
 
 ---
 
-## 11. MLX coordinator (Python, port 3003)
+## 11. MLX native C++ coordinator (MS-130, port 3002)
 
-A **hard backend barrier** separates llama.cpp and MLX inference paths. All MLX agents route through the Python MLX coordinator (`orchestration/mlx_coordinator/`) rather than the C++ coordinator.
+As of MS-130 (ship gate MS-146) the MLX inference path is served by the **native C++ coordinator** running at `:3002` alongside llama/vLLM agents.
+
+> **MVP scope:** macOS Apple Silicon only. Linux production inference uses the llama.cpp / vLLM path unchanged. CUDA/CPU native support is deferred to epic MS-170.
 
 Key behaviours:
-- Requests **serialise** on a per-server semaphore (MLX servers handle one request at a time).
-- A configurable session-size cap prevents unbounded KV growth on long conversations.
-- Timeout handling per request; failed requests surface errors without blocking the pool.
-- `service_helpers.py` provides reusable helpers: health checks, server lifecycle, session management.
+- All `/api/mlx/*` routes handled by `coordinator_routes_mlx.cpp` (enabled by `-DMATRIX_MLX_NATIVE_COORD=1` at build time).
+- Per-port `std::mutex` serialises HTTP calls to `mlx_lm.server` (single-threaded per instance).
+- `MlxSessionStore` provides LRU session tracking with 300 s idle eviction, matching the Python `SessionStore` interface.
+- Python orchestrate modes (`map_reduce`, `speculative`, `critic_debate`, `tree_of_thought`) continue via an in-process sidecar — they never use the native `/api/mlx/*` path.
 
-The C++ coordinator handles llama.cpp and vLLM agents; the proxy routes to the correct coordinator based on agent backend type. Mixed swarms (LLAMA + MLX) use both coordinators simultaneously.
+**Routes (C++ native):**
+
+| Route | Description |
+|-------|-------------|
+| `POST /api/mlx/submit` | Flat blocking dispatch; `{result, session_id}` |
+| `POST /api/mlx/stream` | SSE stream; mode-aware (flat/pipeline/cascade) |
+| `GET  /api/mlx/health` | Per-port health probe; `{ok, backends}` |
+| `GET  /api/mlx/pressure` | Inflight counters + session snapshot |
+| `GET  /api/mlx/agents` | MLX agent roster |
+| `GET  /api/mlx/modes` | Available modes + active |
+| `POST /api/mlx/modes/active` | Set active mode |
+| `POST /api/mlx/session/clear` | Explicit session flush |
+
+The legacy Python coordinator (`orchestration/mlx_coordinator/service.py`, `:3003`) is **decommissioned** as of MS-144 — it no longer starts on `brewctl up`.
 
 ---
 
