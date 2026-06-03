@@ -247,6 +247,19 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             // Auto KV clear: fire after dispatch if pressure + query divergence threshold met
             if (dreq.kv_pressure > 0.0) {
                 std::lock_guard<std::mutex> lk(st.kv_auto_clear_mutex);
+
+                // Proactive partial evict: bleed off lowest-importance slots at 60% before
+                // hitting the full-clear threshold at 75%. Uses uniform port pressure (scalar).
+                {
+                    std::map<int,double> port_pres;
+                    std::map<int,std::string> port_out;
+                    for (const auto& a : st.agents)
+                        port_pres[a.port] = dreq.kv_pressure;
+                    if (kv_auto_clear::maybe_partial_evict(
+                            st.agents, port_pres, port_out, st.kv_auto_clear_config))
+                        envelope["meta"]["kv_partial_evict"] = true;
+                }
+
                 if (kv_auto_clear::should_clear(
                         st.kv_auto_clear_state, dreq.prompt,
                         dreq.kv_pressure, st.kv_auto_clear_config)) {

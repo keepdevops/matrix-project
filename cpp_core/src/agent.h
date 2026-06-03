@@ -37,4 +37,10 @@ struct Agent {
     /// Generation length cap. Maps to num_predict (llama) or max_tokens override.
     /// 0 = use agent.max_tokens (default).
     int max_output_tokens = 0;
+
+    /// Per-port KV token budget: max total tokens (prompt+completion) that may
+    /// be in-flight simultaneously across all agents sharing this port.
+    /// 0 = disabled (default). Set via coordinator.json kv_token_budget or
+    /// agents[].kv_token_budget in swarm-config.
+    int kv_token_budget = 0;
 };

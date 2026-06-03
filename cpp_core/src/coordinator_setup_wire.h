@@ -35,8 +35,9 @@ inline void wire_agents(CoordinatorState& state, const nlohmann::json& config) {
         ag.draft_max         = a.value("draft_max", 0);
         ag.max_input_tokens  = a.value("max_input_tokens", 0);
         ag.max_output_tokens = a.value("max_output_tokens", 0);
-        ag.context_window  = a.value("context", 8192);
-        ag.max_concurrency = max_conc;
+        ag.context_window    = a.value("context", 8192);
+        ag.max_concurrency   = max_conc;
+        ag.kv_token_budget   = a.value("kv_token_budget", 0);
         state.agents.push_back(ag);
     }
     init_port_concurrency(state.agents);

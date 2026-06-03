@@ -55,7 +55,12 @@ AttemptResult call_agent_once(const Agent& agent,
                 messages.push_back({{"role", "user"}, {"content", eff_prompt}});
             }
         }
-        int out_cap = agent.max_output_tokens > 0 ? agent.max_output_tokens : agent.max_tokens;
+        // Token-budget gate: estimate cost as prompt chars/4 + max_output_tokens.
+        // acquire_tokens blocks if the port's KV budget is exhausted.
+        const int out_cap = agent.max_output_tokens > 0 ? agent.max_output_tokens : agent.max_tokens;
+        const int estimated_tokens = static_cast<int>(eff_prompt.size() / 4) + out_cap;
+        semaphore_acquire_tokens(agent.port, estimated_tokens);
+
         json body = {{"messages", messages}, {"max_tokens", out_cap}};
         if (!agent.model.empty() && (agent.backend == "docker" || agent.backend == "vllm"
                                      || agent.backend == "docker-vllm")) {
@@ -88,6 +93,11 @@ AttemptResult call_agent_once(const Agent& agent,
                 ctoks = j["usage"].value("completion_tokens", -1L);
                 ptoks = j["usage"].value("prompt_tokens", -1L);
             }
+            // Release actual tokens used; fall back to estimate if usage unavailable.
+            const int actual_tokens = (ptoks >= 0 && ctoks >= 0)
+                ? static_cast<int>(ptoks + ctoks) : estimated_tokens;
+            semaphore_release_tokens(agent.port, actual_tokens);
+
             if (agent.engine == "mlx" && ctoks >= 0) {
                 double secs = std::chrono::duration<double>(t_end - t_start).count();
                 mlx_inflight::record_completion(agent.port, secs, ctoks);
@@ -101,6 +111,7 @@ AttemptResult call_agent_once(const Agent& agent,
                 out.retryable = true;
             }
         } else if (res) {
+            semaphore_release_tokens(agent.port, estimated_tokens);
             out.retryable = (res->status >= 500 && res->status < 600);
             try {
                 auto err = json::parse(sanitize_invalid_utf8(res->body));
@@ -113,6 +124,7 @@ AttemptResult call_agent_once(const Agent& agent,
                           << " (status " << res->status << ")" << std::endl;
             }
         } else {
+            semaphore_release_tokens(agent.port, estimated_tokens);
             out.retryable = true;
         }
 
