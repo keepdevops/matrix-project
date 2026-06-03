@@ -11,9 +11,11 @@
 #include <chrono>
 #include <cstdlib>
 #include <mach/mach.h>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace mlx_embed {
@@ -225,6 +227,100 @@ BenchResult benchmark_via_python(const std::string& model_path,
         res.rss_mb = current_rss_mb();  // measured with model resident
         res.ok = !res.iter_tok_s.empty();
         if (!res.ok) res.error = "no iterations recorded";
+    } catch (const std::exception& e) {
+        res.error = e.what();
+    }
+    return res;
+}
+
+// ── MS-160: concurrency efficiency ────────────────────────────────────────────
+
+namespace {
+double percentile(std::vector<double> v, double pct) {
+    if (v.empty()) return 0.0;
+    std::sort(v.begin(), v.end());
+    const double rank = (pct / 100.0) * (v.size() - 1);
+    const size_t lo = static_cast<size_t>(rank);
+    const size_t hi = std::min(lo + 1, v.size() - 1);
+    return v[lo] + (rank - lo) * (v[hi] - v[lo]);
+}
+}  // namespace
+
+double ConcurrencyResult::per_stream_p50() const { return percentile(per_stream_tok_s, 50); }
+double ConcurrencyResult::per_stream_p95() const { return percentile(per_stream_tok_s, 95); }
+
+ConcurrencyResult concurrency_benchmark(const std::string& model_path,
+                                        const std::string& prompt,
+                                        int max_tokens,
+                                        int n_threads,
+                                        const std::string& python_home) {
+    ConcurrencyResult res;
+    if (n_threads < 1) n_threads = 1;
+    res.n_threads = n_threads;
+    try {
+        ensure_interpreter(resolve_python_home(python_home));
+
+        // Load model once + warm Metal kernels (main thread holds the GIL here).
+        std::ostringstream load;
+        load << "import time as _t\n"
+             << "from mlx_lm import load as _load, generate as _gen\n"
+             << "_t0 = _t.perf_counter()\n"
+             << "_model, _tok = _load('" << py_escape(model_path) << "')\n"
+             << "_load_ms = (_t.perf_counter() - _t0) * 1000\n"
+             << "_ = _gen(_model, _tok, prompt='" << py_escape(prompt)
+             << "', max_tokens=8, verbose=False)\n";
+        run_and_read(load.str().c_str(), "_load_ms");
+        res.load_ms = std::stod(run_and_read("pass", "_load_ms"));
+
+        // Release the main-thread GIL so worker threads can each acquire it.
+        PyThreadState* main_save = PyEval_SaveThread();
+
+        std::vector<double> tok_s(n_threads, 0.0);
+        std::vector<int>    ntok(n_threads, 0);
+
+        auto worker = [&](int idx) {
+            PyGILState_STATE gil = PyGILState_Ensure();
+            // Per-thread var names: PyRun_String calls interleave whenever
+            // generate() yields the GIL during Metal compute, so shared names
+            // would race. Result packed as "ntokens,elapsed_ms".
+            std::ostringstream code;
+            code << "import time as _tt\n"
+                 << "_s" << idx << " = _tt.perf_counter()\n"
+                 << "_o" << idx << " = _gen(_model, _tok, prompt='"
+                 << py_escape(prompt) << "', max_tokens=" << max_tokens
+                 << ", verbose=False)\n"
+                 << "_e" << idx << " = (_tt.perf_counter() - _s" << idx << ") * 1000\n"
+                 << "_n" << idx << " = len(_tok.encode(_o" << idx << "))\n"
+                 << "_r" << idx << " = '%d,%f' % (_n" << idx << ", _e" << idx << ")\n";
+            const std::string key = "_r" + std::to_string(idx);
+            const std::string r = run_and_read(code.str().c_str(), key.c_str());
+            PyGILState_Release(gil);
+
+            const auto comma = r.find(',');
+            if (comma != std::string::npos) {
+                const int    n   = std::stoi(r.substr(0, comma));
+                const double ems = std::stod(r.substr(comma + 1));
+                ntok[idx]  = n;
+                tok_s[idx] = ems > 0 ? n / (ems / 1000.0) : 0.0;
+            }
+        };
+
+        const auto wall0 = std::chrono::steady_clock::now();
+        std::vector<std::thread> threads;
+        threads.reserve(n_threads);
+        for (int i = 0; i < n_threads; ++i) threads.emplace_back(worker, i);
+        for (auto& th : threads) th.join();
+        const auto wall1 = std::chrono::steady_clock::now();
+
+        PyEval_RestoreThread(main_save);  // main thread reacquires the GIL
+
+        res.wall_ms = std::chrono::duration<double, std::milli>(wall1 - wall0).count();
+        res.per_stream_tok_s = tok_s;
+        for (double x : tok_s) res.aggregate_tok_s += x;
+        res.n_tokens = ntok.empty() ? 0 : ntok[0];
+        res.rss_mb   = current_rss_mb();
+        res.ok = std::all_of(tok_s.begin(), tok_s.end(), [](double x){ return x > 0; });
+        if (!res.ok) res.error = "one or more streams produced no tokens";
     } catch (const std::exception& e) {
         res.error = e.what();
     }

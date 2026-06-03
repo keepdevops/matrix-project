@@ -91,10 +91,13 @@ void register_proxy_system_routes(httplib::Server& svr, const std::string& proj_
         }
         if (r) {
             res.status = r->status;
-            // Forward all response headers from the coordinator (e.g. X-Session-Id, Cache-Control).
-            // Skip headers that httplib manages automatically (Content-Length, Transfer-Encoding).
+            // Forward coordinator headers. Skip httplib-managed headers and CORS
+            // headers the proxy already sets (avoid duplicate Access-Control-* values
+            // which browsers reject).
             static const std::vector<std::string> SKIP_HEADERS = {
-                "content-length", "transfer-encoding", "connection"
+                "content-length", "transfer-encoding", "connection",
+                "access-control-allow-origin", "access-control-allow-methods",
+                "access-control-allow-headers"
             };
             for (const auto& [k, v] : r->headers) {
                 std::string lk = k;
