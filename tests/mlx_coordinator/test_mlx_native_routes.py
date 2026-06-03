@@ -238,6 +238,100 @@ def test_mlx_stream_stub_501(coord):
 
 
 # ---------------------------------------------------------------------------
+# MS-137: mode switch + pipeline/cascade ordered events
+# ---------------------------------------------------------------------------
+
+def _set_mode(coord_url: str, mode: str) -> None:
+    requests.post(f"{coord_url}/api/mlx/modes/active", json={"mode": mode}, timeout=5)
+
+
+def test_mlx_modes_get_shape(coord):
+    """GET /api/mlx/modes returns {modes: list, active: str}."""
+    resp = requests.get(f"{coord}/api/mlx/modes", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("modes still a stub")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "modes" in body and "active" in body
+    assert isinstance(body["modes"], list)
+    assert body["active"] in body["modes"]
+
+
+def test_mlx_modes_default_is_flat(coord):
+    """Default active mode is flat."""
+    _set_mode(coord, "flat")  # reset in case a previous test left it changed
+    resp = requests.get(f"{coord}/api/mlx/modes", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("modes still a stub")
+    assert resp.json()["active"] == "flat"
+
+
+def test_mlx_modes_active_set_pipeline(coord):
+    """POST /api/mlx/modes/active {mode: pipeline} → 200 {active: pipeline}."""
+    resp = requests.post(f"{coord}/api/mlx/modes/active",
+                         json={"mode": "pipeline"}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("modes/active still a stub")
+    assert resp.status_code == 200
+    assert resp.json().get("active") == "pipeline"
+    # verify GET reflects change
+    check = requests.get(f"{coord}/api/mlx/modes", timeout=5)
+    assert check.json()["active"] == "pipeline"
+    _set_mode(coord, "flat")  # restore
+
+
+def test_mlx_modes_active_invalid_returns_400(coord):
+    """POST /api/mlx/modes/active with unknown mode → 400."""
+    resp = requests.post(f"{coord}/api/mlx/modes/active",
+                         json={"mode": "turbo"}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("modes/active still a stub")
+    assert resp.status_code == 400
+
+
+def test_mlx_modes_active_set_cascade(coord):
+    """POST /api/mlx/modes/active {mode: cascade} → 200."""
+    resp = requests.post(f"{coord}/api/mlx/modes/active",
+                         json={"mode": "cascade"}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("modes/active still a stub")
+    assert resp.status_code == 200
+    assert resp.json().get("active") == "cascade"
+    _set_mode(coord, "flat")  # restore
+
+
+def test_mlx_pipeline_stream_emits_ordered_events(coord):
+    """Pipeline mode: agent_start → token → agent_end in sequential order."""
+    _set_mode(coord, "pipeline")
+    resp, body = _stream_body(coord, prompt="pipeline test")
+    _set_mode(coord, "flat")
+    if resp.status_code in (501, 503):
+        pytest.skip("stub or no MLX agents")
+    assert "event: agent_start" in body
+    assert "event: agent_end"   in body
+    assert "event: done"        in body
+    # agent_start must appear before agent_end in the body
+    assert body.index("event: agent_start") < body.index("event: agent_end")
+
+
+def test_mlx_modes_stub_501(coord):
+    """GET /api/mlx/modes → 501 when MS-137 not yet implemented."""
+    resp = requests.get(f"{coord}/api/mlx/modes", timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"modes is implemented (status {resp.status_code})")
+    _expect_501(coord, "GET", "/api/mlx/modes")
+
+
+def test_mlx_modes_active_stub_501(coord):
+    """POST /api/mlx/modes/active → 501 when MS-137 not yet implemented."""
+    resp = requests.post(f"{coord}/api/mlx/modes/active",
+                         json={"mode": "flat"}, timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"modes/active is implemented (status {resp.status_code})")
+    _expect_501(coord, "POST", "/api/mlx/modes/active")
+
+
+# ---------------------------------------------------------------------------
 # MS-134: health + pressure live contract tests
 # ---------------------------------------------------------------------------
 
@@ -324,14 +418,8 @@ def test_mlx_agents_stub_501(coord):
     _expect_501(coord, "GET", "/api/mlx/agents")
 
 
-def test_mlx_modes_stub_501(coord):
-    """GET /api/mlx/modes → 501 (MS-139)."""
-    _expect_501(coord, "GET", "/api/mlx/modes")
-
-
-def test_mlx_modes_active_stub_501(coord):
-    """POST /api/mlx/modes/active → 501 (MS-139)."""
-    _expect_501(coord, "POST", "/api/mlx/modes/active")
+# test_mlx_modes_stub_501 and test_mlx_modes_active_stub_501 moved to
+# the MS-137 section above with auto-skip guards.
 
 
 def test_mlx_session_clear_stub_501(coord):
