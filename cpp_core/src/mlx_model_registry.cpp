@@ -151,6 +151,85 @@ GenResult MlxModelRegistry::generate(const Agent& agent,
     return r;
 }
 
+// MS-161 Phase C: streaming generation. Drives mlx_lm.stream_generate (a Python
+// generator) by stepping it from C++ via PyIter_Next, emitting each chunk's
+// .text through on_token. Serialized through the same lane as generate().
+GenResult MlxModelRegistry::generate_stream(const Agent& agent,
+                                            const std::string& prompt,
+                                            int max_tokens,
+                                            const OnToken& on_token) {
+    GenResult r;
+    const std::string model_path = agent.model;
+    if (model_path.empty()) { r.error = "agent has no model path"; return r; }
+
+    std::lock_guard<std::mutex> lane(g_lane_mu);
+    try {
+        ensure_interp();
+        PyGILState_STATE gil = PyGILState_Ensure();
+
+        // Load (if needed) + build the generator into __main__.__reg_stream__.
+        std::ostringstream code;
+        code << "import mlx_lm as _mlxlm\n"
+             << "globals().setdefault('__mlx_reg__', {})\n"
+             << "_p = '" << esc(model_path) << "'\n"
+             << "if _p not in __mlx_reg__:\n"
+             << "    __mlx_reg__[_p] = _mlxlm.load(_p)\n"
+             << "_m, _tk = __mlx_reg__[_p]\n"
+             << "__reg_stream__ = _mlxlm.stream_generate(_m, _tk, prompt='"
+             << esc(prompt) << "', max_tokens=" << max_tokens << ")\n";
+
+        PyObject* main_mod  = PyImport_AddModule("__main__");
+        PyObject* main_dict = PyModule_GetDict(main_mod);
+        PyObject* ret = PyRun_String(code.str().c_str(), Py_file_input, main_dict, main_dict);
+        if (!ret) { PyErr_Print(); PyGILState_Release(gil); r.error = "stream setup failed"; return r; }
+        Py_DECREF(ret);
+
+        PyObject* gen = PyDict_GetItemString(main_dict, "__reg_stream__");  // borrowed
+        if (!gen) { PyGILState_Release(gil); r.error = "generator not created"; return r; }
+        Py_INCREF(gen);  // own a ref for the iteration
+
+        std::string assembled;
+        int n_tok = 0;
+        PyObject* item = nullptr;
+        while ((item = PyIter_Next(gen)) != nullptr) {
+            // GenerationResponse.text is the incremental chunk for this step.
+            PyObject* tattr = PyObject_GetAttrString(item, "text");
+            if (tattr) {
+                const char* tc = PyUnicode_AsUTF8(tattr);
+                if (tc && tc[0]) {
+                    const std::string delta(tc);
+                    assembled += delta;
+                    ++n_tok;
+                    on_token(delta);
+                }
+                Py_DECREF(tattr);
+            }
+            Py_DECREF(item);
+        }
+        Py_DECREF(gen);
+        if (PyErr_Occurred()) { PyErr_Print(); }   // iteration error (not StopIteration)
+        // Drop the generator reference held in __main__.
+        PyDict_DelItemString(main_dict, "__reg_stream__");
+        PyGILState_Release(gil);
+
+        r.text     = assembled;
+        r.n_tokens = n_tok;
+        r.ok       = !assembled.empty();
+        if (!r.ok && r.error.empty()) r.error = "empty stream (see stderr)";
+    } catch (const std::exception& e) {
+        r.error = e.what();
+    }
+
+    {
+        std::lock_guard<std::mutex> mlk(g_meta_mu);
+        auto& mm = g_meta[model_path];
+        mm.agents_seen.insert(agent.name);
+        mm.calls += 1;
+        mm.last_used = std::chrono::steady_clock::now();
+    }
+    return r;
+}
+
 int MlxModelRegistry::evict_idle(int max_idle_secs) {
     std::vector<std::string> stale;
     {

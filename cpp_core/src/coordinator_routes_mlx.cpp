@@ -186,14 +186,23 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                 emit("agent_start", {{"agent_id", agent.name}});
                 std::string agent_out;
                 try {
-                    std::lock_guard<std::mutex> port_lk(
-                        mlx_coordinator::port_mutex(agent.port));
-                    agent_out = agent_stream::stream_agent(
-                        agent, agent.system_prompt, prompt,
-                        [&](const std::string& delta) {
-                            emit("token", {{"text", delta}, {"agent_id", agent.name}});
-                        },
-                        nullptr, session_id);
+                    auto on_tok = [&](const std::string& delta) {
+                        emit("token", {{"text", delta}, {"agent_id", agent.name}});
+                    };
+#ifdef MATRIX_MLX_INPROC
+                    // MS-161 Phase C: stream in-process for inproc agents.
+                    if (agent.dispatch == "inproc") {
+                        const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
+                        auto sr = mlx_inproc::mlx_models().generate_stream(agent, prompt, mt, on_tok);
+                        agent_out = sr.ok ? sr.text : ("[inproc error] " + sr.error);
+                    } else
+#endif
+                    {
+                        std::lock_guard<std::mutex> port_lk(
+                            mlx_coordinator::port_mutex(agent.port));
+                        agent_out = agent_stream::stream_agent(
+                            agent, agent.system_prompt, prompt, on_tok, nullptr, session_id);
+                    }
                 } catch (const std::exception& e) {
                     emit("error", {{"error", e.what()}, {"agent_id", agent.name}});
                 }
