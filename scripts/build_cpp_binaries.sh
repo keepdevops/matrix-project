@@ -95,6 +95,7 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${SANITIZE_FLAGS[@]}" "${INPROC_FLAGS[@]}"
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
    "$CPP_SRC/coordinator_setup.cpp" \
+   "$CPP_SRC/config/swarm_config_resolve.cpp" \
    "$CPP_SRC/config/coordinator_config_validate.cpp" \
    "$CPP_SRC/config/swarm_config_dir_load.cpp" \
    "$CPP_SRC/config/path_expand.cpp" \
@@ -270,6 +271,15 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_rss_generator" \
   "$CPP_SRC/rss_generator.cpp" \
   -I"$CPP_SRC" -pthread
 ls -lart "$ROOT/test_rss_generator"
+
+echo "Building test_model_registry..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_model_registry" \
+  "$ROOT/tests/cpp/test_model_registry.cpp" \
+  "$CPP_SRC/model_registry.cpp" \
+  "$CPP_SRC/paged_kv_cache.cpp" \
+  "$CPP_SRC/flash_attention_wrapper.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_model_registry"
 
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \

@@ -9,6 +9,11 @@
 
 namespace setup_wire {
 
+inline std::string normalize_dispatch(std::string d) {
+    if (d == "inprocess") return "inproc";
+    return d;
+}
+
 inline void wire_agents(CoordinatorState& state, const nlohmann::json& config) {
     for (auto& a : config["agents"]) {
         std::string backend_val = a.contains("backend") ? a["backend"].get<std::string>() : "";
@@ -31,7 +36,10 @@ inline void wire_agents(CoordinatorState& state, const nlohmann::json& config) {
         ag.backend         = backend_val;
         ag.engine          = engine;
         ag.model           = a.value("model", "");
-        ag.dispatch        = a.value("dispatch", std::string("http"));  // MS-161
+        ag.dispatch            = normalize_dispatch(
+            a.value("dispatch", std::string("http")));
+        ag.quant               = a.value("quant", std::string(""));
+        ag.use_flash_attention = a.value("use_flash_attention", false);
         ag.draft_model     = a.value("draft_model", "");
         ag.draft_max         = a.value("draft_max", 0);
         ag.max_input_tokens  = a.value("max_input_tokens", 0);

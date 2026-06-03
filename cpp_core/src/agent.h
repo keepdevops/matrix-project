@@ -14,7 +14,12 @@ struct Agent {
     std::string backend;
     std::string engine; // "llama" (default), "mlx", or "docker"
     std::string model;  // model ID — sent in request body for docker/vllm
-    std::string dispatch = "http"; // MS-161: "http" (default) or "inproc" (MLX in-process)
+    /// MS-161/MS-68: "http" (default), "inproc"/"inprocess", or "auto".
+    std::string dispatch = "http";
+    /// Quantization label for registry key, e.g. "4bit". Empty → "default".
+    std::string quant;
+    /// Request Metal flash-attention when embed path supports it (Phase 2).
+    bool use_flash_attention = false;
 
     // Speculative decoding config (llama-server only). The coordinator does
     // not act on these directly — they are recorded so the launch script can

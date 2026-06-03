@@ -5,6 +5,7 @@
 #include "config/coordinator_config_validate.h"
 #include "config/http_url_parse.h"
 #include "config/swarm_config_dir_load.h"
+#include "config/swarm_config_resolve.h"
 
 #include "httplib.h"
 #include "json.hpp"
@@ -45,12 +46,21 @@ bool coordinator_load_config(const std::string& config_path, nlohmann::json& con
                   << " (" << config["agents"].size() << " agents)" << std::endl;
         return true;
     }
-    std::ifstream config_file(config_path);
+    std::string resolved = config_path;
+    if (!swarm_config_resolve::open_config_path(config_path, resolved)) return false;
+    std::ifstream config_file(resolved);
     if (!config_file.is_open()) {
-        std::cerr << "❌ Could not open " << config_path << std::endl;
+        std::cerr << "❌ Could not open " << resolved << std::endl;
         return false;
     }
-    config = nlohmann::json::parse(config_file);
+    try {
+        config = nlohmann::json::parse(config_file);
+    } catch (const std::exception& e) {
+        std::cerr << "❌ JSON parse failed (" << resolved << "): " << e.what() << std::endl;
+        return false;
+    }
+    if (resolved != config_path)
+        std::cout << "📄 Loaded swarm config from " << resolved << std::endl;
     return true;
 }
 

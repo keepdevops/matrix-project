@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEMPLATE="${ROOT}/swarm-config.template.json"
 TARGET="${ROOT}/swarm-config.json"
+
 if [[ ! -f "$TEMPLATE" ]]; then
   echo "❌ Missing template: $TEMPLATE" >&2
   exit 1
@@ -14,3 +15,4 @@ if [[ -f "$TARGET" ]]; then
 fi
 cp "$TEMPLATE" "$TARGET"
 echo "✅ Created $TARGET from swarm-config.template.json"
+echo "   Edit agents/coordinator, or run: python3 scripts/build_swarm_config.py"
