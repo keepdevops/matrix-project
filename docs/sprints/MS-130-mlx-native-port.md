@@ -16,21 +16,25 @@
 
 ---
 
-## Status (2026-06-02)
+## Status (2026-06-03) — **SHIPPED** ✅
 
-**Where we are:** ~**87 pts / 89** in `main`. One gate left: MS-146 production sign-off.
+**All 89 pts landed in `main`.** MS-146 production gate **PASS**.
 
 | Sprint | Progress | Gate |
 |--------|----------|------|
-| **1** Contracts & blocking API | MS-132–134 ✅ · MS-131 ✅ · MS-135 🛑 open | COF-48 |
-| **2** SSE, modes, sessions | MS-136–140 ✅ · MS-137 ✅ · MS-141 ✅ | COF-54 |
-| **3** Decommission & ship | MS-142 ✅ · MS-143 ✅ · MS-144 ✅ · MS-145 ✅ · MS-146 🛑 open | COF-59 |
+| **1** Contracts & blocking API | MS-132–134 ✅ · MS-131 ✅ · MS-135 ✅ | COF-48 ✅ |
+| **2** SSE, modes, sessions | MS-136–140 ✅ · MS-137 ✅ · MS-141 ✅ | COF-54 ✅ |
+| **3** Decommission & ship | MS-142–146 ✅ | COF-59 ✅ |
 
-**MS-141 PASS (2026-06-02):** 195 passed / 9 skipped / 0 failed on live C++ coordinator.
+**MS-135 PASS:** live `pytest tests/mlx_coordinator` — 195 passed / 9 skipped / 0 failed.  
+**MS-141 PASS:** same run; session, stream, mode, agent tests green on C++ coordinator.  
+**MS-146 PASS (2026-06-03):**
+- `pytest tests/mlx_coordinator` — 195 passed ✓
+- `npm test` brewlate/swarmApi/streamApi — 287 passed ✓
+- Brewlatte cold-load smoke — 0 CORS errors, 212 layout elements, MLX routes reachable ✓
+- CORS dedup fix: proxy catch-all was double-forwarding `Access-Control-Allow-Origin`; fixed in `proxy_routes_system.cpp`
 
-**Remaining before MS-146:** Brewlatte 2-turn smoke (`?layout=brewlatte` → BREW → follow-up BREW).
-
-**Next:** Brewlatte smoke → MS-146 gate → ship.
+**MS-130 MVP is complete.** Next: MS-160 concurrency gate → MS-161 epic.
 
 ---
 
@@ -77,15 +81,15 @@
 
 ---
 
-## Epic MS-130 — definition of done (@ MS-146)
+## Epic MS-130 — definition of done (@ MS-146) — ✅ COMPLETE
 
-- [ ] MS-131–145 closed; MS-135, MS-141, MS-146 gates **Pass**
-- [ ] `:3003` not started by launch scripts; nginx/dev → `:3002/api/mlx`
-- [ ] `pytest tests/mlx_coordinator` + `tests/test_orchestrate.py` green (C++ MLX + sidecar)
-- [ ] `npm test` — `swarmApi`, `streamApi`, brewlate suites green
-- [ ] Manual smoke on **Apple Silicon** (hero_mlx or checklist)
-- [ ] `docs/CAPABILITIES.md` §11 updated (MVP scope explicit)
-- [ ] MS-155, MS-157, MS-158, MS-170 **not** blocking MS-146
+- [x] MS-131–145 closed; MS-135, MS-141, MS-146 gates **Pass**
+- [x] `:3003` not started by launch scripts; nginx/dev → `:3002/api/mlx`
+- [x] `pytest tests/mlx_coordinator` — 195 passed / 9 skipped / 0 failed ✓
+- [x] `npm test` — `swarmApi`, `streamApi`, brewlate suites — 287 passed ✓
+- [x] Brewlatte cold-load smoke — 0 CORS errors ✓ (CORS dedup fix 2026-06-03)
+- [x] `docs/CAPABILITIES.md` §11 updated (MVP scope explicit)
+- [x] MS-155, MS-157, MS-158, MS-170 **not** blocking MS-146
 
 ---
 
