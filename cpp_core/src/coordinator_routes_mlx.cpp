@@ -3,6 +3,7 @@
 #include "agent_client.h"
 #include "agent_stream.h"
 #include "mlx_inflight.h"
+#include "mlx_session_store.h"
 #include "session_store.h"
 #include "json.hpp"
 
@@ -84,6 +85,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
 
+        // Track user message before dispatch; evict stale sessions opportunistically
+        mlx_sessions().cleanup_idle();
+        mlx_sessions().append_message(session_id, "user", prompt);
+
         std::vector<std::future<std::string>> futures;
         futures.reserve(mlx_agents.size());
         for (const auto& agent : mlx_agents) {
@@ -94,6 +99,8 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         }
         std::string result;
         for (auto& fut : futures) result += fut.get();
+
+        mlx_sessions().append_message(session_id, "assistant", result);
 
         cors(res);
         res.set_content(
@@ -120,6 +127,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         for (const auto& a : st.agents)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
+
+        // Track user message; evict stale sessions opportunistically
+        mlx_sessions().cleanup_idle();
+        mlx_sessions().append_message(session_id, "user", prompt);
 
         const std::string mode = read_mode();  // snapshot before entering the stream
 
@@ -208,12 +219,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             const int c = mlx_inflight::get(agent.port);
             inflight[k] = inflight.contains(k) ? inflight[k].get<int>() + c : c;
         }
-        int session_count = 0;
-        { std::lock_guard<std::mutex> lk(st.sessions_mutex);
-          session_count = static_cast<int>(st.sessions.size()); }
         cors(res);
         res.set_content(
-            json{{"inflight", inflight}, {"sessions", session_count}}.dump(),
+            json{{"inflight", inflight},
+                 {"sessions", mlx_sessions().snapshot()}}.dump(),
             "application/json");
     });
 

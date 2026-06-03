@@ -75,6 +75,7 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" -o "$ROOT/coordinator" \
    "$CPP_SRC/synthesis_tiered.cpp" \
    "$CPP_SRC/coordinator_routes.cpp" \
    "$CPP_SRC/coordinator_routes_mlx.cpp" \
+   "$CPP_SRC/mlx_session_store.cpp" \
    "$CPP_SRC/coordinator_routes_agents_meta.cpp" \
    "$CPP_SRC/coordinator_routes_agent_tokens.cpp" \
    "$CPP_SRC/coordinator_routes_core.cpp" \
