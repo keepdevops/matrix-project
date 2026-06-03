@@ -11,6 +11,8 @@ word count of the canned reply template (with leading boundary chunks)."""
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(__file__))
 from sse_client import collect_events  # noqa: E402
 
@@ -113,3 +115,36 @@ def test_stream_breaker_excludes_unhealthy_from_stream(matrix):
     # Now stream — reviewer must be filtered out.
     events = _stream(matrix)
     assert _agents_with_tokens(events) == {'architect'}
+
+
+# ---------------------------------------------------------------------------
+# MS-161 Phase C — backend routing in the streaming sequential path.
+# Routing is opt-in (MATRIX_BACKEND_ROUTING=1) and only activates for
+# sequential modes (pipeline / cascade / router); flat stays legacy.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize('matrix', [{'MATRIX_BACKEND_ROUTING': '1'}], indirect=True)
+def test_stream_pipeline_emits_routing_when_enabled(matrix):
+    matrix.set_mode('pipeline')
+    matrix.set_roster('pipeline', ['architect', 'programmer', 'reviewer'])
+    events = _stream(matrix, 'design something')
+    routing = _by_event(events, 'routing')
+    assert routing, 'routing event must fire for a sequential stream mode when enabled'
+    decisions = routing[0]['data']
+    assert decisions, 'routing snapshot must carry per-agent decisions'
+    assert set(decisions) <= {'architect', 'programmer', 'reviewer'}
+    # Mock agents declare engine "llama" → routed to the llama_metal transport.
+    for agent, d in decisions.items():
+        assert d['backend'] == 'llama_metal', f"{agent} routed to {d['backend']}"
+    assert _by_event(events, 'done')
+
+
+@pytest.mark.parametrize('matrix', [{'MATRIX_BACKEND_ROUTING': '1'}], indirect=True)
+def test_stream_flat_stays_legacy_no_routing(matrix):
+    # Flat mode must not route even when routing is enabled (should_route rejects it).
+    matrix.set_mode('flat')
+    matrix.set_roster('flat', ['architect', 'reviewer'])
+    events = _stream(matrix)
+    assert not _by_event(events, 'routing'), 'flat mode must stay legacy — no routing event'
+    assert _agents_with_tokens(events) == {'architect', 'reviewer'}
+    assert _by_event(events, 'done')

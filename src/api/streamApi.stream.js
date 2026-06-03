@@ -2,7 +2,7 @@ import { API_BASE, MLX_API_BASE } from './base';
 import { buildStreamBody, fetchSseStream, readSseStream } from './sseStreamReader';
 
 function dispatchStreamEvent(eventName, dataStr, callbacks) {
-  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onDone, onError, onSession } = callbacks;
+  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onRouting, onDone, onError, onSession } = callbacks;
   let data;
   try { data = JSON.parse(dataStr); } catch { data = dataStr; }
   if (eventName === 'token') onToken?.(data.agent, data.delta);
@@ -12,11 +12,12 @@ function dispatchStreamEvent(eventName, dataStr, callbacks) {
   else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent);
   else if (eventName === 'session') onSession?.(data);
   else if (eventName === 'metrics') onMetrics?.(data);
+  else if (eventName === 'routing') onRouting?.(data);  // MS-161 Phase C
   else if (eventName === 'error') { console.error('[stream] agent error:', data); onError?.(data.agent, data.error); }
 }
 
 function dispatchMlxEvent(eventName, dataStr, callbacks) {
-  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onError, onSession } = callbacks;
+  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onRouting, onError, onSession } = callbacks;
   let data;
   try { data = JSON.parse(dataStr); } catch { data = dataStr; }
   if (eventName === 'token') onToken?.(data.agent_id ?? data.agent, data.text ?? data.delta);
@@ -26,6 +27,7 @@ function dispatchMlxEvent(eventName, dataStr, callbacks) {
   else if (eventName === 'synthesis_start') onSynthesisStart?.(data.agent_id ?? data.agent);
   else if (eventName === 'session') onSession?.(data);
   else if (eventName === 'metrics') onMetrics?.(data);
+  else if (eventName === 'routing') onRouting?.(data);  // MS-161 Phase C
   else if (eventName === 'error') { console.error('[mlx-stream] error:', data); onError?.(data.agent_id ?? data.agent, data.error); }
 }
 

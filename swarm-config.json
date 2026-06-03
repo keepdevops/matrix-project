@@ -20,7 +20,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -44,7 +44,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -68,7 +68,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -87,7 +87,8 @@
       "system_prompt": "You are the Engineering Foreman. Plan and route \u2014 never write code.\n\nAvailable roles: architect, debugger, programmer, security, optimizer, reviewer, tester, scout, database, frontend, synthesis.\n\nGiven the task: (1) list the 3\u20135 highest-priority steps in order; (2) for each step, name the single best role; (3) flag blockers or missing information.\n\nEnd with EXACTLY one line:\nSELECTED: <comma-separated role names, priority order, max 3>",
       "tags": [
         "planning"
-      ]
+      ],
+      "extra_args": []
     },
     {
       "context": 1024,
@@ -109,7 +110,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -128,7 +129,8 @@
       "system_prompt": "You are a concise technical assistant. Summarize information clearly and identify the key question or task being asked. Be brief and direct.",
       "tags": [
         "synthesis"
-      ]
+      ],
+      "extra_args": []
     },
     {
       "context": 1024,
@@ -150,7 +152,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -174,7 +176,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -193,7 +195,8 @@
       "system_prompt": "You are a strict code reviewer. Only return SHIP or REWRITE.",
       "tags": [
         "review"
-      ]
+      ],
+      "extra_args": []
     },
     {
       "context": 2048,
@@ -210,7 +213,8 @@
       "system_prompt": "You are the Research Scout. Find best practices, tools, risks, and emerging trends for the current task. Output: Key Findings, Recommendations, Risks, Alternatives.",
       "tags": [
         "synthesis"
-      ]
+      ],
+      "extra_args": []
     },
     {
       "context": 1024,
@@ -232,7 +236,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -256,7 +260,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     },
@@ -280,7 +284,7 @@
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
-        "q4_0"
+        "q8_0"
       ],
       "ctx_cap": 6144
     }

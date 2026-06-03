@@ -7,6 +7,7 @@
 #include "token_ledger.h"
 #include "token_budget_hierarchy.h"
 #include "session_store.h"
+#include "backend_router.h"
 #ifdef MATRIX_MLX_NATIVE_COORD
 #include "mlx_session_store.h"
 #endif
@@ -55,6 +56,13 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
         auto parent_run_id_snap = std::make_shared<std::string>(sreq.parent_run_id);
         auto temperature_snap   = std::make_shared<double>(sreq.temperature);
         auto user_prompt_snap   = std::make_shared<std::string>(sreq.user_prompt);
+        // MS-161 Phase C: KV pressure for routing (optional; absent in stream body → 0).
+        double kv_pressure = 0.0;
+        try {
+            auto jb = json::parse(req.body);
+            if (jb.is_object()) kv_pressure = jb.value("kv_pressure", 0.0);
+        } catch (...) { /* body already validated by stream_parse; default 0 */ }
+        auto kv_pressure_snap = std::make_shared<double>(kv_pressure);
         agent_metrics::reset();
 
         // Budget: apply global budget to session before streaming begins
@@ -78,7 +86,8 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
 
         res.set_chunked_content_provider("text/event-stream",
             [agents_snap, prompt_snap, user_prompt_snap, cfg_snap, mode_snap, cancel,
-             session_id_snap, run_id_snap, parent_run_id_snap, temperature_snap, &st]
+             session_id_snap, run_id_snap, parent_run_id_snap, temperature_snap,
+             kv_pressure_snap, &st]
             (size_t /*offset*/, httplib::DataSink& sink) -> bool {
                 session_context::set(*session_id_snap);
                 std::mutex sink_mu;
@@ -102,6 +111,19 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
 
                 std::map<std::string, std::string> outputs;
                 std::vector<std::string> participants;
+
+                // MS-161 Phase C: activate backend routing for sequential stream
+                // modes (pipeline/cascade/router). Flat stays legacy because
+                // should_route() rejects mode_name == "flat". Cleared after the run.
+                {
+                    RoutingContext rctx;
+                    rctx.mode_name      = *mode_snap;
+                    rctx.sequential_mode = (*mode_snap == "pipeline"
+                                            || *mode_snap == "cascade"
+                                            || *mode_snap == "router");
+                    rctx.kv_pressure    = *kv_pressure_snap;
+                    backend_router::set_dispatch_context(rctx);
+                }
 
 #ifdef MATRIX_MLX_NATIVE_COORD
                 // MS-149: seed mlx_sessions with the user turn once if any MLX
@@ -132,6 +154,14 @@ void register_coordinator_routes_architect_stream(httplib::Server& svr, Coordina
                 }
 
                 write_event("metrics", agent_metrics::snapshot().dump());
+
+                // MS-161 Phase C: surface per-agent routing decisions, then clear
+                // the dispatch context so it never leaks into the next request.
+                if (backend_router::enabled()) {
+                    auto routing = backend_router::snapshot_decisions();
+                    if (!routing.empty()) write_event("routing", routing.dump());
+                }
+                backend_router::clear_dispatch_context();
 
                 persist_stream_run(*user_prompt_snap, *temperature_snap, *mode_snap,
                     *session_id_snap, *run_id_snap, *parent_run_id_snap,
