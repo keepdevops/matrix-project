@@ -564,3 +564,58 @@ def test_all_parity_routes_have_stubs():
     ]
     for route in routes:
         assert route in src, f"Stub missing for route: {route}"
+
+
+# ---------------------------------------------------------------------------
+# MS-148: connection pool + SSE parser static assertions
+# ---------------------------------------------------------------------------
+
+def test_ms148_stream_mlx_uses_sse_parser():
+    """MS-148: agent_stream_llama.h must define stream_mlx (SSE streaming)."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/agent_stream_llama.h").read_text()
+    assert "stream_mlx" in src and "stream=true" in src, (
+        "agent_stream_llama.h must define stream_mlx with stream=true"
+    )
+    assert "drain_frames" in src, (
+        "stream_mlx must use sse::drain_frames for incremental token delivery"
+    )
+    assert "stream_pool_checkout" in src, (
+        "stream_mlx must use stream_pool_checkout for connection reuse"
+    )
+    assert "stream_pool_checkin" in src, (
+        "stream_mlx must return connections to stream pool on success"
+    )
+    assert "record_completion" in src, (
+        "stream_mlx must call mlx_inflight::record_completion for EMA telemetry"
+    )
+
+
+def test_ms148_stream_agent_routes_mlx_to_stream_mlx():
+    """MS-148: agent_stream.cpp must call stream_mlx (not stream_mlx_oneshot)."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/agent_stream.cpp").read_text()
+    assert "stream_mlx(" in src, (
+        "agent_stream.cpp must dispatch MLX to stream_mlx (SSE streaming)"
+    )
+    # stream_mlx is the call; stream_mlx_oneshot may appear as a comment reference
+    assert "return stream_mlx(" in src, (
+        "stream_agent must return stream_mlx(...) for non-llama engines"
+    )
+
+
+def test_ms148_health_uses_connection_pool():
+    """MS-148: health endpoint must use pool_checkout/pool_checkin."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_mlx.cpp").read_text()
+    # Health endpoint section
+    health_section = src[src.index("/api/mlx/health"):]
+    assert "pool_checkout" in health_section, (
+        "health endpoint must use pool_checkout for keep-alive connection reuse"
+    )
+    assert "pool_checkin" in health_section, (
+        "health endpoint must return connections via pool_checkin"
+    )

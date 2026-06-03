@@ -1,6 +1,7 @@
 #ifdef MATRIX_MLX_NATIVE_COORD
 #include "coordinator_routes_mlx.h"
 #include "agent_client.h"
+#include "agent_client_pool.h"
 #include "agent_stream.h"
 #include "mlx_inflight.h"
 #include "mlx_session_store.h"
@@ -191,11 +192,12 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         bool all_ok = true;
         for (const auto& agent : st.agents) {
             if (agent.engine != "mlx") continue;
-            httplib::Client cli("127.0.0.1", agent.port);
-            cli.set_connection_timeout(2);
-            cli.set_read_timeout(2);
-            auto r = cli.Get("/v1/models");
+            // MS-148: use connection pool for keep-alive reuse across health checks
+            auto cli_ptr = pool_checkout(agent.port, 2 /*read_timeout_secs*/);
+            cli_ptr->set_connection_timeout(2);
+            auto r = cli_ptr->Get("/v1/models");
             const bool ok = r && r->status == 200;
+            if (ok) pool_checkin(agent.port, std::move(cli_ptr));
             if (!ok) all_ok = false;
             backends[agent.name] = {
                 {"ok", ok},
