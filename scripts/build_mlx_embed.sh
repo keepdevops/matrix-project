@@ -69,7 +69,19 @@ cmake -S "$ROOT/cpp_core" -B "$BUILD_DIR" \
   -DMLX_PREFIX="$MLX_PREFIX" \
   -DCMAKE_OSX_ARCHITECTURES=arm64
 
-cmake --build "$BUILD_DIR" --target mlx_embed_probe -j"$(sysctl -n hw.logicalcpu)"
+cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.logicalcpu)"
+
+# ── Fix dylib rpath: both libmlx.dylib copies use @rpath/libmlx.dylib as their
+# install name.  CMake auto-prepends the link-time directory to rpath, so the
+# wrong (older) copy wins.  Patch the probe binaries to use the absolute path
+# of the site-packages copy which matches the mlx/core Python extension.
+SITEPKG_LIB="$MLX_PREFIX/lib/python3.12/site-packages/mlx/lib/libmlx.dylib"
+for BIN in "$BUILD_DIR/mlx_embed_probe" "$BUILD_DIR/mlx_generate_probe"; do
+  if [[ -f "$BIN" ]]; then
+    install_name_tool -change @rpath/libmlx.dylib "$SITEPKG_LIB" "$BIN" 2>/dev/null || true
+    echo "patched rpath in $(basename $BIN)"
+  fi
+done
 
 echo ""
 echo "Binary: $PROBE"

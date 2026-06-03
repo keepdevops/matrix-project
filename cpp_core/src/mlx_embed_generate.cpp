@@ -1,0 +1,140 @@
+#ifdef MATRIX_MLX_EMBED
+// MS-152: CPython-embedded mlx_lm.generate spike.
+
+#include "mlx_embed_generate.h"
+
+// Python.h must be first when embedding CPython
+#include <Python.h>
+
+#include <chrono>
+#include <cstdlib>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
+namespace mlx_embed {
+
+namespace {
+
+std::string resolve_python_home(const std::string& explicit_home) {
+    if (!explicit_home.empty()) return explicit_home;
+    const char* env = std::getenv("MLX_ENV_PREFIX");
+    if (env && env[0]) return env;
+    const char* home = std::getenv("HOME");
+    return home ? std::string(home) + "/miniforge3/envs/mlx-env" : "";
+}
+
+bool g_py_initialized = false;
+
+void ensure_interpreter(const std::string& python_home) {
+    if (g_py_initialized) return;
+    if (python_home.empty())
+        throw std::runtime_error("Cannot locate Python home for mlx-env");
+
+    PyConfig config;
+    PyConfig_InitPythonConfig(&config);
+
+    wchar_t* whome = Py_DecodeLocale(python_home.c_str(), nullptr);
+    if (!whome) throw std::runtime_error("Py_DecodeLocale failed for PYTHONHOME");
+    PyConfig_SetString(&config, &config.home, whome);
+    PyMem_RawFree(whome);
+
+    PyStatus status = Py_InitializeFromConfig(&config);
+    PyConfig_Clear(&config);
+    if (PyStatus_Exception(status))
+        throw std::runtime_error(std::string("Py_InitializeFromConfig: ")
+                                 + (status.err_msg ? status.err_msg : "?"));
+    g_py_initialized = true;
+}
+
+std::string run_and_read(const char* code, const char* result_var) {
+    PyObject* main_mod  = PyImport_AddModule("__main__");
+    PyObject* main_dict = PyModule_GetDict(main_mod);
+
+    PyObject* ret = PyRun_String(code, Py_file_input, main_dict, main_dict);
+    if (!ret) { PyErr_Print(); return ""; }
+    Py_DECREF(ret);
+
+    PyObject* val = PyDict_GetItemString(main_dict, result_var);
+    if (!val) return "";
+    PyObject* str_val = PyObject_Str(val);
+    if (!str_val) return "";
+    const char* s = PyUnicode_AsUTF8(str_val);
+    std::string out = s ? s : "";
+    Py_DECREF(str_val);
+    return out;
+}
+
+std::string py_escape(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() + 4);
+    for (char c : s) {
+        if      (c == '\\') out += "\\\\";
+        else if (c == '\'') out += "\\'";
+        else if (c == '\n') out += "\\n";
+        else                out += c;
+    }
+    return out;
+}
+
+} // namespace
+
+GenerateResult generate_via_python(const std::string& model_path,
+                                   const std::string& prompt,
+                                   int max_tokens,
+                                   const std::string& python_home) {
+    GenerateResult res;
+    try {
+        ensure_interpreter(resolve_python_home(python_home));
+
+        // Run benchmark in Python; results written to __mlx_result__ (JSON string).
+        std::ostringstream code;
+        code << "import time as _t, json as _j\n"
+             << "from mlx_lm import load as _load, generate as _gen\n"
+             << "_t0 = _t.perf_counter()\n"
+             << "_model, _tok = _load('" << py_escape(model_path) << "')\n"
+             << "_load_ms = (_t.perf_counter() - _t0) * 1000\n"
+             << "_t1 = _t.perf_counter()\n"
+             << "_out = _gen(_model, _tok, prompt='"
+             << py_escape(prompt) << "', max_tokens=" << max_tokens
+             << ", verbose=False)\n"
+             << "_elapsed_ms = (_t.perf_counter() - _t1) * 1000\n"
+             << "_n = len(_tok.encode(_out))\n"
+             << "_tok_s = _n / (_elapsed_ms / 1000.0) if _elapsed_ms > 0 else 0\n"
+             << "__mlx_result__ = _j.dumps({"
+             << "'n_tokens': _n, 'load_ms': _load_ms, "
+             << "'elapsed_ms': _elapsed_ms, 'tok_s': _tok_s, 'output': _out"
+             << "})\n";
+
+        const std::string raw = run_and_read(code.str().c_str(), "__mlx_result__");
+        if (raw.empty()) {
+            res.error = "Python code produced no result (see stderr for traceback)";
+            return res;
+        }
+
+        // Parse the JSON result back via Python to avoid a C++ JSON dependency.
+        std::string eval_code =
+            "import json as _jj\n"
+            "__pd__ = _jj.loads('" + py_escape(raw) + "')\n"
+            "__pd_n__   = str(__pd__['n_tokens'])\n"
+            "__pd_lms__ = str(__pd__['load_ms'])\n"
+            "__pd_ems__ = str(__pd__['elapsed_ms'])\n"
+            "__pd_ts__  = str(__pd__['tok_s'])\n"
+            "__pd_out__ = __pd__['output']\n";
+
+        run_and_read(eval_code.c_str(), "__pd_n__");
+        res.n_tokens   = std::stoi(run_and_read("pass", "__pd_n__"));
+        res.load_ms    = std::stod(run_and_read("pass", "__pd_lms__"));
+        res.elapsed_ms = std::stod(run_and_read("pass", "__pd_ems__"));
+        res.tok_s      = std::stod(run_and_read("pass", "__pd_ts__"));
+        res.output     = run_and_read("pass", "__pd_out__");
+        res.ok = true;
+    } catch (const std::exception& e) {
+        res.error = e.what();
+    }
+    return res;
+}
+
+} // namespace mlx_embed
+
+#endif // MATRIX_MLX_EMBED

@@ -7,6 +7,7 @@
 #include "mlx_inflight.h"
 #include "mlx_session_store.h"
 #include "session_store.h"
+#include "synthesis_budget.h"
 #include "json.hpp"
 
 #include <future>
@@ -191,7 +192,64 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
 
             if (mode == "pipeline") {
                 for (const auto& agent : mlx_agents) run_one(agent);
+            } else if (mode == "cascade" && mlx_agents.size() > 1) {
+                // MS-137: cascade — parallel broadcast, then role-based synthesizer step.
+                // Synthesizer: first agent tagged "synthesis*", else last in roster.
+                const Agent* synth_ptr = nullptr;
+                for (const auto& a : mlx_agents)
+                    for (const auto& tag : a.tags)
+                        if (tag.rfind("synthesis", 0) == 0) { synth_ptr = &a; break; }
+                if (!synth_ptr) synth_ptr = &mlx_agents.back();
+                const std::string synth_name = synth_ptr->name;
+                const Agent synth_agent     = *synth_ptr;
+
+                // Broadcast to all non-synthesizer agents in parallel
+                {
+                    std::vector<std::future<void>> futures;
+                    for (const auto& a : mlx_agents) {
+                        if (a.name == synth_name) continue;
+                        const Agent ac = a;
+                        futures.push_back(std::async(std::launch::async,
+                            [ac, &run_one]() { run_one(ac); }));
+                    }
+                    for (auto& f : futures) f.get();
+                }
+
+                // Collect healthy broadcaster outputs for synthesis prompt
+                std::vector<std::pair<std::string, std::string>> contributors;
+                {
+                    std::lock_guard<std::mutex> lk(out_mu);
+                    for (const auto& a : mlx_agents) {
+                        if (a.name == synth_name) continue;
+                        auto it = outputs.find(a.name);
+                        if (it != outputs.end() && !it->second.empty())
+                            contributors.push_back({a.name, it->second});
+                    }
+                }
+
+                emit("synthesis_start", {{"agent_id", synth_name}});
+                emit("agent_start",     {{"agent_id", synth_name}});
+
+                const std::string synth_prompt =
+                    synthesis_budget::build_stream_synthesis_prompt(
+                        prompt, contributors, &synth_agent);
+                std::string synth_out;
+                try {
+                    std::lock_guard<std::mutex> port_lk(
+                        mlx_coordinator::port_mutex(synth_agent.port));
+                    synth_out = agent_stream::stream_agent(
+                        synth_agent, synth_agent.system_prompt, synth_prompt,
+                        [&](const std::string& delta) {
+                            emit("token", {{"text", delta}, {"agent_id", synth_name}});
+                        },
+                        nullptr, session_id);
+                } catch (const std::exception& e) {
+                    emit("error", {{"error", e.what()}, {"agent_id", synth_name}});
+                }
+                { std::lock_guard<std::mutex> lk(out_mu); outputs[synth_name] = synth_out; }
+                emit("agent_end", {{"agent_id", synth_name}});
             } else {
+                // flat, or cascade with a single agent (degrade to flat)
                 std::vector<std::future<void>> futures;
                 futures.reserve(mlx_agents.size());
                 for (const auto& a : mlx_agents)
