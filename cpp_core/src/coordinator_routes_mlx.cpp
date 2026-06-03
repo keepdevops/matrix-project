@@ -6,9 +6,7 @@
 #include "coordinator_routes_architect_persist.h"
 #include "mlx_inflight.h"
 #include "mlx_session_store.h"
-#ifdef MATRIX_MLX_INPROC
-#include "mlx_model_registry.h"
-#endif
+#include "model_registry.h"   // MS-68 Phase 2a: unified registry (accounting + inproc)
 #include "session_store.h"
 #include "synthesis_budget.h"
 #include "json.hpp"
@@ -105,7 +103,7 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                 // MS-161: in-process dispatch — registry lane serializes GPU access.
                 if (agent.dispatch == "inproc") {
                     const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
-                    auto r = mlx_inproc::mlx_models().generate(agent, prompt, mt);
+                    auto r = model_mem::ModelRegistry::instance().generate(agent, prompt, mt);
                     return r.ok ? r.text : ("[inproc error] " + r.error);
                 }
 #endif
@@ -193,7 +191,7 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                     // MS-161 Phase C: stream in-process for inproc agents.
                     if (agent.dispatch == "inproc") {
                         const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
-                        auto sr = mlx_inproc::mlx_models().generate_stream(agent, prompt, mt, on_tok);
+                        auto sr = model_mem::ModelRegistry::instance().generate_stream(agent, prompt, mt, on_tok);
                         agent_out = sr.ok ? sr.text : ("[inproc error] " + sr.error);
                     } else
 #endif
@@ -262,7 +260,7 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                     // MS-161 Phase C: synthesizer step uses inproc lane when tagged.
                     if (synth_agent.dispatch == "inproc") {
                         const int mt = synth_agent.max_tokens > 0 ? synth_agent.max_tokens : 512;
-                        auto sr = mlx_inproc::mlx_models().generate_stream(
+                        auto sr = model_mem::ModelRegistry::instance().generate_stream(
                             synth_agent, synth_prompt, mt, synth_on_tok);
                         synth_out = sr.ok ? sr.text : ("[inproc error] " + sr.error);
                     } else
@@ -336,11 +334,12 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             inflight[k] = inflight.contains(k) ? inflight[k].get<int>() + c : c;
         }
         json out = {{"inflight", inflight}, {"sessions", mlx_sessions().snapshot()}};
-#ifdef MATRIX_MLX_INPROC
-        // MS-161 Phase D: surface resident in-process models + count.
-        out["resident_models"] = mlx_inproc::mlx_models().snapshot();
-        out["resident_count"]  = mlx_inproc::mlx_models().resident_count();
-#endif
+        // MS-68 Phase 2a: surface the unified registry snapshot — always on (not
+        // just under INPROC). Accounting-only builds report an empty set; INPROC
+        // builds report resident in-process models with usage counts.
+        const json reg = model_mem::ModelRegistry::instance().snapshot();
+        out["resident_models"] = reg["models"];
+        out["resident_count"]  = reg["resident_count"];
         cors(res);
         res.set_content(out.dump(), "application/json");
     });

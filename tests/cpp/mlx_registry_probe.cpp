@@ -8,7 +8,7 @@
 // Env: MLX_ENV_PREFIX. Exit: 0 ok, 1 fail.
 #ifdef MATRIX_MLX_EMBED
 
-#include "mlx_model_registry.h"
+#include "model_registry.h"   // MS-68 Phase 2a: unified registry (was mlx_model_registry.h)
 #include "agent.h"
 
 #include <chrono>
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     std::cout << "  agent : " << agent.name << " (dispatch=inproc)\n\n";
     std::cout << std::fixed << std::setprecision(1);
 
-    auto& reg = mlx_inproc::mlx_models();
+    auto& reg = model_mem::ModelRegistry::instance();
     bool ok = true;
     for (int i = 0; i < 3; ++i) {
         const auto t0 = std::chrono::steady_clock::now();

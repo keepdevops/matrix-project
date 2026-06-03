@@ -36,8 +36,13 @@ fi
 # MS-132: opt-in flag for the native MLX coordinator routes.
 # Set MATRIX_MLX_NATIVE_COORD=1 in the environment to enable.
 MLX_FLAGS=()
+MLX_SOURCES=()
 if [ "${MATRIX_MLX_NATIVE_COORD:-0}" = "1" ]; then
   MLX_FLAGS+=("-DMATRIX_MLX_NATIVE_COORD=1")
+  # MS-68 Phase 2a: the unified model registry (accounting + pressure) links into
+  # the coordinator whenever native MLX routes are on. Gated here so the standard
+  # build (no NATIVE_COORD) stays byte-identical.
+  MLX_SOURCES+=("$CPP_SRC/model_registry.cpp")
   echo "MLX native coordinator routes ENABLED (MATRIX_MLX_NATIVE_COORD=1)"
 fi
 
@@ -54,7 +59,7 @@ fi
 
 # MS-161 Phase B: opt-in in-process MLX inference (embeds CPython + mlx_lm in the
 # coordinator). Darwin arm64 only. Set MATRIX_MLX_INPROC=1 to enable.
-# mlx_model_registry.cpp embeds Python via PyRun_String — needs libpython only;
+# model_registry_embed.cpp embeds Python via PyRun_String — needs libpython only;
 # libmlx is dlopen'd transitively by Python's mlx extension at runtime.
 INPROC_FLAGS=()
 INPROC_INCLUDES=()
@@ -70,7 +75,7 @@ if [ "${MATRIX_MLX_INPROC:-0}" = "1" ]; then
   fi
   INPROC_FLAGS+=("-DMATRIX_MLX_INPROC=1" "-DMATRIX_MLX_EMBED=1")
   INPROC_INCLUDES+=("-I$PY_INC")
-  INPROC_SOURCES+=("$CPP_SRC/mlx_model_registry.cpp")
+  INPROC_SOURCES+=("$CPP_SRC/model_registry_embed.cpp")
   INPROC_LIBS+=("$PY_DYLIB" "-Wl,-rpath,$MLX_ENV/lib")
   echo "MLX in-process inference ENABLED (MATRIX_MLX_INPROC=1) — linking $PY_DYLIB"
 fi
@@ -161,6 +166,7 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${SANITIZE_FLAGS[@]}" "${INPROC_FLAGS[@]}"
    "$CPP_SRC/rag_client.cpp" \
    "$CPP_SRC/rag_client_http.cpp" \
    "$ROOT/build/blake2b.o" \
+   "${MLX_SOURCES[@]}" \
    "${INPROC_SOURCES[@]}" \
    -I"$CPP_SRC" \
    "${MOD_LINK[@]}" \
