@@ -153,9 +153,88 @@ def test_mlx_submit_stub_501(coord):
         pytest.skip(f"submit is implemented (status {resp.status_code}), not a stub")
 
 
+# ---------------------------------------------------------------------------
+# MS-136: POST /api/mlx/stream live contract tests
+# ---------------------------------------------------------------------------
+
+def _stream_body(coord_url: str, **json_body) -> tuple[requests.Response, str]:
+    """POST /api/mlx/stream with streaming=True; returns (response, full_body)."""
+    resp = requests.post(
+        f"{coord_url}/api/mlx/stream", json=json_body,
+        stream=True, timeout=15,
+    )
+    body = "".join(c.decode() for c in resp.iter_content(chunk_size=None))
+    return resp, body
+
+
+def test_mlx_stream_bad_json_returns_400(coord):
+    resp = requests.post(
+        f"{coord}/api/mlx/stream", data="bad",
+        headers={"Content-Type": "application/json"}, timeout=5,
+    )
+    if resp.status_code == 501:
+        pytest.skip("stream still a stub")
+    assert resp.status_code == 400
+
+
+def test_mlx_stream_empty_prompt_returns_400(coord):
+    resp = requests.post(f"{coord}/api/mlx/stream", json={"prompt": "   "}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("stream still a stub")
+    assert resp.status_code == 400
+
+
+def test_mlx_stream_returns_event_stream_content_type(coord):
+    resp, _ = _stream_body(coord, prompt="hello")
+    if resp.status_code == 501:
+        pytest.skip("stream still a stub")
+    if resp.status_code == 503:
+        pytest.skip("no MLX agents configured")
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers.get("Content-Type", "")
+
+
+def test_mlx_stream_x_session_id_header_present(coord):
+    resp, _ = _stream_body(coord, prompt="hello")
+    if resp.status_code in (501, 503):
+        pytest.skip("stub or no MLX agents")
+    assert resp.headers.get("X-Session-Id"), "X-Session-Id header missing"
+
+
+def test_mlx_stream_session_id_echoed(coord):
+    resp, _ = _stream_body(coord, prompt="hi", session_id="echo-me-42")
+    if resp.status_code in (501, 503):
+        pytest.skip("stub or no MLX agents")
+    assert resp.headers.get("X-Session-Id") == "echo-me-42"
+
+
+def test_mlx_stream_emits_token_event(coord):
+    _, body = _stream_body(coord, prompt="hello")
+    if "501" in body or not body:
+        pytest.skip("stub or no MLX agents")
+    assert "event: token" in body, f"'event: token' not found in:\n{body[:400]}"
+
+
+def test_mlx_stream_emits_done_event(coord):
+    _, body = _stream_body(coord, prompt="hello")
+    if "501" in body or not body:
+        pytest.skip("stub or no MLX agents")
+    assert "event: done" in body, f"'event: done' not found in:\n{body[:400]}"
+
+
+def test_mlx_stream_emits_agent_start_and_end(coord):
+    _, body = _stream_body(coord, prompt="hello")
+    if "501" in body or not body:
+        pytest.skip("stub or no MLX agents")
+    assert "event: agent_start" in body
+    assert "event: agent_end" in body
+
+
 def test_mlx_stream_stub_501(coord):
-    """POST /api/mlx/stream → 501 (MS-136)."""
-    _expect_501(coord, "POST", "/api/mlx/stream")
+    """POST /api/mlx/stream → 501 when MS-136 not yet implemented."""
+    resp = requests.post(f"{coord}/api/mlx/stream", json={"prompt": "x"}, timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"stream is implemented (status {resp.status_code})")
 
 
 # ---------------------------------------------------------------------------

@@ -1,11 +1,13 @@
 #ifdef MATRIX_MLX_NATIVE_COORD
 #include "coordinator_routes_mlx.h"
 #include "agent_client.h"
+#include "agent_stream.h"
 #include "mlx_inflight.h"
 #include "session_store.h"
 #include "json.hpp"
 
 #include <future>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -104,9 +106,90 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             "application/json");
     });
 
-    // ── POST /api/mlx/stream — SSE token stream (MS-136) ─────────────────────
-    svr.Post("/api/mlx/stream", [](const httplib::Request&, httplib::Response& res) {
-        stub_501(res, "POST /api/mlx/stream", "MS-136");
+    // ── POST /api/mlx/stream — SSE token stream, flat broadcast (MS-136) ─────
+    svr.Post("/api/mlx/stream", [&st](const httplib::Request& req,
+                                      httplib::Response& res) {
+        // 1. Parse + validate (same rules as /submit)
+        json body;
+        try {
+            body = json::parse(req.body);
+            if (!body.is_object()) throw std::runtime_error("expected JSON object");
+        } catch (const std::exception&) {
+            err(res, 400, "invalid JSON");
+            return;
+        }
+        std::string prompt = trim(body.value("prompt", std::string("")));
+        if (prompt.empty()) { err(res, 400, "'prompt' required"); return; }
+
+        std::string session_id = trim(body.value("session_id", std::string("")));
+        if (session_id.empty()) session_id = session_new_id("mlx");
+
+        // 2. Snapshot MLX agents (by value — avoid dangling ref inside closure)
+        std::vector<Agent> mlx_agents;
+        for (const auto& a : st.agents)
+            if (a.engine == "mlx") mlx_agents.push_back(a);
+
+        if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
+
+        // 3. Set SSE headers before opening the stream
+        res.set_header("X-Session-Id", session_id);
+        res.set_header("Cache-Control", "no-cache");
+
+        // 4. Stream via chunked content provider
+        res.set_chunked_content_provider("text/event-stream",
+            [mlx_agents, prompt, session_id](size_t, httplib::DataSink& sink) -> bool {
+
+            std::mutex sink_mu;
+            auto write_event = [&](const std::string& event,
+                                   const json& data) {
+                std::lock_guard<std::mutex> lk(sink_mu);
+                if (!sink.is_writable()) return;
+                std::string frame = "event: " + event + "\ndata: "
+                                    + data.dump() + "\n\n";
+                sink.write(frame.data(), frame.size());
+            };
+
+            // agent_start for all agents upfront
+            for (const auto& agent : mlx_agents)
+                write_event("agent_start", {{"agent_id", agent.name}});
+
+            // Flat parallel broadcast — per-port mutex serialises MLX calls
+            std::vector<std::future<std::string>> futures;
+            futures.reserve(mlx_agents.size());
+            for (const auto& agent : mlx_agents) {
+                futures.push_back(std::async(std::launch::async,
+                    [agent, prompt, &write_event]() -> std::string {
+                        std::lock_guard<std::mutex> port_lk(
+                            mlx_coordinator::port_mutex(agent.port));
+                        return agent_stream::stream_agent(
+                            agent, agent.system_prompt, prompt,
+                            [&](const std::string& delta) {
+                                write_event("token", {
+                                    {"text",     delta},
+                                    {"agent_id", agent.name},
+                                });
+                            });
+                    }));
+            }
+
+            // Collect in launch order; emit agent_end as each completes
+            for (size_t i = 0; i < futures.size(); ++i) {
+                try { futures[i].get(); }
+                catch (const std::exception& e) {
+                    write_event("error", {
+                        {"error",    e.what()},
+                        {"agent_id", mlx_agents[i].name},
+                    });
+                }
+                write_event("agent_end", {{"agent_id", mlx_agents[i].name}});
+            }
+
+            write_event("done", {{"session_id", session_id}});
+
+            std::lock_guard<std::mutex> lk(sink_mu);
+            sink.done();
+            return true;
+        });
     });
 
     // ── GET /api/mlx/health — probe /v1/models per MLX port (MS-134) ────────
