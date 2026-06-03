@@ -2,10 +2,72 @@
  * base.js tests.
  *
  * Covers:
+ * - API_BASE / MLX_API_BASE: default values point to :3002 (MS-143)
  * - normalizeArchitectResponse: envelope shape, flat-map shape, null/array/undefined input
  * - coalesce: concurrent callers share one in-flight promise; sequential calls get fresh ones
  */
 import { normalizeArchitectResponse, coalesce } from './base';
+
+// ---------------------------------------------------------------------------
+// API_BASE — MS-143: default must point to :3002, not :3003
+// ---------------------------------------------------------------------------
+
+describe('API_BASE defaults', () => {
+  const ORIG = process.env.REACT_APP_API_BASE;
+
+  afterEach(() => {
+    process.env.REACT_APP_API_BASE = ORIG === undefined ? '' : ORIG;
+    jest.resetModules();
+  });
+
+  test('dev default resolves to http://localhost:3002/api when env unset', () => {
+    delete process.env.REACT_APP_API_BASE;
+    const { API_BASE } = require('./base');
+    expect(API_BASE).toBe('http://localhost:3002/api');
+  });
+
+  test('env override is respected and trailing slash is stripped', () => {
+    process.env.REACT_APP_API_BASE = 'http://localhost:4000/api/';
+    const { API_BASE } = require('./base');
+    expect(API_BASE).toBe('http://localhost:4000/api');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MLX_API_BASE — MS-143: dev default must point to :3002, not :3003
+// ---------------------------------------------------------------------------
+
+describe('MLX_API_BASE defaults', () => {
+  const ORIG_MLX = process.env.REACT_APP_MLX_API_BASE;
+  const ORIG_ENV = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.REACT_APP_MLX_API_BASE = ORIG_MLX === undefined ? '' : ORIG_MLX;
+    process.env.NODE_ENV = ORIG_ENV;
+    jest.resetModules();
+  });
+
+  test('dev default resolves to http://localhost:3002/api/mlx (not :3003)', () => {
+    delete process.env.REACT_APP_MLX_API_BASE;
+    process.env.NODE_ENV = 'development';
+    const { MLX_API_BASE } = require('./base');
+    expect(MLX_API_BASE).toBe('http://localhost:3002/api/mlx');
+    expect(MLX_API_BASE).not.toContain('3003');
+  });
+
+  test('production default resolves to relative /api/mlx', () => {
+    delete process.env.REACT_APP_MLX_API_BASE;
+    process.env.NODE_ENV = 'production';
+    const { MLX_API_BASE } = require('./base');
+    expect(MLX_API_BASE).toBe('/api/mlx');
+  });
+
+  test('env override is respected and trailing slash is stripped', () => {
+    process.env.REACT_APP_MLX_API_BASE = 'http://localhost:3002/api/mlx/';
+    const { MLX_API_BASE } = require('./base');
+    expect(MLX_API_BASE).toBe('http://localhost:3002/api/mlx');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // normalizeArchitectResponse
