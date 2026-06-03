@@ -149,14 +149,16 @@ def test_run_launch_resets_pid_file_on_clean_start(tmp_path):
 
 
 def test_run_launch_writes_all_pids(tmp_path):
-    # MS-144: mlx-coordinator removed from launch path; only proxy + UI spawned.
+    # MS-144: legacy mlx-coordinator (/api/mlx/*) removed from launch path.
+    # MS-142: thin orchestrate sidecar (:3003, /api/orchestrate*) retained.
+    # Launch spawns three processes: proxy + orchestrate sidecar + UI.
     logs = tmp_path / "logs"
     logs.mkdir()
     proxy = tmp_path / "proxy"
     proxy.write_text("#!/bin/sh\n")
     proxy.chmod(0o755)
 
-    spawn_results = iter([2001, 2002])
+    spawn_results = iter([2001, 2002, 2003])
 
     with patch("orchestration.lifecycle.launch.REPO", tmp_path), \
          patch("orchestration.lifecycle.launch._source_env_file", return_value={}), \
@@ -168,7 +170,7 @@ def test_run_launch_writes_all_pids(tmp_path):
         run_launch()
 
     lines = (logs / "matrix.pids").read_text().splitlines()
-    assert set(lines) == {"2001", "2002"}
+    assert set(lines) == {"2001", "2002", "2003"}
 
 
 # ---------------------------------------------------------------------------
