@@ -374,3 +374,4 @@ pytest tests/mlx_coordinator -v
 | 2026-06-02 | MS-131 | Initial scaffold — Metal/CUDA/CPU columns, route matrix |
 | 2026-06-02 | MS-130 v2 | MVP scope: macOS + HTTP only; MS-170 owns native multi-platform |
 | 2026-06-02 | #265 | All `/api/mlx/*` routes implemented in C++; orchestrate still `:3003` proxy |
+| 2026-06-03 | MS-146 | **SHIPPED** — MS-130 MVP complete. Coordinator starts with `brewctl launch`; all gates pass; Apple Silicon smoke signed off. Deferred: MS-170 (hardening), MS-161 (embed). |
