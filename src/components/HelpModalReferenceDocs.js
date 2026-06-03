@@ -41,7 +41,7 @@ export default function HelpModalReferenceDocs() {
       <div className="help-section">
         <h3>Launch</h3>
         <code className="help-code">python3 scripts/brewctl check && python3 scripts/brewctl launch</code>
-        <p>Check verifies ports, binaries, and models. Launch starts the proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured. Use <code>python3 scripts/brewctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>.</p>
+        <p>Check verifies ports, binaries, and models. Launch starts the C++ proxy (:3002), React UI (:3000), and orchestrate sidecar (:3003). MLX chat is served natively by the C++ coordinator — no Python process required. Use <code>python3 scripts/brewctl shutdown</code> to stop. Build the C++ binaries once with <code>bash scripts/build_cpp_binaries.sh</code>.</p>
       </div>
 
       <div className="help-section">

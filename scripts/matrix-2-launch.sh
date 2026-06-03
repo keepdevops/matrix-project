@@ -81,15 +81,19 @@ for i in {1..15}; do
   echo -n "."; sleep 0.5
 done
 
-echo "Starting MLX coordinator..."
-MLX_COORD_PORT="${MLX_COORD_PORT:-3003}"
-python -m orchestration.mlx_coordinator.service \
-  --port "$MLX_COORD_PORT" \
-  > "$ROOT/logs/mlx_coordinator.log" 2>&1 &
+# MS-144: Python MLX coordinator decommissioned — /api/mlx/* served by C++ proxy on :3002.
+# MS-142: start thin orchestrate sidecar for /api/orchestrate* only.
+ORCH_SIDECAR_PORT="${ORCH_SIDECAR_PORT:-3003}"
+echo "Starting orchestrate sidecar (:${ORCH_SIDECAR_PORT})..."
+python -m orchestration.mlx_coordinator.sidecar \
+  --port "$ORCH_SIDECAR_PORT" \
+  > "$ROOT/logs/orch_sidecar.log" 2>&1 &
 echo $! >> "$PID_FILE"
 for i in {1..15}; do
-  if curl -sf "http://localhost:${MLX_COORD_PORT}/api/mlx/health" > /dev/null 2>&1; then
-    echo " MLX coordinator ready."
+  if curl -sf "http://localhost:${ORCH_SIDECAR_PORT}/api/orchestrate" \
+       -d '{"mode":"map_reduce","prompt":"ping"}' \
+       -H "Content-Type: application/json" -o /dev/null 2>/dev/null; then
+    echo " Orchestrate sidecar ready."
     break
   fi
   echo -n "."; sleep 0.5
