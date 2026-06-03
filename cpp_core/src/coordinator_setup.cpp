@@ -1,6 +1,7 @@
 #include "coordinator_setup.h"
 #include "coordinator_setup_wire.h"
 #include "backend_router.h"
+#include "rss_generator.h"
 #include "config/coordinator_config_validate.h"
 #include "config/http_url_parse.h"
 #include "config/swarm_config_dir_load.h"
@@ -87,6 +88,14 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
             const auto& d = coord["distillation"];
             state.distillation_push_url          = d.value("push_url", "");
             state.distillation_quality_threshold = d.value("quality_threshold", 0.6);
+        }
+        if (coord.contains("rss") && coord["rss"].is_object()) {
+            const auto& rss = coord["rss"];
+            const bool on = rss.value("enabled", false);
+            const int cap = rss.value("max_items", 50);
+            rss_generator::configure(on, cap > 0 ? static_cast<std::size_t>(cap) : 50);
+            if (on)
+                std::cout << "📡 RSS feeds enabled (max_items=" << cap << ")\n";
         }
     }
     backend_router::configure_from_startup(config);

@@ -104,6 +104,7 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${SANITIZE_FLAGS[@]}" "${INPROC_FLAGS[@]}"
    "$CPP_SRC/session_store.cpp" \
    "$CPP_SRC/session_store_text.cpp" \
    "$CPP_SRC/token_ledger.cpp" \
+   "$CPP_SRC/rss_generator.cpp" \
    "$CPP_SRC/synthesis_budget.cpp" \
    "$CPP_SRC/synthesis_budget_assemble.cpp" \
    "$CPP_SRC/synthesis_tiered.cpp" \
@@ -262,6 +263,13 @@ c++ -std=c++17 -O0 -g "${SANITIZE_FLAGS[@]}" -o "$ROOT/test_routing_decision_log
   "${BACKEND_TEST_SRCS[@]}" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_routing_decision_log"
+
+echo "Building test_rss_generator..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_rss_generator" \
+  "$ROOT/tests/cpp/test_rss_generator.cpp" \
+  "$CPP_SRC/rss_generator.cpp" \
+  -I"$CPP_SRC" -pthread
+ls -lart "$ROOT/test_rss_generator"
 
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \

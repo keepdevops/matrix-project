@@ -1,0 +1,28 @@
+{
+  "_ms68_note": "Template for local swarm-config.json. Run scripts/setup-config.sh or build_swarm_config.py.",
+  "agents": [
+    {
+      "context": 4096,
+      "engine": "llama",
+      "flash_attn": true,
+      "gpu_layers": 99,
+      "max_tokens": 1536,
+      "model": "${MATRIX_MODEL_DIR}/26B/GGUF/google_gemma-4-26B-A4B-it-Q4_K_M.gguf",
+      "name": "architect",
+      "port": 8082,
+      "read_timeout_secs": 510,
+      "server_group": "gemma26b",
+      "system_prompt": "You are the Lead Architect.",
+      "description": "Designs system architecture",
+      "tags": ["planning"]
+    }
+  ],
+  "coordinator": {
+    "default_mode": "router",
+    "modes": { "router": { "max_select": 5 } },
+    "port": 8000,
+    "rss": { "enabled": false, "max_items": 50 }
+  },
+  "ui": { "port": 3000 },
+  "rag": { "enabled": true, "top_k": 3, "min_score": 0.0, "embedder": "mlx" }
+}
