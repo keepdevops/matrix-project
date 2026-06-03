@@ -16,6 +16,7 @@
 #include "coordinator_routes_simulate.h"
 #include "coordinator_routes_negotiate.h"
 #include "coordinator_routes_push.h"
+#include "coordinator_routes_rss.h"
 
 void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_core(svr, st);
@@ -40,6 +41,7 @@ void register_coordinator_routes(httplib::Server& svr, CoordinatorState& st) {
     register_coordinator_routes_simulate(svr, st);
     register_coordinator_routes_negotiate(svr, st);
     register_coordinator_routes_push(svr, st);
+    rss_routes::register_routes(svr);
 #ifdef MATRIX_MLX_NATIVE_COORD
     register_coordinator_routes_mlx(svr, st);
 #endif

@@ -190,6 +190,12 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 
             dispatch_meta::stamp_envelope(envelope, dreq, rag, excluded_unhealthy,
                                           qp_target, dispatch_t0, effective_max_select);
+            envelope["meta"]["adaptive_select"] = {
+                {"base_max_select", base_max_select},
+                {"effective_max_select", effective_max_select},
+                {"kv_pressure", dreq.kv_pressure},
+                {"contract_overrun", st.contract_ledger.any_overrun()},
+            };
             if (backend_router::enabled()) {
                 auto routing = backend_router::snapshot_decisions();
                 if (!routing.empty())
