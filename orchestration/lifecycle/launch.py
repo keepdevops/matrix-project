@@ -130,6 +130,22 @@ def run_launch() -> int:
         else:
             time.sleep(0.5)  # let port unbind
 
+    coord_bin = REPO / "coordinator"
+    if coord_bin.is_file() and os.access(coord_bin, os.X_OK):
+        stale_coord = lsof_pids_on_port(int(env.get("MATRIX_COORDINATOR_PORT", "8000")))
+        if stale_coord:
+            print(f"Stopping stale coordinator (pid={stale_coord}) ...")
+            survivors = kill_pids(stale_coord)
+            if not survivors:
+                time.sleep(0.5)
+        print("Starting coordinator ...")
+        coord_pid = _spawn([str(coord_bin)], logs / "coordinator.log", env)
+        with pid_file.open("a") as f:
+            f.write(f"{coord_pid}\n")
+        time.sleep(1.0)  # coordinator must bind :8000 before proxy starts forwarding
+    else:
+        logger.warning("coordinator binary missing — MLX and inference routes unavailable")
+
     print("Starting proxy ...")
     proxy_pid = _spawn([str(proxy_bin)], logs / "proxy.log", env)
     with pid_file.open("a") as f:

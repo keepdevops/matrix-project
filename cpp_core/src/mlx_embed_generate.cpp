@@ -1,16 +1,20 @@
 #ifdef MATRIX_MLX_EMBED
 // MS-152: CPython-embedded mlx_lm.generate spike.
+// MS-153: warm/cold/steady-state benchmark + RSS measurement.
 
 #include "mlx_embed_generate.h"
 
 // Python.h must be first when embedding CPython
 #include <Python.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <mach/mach.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace mlx_embed {
 
@@ -129,6 +133,98 @@ GenerateResult generate_via_python(const std::string& model_path,
         res.tok_s      = std::stod(run_and_read("pass", "__pd_ts__"));
         res.output     = run_and_read("pass", "__pd_out__");
         res.ok = true;
+    } catch (const std::exception& e) {
+        res.error = e.what();
+    }
+    return res;
+}
+
+// ── MS-153: warm/cold benchmark + RSS ─────────────────────────────────────────
+
+double current_rss_mb() {
+    mach_task_basic_info info;
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+    kern_return_t kr = task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
+                                 reinterpret_cast<task_info_t>(&info), &count);
+    if (kr != KERN_SUCCESS) return 0.0;
+    return static_cast<double>(info.resident_size) / (1024.0 * 1024.0);
+}
+
+double BenchResult::steady_state() const {
+    if (iter_tok_s.size() < 2) return cold();
+    // Median of the warm tail (drop iteration 0 — it pays cold-cache cost).
+    std::vector<double> warm(iter_tok_s.begin() + 1, iter_tok_s.end());
+    std::sort(warm.begin(), warm.end());
+    const size_t n = warm.size();
+    return (n % 2) ? warm[n / 2] : (warm[n / 2 - 1] + warm[n / 2]) / 2.0;
+}
+
+BenchResult benchmark_via_python(const std::string& model_path,
+                                 const std::string& prompt,
+                                 int max_tokens,
+                                 int iterations,
+                                 const std::string& python_home) {
+    BenchResult res;
+    if (iterations < 1) iterations = 1;
+    try {
+        ensure_interpreter(resolve_python_home(python_home));
+
+        // Load once, then loop generate() N times in the same interpreter so
+        // the model + Metal kernels stay warm across iterations.
+        std::ostringstream code;
+        code << "import time as _t, json as _j\n"
+             << "from mlx_lm import load as _load, generate as _gen\n"
+             << "_t0 = _t.perf_counter()\n"
+             << "_model, _tok = _load('" << py_escape(model_path) << "')\n"
+             << "_load_ms = (_t.perf_counter() - _t0) * 1000\n"
+             << "_iters = []\n_outs = []\n"
+             << "for _i in range(" << iterations << "):\n"
+             << "    _s = _t.perf_counter()\n"
+             << "    _o = _gen(_model, _tok, prompt='" << py_escape(prompt)
+             << "', max_tokens=" << max_tokens << ", verbose=False)\n"
+             << "    _e = (_t.perf_counter() - _s) * 1000\n"
+             << "    _n = len(_tok.encode(_o))\n"
+             << "    _iters.append(_n / (_e/1000.0) if _e > 0 else 0)\n"
+             << "    _outs.append(_o)\n"
+             << "__mlx_result__ = _j.dumps({"
+             << "'load_ms': _load_ms, "
+             << "'iter_tok_s': ','.join('%.4f' % x for x in _iters), "
+             << "'n_tokens': len(_tok.encode(_outs[-1])), "
+             << "'deterministic': all(o == _outs[0] for o in _outs), "
+             << "'output': _outs[-1]})\n";
+
+        const std::string raw = run_and_read(code.str().c_str(), "__mlx_result__");
+        if (raw.empty()) {
+            res.error = "Python benchmark produced no result (see stderr for traceback)";
+            return res;
+        }
+
+        std::string eval_code =
+            "import json as _jj\n"
+            "__bd__ = _jj.loads('" + py_escape(raw) + "')\n"
+            "__bd_lms__ = str(__bd__['load_ms'])\n"
+            "__bd_its__ = __bd__['iter_tok_s']\n"
+            "__bd_n__   = str(__bd__['n_tokens'])\n"
+            "__bd_det__ = '1' if __bd__['deterministic'] else '0'\n"
+            "__bd_out__ = __bd__['output']\n";
+        run_and_read(eval_code.c_str(), "__bd_lms__");
+
+        res.load_ms       = std::stod(run_and_read("pass", "__bd_lms__"));
+        res.n_tokens      = std::stoi(run_and_read("pass", "__bd_n__"));
+        res.deterministic = run_and_read("pass", "__bd_det__") == "1";
+        res.output        = run_and_read("pass", "__bd_out__");
+
+        // Parse the comma-separated per-iteration tok/s list.
+        const std::string its = run_and_read("pass", "__bd_its__");
+        std::stringstream ss(its);
+        std::string tok;
+        while (std::getline(ss, tok, ',')) {
+            if (!tok.empty()) res.iter_tok_s.push_back(std::stod(tok));
+        }
+
+        res.rss_mb = current_rss_mb();  // measured with model resident
+        res.ok = !res.iter_tok_s.empty();
+        if (!res.ok) res.error = "no iterations recorded";
     } catch (const std::exception& e) {
         res.error = e.what();
     }

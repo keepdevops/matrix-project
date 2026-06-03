@@ -91,6 +91,18 @@ void register_proxy_system_routes(httplib::Server& svr, const std::string& proj_
         }
         if (r) {
             res.status = r->status;
+            // Forward all response headers from the coordinator (e.g. X-Session-Id, Cache-Control).
+            // Skip headers that httplib manages automatically (Content-Length, Transfer-Encoding).
+            static const std::vector<std::string> SKIP_HEADERS = {
+                "content-length", "transfer-encoding", "connection"
+            };
+            for (const auto& [k, v] : r->headers) {
+                std::string lk = k;
+                for (auto& c : lk) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                bool skip = false;
+                for (const auto& s : SKIP_HEADERS) { if (lk == s) { skip = true; break; } }
+                if (!skip) res.set_header(k.c_str(), v.c_str());
+            }
             std::string ct = r->get_header_value("Content-Type");
             res.set_content(r->body, ct.empty() ? "application/json" : ct.c_str());
         } else {

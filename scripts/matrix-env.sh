@@ -34,6 +34,8 @@ fi
 : "${MATRIX_SLOTS_DIR:=$HOME/.matrix/slots}"
 : "${MATRIX_PROXY_PORT:=3002}"
 : "${MATRIX_COORDINATOR_PORT:=8000}"
+# MS-130: enable C++ MLX native coordinator routes (compile-time flag for build_cpp_binaries.sh)
+: "${MATRIX_MLX_NATIVE_COORD:=1}"
 
 if [[ -n "${MATRIX_MLX_PYTHON:-}" ]]; then
   MLX_PY="$MATRIX_MLX_PYTHON"
@@ -60,6 +62,7 @@ export MATRIX_SLOTS_DIR
 export MATRIX_PROXY_PORT
 export MATRIX_COORDINATOR_PORT
 export MATRIX_MLX_PYTHON="$MLX_PY"
+export MATRIX_MLX_NATIVE_COORD
 
 if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
   echo "# Add to your shell or systemd EnvironmentFile:"
