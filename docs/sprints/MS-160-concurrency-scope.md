@@ -1,68 +1,71 @@
 # MS-160 — Concurrency Gate: Scope for the MS-161 GO/NO-GO Re-test
 
 **Epic:** MS-130 research track · **Points:** 2 (scope) + 3 (measure)
-**Status:** ✅ MEASURED — option (B) efficiency-only. **Result: NO-GO for naive in-process concurrency.**
+**Status:** ✅ MEASURED + CORRECTED — option (B). **Result: in-process concurrency works but gives no throughput benefit on a single GPU. See Findings + Options.**
 **Blocks:** MS-161 (~50 pts) — see Findings before opening
 **Prereq read:** [MS-153](MS-153.md) (single-stream: in-process +107%), [MS-154](MS-154.md) (GO, single-stream only)
 
 ---
 
-## ⛔ Findings (2026-06-03, Apple M3 Max, Llama-3.2-3B-4bit)
+## Findings (2026-06-03, Apple M3 Max, Llama-3.2-3B-4bit) — CORRECTED
 
-Probe: `tests/cpp/mlx_concurrency_probe.cpp` → `concurrency_benchmark()` (load
-once, N threads each `PyGILState_Ensure`/`Release` around `generate()`).
+> An earlier revision of this doc concluded "NO-GO — crashes at N=2." That was
+> **wrong** and is corrected here. The crash proved **intermittent** (one OOM,
+> not reproducible): the pure-Python proxy never crashed, and a C++ re-run
+> completed the full N=1/2/4/8 sweep. The real finding is about throughput, not
+> stability.
 
-| N | aggregate tok/s | result |
-|---|-----------------|--------|
-| 1 | **116.5** | ✅ matches MS-153 (+107% vs HTTP) — harness validated |
-| 2 | — | ❌ **crash: `[METAL] Command buffer execution failed: Insufficient Memory`** |
-| 4, 8 | — | not reached |
+### C++ embedded probe (`mlx_concurrency_probe`, full sweep)
 
-**N≥2 concurrent in-process generation crashes, reproducibly, independent of
-token budget** (same crash at max_tokens=16 and 80). This is the documented
-symptom of **MLX's default Metal stream not being safe for concurrent
-submission from multiple threads** — `mlx_lm.generate()` shares one global
-stream, and two threads submitting command buffers concurrently corrupt the
-allocator / over-commit GPU memory.
+| N | aggregate tok/s | speedup | per-stream tok/s | RSS |
+|---|-----------------|---------|------------------|-----|
+| 1 | 111.5 | 1.0× | 111 | 2329 MB |
+| 2 |  81.7 | 0.7× |  41 | 2450 MB |
+| 4 | 106.3 | 1.0× |  27 | 2508 MB |
+| 8 | 108.3 | 1.0× |  14 | 2584 MB |
 
-The risk flagged in the harness design materialised: getting N threads through
-the shared interpreter is not merely slow, it **fails outright**.
+### Pure-Python proxy (same GIL; validates shared vs per-thread streams)
 
-### What this means for MS-161
+| config | N=2 agg | N=4 agg | speedup(4) |
+|--------|---------|---------|-----------|
+| shared default stream | 127 | 139 | 1.23× |
+| per-thread `mx.stream` | 127 | 135 | 1.20× |
 
-- The MS-153 **+107% single-stream win is real but applies only to *serialized*
-  (one-at-a-time) inference.** It does not survive the concurrent multi-agent
-  workload the swarm actually runs.
-- The naive MS-161 design (replace HTTP fan-out with threaded in-process
-  `generate()`) is **non-viable as-is** — it crashes at 2 concurrent agents.
-- Achieving concurrency would require **per-thread MLX stream isolation**
-  (`mx.new_stream(device)` per worker, threaded through `mlx_lm.generate()`,
-  which does not expose it today). That is unproven and is itself MS-161-scale
-  work — it cannot be assumed.
-- The current HTTP path sidesteps this entire failure class via **process
-  isolation**: each agent's `mlx_lm.server` has its own address space, Metal
-  allocator, and stream; the OS arbitrates. That isolation is a feature, not
-  overhead.
+### What the data actually shows
 
-### Measurement caveat (RSS)
+1. **No throughput benefit from concurrency.** Aggregate plateaus at ~1.0–1.2×
+   of single-stream regardless of N. A single Apple-Silicon GPU saturates on
+   decode (memory-bandwidth bound) — concurrent streams time-share it.
+2. **Per-stream throughput collapses with N:** 111 → 41 → 27 → 14 tok/s. Four
+   concurrent agents don't run faster as a group; each runs ~4× slower. This is
+   a **hardware reality of one GPU**, and it applies to the HTTP path identically.
+3. **Per-thread streams don't help aggregate** but do even out per-stream
+   latency (no starvation) — 64/64 vs the shared stream's 68/59 at N=2.
+4. **The +107% single-stream win does NOT compound across agents.** It is a
+   per-request latency + memory advantage, not a concurrent-throughput multiplier.
+5. **One intermittent OOM** was observed in the C++ path under memory pressure —
+   a fragility signal the process-isolated HTTP path does not have.
 
-N=1 RSS here read **446 MB**, vs **2.33 GB** in MS-153 for the same model.
-MLX/unified-memory allocations are not consistently reflected in mach
-`resident_size`. **Treat all RSS figures in MS-153/154 as low-confidence** —
-they were never the deciding metric (throughput was), but the memory-neutrality
-claim in MS-154 rests on shaky measurement and should not be leaned on.
+### RSS correction
 
-### Recommendation
+C++ probe RSS reads ~2.3–2.6 GB, growing modestly with N (shared weights + per-
+stream KV caches) — consistent with MS-153's 2.33 GB. The earlier 446 MB reading
+was the anomaly. Memory is **one model copy** regardless of N, vs HTTP's N copies.
 
-**NO-GO on the naive in-process design.** Before MS-161 opens, a *prerequisite*
-spike must prove per-thread MLX stream isolation gives positive concurrency
-speedup without crashing. If it can't, in-process inference is only worth
-pursuing for genuinely single-stream deployments — not the multi-agent swarm,
-where the HTTP path's process parallelism wins by being the only thing that
-runs at all.
+## Options (no clean GO or NO-GO — it's a fit-to-workload call)
 
-This **supersedes the unconditional GO in MS-154**: that GO was single-stream
-only and did not survive the concurrency gate.
+| # | Path | When it wins | Cost / risk |
+|---|------|--------------|-------------|
+| **1** | **MS-161 scoped to sequential modes only** (pipeline, cascade-synth, single-agent chat) | Agents run one-at-a-time → full +107% latency win | Must NOT claim concurrent throughput gains; embedding maintenance burden |
+| **2** | **Hybrid:** in-process for the foreground/latency-critical agent, HTTP for concurrent fan-out | Best of both — latency win where it matters, process isolation for flat-mode | Most complex; two inference paths to maintain |
+| **3** | **Keep HTTP, drop MS-161** | Concurrency gives no throughput benefit anyway; HTTP is robust + process-isolated | Forgoes the +107% single-stream latency win |
+| **4** | **De-risk first:** root-cause the intermittent OOM before any commit | The one crash is a real production-stability question under load | 1–2 day spike before the MS-161 decision |
+
+**Recommendation:** Option 1 or 2. The +107% is real and worth capturing for the
+**sequential** paths (which pipeline/cascade modes use heavily). Do not pursue
+in-process for concurrent flat-mode throughput — no architecture beats the single
+GPU there, and HTTP's isolation is safer under load. Resolve the OOM (Option 4)
+as a gate inside whichever path is chosen.
 
 ---
 
