@@ -42,6 +42,9 @@ export function buildStreamCallbacks({
         ? performance.now() - wallStart : Date.now() - wallStart;
       setLastMeta(prev => ({ ...(prev || {}), timings, wall_ms: wallMs }));
     },
+    onRouting(data) {  // MS-161 Phase C: surface streamed backend-routing decisions
+      if (data && typeof data === 'object') setLastMeta(prev => ({ ...(prev || {}), routing: data }));
+    },
     onSelected({ classifier, agents: picked }) {
       setLastMeta(prev => ({ ...(prev || {}), classifier, selected: picked }));
     },

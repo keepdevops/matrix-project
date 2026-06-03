@@ -41,6 +41,17 @@ if [ "${MATRIX_MLX_NATIVE_COORD:-0}" = "1" ]; then
   echo "MLX native coordinator routes ENABLED (MATRIX_MLX_NATIVE_COORD=1)"
 fi
 
+# MS-161 Phase D: opt-in AddressSanitizer build for the ship-gate sanitizer run.
+# Set MATRIX_SANITIZE=address. LeakSanitizer is unavailable on macOS arm64;
+# ASan still catches use-after-free / overflows. For the optional MATRIX_MLX_INPROC
+# build, pass LSAN_OPTIONS=suppressions=scripts/asan_python.supp to silence the
+# embedded-CPython allocator false positives.
+SANITIZE_FLAGS=()
+if [ "${MATRIX_SANITIZE:-}" = "address" ]; then
+  SANITIZE_FLAGS+=("-fsanitize=address" "-fno-omit-frame-pointer" "-g")
+  echo "AddressSanitizer ENABLED (MATRIX_SANITIZE=address)"
+fi
+
 # MS-161 Phase B: opt-in in-process MLX inference (embeds CPython + mlx_lm in the
 # coordinator). Darwin arm64 only. Set MATRIX_MLX_INPROC=1 to enable.
 # mlx_model_registry.cpp embeds Python via PyRun_String — needs libpython only;
@@ -79,7 +90,7 @@ LIBPQ_LIB="$LIBPQ_PREFIX/lib"
 # Compile vendored BLAKE2b as C (header uses extern "C" for C++ callers).
 cc -std=c99 -O2 -c -o "$ROOT/build/blake2b.o" "$CPP_SRC/blake2b.c"
 
-c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${INPROC_FLAGS[@]}" "${INPROC_INCLUDES[@]}" -o "$ROOT/coordinator" \
+c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${SANITIZE_FLAGS[@]}" "${INPROC_FLAGS[@]}" "${INPROC_INCLUDES[@]}" -o "$ROOT/coordinator" \
    -I"$PROM_INC" -L"$PROM_LIB" \
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
@@ -213,7 +224,7 @@ c++ -std=c++17 -O0 -g -o "$ROOT/code_fence_normalize_test" \
 ls -lart "$ROOT/code_fence_normalize_test"
 
 echo "Building test_kv_token_semaphore..."
-c++ -std=c++17 -O0 -g -o "$ROOT/test_kv_token_semaphore" \
+c++ -std=c++17 -O0 -g "${SANITIZE_FLAGS[@]}" -o "$ROOT/test_kv_token_semaphore" \
   "$ROOT/tests/cpp/test_kv_token_semaphore.cpp" \
   "$CPP_SRC/agent_client_pool.cpp" \
   -I"$CPP_SRC" -pthread
@@ -225,28 +236,28 @@ BACKEND_TEST_SRCS=(
 )
 
 echo "Building test_backend_registry..."
-c++ -std=c++17 -O0 -g -o "$ROOT/test_backend_registry" \
+c++ -std=c++17 -O0 -g "${SANITIZE_FLAGS[@]}" -o "$ROOT/test_backend_registry" \
   "$ROOT/tests/cpp/test_backend_registry.cpp" \
   "${BACKEND_TEST_SRCS[@]}" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_backend_registry"
 
 echo "Building test_backend_selection..."
-c++ -std=c++17 -O0 -g -o "$ROOT/test_backend_selection" \
+c++ -std=c++17 -O0 -g "${SANITIZE_FLAGS[@]}" -o "$ROOT/test_backend_selection" \
   "$ROOT/tests/cpp/test_backend_selection.cpp" \
   "${BACKEND_TEST_SRCS[@]}" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_backend_selection"
 
 echo "Building test_backend_router..."
-c++ -std=c++17 -O0 -g -o "$ROOT/test_backend_router" \
+c++ -std=c++17 -O0 -g "${SANITIZE_FLAGS[@]}" -o "$ROOT/test_backend_router" \
   "$ROOT/tests/cpp/test_backend_router.cpp" \
   "${BACKEND_TEST_SRCS[@]}" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_backend_router"
 
 echo "Building test_routing_decision_log..."
-c++ -std=c++17 -O0 -g -o "$ROOT/test_routing_decision_log" \
+c++ -std=c++17 -O0 -g "${SANITIZE_FLAGS[@]}" -o "$ROOT/test_routing_decision_log" \
   "$ROOT/tests/cpp/test_routing_decision_log.cpp" \
   "${BACKEND_TEST_SRCS[@]}" \
   -I"$CPP_SRC"

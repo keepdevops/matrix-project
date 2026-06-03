@@ -53,6 +53,15 @@ int main(int argc, char** argv) {
 
     if (!ok) return 1;
 
+    // MS-161 Phase C: streaming generation (PyIter_Next over mlx_lm.stream_generate)
+    std::cout << "\n── Streaming (Phase C) ──\n";
+    int chunks = 0;
+    auto sr = reg.generate_stream(agent, "Count from 1 to 5.", 40,
+        [&](const std::string& delta) { ++chunks; std::cout << delta << std::flush; });
+    std::cout << "\n  chunks=" << chunks << " ok=" << (sr.ok ? "yes" : "no")
+              << " n_tokens=" << sr.n_tokens << "\n";
+    if (!sr.ok || chunks < 2) { std::cerr << "FAIL: streaming produced too few chunks\n"; return 1; }
+
     std::cout << "\n── Registry snapshot (for /api/mlx/pressure) ──\n";
     std::cout << reg.snapshot().dump(2) << "\n";
 

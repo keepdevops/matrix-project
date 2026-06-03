@@ -119,9 +119,15 @@ class MatrixHarness:
 
 
 @pytest.fixture
-def matrix(tmp_path, monkeypatch):
+def matrix(tmp_path, monkeypatch, request):
     if not COORD_BIN.exists():
         pytest.skip(f"coordinator binary not found at {COORD_BIN}; run `npm run build:bin`")
+
+    # Optional per-test env overrides via indirect parametrization, e.g.
+    #   @pytest.mark.parametrize('matrix', [{'MATRIX_BACKEND_ROUTING': '1'}],
+    #                            indirect=True)
+    # Default (no param) leaves the environment unchanged.
+    extra_env = getattr(request, 'param', None) or {}
 
     # Build mock agents.
     mocks = {a['name']: MockAgent(a['name'], a['port']) for a in DEFAULT_AGENTS}
@@ -136,6 +142,7 @@ def matrix(tmp_path, monkeypatch):
     env = os.environ.copy()
     env['MATRIX_COORDINATOR_PORT'] = str(COORD_PORT)
     env.pop('MATRIX_SOURCE_CONFIG', None)  # don't pollute the dev source
+    env.update(extra_env)
     log_path = tmp_path / 'coordinator.log'
     log_fp = open(log_path, 'wb')
     proc = subprocess.Popen(

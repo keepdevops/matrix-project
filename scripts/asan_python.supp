@@ -1,0 +1,27 @@
+# MS-161 Phase D — LeakSanitizer suppressions for the OPTIONAL MATRIX_MLX_INPROC
+# coordinator build, which embeds CPython (libpython3.12) + mlx_lm.
+#
+# The default/shipped coordinator is pure C++ (no CPython) and runs ASan clean
+# with NO suppressions — these are only needed when running the in-process
+# (MATRIX_MLX_INPROC=1) build under a sanitizer that supports LeakSanitizer.
+#
+# NOTE: LeakSanitizer is NOT available on macOS arm64. This file is for Linux
+# sanitizer runs of the in-process build, or future CI. On macOS, AddressSanitizer
+# (use-after-free / overflow detection) works without it.
+#
+# Usage:
+#   MATRIX_SANITIZE=address MATRIX_MLX_INPROC=1 bash scripts/build_cpp_binaries.sh
+#   LSAN_OPTIONS=suppressions=scripts/asan_python.supp ./coordinator
+#
+# CPython's small-object allocator (pymalloc) and one-time interpreter state
+# are intentionally not freed before process exit — these are not real leaks.
+leak:_PyObject_Malloc
+leak:_PyMem_RawMalloc
+leak:PyMem_RawMalloc
+leak:_PyRuntimeState_Init
+leak:Py_InitializeFromConfig
+leak:PyImport_ImportModule
+leak:_PyRuntime
+# mlx_lm / mlx Python extension one-time module + Metal device init
+leak:mlx
+leak:libmlx
