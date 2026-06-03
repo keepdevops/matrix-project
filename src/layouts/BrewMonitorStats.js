@@ -3,9 +3,9 @@ import PressureCluster from '../components/PressureCluster';
 
 function kvAggregate(readings) {
   if (!readings || readings.length === 0) return null;
-  const valid = readings.filter(r => typeof r.kv_cache_usage_ratio === 'number');
+  const valid = readings.filter(r => typeof r.usage === 'number');
   if (valid.length === 0) return null;
-  const avgRatio = valid.reduce((s, r) => s + r.kv_cache_usage_ratio, 0) / valid.length;
+  const avgRatio = valid.reduce((s, r) => s + r.usage, 0) / valid.length;
   return { estGB: (avgRatio * 36 * 0.35).toFixed(1) };
 }
 
@@ -76,8 +76,8 @@ export default function BrewMonitorStats({
                                          display: 'flex', justifyContent: 'space-between',
                                          marginBottom: '0.1rem' }}>
                 <span>:{r.port} <span style={{ opacity: 0.6 }}>{(r.names || []).join(', ')}</span></span>
-                <span>{r.kv_cache_usage_ratio != null
-                  ? `KV ${Math.round(r.kv_cache_usage_ratio * 100)}%`
+                <span>{r.usage != null
+                  ? `KV ${Math.round(r.usage * 100)}%`
                   : 'no data'}</span>
               </div>
             ))}
