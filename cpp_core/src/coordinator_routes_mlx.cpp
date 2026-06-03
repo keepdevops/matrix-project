@@ -1,6 +1,7 @@
 #ifdef MATRIX_MLX_NATIVE_COORD
 #include "coordinator_routes_mlx.h"
 #include "agent_client.h"
+#include "mlx_inflight.h"
 #include "session_store.h"
 #include "json.hpp"
 
@@ -108,14 +109,70 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         stub_501(res, "POST /api/mlx/stream", "MS-136");
     });
 
-    // ── GET /api/mlx/health — service + model health (MS-134) ────────────────
-    svr.Get("/api/mlx/health", [](const httplib::Request&, httplib::Response& res) {
-        stub_501(res, "GET /api/mlx/health", "MS-134");
+    // ── GET /api/mlx/health — probe /v1/models per MLX port (MS-134) ────────
+    svr.Get("/api/mlx/health", [&st](const httplib::Request&, httplib::Response& res) {
+        json backends = json::object();
+        bool all_ok = true;
+
+        for (const auto& agent : st.agents) {
+            if (agent.engine != "mlx") continue;
+
+            httplib::Client cli("127.0.0.1", agent.port);
+            cli.set_connection_timeout(2);
+            cli.set_read_timeout(2);
+            auto r = cli.Get("/v1/models");
+
+            const bool ok = r && r->status == 200;
+            if (!ok) all_ok = false;
+            const std::string detail = ok
+                ? "port " + std::to_string(agent.port) + " ok"
+                : "port " + std::to_string(agent.port) + " unreachable";
+            backends[agent.name] = {{"ok", ok}, {"detail", detail}};
+        }
+
+        if (backends.empty()) {
+            // No MLX agents configured — report healthy with empty set
+            cors(res);
+            res.set_content(
+                json{{"ok", true}, {"backends", json::object()}}.dump(),
+                "application/json");
+            return;
+        }
+
+        cors(res);
+        res.status = all_ok ? 200 : 503;
+        res.set_content(
+            json{{"ok", all_ok}, {"backends", backends}}.dump(),
+            "application/json");
     });
 
-    // ── GET /api/mlx/pressure — inflight + session snapshot (MS-134) ─────────
-    svr.Get("/api/mlx/pressure", [](const httplib::Request&, httplib::Response& res) {
-        stub_501(res, "GET /api/mlx/pressure", "MS-134");
+    // ── GET /api/mlx/pressure — inflight counts + session snapshot (MS-134) ──
+    svr.Get("/api/mlx/pressure", [&st](const httplib::Request&, httplib::Response& res) {
+        // Build per-port inflight map from mlx_inflight telemetry
+        json inflight = json::object();
+        for (const auto& agent : st.agents) {
+            if (agent.engine != "mlx") continue;
+            const std::string port_key = std::to_string(agent.port);
+            // Accumulate if multiple agents share a port
+            const int count = mlx_inflight::get(agent.port);
+            if (inflight.contains(port_key)) {
+                inflight[port_key] = inflight[port_key].get<int>() + count;
+            } else {
+                inflight[port_key] = count;
+            }
+        }
+
+        // Session snapshot: count + IDs currently in the store
+        int session_count = 0;
+        {
+            std::lock_guard<std::mutex> lk(st.sessions_mutex);
+            session_count = static_cast<int>(st.sessions.size());
+        }
+
+        cors(res);
+        res.set_content(
+            json{{"inflight", inflight}, {"sessions", session_count}}.dump(),
+            "application/json");
     });
 
     // ── GET /api/mlx/agents — loaded agent list (MS-139) ─────────────────────

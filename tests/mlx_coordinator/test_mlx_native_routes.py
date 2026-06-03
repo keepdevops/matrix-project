@@ -158,14 +158,86 @@ def test_mlx_stream_stub_501(coord):
     _expect_501(coord, "POST", "/api/mlx/stream")
 
 
+# ---------------------------------------------------------------------------
+# MS-134: health + pressure live contract tests
+# ---------------------------------------------------------------------------
+
+def test_mlx_health_shape(coord):
+    """GET /api/mlx/health returns {ok, backends} — 200 or 503."""
+    resp = requests.get(f"{coord}/api/mlx/health", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("health still a stub")
+    assert resp.status_code in (200, 503), f"unexpected {resp.status_code}"
+    body = resp.json()
+    assert "ok" in body, f"'ok' missing: {body}"
+    assert "backends" in body, f"'backends' missing: {body}"
+    assert isinstance(body["ok"], bool)
+    assert isinstance(body["backends"], dict)
+
+
+def test_mlx_health_backend_entries_have_ok_and_detail(coord):
+    """Each backends entry has ok (bool) and detail (str)."""
+    resp = requests.get(f"{coord}/api/mlx/health", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("health still a stub")
+    for name, entry in resp.json().get("backends", {}).items():
+        assert "ok" in entry, f"backend {name!r} missing 'ok'"
+        assert "detail" in entry, f"backend {name!r} missing 'detail'"
+        assert isinstance(entry["ok"], bool)
+        assert isinstance(entry["detail"], str)
+
+
+def test_mlx_health_overall_ok_matches_backends(coord):
+    """Top-level ok == all(backend.ok for backend in backends)."""
+    resp = requests.get(f"{coord}/api/mlx/health", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("health still a stub")
+    body = resp.json()
+    backends = body.get("backends", {})
+    if not backends:
+        assert body["ok"] is True  # empty set → healthy
+    else:
+        expected_ok = all(e["ok"] for e in backends.values())
+        assert body["ok"] == expected_ok
+
+
+def test_mlx_pressure_shape(coord):
+    """GET /api/mlx/pressure returns {inflight: dict, sessions: int}."""
+    resp = requests.get(f"{coord}/api/mlx/pressure", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("pressure still a stub")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "inflight" in body, f"'inflight' missing: {body}"
+    assert "sessions" in body, f"'sessions' missing: {body}"
+    assert isinstance(body["inflight"], dict)
+    assert isinstance(body["sessions"], int)
+    assert body["sessions"] >= 0
+
+
+def test_mlx_pressure_inflight_values_are_non_negative(coord):
+    """All inflight port values are non-negative integers."""
+    resp = requests.get(f"{coord}/api/mlx/pressure", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("pressure still a stub")
+    for port_key, count in resp.json().get("inflight", {}).items():
+        assert isinstance(count, int), f"port {port_key} count not int: {count}"
+        assert count >= 0, f"port {port_key} count negative: {count}"
+
+
+# Old stubs — auto-skip when implemented
 def test_mlx_health_stub_501(coord):
-    """GET /api/mlx/health → 501 (MS-134)."""
-    _expect_501(coord, "GET", "/api/mlx/health")
+    """GET /api/mlx/health → 501 when MS-134 not yet implemented."""
+    resp = requests.get(f"{coord}/api/mlx/health", timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"health is implemented (status {resp.status_code})")
 
 
 def test_mlx_pressure_stub_501(coord):
-    """GET /api/mlx/pressure → 501 (MS-134)."""
-    _expect_501(coord, "GET", "/api/mlx/pressure")
+    """GET /api/mlx/pressure → 501 when MS-134 not yet implemented."""
+    resp = requests.get(f"{coord}/api/mlx/pressure", timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"pressure is implemented (status {resp.status_code})")
 
 
 def test_mlx_agents_stub_501(coord):
