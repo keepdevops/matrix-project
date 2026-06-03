@@ -15,7 +15,8 @@ export function buildSendBestContinueOpts(flatPickAgent) {
     contextPolicy: {
       include: ['original_prompt', 'final', flatPickAgent],
       target_agent: flatPickAgent,
-      max_context_chars: 30000,
+      // Sized for --ctx-size 2048 on M3 Max; was 30000 (exceeded server window)
+      max_context_chars: 4500,
     },
   };
 }

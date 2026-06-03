@@ -22,3 +22,9 @@ void semaphore_acquire(int port);
 
 /** Release the per-port semaphore and return whether waiters are queued. */
 bool semaphore_release_has_waiters(int port);
+
+/** Token-budget gate: block until estimated_tokens fit within the port KV budget. */
+void semaphore_acquire_tokens(int port, int estimated_tokens);
+
+/** Release actual_tokens from the in-flight budget (0 = no-op if budget disabled). */
+void semaphore_release_tokens(int port, int actual_tokens);

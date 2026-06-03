@@ -8,11 +8,12 @@
     },
     "port": 8000,
     "profiles": {
-      "safe":     { "max_context": 2048 },
-      "balanced": { "max_context": 4096 },
-      "max":      { "max_context": null },
-      "mixed":    { "max_context": null }
-    }
+      "safe":     { "max_context": 1024 },
+      "balanced": { "max_context": 2048 },
+      "max":      { "max_context": 4096 },
+      "mixed":    { "max_context": 3072 }
+    },
+    "_memory_note": "Capped from null — 36 GB M3 Max, llama np=1. null was killing server via OOM."
   },
   "ui": {
     "port": 3000

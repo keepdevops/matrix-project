@@ -22,7 +22,7 @@ describe('getModeMemoryWeight', () => {
 describe('estimateDeployedRamGb', () => {
   it('baseline with two agents is near model+OS budget', () => {
     const gb = estimateDeployedRamGb(agents(2), 'flat');
-    expect(gb).toBeCloseTo(21, 0);
+    expect(gb).toBeCloseTo(26, 0);
   });
 
   it('adds overhead for extra agents and heavy modes', () => {
@@ -63,7 +63,7 @@ describe('resolveRamGb', () => {
       hostMemory: { ok: false },
     });
     expect(r.ramSource).toBe('estimate');
-    expect(r.ramGb).toBeCloseTo(21, 0);
+    expect(r.ramGb).toBeCloseTo(26, 0);
   });
 });
 

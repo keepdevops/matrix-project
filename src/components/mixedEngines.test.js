@@ -358,7 +358,7 @@ describe('computeLayout stress — 200 random mixed-engine configs', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeRiskEstimate stress — 100 random mixed-engine configs', () => {
-  const RAM_OS_GB = 4;
+  const RAM_OS_GB = 9; // updated: measured 7.2 GB wired + 2.5 GB processes
 
   it('totalRamGb >= baseline when agents ready, band always valid, no NaN', () => {
     const failures = [];

@@ -6,6 +6,9 @@
 #include "coordinator_routes_architect_persist.h"
 #include "mlx_inflight.h"
 #include "mlx_session_store.h"
+#ifdef MATRIX_MLX_INPROC
+#include "mlx_model_registry.h"
+#endif
 #include "session_store.h"
 #include "synthesis_budget.h"
 #include "json.hpp"
@@ -97,7 +100,15 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         std::vector<std::future<std::string>> futures;
         futures.reserve(mlx_agents.size());
         for (const auto& agent : mlx_agents) {
-            futures.push_back(std::async(std::launch::async, [agent, prompt]() {
+            futures.push_back(std::async(std::launch::async, [agent, prompt]() -> std::string {
+#ifdef MATRIX_MLX_INPROC
+                // MS-161: in-process dispatch — registry lane serializes GPU access.
+                if (agent.dispatch == "inproc") {
+                    const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
+                    auto r = mlx_inproc::mlx_models().generate(agent, prompt, mt);
+                    return r.ok ? r.text : ("[inproc error] " + r.error);
+                }
+#endif
                 std::lock_guard<std::mutex> lk(mlx_coordinator::port_mutex(agent.port));
                 return call_agent(agent, prompt);
             }));
@@ -304,11 +315,14 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             const int c = mlx_inflight::get(agent.port);
             inflight[k] = inflight.contains(k) ? inflight[k].get<int>() + c : c;
         }
+        json out = {{"inflight", inflight}, {"sessions", mlx_sessions().snapshot()}};
+#ifdef MATRIX_MLX_INPROC
+        // MS-161 Phase D: surface resident in-process models + count.
+        out["resident_models"] = mlx_inproc::mlx_models().snapshot();
+        out["resident_count"]  = mlx_inproc::mlx_models().resident_count();
+#endif
         cors(res);
-        res.set_content(
-            json{{"inflight", inflight},
-                 {"sessions", mlx_sessions().snapshot()}}.dump(),
-            "application/json");
+        res.set_content(out.dump(), "application/json");
     });
 
     // ── GET /api/mlx/agents — MLX agent roster (MS-139) ─────────────────────

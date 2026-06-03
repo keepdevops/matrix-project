@@ -19,8 +19,10 @@ namespace kv_auto_clear {
 
 struct Config {
     bool   enabled              = false;
-    double pressure_threshold   = 0.75;
+    double pressure_threshold   = 0.75;  // full clear threshold
     double divergence_threshold = 0.6;
+    double proactive_threshold  = 0.60;  // partial-evict threshold (fires before full clear)
+    double proactive_fraction   = 0.30;  // evict bottom N% of slots by importance score
 };
 
 struct State {
@@ -34,6 +36,8 @@ inline Config load(const nlohmann::json& coordinator_block) {
     cfg.enabled              = a.value("enabled", false);
     cfg.pressure_threshold   = a.value("pressure_threshold", 0.75);
     cfg.divergence_threshold = a.value("divergence_threshold", 0.6);
+    cfg.proactive_threshold  = a.value("proactive_threshold", 0.60);
+    cfg.proactive_fraction   = a.value("proactive_fraction", 0.30);
     return cfg;
 }
 
@@ -95,6 +99,41 @@ inline void clear_kv(const std::vector<Agent>& agents,
     int ok = 0;
     for (const auto& r : results) if (r.second.empty() || r.second == "ok") ++ok;
     std::cout << "✅ [kv_auto_clear] cleared " << ok << "/" << results.size() << " port(s)" << std::endl;
+}
+
+// Proactive partial eviction: evicts the bottom proactive_fraction of slots
+// by importance score when pressure crosses proactive_threshold (before the
+// full-clear threshold). Reuses score_port() from kv_importance_indexer.
+// Returns true if any eviction was triggered.
+inline bool maybe_partial_evict(const std::vector<Agent>& agents,
+                                const std::map<int,double>& port_pressures,
+                                const std::map<int,std::string>& port_last_output,
+                                const Config& cfg) {
+    if (!cfg.enabled || cfg.proactive_fraction <= 0.0) return false;
+
+    // Collect ports above proactive threshold but below full-clear threshold
+    std::vector<kv_importance::SlotScore> scores;
+    for (const auto& [port, pressure] : port_pressures) {
+        if (pressure < cfg.proactive_threshold || pressure >= cfg.pressure_threshold) continue;
+        auto it = port_last_output.find(port);
+        const std::string& out = (it != port_last_output.end()) ? it->second : "";
+        scores.push_back(kv_importance::score_port(port, out, 0, pressure));
+    }
+    if (scores.empty()) return false;
+
+    // Sort ascending by importance — lowest scores are evicted first
+    std::sort(scores.begin(), scores.end(),
+              [](const auto& a, const auto& b) { return a.importance < b.importance; });
+
+    // Evict the bottom fraction
+    const int n_evict = std::max(1, static_cast<int>(scores.size() * cfg.proactive_fraction));
+    std::map<int,int> evict_ports;
+    for (int i = 0; i < n_evict; ++i) evict_ports[scores[i].port] = 0;
+
+    std::cout << "⚡ [kv_auto_clear] proactive evict " << n_evict
+              << "/" << scores.size() << " port(s) at partial threshold" << std::endl;
+    auto results = coordinator_kv_ops::clear_kv_on_ports(evict_ports);
+    return !results.empty();
 }
 
 } // namespace kv_auto_clear

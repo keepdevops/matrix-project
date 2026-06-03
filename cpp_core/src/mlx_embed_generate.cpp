@@ -174,12 +174,12 @@ BenchResult benchmark_via_python(const std::string& model_path,
         // Load once, then loop generate() N times in the same interpreter so
         // the model + Metal kernels stay warm across iterations.
         std::ostringstream code;
-        code << "import time as _t, json as _j\n"
+        code << "import time as _t, json as _j, resource as _r\n"
              << "from mlx_lm import load as _load, generate as _gen\n"
              << "_t0 = _t.perf_counter()\n"
              << "_model, _tok = _load('" << py_escape(model_path) << "')\n"
              << "_load_ms = (_t.perf_counter() - _t0) * 1000\n"
-             << "_iters = []\n_outs = []\n"
+             << "_iters = []\n_rss = []\n_first = None\n_last = None\n"
              << "for _i in range(" << iterations << "):\n"
              << "    _s = _t.perf_counter()\n"
              << "    _o = _gen(_model, _tok, prompt='" << py_escape(prompt)
@@ -187,13 +187,20 @@ BenchResult benchmark_via_python(const std::string& model_path,
              << "    _e = (_t.perf_counter() - _s) * 1000\n"
              << "    _n = len(_tok.encode(_o))\n"
              << "    _iters.append(_n / (_e/1000.0) if _e > 0 else 0)\n"
-             << "    _outs.append(_o)\n"
+             // MS-161 Phase A: peak RSS (bytes on macOS) per iteration — leak signal
+             << "    _rss.append(_r.getrusage(_r.RUSAGE_SELF).ru_maxrss)\n"
+             // keep only first + last output (bounded memory; determinism check)
+             << "    _first = _o if _first is None else _first\n"
+             << "    _last = _o\n"
+             << "_step = max(1, len(_rss)//12)\n"
              << "__mlx_result__ = _j.dumps({"
              << "'load_ms': _load_ms, "
              << "'iter_tok_s': ','.join('%.4f' % x for x in _iters), "
-             << "'n_tokens': len(_tok.encode(_outs[-1])), "
-             << "'deterministic': all(o == _outs[0] for o in _outs), "
-             << "'output': _outs[-1]})\n";
+             << "'rss_series': ','.join(str(x) for x in _rss[::_step]), "
+             << "'rss_first': _rss[0], 'rss_last': _rss[-1], "
+             << "'n_tokens': len(_tok.encode(_last)), "
+             << "'deterministic': (_last == _first), "
+             << "'output': _last})\n";
 
         const std::string raw = run_and_read(code.str().c_str(), "__mlx_result__");
         if (raw.empty()) {
@@ -208,12 +215,17 @@ BenchResult benchmark_via_python(const std::string& model_path,
             "__bd_its__ = __bd__['iter_tok_s']\n"
             "__bd_n__   = str(__bd__['n_tokens'])\n"
             "__bd_det__ = '1' if __bd__['deterministic'] else '0'\n"
+            "__bd_rf__ = str(__bd__['rss_first'])\n"
+            "__bd_rl__ = str(__bd__['rss_last'])\n"
             "__bd_out__ = __bd__['output']\n";
         run_and_read(eval_code.c_str(), "__bd_lms__");
 
         res.load_ms       = std::stod(run_and_read("pass", "__bd_lms__"));
         res.n_tokens      = std::stoi(run_and_read("pass", "__bd_n__"));
         res.deterministic = run_and_read("pass", "__bd_det__") == "1";
+        // ru_maxrss is bytes on macOS — convert to MB
+        res.rss_first_mb  = std::stod(run_and_read("pass", "__bd_rf__")) / 1e6;
+        res.rss_last_mb   = std::stod(run_and_read("pass", "__bd_rl__")) / 1e6;
         res.output        = run_and_read("pass", "__bd_out__");
 
         // Parse the comma-separated per-iteration tok/s list.

@@ -200,6 +200,15 @@ describe('MetricsStrip — rendering logic', () => {
     }}} />);
     expect(screen.queryByText('SESSION TOKENS')).not.toBeInTheDocument();
   });
+
+  it('shows backend routing badge when meta.routing present', () => {
+    render(<MetricsStrip envelope={{ meta: {
+      timings: { programmer: { total_ms: 500, completion_tokens: 30 } },
+      routing: { programmer: { backend: 'llama_metal', reason: 'sequential_apple_silicon' } },
+    }}} />);
+    expect(screen.getByText('llama_metal')).toBeInTheDocument();
+    expect(screen.getByTitle('sequential_apple_silicon')).toBeInTheDocument();
+  });
 });
 
 // ── Orchestration modes — reachability ───────────────────────────────────────

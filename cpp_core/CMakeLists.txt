@@ -105,7 +105,8 @@ if(EXISTS "${PY_INCLUDE}/Python.h" AND EXISTS "${PY_LIB}")
   message(STATUS "Python 3.12 found at ${MLX_PREFIX} — building mlx_generate_probe")
 
   add_library(matrix_mlx_generate_lib STATIC
-    src/mlx_embed_generate.cpp)
+    src/mlx_embed_generate.cpp
+    src/mlx_model_registry.cpp)
 
   target_include_directories(matrix_mlx_generate_lib PUBLIC src "${PY_INCLUDE}")
   target_compile_definitions(matrix_mlx_generate_lib PUBLIC MATRIX_MLX_EMBED=1)
@@ -129,6 +130,15 @@ if(EXISTS "${PY_INCLUDE}/Python.h" AND EXISTS "${PY_LIB}")
   target_link_libraries(mlx_bench_probe PRIVATE matrix_mlx_generate_lib)
   target_compile_definitions(mlx_bench_probe PRIVATE MATRIX_MLX_EMBED=1)
   set_target_properties(mlx_bench_probe PROPERTIES
+    BUILD_RPATH  "${MLX_PREFIX}/lib"
+    INSTALL_RPATH "${MLX_PREFIX}/lib")
+
+  # MS-161 Phase B: model registry probe (load-once + resident reuse).
+  add_executable(mlx_registry_probe
+    ../tests/cpp/mlx_registry_probe.cpp)
+  target_link_libraries(mlx_registry_probe PRIVATE matrix_mlx_generate_lib)
+  target_compile_definitions(mlx_registry_probe PRIVATE MATRIX_MLX_EMBED=1)
+  set_target_properties(mlx_registry_probe PROPERTIES
     BUILD_RPATH  "${MLX_PREFIX}/lib"
     INSTALL_RPATH "${MLX_PREFIX}/lib")
 

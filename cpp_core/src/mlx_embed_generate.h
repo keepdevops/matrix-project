@@ -41,6 +41,8 @@ struct BenchResult {
     std::vector<double> iter_tok_s;            // per-iteration throughput
     int                 n_tokens      = 0;     // tokens per iteration
     double              rss_mb        = 0.0;   // resident set after run (in-process footprint)
+    double              rss_first_mb  = 0.0;   // MS-161 Phase A: peak RSS after iter 0
+    double              rss_last_mb   = 0.0;   // peak RSS after final iter (leak signal)
     bool                deterministic = false; // all iterations produced identical output
     std::string         output;                // last-iteration text (for parity)
     std::string         error;

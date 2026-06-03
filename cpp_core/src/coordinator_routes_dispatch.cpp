@@ -1,5 +1,6 @@
 #include "coordinator_routes_includes.h"
 #include "coordinator_routes_internal.h"
+#include "backend_router.h"
 #include "coordinator_routes_dispatch_prepare.h"
 #include "coordinator_routes_dispatch_meta.h"
 #include "coordinator_routes_dispatch_history.h"
@@ -164,10 +165,17 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
                             rag.rag_block, dreq.rag_agents};
 
             agent_metrics::reset();
+            RoutingContext rctx;
+            rctx.mode_name = mode_name;
+            rctx.sequential_mode = (mode_name == "pipeline" || mode_name == "cascade"
+                                    || mode_name == "router");
+            rctx.kv_pressure = dreq.kv_pressure;
+            backend_router::set_dispatch_context(rctx);
             auto dispatch_t0 = std::chrono::steady_clock::now();
             json envelope;
             try { envelope = mode->run(ctx); }
             catch (const std::exception& e) {
+                backend_router::clear_dispatch_context();
                 session_context::clear();
                 std::cerr << "❌ [mode:" << mode_name << "] " << e.what() << std::endl;
                 res.status = 500;
@@ -182,6 +190,12 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 
             dispatch_meta::stamp_envelope(envelope, dreq, rag, excluded_unhealthy,
                                           qp_target, dispatch_t0, effective_max_select);
+            if (backend_router::enabled()) {
+                auto routing = backend_router::snapshot_decisions();
+                if (!routing.empty())
+                    envelope["meta"]["routing"] = routing;
+            }
+            backend_router::clear_dispatch_context();
             if (gate_meta.value("triggered", false))
                 envelope["meta"]["context_gate"] = gate_meta;
             if (st.supervisor_enabled && !supervisor_meta.is_null())
@@ -247,6 +261,19 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             // Auto KV clear: fire after dispatch if pressure + query divergence threshold met
             if (dreq.kv_pressure > 0.0) {
                 std::lock_guard<std::mutex> lk(st.kv_auto_clear_mutex);
+
+                // Proactive partial evict: bleed off lowest-importance slots at 60% before
+                // hitting the full-clear threshold at 75%. Uses uniform port pressure (scalar).
+                {
+                    std::map<int,double> port_pres;
+                    std::map<int,std::string> port_out;
+                    for (const auto& a : st.agents)
+                        port_pres[a.port] = dreq.kv_pressure;
+                    if (kv_auto_clear::maybe_partial_evict(
+                            st.agents, port_pres, port_out, st.kv_auto_clear_config))
+                        envelope["meta"]["kv_partial_evict"] = true;
+                }
+
                 if (kv_auto_clear::should_clear(
                         st.kv_auto_clear_state, dreq.prompt,
                         dreq.kv_pressure, st.kv_auto_clear_config)) {

@@ -36,7 +36,7 @@ export function computeLayout(roles, selected, roleModels, models) {
 }
 
 export function getProfileRoles(profileId, allRoles, roleContextMap = {}, profileThresholds = {}) {
-  const DEFAULT_THRESHOLDS = { safe: 2048, balanced: 4096 };
+  const DEFAULT_THRESHOLDS = { safe: 1024, balanced: 2048, max: 4096, mixed: 3072 };
   const thresholdEntry = profileThresholds[profileId];
   const maxCtx = thresholdEntry !== undefined
     ? thresholdEntry.max_context

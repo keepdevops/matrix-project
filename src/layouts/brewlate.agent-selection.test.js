@@ -56,13 +56,14 @@ describe('Brewlatte agent selection', () => {
   });
 
   it('Safe preset selects fewer agents than Max when many roles exceed safe context cap', () => {
+    // safe=1024, max=4096 — use 512/2048/8192 to span all three bands
     const ctxMap = Object.fromEntries(
-      ALL_ROLES.map((n, i) => [n, i < 4 ? 2048 : 8192]),
+      ALL_ROLES.map((n, i) => [n, i < 4 ? 512 : i < 12 ? 2048 : 8192]),
     );
     const safe = getProfileRoles(PROFILE_SAFE, ALL_ROLES, ctxMap, {});
-    const max = getProfileRoles(PROFILE_MAX, ALL_ROLES, ctxMap, {});
-    expect(safe.length).toBe(4);
-    expect(max.length).toBe(ALL_ROLES.length);
+    const max  = getProfileRoles(PROFILE_MAX,  ALL_ROLES, ctxMap, {});
+    expect(safe.length).toBe(4);          // only 512-ctx agents pass safe=1024
+    expect(max.length).toBe(12);          // 512+2048 pass max=4096; 8192 excluded
     expect(safe.length).toBeLessThan(max.length);
   });
 

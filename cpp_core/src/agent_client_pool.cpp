@@ -25,10 +25,15 @@ std::string strip_template_leakage(std::string s) {
     return s;
 }
 
-// ── per-port concurrency semaphore ────────────────────────────────────────────
+// ── per-port concurrency + token-budget semaphore ────────────────────────────
 
 struct PortSemaphore {
+    // Request-count gate (max_concurrency; 0 = unlimited)
     int limit = 0, count = 0, waiting = 0;
+    // KV token budget gate (kv_token_budget; 0 = disabled)
+    int token_budget = 0;
+    int tokens_in_flight = 0;
+
     std::mutex mu;
     std::condition_variable cv;
 
@@ -47,15 +52,35 @@ struct PortSemaphore {
         cv.notify_one();
         return waiting > 0;
     }
+
+    // Token-budget gate: block until estimated tokens fit within the budget.
+    // estimated = min(prompt_cap, max_input_tokens) + max_tokens for this agent.
+    void acquire_tokens(int estimated) {
+        if (token_budget <= 0 || estimated <= 0) return;
+        std::unique_lock<std::mutex> lk(mu);
+        cv.wait(lk, [this, estimated] {
+            return tokens_in_flight + estimated <= token_budget;
+        });
+        tokens_in_flight += estimated;
+    }
+    // Release: deduct actual tokens used (from response usage); fall back to estimate.
+    void release_tokens(int actual) {
+        if (token_budget <= 0 || actual <= 0) return;
+        std::lock_guard<std::mutex> lk(mu);
+        tokens_in_flight = std::max(0, tokens_in_flight - actual);
+        cv.notify_all();
+    }
 };
 
 static std::map<int, std::unique_ptr<PortSemaphore>> port_semaphores;
 
 void init_port_concurrency(const std::vector<Agent>& agents) {
     for (const auto& a : agents) {
-        if (a.max_concurrency > 0 && port_semaphores.find(a.port) == port_semaphores.end()) {
+        bool needs_sem = (a.max_concurrency > 0 || a.kv_token_budget > 0);
+        if (needs_sem && port_semaphores.find(a.port) == port_semaphores.end()) {
             auto sem = std::make_unique<PortSemaphore>();
-            sem->limit = a.max_concurrency;
+            sem->limit        = a.max_concurrency;
+            sem->token_budget = a.kv_token_budget;
             port_semaphores[a.port] = std::move(sem);
         }
     }
@@ -70,6 +95,16 @@ bool semaphore_release_has_waiters(int port) {
     auto it = port_semaphores.find(port);
     if (it == port_semaphores.end()) return false;
     return it->second->release_has_waiters();
+}
+
+void semaphore_acquire_tokens(int port, int estimated_tokens) {
+    auto it = port_semaphores.find(port);
+    if (it != port_semaphores.end()) it->second->acquire_tokens(estimated_tokens);
+}
+
+void semaphore_release_tokens(int port, int actual_tokens) {
+    auto it = port_semaphores.find(port);
+    if (it != port_semaphores.end()) it->second->release_tokens(actual_tokens);
 }
 
 // ── HTTP client pool ──────────────────────────────────────────────────────────

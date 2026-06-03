@@ -41,6 +41,29 @@ if [ "${MATRIX_MLX_NATIVE_COORD:-0}" = "1" ]; then
   echo "MLX native coordinator routes ENABLED (MATRIX_MLX_NATIVE_COORD=1)"
 fi
 
+# MS-161 Phase B: opt-in in-process MLX inference (embeds CPython + mlx_lm in the
+# coordinator). Darwin arm64 only. Set MATRIX_MLX_INPROC=1 to enable.
+# mlx_model_registry.cpp embeds Python via PyRun_String — needs libpython only;
+# libmlx is dlopen'd transitively by Python's mlx extension at runtime.
+INPROC_FLAGS=()
+INPROC_INCLUDES=()
+INPROC_SOURCES=()
+INPROC_LIBS=()
+if [ "${MATRIX_MLX_INPROC:-0}" = "1" ]; then
+  MLX_ENV="${MLX_ENV_PREFIX:-$HOME/miniforge3/envs/mlx-env}"
+  PY_INC="$MLX_ENV/include/python3.12"
+  PY_DYLIB="$MLX_ENV/lib/libpython3.12.dylib"
+  if [ ! -f "$PY_INC/Python.h" ] || [ ! -f "$PY_DYLIB" ]; then
+    echo "FATAL: MATRIX_MLX_INPROC=1 but libpython3.12 not found under $MLX_ENV" >&2
+    exit 4
+  fi
+  INPROC_FLAGS+=("-DMATRIX_MLX_INPROC=1" "-DMATRIX_MLX_EMBED=1")
+  INPROC_INCLUDES+=("-I$PY_INC")
+  INPROC_SOURCES+=("$CPP_SRC/mlx_model_registry.cpp")
+  INPROC_LIBS+=("$PY_DYLIB" "-Wl,-rpath,$MLX_ENV/lib")
+  echo "MLX in-process inference ENABLED (MATRIX_MLX_INPROC=1) — linking $PY_DYLIB"
+fi
+
 echo "Building coordinator..."
 # prometheus-cpp (header + core lib) is required for /metrics. Installed via
 # `brew install prometheus-cpp`. Headers at /opt/homebrew/include/prometheus,
@@ -56,7 +79,7 @@ LIBPQ_LIB="$LIBPQ_PREFIX/lib"
 # Compile vendored BLAKE2b as C (header uses extern "C" for C++ callers).
 cc -std=c99 -O2 -c -o "$ROOT/build/blake2b.o" "$CPP_SRC/blake2b.c"
 
-c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" -o "$ROOT/coordinator" \
+c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" "${INPROC_FLAGS[@]}" "${INPROC_INCLUDES[@]}" -o "$ROOT/coordinator" \
    -I"$PROM_INC" -L"$PROM_LIB" \
    -I"$LIBPQ_INC" -L"$LIBPQ_LIB" \
    "$CPP_SRC/coordinator.cpp" \
@@ -100,6 +123,9 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" -o "$ROOT/coordinator" \
    "$CPP_SRC/swarm_config_roster.cpp" \
    "$CPP_SRC/agent_client.cpp" \
    "$CPP_SRC/agent_client_http.cpp" \
+   "$CPP_SRC/inference_backend.cpp" \
+   "$CPP_SRC/inference_backend_http.cpp" \
+   "$CPP_SRC/backend_router.cpp" \
    "$CPP_SRC/agent_client_pool.cpp" \
    "$CPP_SRC/agent_health.cpp" \
    "$CPP_SRC/agent_metrics.cpp" \
@@ -122,8 +148,10 @@ c++ -std=c++17 -O2 "${MLX_FLAGS[@]}" -o "$ROOT/coordinator" \
    "$CPP_SRC/rag_client.cpp" \
    "$CPP_SRC/rag_client_http.cpp" \
    "$ROOT/build/blake2b.o" \
+   "${INPROC_SOURCES[@]}" \
    -I"$CPP_SRC" \
    "${MOD_LINK[@]}" \
+   "${INPROC_LIBS[@]}" \
    -lprometheus-cpp-core \
    -lpq \
    -pthread
@@ -183,6 +211,46 @@ c++ -std=c++17 -O0 -g -o "$ROOT/code_fence_normalize_test" \
   "$CPP_SRC/code_fence_normalize.cpp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/code_fence_normalize_test"
+
+echo "Building test_kv_token_semaphore..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_kv_token_semaphore" \
+  "$ROOT/tests/cpp/test_kv_token_semaphore.cpp" \
+  "$CPP_SRC/agent_client_pool.cpp" \
+  -I"$CPP_SRC" -pthread
+ls -lart "$ROOT/test_kv_token_semaphore"
+
+BACKEND_TEST_SRCS=(
+  "$CPP_SRC/inference_backend.cpp"
+  "$CPP_SRC/backend_router.cpp"
+)
+
+echo "Building test_backend_registry..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_backend_registry" \
+  "$ROOT/tests/cpp/test_backend_registry.cpp" \
+  "${BACKEND_TEST_SRCS[@]}" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_backend_registry"
+
+echo "Building test_backend_selection..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_backend_selection" \
+  "$ROOT/tests/cpp/test_backend_selection.cpp" \
+  "${BACKEND_TEST_SRCS[@]}" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_backend_selection"
+
+echo "Building test_backend_router..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_backend_router" \
+  "$ROOT/tests/cpp/test_backend_router.cpp" \
+  "${BACKEND_TEST_SRCS[@]}" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_backend_router"
+
+echo "Building test_routing_decision_log..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_routing_decision_log" \
+  "$ROOT/tests/cpp/test_routing_decision_log.cpp" \
+  "${BACKEND_TEST_SRCS[@]}" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_routing_decision_log"
 
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
