@@ -1,0 +1,133 @@
+# MS-161 — In-Process MLX Inference: Design
+
+**Epic:** MS-161 (conditional on MS-160) · **Status:** DESIGN — not started
+**Entry gate:** Phase A (OOM root-cause) must pass before any production code
+**Grounded in:** [MS-153](MS-153.md) (+107% single-stream), [MS-160](MS-160-concurrency-scope.md) (concurrency is GPU-bound; intermittent OOM)
+
+## Context
+
+MLX agents currently run as separate `mlx_lm.server` processes; the coordinator
+reaches them over HTTP via `call_agent()` (`cpp_core/src/agent_client.cpp:35`)
+and `stream_agent()` (`cpp_core/src/agent_stream.cpp`). MS-153 showed that doing
+the same generation **in-process** (CPython + libmlx embedded in the coordinator)
+is **+107% faster** single-stream — it removes the HTTP round-trip and
+`mlx_lm.server`'s per-token overhead.
+
+MS-160 then measured the catch: on a single GPU, **concurrency gives no
+throughput benefit** (aggregate plateaus ~1.0–1.2× regardless of N; per-stream
+collapses 111→14 tok/s at N=8), and concurrent command-buffer submission
+triggered an **intermittent Metal OOM**. So the in-process win is a
+**per-request latency + memory** advantage for *sequential* inference — not a
+concurrent-throughput multiplier.
+
+**This design captures that win without inheriting the concurrency risk:**
+serialize all in-process GPU work through one lane (free, since there's no
+concurrency to lose) and keep flat-mode fan-out on HTTP (whose process isolation
+*is* its parallelism). Memory favors in-process structurally — weights are
+resident once (~2.3 GB), each stream adds only ~20–30 MB.
+
+## Non-goals
+
+- Concurrent in-process throughput scaling (MS-160: not achievable on one GPU).
+- Replacing the HTTP path for flat-mode fan-out (keep it — isolation is a feature).
+- Linux/CUDA (Darwin arm64 + Metal only, like the rest of the embed work).
+
+## Architecture
+
+### 1. `MlxModelRegistry` — resident models, one copy each
+
+```
+class MlxModelRegistry {
+  // agent_name → ResidentModel{ PyObject* model, PyObject* tok, last_used }
+  ResidentModel& get_or_load(const Agent& agent);   // load-on-first-use
+  int  evict_idle(int max_idle_secs);               // LRU, mirrors MlxSessionStore
+  json snapshot() const;                            // for /api/mlx/pressure
+};
+MlxModelRegistry& mlx_models();   // process singleton, like mlx_sessions()
+```
+
+- Reuse the eviction/LRU shape already proven in `MlxSessionStore`
+  (`cpp_core/src/mlx_session_store.{h,cpp}`).
+- One resident copy per distinct model path — shared across agents that use it.
+- Loads hold the GIL (model load is itself a Python call); guarded by the lane below.
+
+### 2. `MlxGpuLane` — single serialized submission lane
+
+```
+class MlxGpuLane {
+  // All in-process generate()/stream calls pass through here.
+  std::string run(const Agent&, const std::string& prompt, OnChunk, session_id);
+ private:
+  std::mutex lane_mu_;   // one generate() in flight per process
+};
+```
+
+- One `std::mutex` gates every in-process MLX dispatch. Serialization is **free**
+  (MS-160: no concurrent throughput) and **eliminates the OOM class** (the
+  intermittent OOM was concurrent submission to a near-full Metal heap).
+- Inside the lane: `PyGILState_Ensure` → `mlx_lm.generate()` (reuse the proven
+  `generate_via_python` / `stream_mlx` machinery from `mlx_embed_generate.cpp`)
+  → `PyGILState_Release`.
+- Token streaming reuses the existing `agent_stream::OnChunk` callback contract,
+  so the SSE path (`coordinator_routes_mlx.cpp` stream handler) is unchanged
+  above the dispatch line.
+
+### 3. Dispatch routing — where in-process is chosen
+
+The dispatch chokepoints are already `call_agent()` and `stream_agent()`. Add a
+routing predicate keyed on **agent config**, not call site:
+
+- `swarm-config.json`: MLX agents gain `"dispatch": "inproc" | "http"`
+  (default `"http"` — opt-in, zero behavior change when unset).
+- `call_agent`/`stream_agent`: if `agent.engine == "mlx"` and
+  `agent.dispatch == "inproc"` → `MlxGpuLane::run(...)`; else existing HTTP path.
+- **Per-agent routing avoids the double-model-copy problem**: a model is resident
+  either in the coordinator (inproc) or in `mlx_lm.server` (http), never both.
+  Operators tag latency-critical / sequential agents `inproc`; flat-mode workers
+  stay `http`.
+
+This is the clean resolution of the Option-1-vs-2 question from MS-160: it's
+config-driven hybrid, with the safe default being today's behavior.
+
+## Build / deploy cost (the real price — call it out)
+
+Enabling `inproc` links **libpython3.12 + libmlx into the production
+`coordinator` binary** (today it links neither — confirmed in
+`scripts/build_cpp_binaries.sh`). This is the significant cost:
+
+- Coordinator gains a runtime dependency on the conda `mlx-env` (libpython, libmlx).
+- Darwin arm64 only; the Linux/llama/vLLM coordinator build is unaffected.
+- Gated behind a build flag `MATRIX_MLX_INPROC` (off by default) so the standard
+  coordinator build is byte-for-byte unchanged. The CMake embed machinery
+  (`cpp_core/CMakeLists.txt`) already resolves libpython+libmlx and patches rpath
+  — reuse it.
+
+## Phasing (Phase A is the gate)
+
+| Phase | Work | Exit criterion |
+|-------|------|----------------|
+| **A — OOM gate** | Extend `mlx_bench_probe`: 500+ sequential generates, model resident, log RSS over time + watch for OOM/leak. Root-cause the MS-160 OOM. | Zero OOM over sustained run; RSS flat (no leak). **If this fails, stop — in-process is too fragile.** |
+| **B — single-agent submit** | `MlxModelRegistry` + `MlxGpuLane`; wire `inproc` routing into `/api/mlx/submit` only, behind `MATRIX_MLX_INPROC`. | submit on an `inproc` agent returns correct result; HTTP default unchanged; `pytest tests/mlx_coordinator` green. |
+| **C — sequential modes** | Extend routing to pipeline + cascade-synthesizer (sequential stages); stream path through the lane. | pipeline/cascade on `inproc` agents stream correctly; flat-mode still HTTP. |
+| **D — ship gate** | Soak (1h), sanitizer clean, docs, `/api/mlx/pressure` shows registry snapshot. | all `tests/mlx_coordinator` green + soak clean. |
+
+Estimated ~10–15 pts (B+C+D), **not** the ~50 the original MS-161 placeholder
+carried — concurrency scaling (the bulk of that estimate) is off the table.
+
+## Verification
+
+- **Phase A:** `bash scripts/build_mlx_embed.sh && ./build/mlx_embed/mlx_bench_probe <model> 80 500`
+  — watch RSS column for growth, confirm no OOM.
+- **Phase B+:** `MATRIX_MLX_INPROC=1 bash scripts/build_cpp_binaries.sh`, run coordinator,
+  tag a test agent `"dispatch":"inproc"`, drive `/api/mlx/submit`, compare output +
+  latency vs the same agent on `http`. `pytest tests/mlx_coordinator/test_mlx_native_routes.py`.
+- **Regression guard:** default build (no flag) must produce an identical
+  coordinator binary and pass the full suite — in-process is strictly opt-in.
+
+## Open questions for whoever picks this up
+
+1. Is the +107% single-stream latency win worth a libpython/libmlx dependency in
+   the production coordinator? (If most MLX use is flat-mode, maybe not.)
+2. Phase A OOM root-cause: is it a Metal heap-pressure artifact (serialization
+   fixes it, as designed) or a deeper MLX/thread issue? Phase A answers this
+   before any production code is written.
