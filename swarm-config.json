@@ -2,8 +2,15 @@
   "agents": [
     {
       "context": 1024,
+      "ctx_cap": 6144,
       "description": "Designs system architecture, module boundaries, and technical roadmaps",
       "engine": "llama",
+      "extra_args": [
+        "--cache-type-k",
+        "q4_0",
+        "--cache-type-v",
+        "q8_0"
+      ],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1536,
@@ -15,19 +22,19 @@
       "system_prompt": "You are the Lead Architect. Output ASCII UML diagrams, component relationships, and architecture decisions. Be precise and visual.",
       "tags": [
         "planning"
-      ],
+      ]
+    },
+    {
+      "context": 1024,
+      "ctx_cap": 6144,
+      "description": "Designs schemas, queries, and data layer patterns",
+      "engine": "llama",
       "extra_args": [
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
         "q8_0"
       ],
-      "ctx_cap": 6144
-    },
-    {
-      "context": 1024,
-      "description": "Designs schemas, queries, and data layer patterns",
-      "engine": "llama",
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -39,19 +46,19 @@
       "system_prompt": "You are the Database Engineer. Design schemas, indexes, queries, and migrations for the given architecture. Output: ER diagram, DDL in code blocks, indexing strategy, query examples, migration plan.",
       "tags": [
         "data"
-      ],
+      ]
+    },
+    {
+      "context": 1024,
+      "ctx_cap": 6144,
+      "description": "Finds and fixes bugs, traces errors, and isolates root causes",
+      "engine": "llama",
       "extra_args": [
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
         "q8_0"
       ],
-      "ctx_cap": 6144
-    },
-    {
-      "context": 1024,
-      "description": "Finds and fixes bugs, traces errors, and isolates root causes",
-      "engine": "llama",
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -63,19 +70,13 @@
       "system_prompt": "You are the Debug Specialist. Perform root cause analysis on bugs and failures. Diagnose error propagation and provide targeted fixes with code.",
       "tags": [
         "coding"
-      ],
-      "extra_args": [
-        "--cache-type-k",
-        "q4_0",
-        "--cache-type-v",
-        "q8_0"
-      ],
-      "ctx_cap": 6144
+      ]
     },
     {
       "context": 2048,
       "description": "Routes tasks to the right specialists and coordinates the swarm",
       "engine": "llama",
+      "extra_args": [],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -84,16 +85,22 @@
       "port": 8082,
       "read_timeout_secs": 120,
       "server_group": "llama8b",
-      "system_prompt": "You are the Engineering Foreman. Plan and route \u2014 never write code.\n\nAvailable roles: architect, debugger, programmer, security, optimizer, reviewer, tester, scout, database, frontend, synthesis.\n\nGiven the task: (1) list the 3\u20135 highest-priority steps in order; (2) for each step, name the single best role; (3) flag blockers or missing information.\n\nEnd with EXACTLY one line:\nSELECTED: <comma-separated role names, priority order, max 3>",
+      "system_prompt": "You are the Engineering Foreman. Plan and route — never write code.\n\nAvailable roles: architect, debugger, programmer, security, optimizer, reviewer, tester, scout, database, frontend, synthesis.\n\nGiven the task: (1) list the 3–5 highest-priority steps in order; (2) for each step, name the single best role; (3) flag blockers or missing information.\n\nEnd with EXACTLY one line:\nSELECTED: <comma-separated role names, priority order, max 3>",
       "tags": [
         "planning"
-      ],
-      "extra_args": []
+      ]
     },
     {
       "context": 1024,
+      "ctx_cap": 6144,
       "description": "Implements UI components, layouts, and client-side logic",
       "engine": "llama",
+      "extra_args": [
+        "--cache-type-k",
+        "q4_0",
+        "--cache-type-v",
+        "q8_0"
+      ],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -105,20 +112,14 @@
       "system_prompt": "You are the Senior Frontend Engineer. Implement React/TypeScript UIs. Output: component hierarchy, complete production-ready component code, styling approach, accessibility notes, backend integration notes.",
       "tags": [
         "coding"
-      ],
-      "extra_args": [
-        "--cache-type-k",
-        "q4_0",
-        "--cache-type-v",
-        "q8_0"
-      ],
-      "ctx_cap": 6144
+      ]
     },
     {
       "context": 4096,
       "coordinator": "mlx",
       "description": "Lightweight MLX Llama-1B for fast summarization and question decomposition",
       "engine": "mlx",
+      "extra_args": [],
       "max_concurrency": 1,
       "max_tokens": 1024,
       "model": "/Users/Shared/llama/models/mlx/MLX/Llama-3.2-1B-Instruct-4bit",
@@ -129,13 +130,19 @@
       "system_prompt": "You are a concise technical assistant. Summarize information clearly and identify the key question or task being asked. Be brief and direct.",
       "tags": [
         "synthesis"
-      ],
-      "extra_args": []
+      ]
     },
     {
       "context": 1024,
+      "ctx_cap": 6144,
       "description": "Profiles and improves performance, complexity, and resource usage",
       "engine": "llama",
+      "extra_args": [
+        "--cache-type-k",
+        "q4_0",
+        "--cache-type-v",
+        "q8_0"
+      ],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -147,19 +154,19 @@
       "system_prompt": "You are the Performance Optimizer. Identify bottlenecks and propose concrete fixes. Output: priority table (Critical/High/Medium/Low), before/after comparisons, optimized code snippets.",
       "tags": [
         "coding"
-      ],
+      ]
+    },
+    {
+      "context": 1024,
+      "ctx_cap": 6144,
+      "description": "Writes complete, production-ready implementation code",
+      "engine": "llama",
       "extra_args": [
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
         "q8_0"
       ],
-      "ctx_cap": 6144
-    },
-    {
-      "context": 1024,
-      "description": "Writes complete, production-ready implementation code",
-      "engine": "llama",
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 2048,
@@ -168,22 +175,16 @@
       "port": 8081,
       "read_timeout_secs": 930,
       "server_group": "gemma26b",
-      "system_prompt": "You are an expert programmer. Always respond with:\n\n1. Brief reasoning and explanation in normal text (outside any code block).\n2. Exactly one primary code block unless the user explicitly asks for multiple files.\n\nUse this format:\n```<language>\n// filename=path/to/file.ext  (optional but recommended)\n<code here>\n```\n\n- Language tag must match the requested language (python, cpp, rust, typescript, javascript, shell, etc.).\n- Put ALL executable code inside the fence.\n- Do not add extra fences or code outside the block.\n- Use clear variable names, comments, and error handling.\n- If multiple files are needed, use one fence with filename comments or multiple fences with filename= on the info line.\n\nDeliver complete, runnable, production-quality code \u2014 no stubs, no TODOs, no ellipses.",
+      "system_prompt": "You are an expert programmer. Always respond with:\n\n1. Brief reasoning and explanation in normal text (outside any code block).\n2. Exactly one primary code block unless the user explicitly asks for multiple files.\n\nUse this format:\n```<language>\n// filename=path/to/file.ext  (optional but recommended)\n<code here>\n```\n\n- Language tag must match the requested language (python, cpp, rust, typescript, javascript, shell, etc.).\n- Put ALL executable code inside the fence.\n- Do not add extra fences or code outside the block.\n- Use clear variable names, comments, and error handling.\n- If multiple files are needed, use one fence with filename comments or multiple fences with filename= on the info line.\n\nDeliver complete, runnable, production-quality code — no stubs, no TODOs, no ellipses.",
       "tags": [
         "coding"
-      ],
-      "extra_args": [
-        "--cache-type-k",
-        "q4_0",
-        "--cache-type-v",
-        "q8_0"
-      ],
-      "ctx_cap": 6144
+      ]
     },
     {
       "context": 4096,
       "description": "Reviews code for correctness, style, and maintainability",
       "engine": "llama",
+      "extra_args": [],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -195,13 +196,13 @@
       "system_prompt": "You are a strict code reviewer. Only return SHIP or REWRITE.",
       "tags": [
         "review"
-      ],
-      "extra_args": []
+      ]
     },
     {
       "context": 2048,
       "description": "Researches options, gathers context, and summarises findings",
       "engine": "llama",
+      "extra_args": [],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -213,13 +214,19 @@
       "system_prompt": "You are the Research Scout. Find best practices, tools, risks, and emerging trends for the current task. Output: Key Findings, Recommendations, Risks, Alternatives.",
       "tags": [
         "synthesis"
-      ],
-      "extra_args": []
+      ]
     },
     {
       "context": 1024,
+      "ctx_cap": 6144,
       "description": "Identifies vulnerabilities and hardens code against attacks",
       "engine": "llama",
+      "extra_args": [
+        "--cache-type-k",
+        "q4_0",
+        "--cache-type-v",
+        "q8_0"
+      ],
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1024,
@@ -231,19 +238,19 @@
       "system_prompt": "You are the Security Specialist. Audit for OWASP Top 10, auth flaws, injection, and data exposure. Output: overall risk score, findings by severity (Critical/High/Medium/Low) each with description, impact, and remediation code.",
       "tags": [
         "review"
-      ],
+      ]
+    },
+    {
+      "context": 1024,
+      "ctx_cap": 6144,
+      "description": "Merges multiple agent outputs into a single coherent response",
+      "engine": "llama",
       "extra_args": [
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
         "q8_0"
       ],
-      "ctx_cap": 6144
-    },
-    {
-      "context": 1024,
-      "description": "Merges multiple agent outputs into a single coherent response",
-      "engine": "llama",
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 2048,
@@ -255,19 +262,19 @@
       "system_prompt": "You are the Master Synthesizer. Reconcile all agent outputs into one production-ready deliverable. Resolve conflicts, fill gaps. Output: summary, architecture overview, complete code, deployment notes, production readiness checklist.",
       "tags": [
         "synthesis"
-      ],
+      ]
+    },
+    {
+      "context": 1024,
+      "ctx_cap": 6144,
+      "description": "Writes and evaluates tests, verifies correctness and edge cases",
+      "engine": "llama",
       "extra_args": [
         "--cache-type-k",
         "q4_0",
         "--cache-type-v",
         "q8_0"
       ],
-      "ctx_cap": 6144
-    },
-    {
-      "context": 1024,
-      "description": "Writes and evaluates tests, verifies correctness and edge cases",
-      "engine": "llama",
       "flash_attn": true,
       "gpu_layers": 99,
       "max_tokens": 1088,
@@ -279,14 +286,7 @@
       "system_prompt": "You are the QA Engineer. Write comprehensive test plans and actual test code. Output: Unit, Integration, and E2E sections each with working test examples and edge cases.",
       "tags": [
         "review"
-      ],
-      "extra_args": [
-        "--cache-type-k",
-        "q4_0",
-        "--cache-type-v",
-        "q8_0"
-      ],
-      "ctx_cap": 6144
+      ]
     }
   ],
   "coordinator": {
