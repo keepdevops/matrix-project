@@ -19,10 +19,11 @@ PATTERNS = [
     ("llama_server", "llama_server"),
     ("mlx_lm", "mlx_lm"),
     ("mlx-lm", "mlx-lm"),
-    ("orchestration.mlx_coordinator", "mlx-coordinator"),
+    # orchestration.mlx_coordinator removed — decommissioned in MS-144
 ]
 
-PORTS = [3000, 3002, 3003, 8000, 8001]
+# Port 3003 removed — Python MLX coordinator decommissioned in MS-144
+PORTS = [3000, 3002, 8000, 8001]
 
 LAUNCHD_PLIST = Path.home() / "Library/LaunchAgents/com.caribou.swarm-dashboard.plist"
 DISABLED_PLIST = """<?xml version="1.0" encoding="UTF-8"?>

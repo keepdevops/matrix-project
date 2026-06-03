@@ -67,8 +67,8 @@ it with Matrix Swarm for parallel planning + deep execution.
                                 └──────────────┬──────────┘
                                                │ MLX agents
                                 ┌──────────────▼──────────┐
-                                │  MLX coordinator (Py)   │
-                                │  :3003  · serialised    │
+                                │  C++ coordinator :3002  │
+                                │  /api/mlx/* · native    │
                                 └─────────────────────────┘
 ```
 
@@ -92,8 +92,8 @@ it with Matrix Swarm for parallel planning + deep execution.
   - **LLAMA** — `llama-server` from llama.cpp; loads `.gguf` files; uses
     `--parallel N` so same-model agents share one process. Supports KV-cache clear.
   - **MLX** — `mlx_lm.server` (Apple Silicon / Metal); loads model directories;
-    typically faster per-token on M-series. Routes through a dedicated Python
-    coordinator on `:3003` with per-server request serialisation and session caps.
+    typically faster per-token on M-series. Handled natively by the C++ coordinator
+    on `:3002` (`/api/mlx/*`); per-port serialisation and session management in C++.
   - **vLLM** — 4 servers via Docker Model Runner on ports 8080–8083
     (Qwen2.5-14B, Llama-3.2-3B, DeepSeek-Coder-V2, Phi-4-mini).
 - **Per-agent model override** — point any agent at any model file/dir from the
@@ -168,7 +168,7 @@ it with Matrix Swarm for parallel planning + deep execution.
 - **Python ≥ 3.10** — `brewctl`, orchestration layer, MLX coordinator, and RAG pipeline.
 - **C++17 toolchain (clang)** — `xcode-select --install` builds `coordinator` and `proxy`.
 - **For LLAMA**: `llama-server` from llama.cpp on `PATH`.
-- **For MLX**: `pip install mlx-lm` (Apple Silicon only). The Python MLX coordinator runs on `:3003` and handles all MLX inference with per-server serialisation.
+- **For MLX**: `pip install mlx-lm` (Apple Silicon only). MLX routes are handled natively by the C++ coordinator — no separate Python process required.
 - **For vLLM**: Docker Desktop with Model Runner enabled (GPU-accelerated containers on ports 8080–8083).
 - **For RAG**: Docker Desktop for the pgvector container (`docker compose -f docker/pgvector/docker-compose.yml up -d`).
 - **GGUF / MLX model files on disk.** Agent profiles reference models via `${MATRIX_MODEL_DIR}/...` (defaults to `/Users/Shared/llama/models` via `scripts/matrix-env.sh`). Override with `export MATRIX_MODEL_DIR=/your/path`, or set per-agent in the UI.
@@ -187,7 +187,7 @@ source scripts/matrix-env.sh
 # 3. Pre-flight check (ports, binaries, models)
 python3 scripts/brewctl check
 
-# 4. Launch — starts proxy (:3002), React UI (:3000), and MLX coordinator (:3003) if MLX agents are configured
+# 4. Launch — starts proxy (:3002) and React UI (:3000)
 python3 scripts/brewctl launch
 
 # 5. Open http://localhost:3000
@@ -200,8 +200,8 @@ python3 scripts/brewctl shutdown
 
 The coordinator listens on `:8000` once **LAUNCH SWARM** has been clicked in
 the UI. The proxy on `:3002` fronts both the coordinator API and the
-inference servers. The MLX coordinator runs separately on `:3003` when MLX
-agents are deployed.
+inference servers. MLX agents are served natively by the C++ coordinator
+at `:3002/api/mlx` — no separate Python process required.
 
 ## Standalone swarm-config editor
 
@@ -316,7 +316,7 @@ backends/           Python InferenceBackend ABC + per-engine adapters
                     (llama_cpp, mlx, vllm)
 orchestration/      Python control plane
   ├─ manager.py     SwarmFactory: loads config/agents/*.json (Pydantic)
-  ├─ mlx_coordinator/  Python MLX coordinator (port 3003) — serialised MLX
+  ├─ mlx_coordinator/  Python MLX coordinator (DEPRECATED — use C++ native /api/mlx/* on :3002)
   │                    inference, session management, service helpers
   ├─ modes/         Plugin modes: flat/pipeline/cascade/router +
   │                 speculative/map_reduce/critic_debate/tree_of_thought
@@ -349,7 +349,7 @@ production/         Optional nginx UI (not required for dev)
 # Pre-flight: verify ports, binaries, and models
 python3 scripts/brewctl check
 
-# Start proxy (:3002), React UI (:3000), and MLX coordinator (:3003)
+# Start proxy (:3002) and React UI (:3000)
 python3 scripts/brewctl launch
 
 # Stop everything
