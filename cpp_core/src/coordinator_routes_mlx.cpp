@@ -66,6 +66,31 @@ std::string trim(std::string s) {
     return s;
 }
 
+// MS-68 Phase 2b: resolve whether an agent runs in-process for this build.
+//   "inproc" → always in-process.
+//   "auto"   → in-process when the agent is MLX-eligible (this is an embed
+//              build, so the lane is available); otherwise HTTP.
+//   "http"/other → HTTP.
+// In a non-embed build the call sites are compiled out, so everything is HTTP.
+#ifdef MATRIX_MLX_INPROC
+bool resolve_inproc(const Agent& agent) {
+    if (agent.dispatch == "inproc") return true;
+    if (agent.dispatch == "auto")
+        return agent.engine == "mlx" && !agent.model.empty();
+    return false;
+}
+#endif
+
+// Routing decision string for observability (works in every build).
+std::string dispatch_route(const Agent& agent) {
+#ifdef MATRIX_MLX_INPROC
+    return resolve_inproc(agent) ? "inproc" : "http";
+#else
+    (void)agent;
+    return "http";
+#endif
+}
+
 }  // namespace
 
 void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st) {
@@ -100,8 +125,8 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         for (const auto& agent : mlx_agents) {
             futures.push_back(std::async(std::launch::async, [agent, prompt]() -> std::string {
 #ifdef MATRIX_MLX_INPROC
-                // MS-161: in-process dispatch — registry lane serializes GPU access.
-                if (agent.dispatch == "inproc") {
+                // MS-161/MS-68 2b: in-process dispatch (inproc or resolved auto).
+                if (resolve_inproc(agent)) {
                     const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
                     auto r = model_mem::ModelRegistry::instance().generate(agent, prompt, mt);
                     return r.ok ? r.text : ("[inproc error] " + r.error);
@@ -181,15 +206,17 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             std::map<std::string, std::string> outputs;
 
             auto run_one = [&](const Agent& agent) {
-                emit("agent_start", {{"agent_id", agent.name}});
+                // MS-68 2b: surface the resolved routing decision (inproc|http).
+                emit("agent_start", {{"agent_id", agent.name},
+                                     {"dispatch", dispatch_route(agent)}});
                 std::string agent_out;
                 try {
                     auto on_tok = [&](const std::string& delta) {
                         emit("token", {{"text", delta}, {"agent_id", agent.name}});
                     };
 #ifdef MATRIX_MLX_INPROC
-                    // MS-161 Phase C: stream in-process for inproc agents.
-                    if (agent.dispatch == "inproc") {
+                    // MS-161 Phase C / MS-68 2b: stream in-process (inproc or auto).
+                    if (resolve_inproc(agent)) {
                         const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
                         auto sr = model_mem::ModelRegistry::instance().generate_stream(agent, prompt, mt, on_tok);
                         agent_out = sr.ok ? sr.text : ("[inproc error] " + sr.error);
@@ -257,8 +284,8 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                 };
                 try {
 #ifdef MATRIX_MLX_INPROC
-                    // MS-161 Phase C: synthesizer step uses inproc lane when tagged.
-                    if (synth_agent.dispatch == "inproc") {
+                    // MS-161 Phase C / MS-68 2b: synthesizer step in-process (inproc or auto).
+                    if (resolve_inproc(synth_agent)) {
                         const int mt = synth_agent.max_tokens > 0 ? synth_agent.max_tokens : 512;
                         auto sr = model_mem::ModelRegistry::instance().generate_stream(
                             synth_agent, synth_prompt, mt, synth_on_tok);
