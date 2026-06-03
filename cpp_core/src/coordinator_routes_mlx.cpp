@@ -282,6 +282,12 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             if (!body.is_object()) throw std::runtime_error("expected JSON object");
         } catch (const std::exception&) { err(res, 400, "invalid JSON"); return; }
 
+        // session_id must be a string; non-string type (e.g. integer) → 400
+        if (body.contains("session_id") && !body["session_id"].is_string()
+                                       && !body["session_id"].is_null()) {
+            err(res, 400, "'session_id' must be a string");
+            return;
+        }
         const std::string session_id = trim(body.value("session_id", std::string("")));
         cors(res);
         if (!session_id.empty()) {
