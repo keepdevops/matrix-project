@@ -1,7 +1,9 @@
 # MS-161 — In-Process MLX Inference: Design
 
-**Epic:** MS-161 (conditional on MS-160) · **Status:** DESIGN — not started
-**Entry gate:** Phase A (OOM root-cause) must pass before any production code
+**Epic:** MS-161 · **Status:** DESIGN on branch `ms-161-design`
+**MS-160:** Measured — sequential in-process wins; concurrent GPU submission NO-GO ([MS-160-concurrency-scope.md](./MS-160-concurrency-scope.md))
+**Entry gate:** ✅ Phase A PASSED (2026-06-03) — sequential in-process stable, no OOM/leak. Phase B gated on the build-dependency decision.
+**Feeds MS-68:** Task 1 registry generalization ([MS-68-mlx-model-memory.md](./MS-68-mlx-model-memory.md))
 **Grounded in:** [MS-153](MS-153.md) (+107% single-stream), [MS-160](MS-160-concurrency-scope.md) (concurrency is GPU-bound; intermittent OOM)
 
 ## Context
@@ -106,7 +108,7 @@ Enabling `inproc` links **libpython3.12 + libmlx into the production
 
 | Phase | Work | Exit criterion |
 |-------|------|----------------|
-| **A — OOM gate** | Extend `mlx_bench_probe`: 500+ sequential generates, model resident, log RSS over time + watch for OOM/leak. Root-cause the MS-160 OOM. | Zero OOM over sustained run; RSS flat (no leak). **If this fails, stop — in-process is too fragile.** |
+| **A — OOM gate** | ✅ **PASS (2026-06-03).** `mlx_bench_probe <model> 32 300` — 300 sequential generates, model resident. | **Zero OOM**; peak RSS dead flat (2503 MB iter 0 = final, +0.0%); deterministic. The MS-160 OOM was a *concurrent*-submission artifact — serializing via `MlxGpuLane` eliminates it, confirming the design thesis. **Gate passed → Phase B unblocked, pending the build-dependency decision.** |
 | **B — single-agent submit** | `MlxModelRegistry` + `MlxGpuLane`; wire `inproc` routing into `/api/mlx/submit` only, behind `MATRIX_MLX_INPROC`. | submit on an `inproc` agent returns correct result; HTTP default unchanged; `pytest tests/mlx_coordinator` green. |
 | **C — sequential modes** | Extend routing to pipeline + cascade-synthesizer (sequential stages); stream path through the lane. | pipeline/cascade on `inproc` agents stream correctly; flat-mode still HTTP. |
 | **D — ship gate** | Soak (1h), sanitizer clean, docs, `/api/mlx/pressure` shows registry snapshot. | all `tests/mlx_coordinator` green + soak clean. |

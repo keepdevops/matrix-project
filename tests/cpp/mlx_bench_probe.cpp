@@ -57,10 +57,15 @@ int main(int argc, char** argv) {
     }
 
     std::cout << std::fixed << std::setprecision(1);
-    std::cout << "\n── Per-iteration tok/s ──────────────────────────────\n";
-    for (size_t i = 0; i < r.iter_tok_s.size(); ++i) {
-        std::cout << "  iter " << i << (i == 0 ? " (cold)" : "       ")
-                  << " : " << r.iter_tok_s[i] << " tok/s\n";
+    if (r.iter_tok_s.size() <= 20) {
+        std::cout << "\n── Per-iteration tok/s ──────────────────────────────\n";
+        for (size_t i = 0; i < r.iter_tok_s.size(); ++i) {
+            std::cout << "  iter " << i << (i == 0 ? " (cold)" : "       ")
+                      << " : " << r.iter_tok_s[i] << " tok/s\n";
+        }
+    } else {
+        std::cout << "\n── Soak run: " << r.iter_tok_s.size()
+                  << " iterations (per-iter lines suppressed) ──\n";
     }
 
     const double cold   = r.cold();
@@ -72,6 +77,23 @@ int main(int argc, char** argv) {
     std::cout << "  steady-state      : " << steady << " tok/s (median of warm tail)\n";
     std::cout << "  RSS (model loaded): " << r.rss_mb << " MB\n";
     std::cout << "  deterministic     : " << (r.deterministic ? "yes" : "NO") << "\n";
+
+    // MS-161 Phase A: OOM-soak gate — peak-RSS leak check across the run.
+    const double rss_growth = r.rss_last_mb - r.rss_first_mb;
+    const double rss_growth_pct = r.rss_first_mb > 0 ? rss_growth / r.rss_first_mb * 100.0 : 0.0;
+    std::cout << "\n── Phase A: OOM-soak leak check ─────────────────────\n";
+    std::cout << "  peak RSS @ iter 0 : " << r.rss_first_mb << " MB\n";
+    std::cout << "  peak RSS @ final  : " << r.rss_last_mb  << " MB\n";
+    std::cout << "  growth            : " << std::showpos << rss_growth << " MB ("
+              << rss_growth_pct << "%)" << std::noshowpos << "\n";
+    const bool no_oom = r.ok;  // ok == all iterations completed without crash
+    const bool flat   = rss_growth_pct < 10.0;  // <10% peak growth = no leak
+    std::cout << "  completed no OOM  : " << (no_oom ? "yes" : "NO") << "\n";
+    std::cout << "  RSS flat (<10%)   : " << (flat ? "yes" : "NO") << "\n";
+    std::cout << "  Phase A gate      : "
+              << ((no_oom && flat) ? "PASS — sequential in-process is stable"
+                                   : "FAIL — investigate before MS-161 Phase B")
+              << "\n";
 
     std::cout << "\n── vs HTTP baseline (" << HTTP_BASELINE_TOK_S << " tok/s, warm) ──\n";
     auto pct = [](double v) { return (v - HTTP_BASELINE_TOK_S) / HTTP_BASELINE_TOK_S * 100.0; };
