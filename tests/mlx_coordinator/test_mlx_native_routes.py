@@ -195,17 +195,29 @@ def test_mlx_stream_returns_event_stream_content_type(coord):
 
 
 def test_mlx_stream_x_session_id_header_present(coord):
-    resp, _ = _stream_body(coord, prompt="hello")
+    # Check the response header only — no need to consume the full body.
+    # X-Session-Id is set before the chunked SSE content starts.
+    resp = requests.post(f"{coord}/api/mlx/stream", json={"prompt": "hello"},
+                         stream=True, timeout=15)
     if resp.status_code in (501, 503):
+        resp.close()
         pytest.skip("stub or no MLX agents")
-    assert resp.headers.get("X-Session-Id"), "X-Session-Id header missing"
+    header = resp.headers.get("X-Session-Id", "")
+    resp.close()
+    assert header, "X-Session-Id header missing"
 
 
 def test_mlx_stream_session_id_echoed(coord):
-    resp, _ = _stream_body(coord, prompt="hi", session_id="echo-me-42")
+    # Check the response header only — no need to consume the full body.
+    resp = requests.post(f"{coord}/api/mlx/stream",
+                         json={"prompt": "hi", "session_id": "echo-me-42"},
+                         stream=True, timeout=15)
     if resp.status_code in (501, 503):
+        resp.close()
         pytest.skip("stub or no MLX agents")
-    assert resp.headers.get("X-Session-Id") == "echo-me-42"
+    header = resp.headers.get("X-Session-Id", "")
+    resp.close()
+    assert header == "echo-me-42", f"expected 'echo-me-42', got {header!r}"
 
 
 def test_mlx_stream_emits_token_event(coord):
