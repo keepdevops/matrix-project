@@ -14,6 +14,7 @@ struct Agent {
     std::string backend;
     std::string engine; // "llama" (default), "mlx", or "docker"
     std::string model;  // model ID — sent in request body for docker/vllm
+    std::string dispatch = "http"; // MS-161: "http" (default) or "inproc" (MLX in-process)
 
     // Speculative decoding config (llama-server only). The coordinator does
     // not act on these directly — they are recorded so the launch script can
@@ -43,4 +44,8 @@ struct Agent {
     /// 0 = disabled (default). Set via coordinator.json kv_token_budget or
     /// agents[].kv_token_budget in swarm-config.
     int kv_token_budget = 0;
+
+    /// Inference backend override: "" (legacy), "auto", "llama_metal", "python_mlx".
+    /// Opt-in routing (MATRIX_BACKEND_ROUTING) applies in sequential modes only.
+    std::string inference_backend;
 };

@@ -50,10 +50,16 @@ PortBuildResult proxy_configure_build_port_groups(nlohmann::json agents) {
         };
 
         if (!key_to_port.count(key)) {
-            if (bk == "docker") key_to_port[key] = PROXY_CONFIGURE_DOCKER_PORT;
-            else if (bk == "docker-vllm" || bk == "mlx" || bk == "vllm")
-                key_to_port[key] = pick_port(fixed_port);
-            else {
+            if (bk == "docker") {
+                key_to_port[key] = PROXY_CONFIGURE_DOCKER_PORT;
+            } else if (fixed_port > 0) {
+                // Explicit port in swarm config wins unconditionally for all backends.
+                // Covers pre-running servers (llama/mlx/vllm) already bound to a port,
+                // and lets operators pin servers to specific ports across restarts.
+                key_to_port[key] = fixed_port;
+            } else if (bk == "docker-vllm" || bk == "mlx" || bk == "vllm") {
+                key_to_port[key] = pick_port(-1);
+            } else {
                 while (fixed_ports.count(next_port) || !ports_assign::is_port_available(next_port)) ++next_port;
                 key_to_port[key] = next_port++;
             }

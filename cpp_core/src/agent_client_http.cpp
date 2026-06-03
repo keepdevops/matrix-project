@@ -1,7 +1,9 @@
 #include "agent_client_http.h"
 #include "agent_client_pool.h"
 #include "agent_metrics.h"
+#include "backend_router.h"
 #include "httplib.h"
+#include "inference_backend.h"
 #include "json.hpp"
 #include "kv_router.h"
 #include "mlx_inflight.h"
@@ -106,6 +108,8 @@ AttemptResult call_agent_once(const Agent& agent,
                 out.ok = true;
                 double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
                 agent_metrics::record(agent.name, ms, ctoks, ptoks);
+                BackendId bid = agent.engine == "mlx" ? BackendId::PythonMlx : BackendId::LlamaMetal;
+                backend_router::record_probe_sample(bid, ms);
                 token_ledger::add(session_context::current(), ptoks, ctoks);
             } else {
                 out.retryable = true;

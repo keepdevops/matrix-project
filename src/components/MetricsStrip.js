@@ -57,11 +57,17 @@ export default function MetricsStrip({ envelope }) {
       <div className="metrics-strip-rows">
         {rows.map(r => {
           const pct = totalAgentMs > 0 ? (r.total_ms / totalAgentMs) * 100 : 0;
+          const route = meta.routing?.[r.name];
           return (
             <div key={r.name} className="metrics-strip-row">
               <span className="metrics-strip-name">{r.name}</span>
               <span className="metrics-strip-ms">{((r.total_ms || 0) / 1000).toFixed(2)}s</span>
               <span className="metrics-strip-tokens">{r.completion_tokens || 0} tok</span>
+              {route && (
+                <span className="metrics-strip-route" title={route.reason || ''}>
+                  {route.backend}
+                </span>
+              )}
               <div className="metrics-strip-bar">
                 <div className="metrics-strip-bar-fill" style={{ width: `${pct.toFixed(1)}%` }} />
               </div>

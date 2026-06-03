@@ -11,6 +11,7 @@
     brewctl rag sources         List ingested sources (path, chunk count, latest).
     brewctl rag delete <path>   Remove all chunks for one source_path.
     brewctl rag health          Probe pgvector connectivity.
+    brewctl agents              Show agent engines + inference_backend overrides.
 
 check/launch/shutdown are implemented natively in orchestration/lifecycle/.
 The legacy matrix-{1,2,3}-*.sh scripts are still present but deprecated.
@@ -19,8 +20,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
+import os
 import sys
+import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -118,11 +122,32 @@ async def _health(store: PgVectorStore) -> int:
         return 1
 
 
+def _show_agents() -> int:
+    port = os.environ.get("MATRIX_COORDINATOR_PORT", "3002")
+    url = f"http://127.0.0.1:{port}/api/agents"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            agents = json.loads(resp.read().decode())
+    except Exception as exc:
+        logger.error("GET %s failed: %s", url, exc)
+        return 1
+    if not agents:
+        print("(no agents)")
+        return 0
+    print(f"{'NAME':<16} {'ENGINE':<8} {'BACKEND':<10} {'INFERENCE':<14} PORT")
+    for a in agents:
+        print(f"{a.get('name','?'):<16} {a.get('engine','?'):<8} "
+              f"{a.get('backend',''):<10} {a.get('inference_backend','(legacy)'):<14} "
+              f"{a.get('port','?')}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="brewctl")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("check", help="Show running llama-server processes")
+    sub.add_parser("agents", help="List coordinator agents and backend overrides")
     sub.add_parser("launch", help="Start proxy + UI only")
     sub.add_parser("shutdown", help="Stop UI, proxy, coordinator, workers")
 
@@ -161,6 +186,8 @@ def main() -> int:
 
     if args.cmd == "check":
         return run_check()
+    if args.cmd == "agents":
+        return _show_agents()
     if args.cmd == "launch":
         return run_launch()
     if args.cmd == "shutdown":

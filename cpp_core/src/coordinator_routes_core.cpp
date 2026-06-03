@@ -19,6 +19,7 @@ void register_coordinator_routes_core(httplib::Server& svr, CoordinatorState& st
             if (!a.model.empty())       obj["model"]       = a.model;
             if (!a.draft_model.empty()) obj["draft_model"] = a.draft_model;
             if (a.draft_max > 0)        obj["draft_max"]   = a.draft_max;
+            if (!a.inference_backend.empty()) obj["inference_backend"] = a.inference_backend;
             list.push_back(obj);
         }
         res.set_content(list.dump(), "application/json");

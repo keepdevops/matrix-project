@@ -1,6 +1,8 @@
 #include "agent_client.h"
 #include "agent_client_http.h"
 #include "agent_health.h"
+#include "backend_router.h"
+#include "inference_backend.h"
 #include "mlx_inflight.h"
 #include "response_cache.h"
 #include "utf8_sanitize.h"
@@ -31,14 +33,36 @@ static std::string call_agent_impl(const Agent& agent,
     if (auto cached = response_cache::lookup(agent, system_prompt, prompt)) {
         return *cached;
     }
+    const RoutingDecision routing = backend_router::resolve(agent);
+    Agent work = backend_router::materialize(agent, routing);
+    if (backend_router::should_route(agent))
+        backend_router::record_decision(agent.name, routing);
+
     std::unique_ptr<mlx_inflight::Scope> mlx_pressure;
-    if (agent.engine == "mlx")
-        mlx_pressure = std::make_unique<mlx_inflight::Scope>(agent.port);
-    semaphore_acquire(agent.port);
+    if (work.engine == "mlx")
+        mlx_pressure = std::make_unique<mlx_inflight::Scope>(work.port);
+    semaphore_acquire(work.port);
 
     AttemptResult attempt;
+    auto dispatch_once = [&](const Agent& a, BackendId id) {
+        return inference_backend::complete(id, a, system_prompt, prompt, session_id);
+    };
     for (int i = 0; i < RETRY_ATTEMPTS; ++i) {
-        attempt = call_agent_once(agent, system_prompt, prompt, session_id);
+        attempt = dispatch_once(work, routing.backend);
+        if (!attempt.ok && attempt.retryable && backend_router::should_route(agent)) {
+            BackendId alt = routing.backend == BackendId::LlamaMetal
+                ? BackendId::PythonMlx : BackendId::LlamaMetal;
+            if (inference_backend::supports(agent, alt)) {
+                AttemptResult fb = dispatch_once(backend_router::materialize(agent,
+                    backend_router::make_decision(alt, "load_failure_fallback", true)),
+                    alt);
+                if (fb.ok || !fb.retryable) {
+                    backend_router::record_decision(agent.name,
+                        backend_router::make_decision(alt, "load_failure_fallback", true));
+                    attempt = fb;
+                }
+            }
+        }
         if (attempt.ok || !attempt.retryable) break;
         if (i + 1 < RETRY_ATTEMPTS) {
             std::cerr << "🔁 [retry] " << agent.name << " transient failure; "
@@ -54,8 +78,8 @@ static std::string call_agent_impl(const Agent& agent,
     } else if (attempt.ok) {
         response_cache::store(agent, system_prompt, prompt, result);
     }
-    const bool had_waiters = semaphore_release_has_waiters(agent.port);
-    if (agent.engine == "mlx" && had_waiters)
+    const bool had_waiters = semaphore_release_has_waiters(work.port);
+    if (work.engine == "mlx" && had_waiters)
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     agent_health::record(agent.name, attempt.ok);
     return result;

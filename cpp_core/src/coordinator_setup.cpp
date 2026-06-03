@@ -1,5 +1,6 @@
 #include "coordinator_setup.h"
 #include "coordinator_setup_wire.h"
+#include "backend_router.h"
 #include "config/coordinator_config_validate.h"
 #include "config/http_url_parse.h"
 #include "config/swarm_config_dir_load.h"
@@ -88,4 +89,5 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
             state.distillation_quality_threshold = d.value("quality_threshold", 0.6);
         }
     }
+    backend_router::configure_from_startup(config);
 }
