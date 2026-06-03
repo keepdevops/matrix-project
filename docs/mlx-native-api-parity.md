@@ -22,8 +22,8 @@
 | GET | `/api/mlx/modes` | `handle_modes` | `register_coordinator_routes_mlx` | ✅ MS-137 |
 | POST | `/api/mlx/modes/active` | `handle_set_mode` | `register_coordinator_routes_mlx` | ✅ MS-137 |
 | POST | `/api/mlx/session/clear` | `handle_session_clear` | `register_coordinator_routes_mlx` | ✅ MS-140 |
-| POST | `/api/orchestrate` | `handle_orchestrate` | `proxy_routes_orchestrate` → `:3003` | ❌ MS-142 |
-| POST | `/api/orchestrate/stream` | `handle_orchestrate_stream` | `proxy_routes_orchestrate` → `:3003` | ❌ MS-142 |
+| POST | `/api/orchestrate` | `handle_orchestrate` | `proxy_routes_orchestrate` → sidecar `:3003` | ✅ MS-142 |
+| POST | `/api/orchestrate/stream` | `handle_orchestrate_stream` | `proxy_routes_orchestrate` → sidecar `:3003` | ✅ MS-142 |
 
 **URL bases (post MS-143):**
 
@@ -258,22 +258,23 @@ C++ must expose equivalent fields: `name`, `port`, `engine`, `model`, `system_pr
 
 **Decision: Option A — minimal Python sidecar for `/api/orchestrate*` only.**
 
-The Python `orchestration.mlx_coordinator.service_orchestrate` process continues
-to handle `POST /api/orchestrate` and `POST /api/orchestrate/stream`. No MLX
-chat traffic (`/api/mlx/*`) reaches Python after MS-143.
+`orchestration/mlx_coordinator/sidecar.py` — a lean aiohttp process started by
+`brewctl launch` — serves only `POST /api/orchestrate` and
+`POST /api/orchestrate/stream`. No `/api/mlx/*` traffic reaches Python.
+Port: `ORCH_SIDECAR_PORT` (default **3003**); proxy forwards via `g_env.python_coord_port`.
 
 Rationale:
 - `map_reduce`, `speculative`, `critic_debate`, `tree_of_thought` use complex
   async Python orchestration (chunking, multi-agent fan-out, scratchpad) that
   has no C++ equivalent in MVP scope.
-- The sidecar stays wired at the **proxy** level, not `:3003` — it becomes an
-  internal subprocess of the proxy process (MS-144).
-- Full C++ orchestrate modes are deferred to **MS-170** (post-ship).
+- Sidecar has no `mlx.core` dependency — works on any engine (llama/mlx share
+  the OpenAI `/v1/chat/completions` HTTP API).
+- Full C++ orchestrate modes deferred to **MS-170** (post-ship).
 
-Traffic routing after MS-143 / MS-144:
-- `/api/mlx/*`       → C++ coordinator `:3002` (native, no Python)
-- `/api/orchestrate*` → proxy → Python sidecar (in-process, no `:3003` port)
-- `/api/architect*`  → C++ coordinator `:3002` (unchanged)
+Traffic routing after MS-142 / MS-143 / MS-144:
+- `/api/mlx/*`        → C++ coordinator `:3002` (native, no Python)
+- `/api/orchestrate*` → C++ proxy → Python sidecar `:3003` (`ORCH_SIDECAR_PORT`)
+- `/api/architect*`   → C++ coordinator `:3002` (unchanged)
 
 ## 6.1 Mode mapping (Python → C++)
 

@@ -144,17 +144,29 @@ def run_launch() -> int:
             print("FATAL: react-scripts patch failed — run npm install")
             return 3
 
-    # MS-144: Python mlx-coordinator (:3003) decommissioned.
-    # /api/mlx/* is now served by the C++ coordinator at :3002 (MATRIX_MLX_NATIVE_COORD=1).
-    # Clean up any stale :3003 process from a previous installation.
-    stale_mlx = lsof_pids_on_port(3003)
+    # MS-144: Python mlx-coordinator (:3003) decommissioned for /api/mlx/*.
+    # MS-142: thin orchestrate sidecar still needed for /api/orchestrate*.
+    # Kill any stale :3003 process before starting the fresh sidecar.
+    orch_port = int(env.get("ORCH_SIDECAR_PORT", "3003"))
+    stale_mlx = lsof_pids_on_port(orch_port)
     if stale_mlx:
-        print("Stopping stale legacy MLX coordinator on :3003 ...")
+        print(f"Stopping stale process on :{orch_port} ...")
         survivors = kill_pids(stale_mlx)
         if survivors:
-            logger.warning("stale :3003 pids still alive: %s", survivors)
+            logger.warning("stale :%d pids still alive: %s", orch_port, survivors)
         else:
             time.sleep(0.3)
+
+    python = shutil.which("python3") or shutil.which("python") or "python3"
+    print(f"Starting orchestrate sidecar (:{orch_port}) ...")
+    sidecar_pid = _spawn(
+        [python, "-m", "orchestration.mlx_coordinator.sidecar", "--port", str(orch_port)],
+        logs / "orch_sidecar.log",
+        env,
+    )
+    with pid_file.open("a") as f:
+        f.write(f"{sidecar_pid}\n")
+    time.sleep(0.5)  # give sidecar time to bind before proxy starts forwarding
 
     print("Starting UI (npm start) ...")
     npm = shutil.which("npm") or "npm"
