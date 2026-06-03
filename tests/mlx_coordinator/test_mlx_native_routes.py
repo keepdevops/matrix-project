@@ -375,7 +375,7 @@ def test_mlx_health_overall_ok_matches_backends(coord):
 
 
 def test_mlx_pressure_shape(coord):
-    """GET /api/mlx/pressure returns {inflight: dict, sessions: int}."""
+    """GET /api/mlx/pressure returns {inflight: dict, sessions: list}."""
     resp = requests.get(f"{coord}/api/mlx/pressure", timeout=5)
     if resp.status_code == 501:
         pytest.skip("pressure still a stub")
@@ -384,8 +384,8 @@ def test_mlx_pressure_shape(coord):
     assert "inflight" in body, f"'inflight' missing: {body}"
     assert "sessions" in body, f"'sessions' missing: {body}"
     assert isinstance(body["inflight"], dict)
-    assert isinstance(body["sessions"], int)
-    assert body["sessions"] >= 0
+    # sessions is a snapshot list after MS-138 (parity with Python handle_pressure)
+    assert isinstance(body["sessions"], list)
 
 
 def test_mlx_pressure_inflight_values_are_non_negative(coord):
@@ -413,8 +413,36 @@ def test_mlx_pressure_stub_501(coord):
         pytest.skip(f"pressure is implemented (status {resp.status_code})")
 
 
+# ---------------------------------------------------------------------------
+# MS-139: GET /api/mlx/agents live contract tests
+# ---------------------------------------------------------------------------
+
+def test_mlx_agents_returns_dict(coord):
+    """GET /api/mlx/agents → 200, dict keyed by agent name."""
+    resp = requests.get(f"{coord}/api/mlx/agents", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("agents still a stub")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body, dict), f"expected dict, got {type(body)}: {body}"
+
+
+def test_mlx_agents_entries_have_required_keys(coord):
+    """Each agent entry has port, engine, model."""
+    resp = requests.get(f"{coord}/api/mlx/agents", timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("agents still a stub")
+    for name, entry in resp.json().items():
+        for key in ("port", "engine", "model"):
+            assert key in entry, f"agent {name!r} missing {key!r}: {entry}"
+        assert entry["engine"] == "mlx", f"non-MLX agent in response: {name}"
+
+
 def test_mlx_agents_stub_501(coord):
-    """GET /api/mlx/agents → 501 (MS-139)."""
+    """GET /api/mlx/agents → 501 when MS-139 not yet implemented."""
+    resp = requests.get(f"{coord}/api/mlx/agents", timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"agents is implemented (status {resp.status_code})")
     _expect_501(coord, "GET", "/api/mlx/agents")
 
 
@@ -422,8 +450,63 @@ def test_mlx_agents_stub_501(coord):
 # the MS-137 section above with auto-skip guards.
 
 
+# ---------------------------------------------------------------------------
+# MS-140: POST /api/mlx/session/clear live contract tests
+# ---------------------------------------------------------------------------
+
+def test_mlx_session_clear_specific(coord):
+    """POST /api/mlx/session/clear {session_id} → {cleared: [sid]} or {cleared: []}."""
+    # seed a session
+    requests.post(f"{coord}/api/mlx/submit",
+                  json={"prompt": "hi", "session_id": "ms140-seed"}, timeout=10)
+    resp = requests.post(f"{coord}/api/mlx/session/clear",
+                         json={"session_id": "ms140-seed"}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("session/clear still a stub")
+    if resp.status_code == 503:
+        pytest.skip("no MLX agents; submit couldn't seed a session")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "cleared" in body, f"'cleared' key missing: {body}"
+    assert isinstance(body["cleared"], list)
+
+
+def test_mlx_session_clear_all(coord):
+    """POST /api/mlx/session/clear {} → {cleared_count: N}."""
+    resp = requests.post(f"{coord}/api/mlx/session/clear", json={}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("session/clear still a stub")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "cleared_count" in body, f"'cleared_count' key missing: {body}"
+    assert isinstance(body["cleared_count"], int)
+    assert body["cleared_count"] >= 0
+
+
+def test_mlx_session_clear_unknown_returns_empty(coord):
+    """Clearing a non-existent session returns cleared: []."""
+    resp = requests.post(f"{coord}/api/mlx/session/clear",
+                         json={"session_id": "nonexistent-xyz"}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("session/clear still a stub")
+    assert resp.status_code == 200
+    assert resp.json().get("cleared") == []
+
+
+def test_mlx_session_clear_bad_json_returns_400(coord):
+    """POST /api/mlx/session/clear with bad JSON → 400."""
+    resp = requests.post(f"{coord}/api/mlx/session/clear", data="bad",
+                         headers={"Content-Type": "application/json"}, timeout=5)
+    if resp.status_code == 501:
+        pytest.skip("session/clear still a stub")
+    assert resp.status_code == 400
+
+
 def test_mlx_session_clear_stub_501(coord):
-    """POST /api/mlx/session/clear → 501 (MS-140)."""
+    """POST /api/mlx/session/clear → 501 when MS-140 not yet implemented."""
+    resp = requests.post(f"{coord}/api/mlx/session/clear", json={}, timeout=5)
+    if resp.status_code != 501:
+        pytest.skip(f"session/clear is implemented (status {resp.status_code})")
     _expect_501(coord, "POST", "/api/mlx/session/clear")
 
 

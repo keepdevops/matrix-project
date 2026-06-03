@@ -226,9 +226,23 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             "application/json");
     });
 
-    // ── GET /api/mlx/agents — loaded agent list (MS-139) ─────────────────────
-    svr.Get("/api/mlx/agents", [](const httplib::Request&, httplib::Response& res) {
-        stub_501(res, "GET /api/mlx/agents", "MS-139");
+    // ── GET /api/mlx/agents — MLX agent roster (MS-139) ─────────────────────
+    svr.Get("/api/mlx/agents", [&st](const httplib::Request&, httplib::Response& res) {
+        // Return {agent_name: {port, engine, model, system_prompt}} — parity with Python
+        json agents = json::object();
+        for (const auto& a : st.agents) {
+            if (a.engine != "mlx") continue;
+            agents[a.name] = {
+                {"port",          a.port},
+                {"engine",        a.engine},
+                {"model",         a.model},
+                {"system_prompt", a.system_prompt},
+                {"context",       a.context_window},
+                {"max_tokens",    a.max_tokens},
+            };
+        }
+        cors(res);
+        res.set_content(agents.dump(), "application/json");
     });
 
     // ── GET /api/mlx/modes — supported modes + active (MS-137) ───────────────
@@ -260,8 +274,26 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
     });
 
     // ── POST /api/mlx/session/clear — explicit session flush (MS-140) ────────
-    svr.Post("/api/mlx/session/clear", [](const httplib::Request&, httplib::Response& res) {
-        stub_501(res, "POST /api/mlx/session/clear", "MS-140");
+    svr.Post("/api/mlx/session/clear", [](const httplib::Request& req,
+                                          httplib::Response& res) {
+        json body;
+        try {
+            body = json::parse(req.body);
+            if (!body.is_object()) throw std::runtime_error("expected JSON object");
+        } catch (const std::exception&) { err(res, 400, "invalid JSON"); return; }
+
+        const std::string session_id = trim(body.value("session_id", std::string("")));
+        cors(res);
+        if (!session_id.empty()) {
+            const bool cleared = mlx_sessions().clear(session_id);
+            res.set_content(
+                json{{"cleared", cleared ? json::array({session_id})
+                                         : json::array()}}.dump(),
+                "application/json");
+        } else {
+            const int count = mlx_sessions().clear_all();
+            res.set_content(json{{"cleared_count", count}}.dump(), "application/json");
+        }
     });
 }
 
