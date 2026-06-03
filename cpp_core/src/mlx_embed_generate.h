@@ -60,6 +60,36 @@ BenchResult benchmark_via_python(
     int                iterations  = 5,
     const std::string& python_home = "");
 
+// MS-160: concurrency efficiency. Load model once, then run `n_threads`
+// generate() calls simultaneously through the shared interpreter, each thread
+// managing its own GIL via PyGILState_Ensure/Release. Concurrency only
+// materialises if mlx_lm.generate() releases the GIL during Metal compute —
+// the efficiency figure (aggregate ÷ n×single) quantifies exactly that.
+struct ConcurrencyResult {
+    bool                ok              = false;
+    int                 n_threads       = 0;
+    double              load_ms         = 0.0;
+    std::vector<double> per_stream_tok_s;          // each thread's throughput
+    double              aggregate_tok_s = 0.0;     // Σ per-stream
+    double              wall_ms         = 0.0;     // wall time of the concurrent batch
+    int                 n_tokens        = 0;       // tokens generated per stream
+    double              rss_mb          = 0.0;
+    std::string         error;
+
+    double per_stream_p50() const;
+    double per_stream_p95() const;
+};
+
+// Run one concurrency level. Warm the model first (single throwaway generate)
+// for fair steady-state numbers — caller sweeps n_threads = 1,2,4,8 and
+// computes efficiency(N) = aggregate(N) ÷ (N × aggregate(1)).
+ConcurrencyResult concurrency_benchmark(
+    const std::string& model_path,
+    const std::string& prompt,
+    int                max_tokens  = 80,
+    int                n_threads   = 4,
+    const std::string& python_home = "");
+
 } // namespace mlx_embed
 
 #endif // MATRIX_MLX_EMBED

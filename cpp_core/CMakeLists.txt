@@ -131,6 +131,15 @@ if(EXISTS "${PY_INCLUDE}/Python.h" AND EXISTS "${PY_LIB}")
   set_target_properties(mlx_bench_probe PROPERTIES
     BUILD_RPATH  "${MLX_PREFIX}/lib"
     INSTALL_RPATH "${MLX_PREFIX}/lib")
+
+  # MS-160: concurrency efficiency probe (GIL under multi-agent load).
+  add_executable(mlx_concurrency_probe
+    ../tests/cpp/mlx_concurrency_probe.cpp)
+  target_link_libraries(mlx_concurrency_probe PRIVATE matrix_mlx_generate_lib)
+  target_compile_definitions(mlx_concurrency_probe PRIVATE MATRIX_MLX_EMBED=1)
+  set_target_properties(mlx_concurrency_probe PROPERTIES
+    BUILD_RPATH  "${MLX_PREFIX}/lib"
+    INSTALL_RPATH "${MLX_PREFIX}/lib")
 else()
   message(WARNING
     "Python 3.12 not found at ${MLX_PREFIX} — skipping mlx_generate_probe. "

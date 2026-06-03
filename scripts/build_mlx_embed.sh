@@ -76,7 +76,7 @@ cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.logicalcpu)"
 # wrong (older) copy wins.  Patch the probe binaries to use the absolute path
 # of the site-packages copy which matches the mlx/core Python extension.
 SITEPKG_LIB="$MLX_PREFIX/lib/python3.12/site-packages/mlx/lib/libmlx.dylib"
-for BIN in "$BUILD_DIR/mlx_embed_probe" "$BUILD_DIR/mlx_generate_probe" "$BUILD_DIR/mlx_bench_probe"; do
+for BIN in "$BUILD_DIR/mlx_embed_probe" "$BUILD_DIR/mlx_generate_probe" "$BUILD_DIR/mlx_bench_probe" "$BUILD_DIR/mlx_concurrency_probe"; do
   if [[ -f "$BIN" ]]; then
     install_name_tool -change @rpath/libmlx.dylib "$SITEPKG_LIB" "$BIN" 2>/dev/null || true
     echo "patched rpath in $(basename $BIN)"
