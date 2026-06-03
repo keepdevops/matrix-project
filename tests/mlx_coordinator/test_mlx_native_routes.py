@@ -315,7 +315,15 @@ def test_mlx_pipeline_stream_emits_ordered_events(coord):
 
 
 def test_mlx_cascade_stream_emits_synthesis_start(coord):
-    """MS-137: cascade mode emits synthesis_start before synthesizer tokens."""
+    """MS-137: cascade mode emits synthesis_start before synthesizer tokens.
+
+    Single-agent cascade degrades to flat (no synthesizer), so this test
+    requires ≥2 MLX agents in the roster — skips otherwise.
+    """
+    agents_resp = requests.get(f"{coord}/api/mlx/agents", timeout=5)
+    if agents_resp.status_code != 200 or len(agents_resp.json()) < 2:
+        pytest.skip("cascade synthesizer needs ≥2 MLX agents; degrades to flat otherwise")
+
     _set_mode(coord, "cascade")
     resp, body = _stream_body(coord, prompt="cascade synthesis test")
     _set_mode(coord, "flat")
