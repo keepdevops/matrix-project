@@ -2,8 +2,8 @@ import { getModeMemoryWeight } from '../utils/modeManifest';
 import { buildRiskGroups, scoreGroups, mlxModelRam, modelWeightRam } from './SwarmConfig.risk.helpers';
 
 export const RAM_TOTAL_GB    = 36;  // fallback when host total unavailable
-export const RAM_MODEL_GB    = 17;
-export const RAM_OS_GB       = 4;
+export const RAM_MODEL_GB    = 17;  // 26B Q4_K_M ~16.2 GB; 17 is conservative
+export const RAM_OS_GB       = 9;   // measured: ~7.2 GB wired + ~2.5 GB coord/proxy/UI/chrome
 export const RAM_BLOCK_RATIO = 0.92; // >92% total → high risk
 export const RAM_WARN_RATIO  = 0.78; // >78% total → medium risk
 // Derived fallback constants for callers that need absolute GB values

@@ -225,30 +225,40 @@ describe('getProfileRoles', () => {
     debugger: 8192,
   };
 
-  it('safe profile filters to context <= 2048', () => {
+  it('safe profile filters to context <= 1024', () => {
+    // Default safe threshold lowered to 1024 (M3 Max 36 GB memory tuning)
     const result = getProfileRoles(PROFILE_SAFE, allRoles, ctxMap, {});
-    expect(result).toContain('programmer');
+    expect(result).toContain('reviewer');       // 1024 <= 1024
+    expect(result).toContain('foreman');        // 512  <= 1024
+    expect(result).not.toContain('programmer'); // 2048 > 1024
+    expect(result).not.toContain('architect');  // 4096 > 1024
+    expect(result).not.toContain('debugger');   // 8192 > 1024
+  });
+
+  it('balanced profile filters to context <= 2048', () => {
+    // Default balanced threshold lowered to 2048
+    const result = getProfileRoles(PROFILE_BALANCED, allRoles, ctxMap, {});
+    expect(result).toContain('programmer');     // 2048 <= 2048
     expect(result).toContain('reviewer');
     expect(result).toContain('foreman');
     expect(result).not.toContain('architect');  // 4096 > 2048
     expect(result).not.toContain('debugger');   // 8192 > 2048
   });
 
-  it('balanced profile filters to context <= 4096', () => {
-    const result = getProfileRoles(PROFILE_BALANCED, allRoles, ctxMap, {});
+  it('max profile filters to context <= 4096', () => {
+    // Default max threshold now 4096 (was null); debugger exceeds it
+    const result = getProfileRoles(PROFILE_MAX, allRoles, ctxMap, {});
     expect(result).toContain('architect');      // exactly 4096
     expect(result).toContain('programmer');
     expect(result).not.toContain('debugger');   // 8192 > 4096
   });
 
-  it('max profile returns all roles', () => {
-    const result = getProfileRoles(PROFILE_MAX, allRoles, ctxMap, {});
-    expect(result).toEqual(allRoles);
-  });
-
-  it('mixed profile returns all roles', () => {
+  it('mixed profile filters to context <= 3072', () => {
+    // Default mixed threshold now 3072 (was null)
     const result = getProfileRoles(PROFILE_MIXED, allRoles, ctxMap, {});
-    expect(result).toEqual(allRoles);
+    expect(result).toContain('programmer');     // 2048 <= 3072
+    expect(result).not.toContain('architect');  // 4096 > 3072
+    expect(result).not.toContain('debugger');   // 8192 > 3072
   });
 
   it('respects custom profileThresholds from config', () => {

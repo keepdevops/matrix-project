@@ -2,13 +2,13 @@ import { qualityPassContextPolicy } from './qualityPassContext';
 
 describe('qualityPassContextPolicy', () => {
   it('raises context budget for cascade and router', () => {
-    expect(qualityPassContextPolicy('pipeline').max_context_chars).toBe(30000);
-    expect(qualityPassContextPolicy('cascade').max_context_chars).toBe(34000);
-    expect(qualityPassContextPolicy('router').max_context_chars).toBe(34000);
+    expect(qualityPassContextPolicy('pipeline').max_context_chars).toBe(4500);
+    expect(qualityPassContextPolicy('cascade').max_context_chars).toBe(5500);
+    expect(qualityPassContextPolicy('router').max_context_chars).toBe(5500);
   });
 
   it('uses intermediate budget for flat', () => {
-    expect(qualityPassContextPolicy('flat').max_context_chars).toBe(32000);
+    expect(qualityPassContextPolicy('flat').max_context_chars).toBe(5000);
   });
 
   it('keeps programmer as refinement target', () => {
@@ -38,7 +38,7 @@ test('include always contains original_prompt', () => {
 test('unknown mode does not throw and returns a valid policy', () => {
   expect(() => qualityPassContextPolicy('unknown')).not.toThrow();
   const policy = qualityPassContextPolicy('unknown');
-  expect(policy.max_context_chars).toBe(30000);
+  expect(policy.max_context_chars).toBe(4500);
   expect(policy.target_agent).toBe('programmer');
 });
 
