@@ -12,17 +12,69 @@
       "port": 8082,
       "read_timeout_secs": 510,
       "server_group": "gemma26b",
-      "system_prompt": "You are the Lead Architect.",
-      "description": "Designs system architecture",
-      "tags": ["planning"]
+      "system_prompt": "You are the Lead Architect. Output ASCII UML diagrams, component relationships, and architecture decisions. Be precise and visual.",
+      "description": "Designs system architecture, module boundaries, and technical roadmaps",
+      "tags": [
+        "planning"
+      ]
+    },
+    {
+      "name": "mlx-scout",
+      "engine": "mlx",
+      "coordinator": "mlx",
+      "model": "/Users/Shared/llama/models/mlx/MLX/Llama-3.2-1B-Instruct-4bit",
+      "port": 8083,
+      "server_group": "mlx-scout",
+      "context": 4096,
+      "max_tokens": 1024,
+      "max_concurrency": 1,
+      "read_timeout_secs": 120,
+      "description": "Lightweight MLX Llama-1B for fast summarization and question decomposition",
+      "tags": [
+        "synthesis"
+      ],
+      "system_prompt": "You are a concise technical assistant. Summarize information clearly and identify the key question or task being asked. Be brief and direct.",
+      "quant": "4bit",
+      "dispatch": "http",
+      "use_flash_attention": false,
+      "inference_backend": "auto"
     }
   ],
   "coordinator": {
     "default_mode": "router",
-    "modes": { "router": { "max_select": 5 } },
+    "modes": {
+      "router": {
+        "max_select": 5
+      }
+    },
     "port": 8000,
-    "rss": { "enabled": false, "max_items": 50 }
+    "profiles": {
+      "safe": {
+        "max_context": 1024
+      },
+      "balanced": {
+        "max_context": 2048
+      },
+      "max": {
+        "max_context": 4096
+      },
+      "mixed": {
+        "max_context": 3072
+      }
+    },
+    "_memory_note": "Capped from null — 36 GB M3 Max, llama np=1. null was killing server via OOM.",
+    "rss": {
+      "enabled": false,
+      "max_items": 50
+    }
   },
-  "ui": { "port": 3000 },
-  "rag": { "enabled": true, "top_k": 3, "min_score": 0.0, "embedder": "mlx" }
+  "ui": {
+    "port": 3000
+  },
+  "rag": {
+    "enabled": true,
+    "top_k": 3,
+    "min_score": 0.0,
+    "embedder": "mlx"
+  }
 }
