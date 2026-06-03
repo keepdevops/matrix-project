@@ -254,15 +254,26 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                     synthesis_budget::build_stream_synthesis_prompt(
                         prompt, contributors, &synth_agent);
                 std::string synth_out;
+                auto synth_on_tok = [&](const std::string& delta) {
+                    emit("token", {{"text", delta}, {"agent_id", synth_name}});
+                };
                 try {
-                    std::lock_guard<std::mutex> port_lk(
-                        mlx_coordinator::port_mutex(synth_agent.port));
-                    synth_out = agent_stream::stream_agent(
-                        synth_agent, synth_agent.system_prompt, synth_prompt,
-                        [&](const std::string& delta) {
-                            emit("token", {{"text", delta}, {"agent_id", synth_name}});
-                        },
-                        nullptr, session_id);
+#ifdef MATRIX_MLX_INPROC
+                    // MS-161 Phase C: synthesizer step uses inproc lane when tagged.
+                    if (synth_agent.dispatch == "inproc") {
+                        const int mt = synth_agent.max_tokens > 0 ? synth_agent.max_tokens : 512;
+                        auto sr = mlx_inproc::mlx_models().generate_stream(
+                            synth_agent, synth_prompt, mt, synth_on_tok);
+                        synth_out = sr.ok ? sr.text : ("[inproc error] " + sr.error);
+                    } else
+#endif
+                    {
+                        std::lock_guard<std::mutex> port_lk(
+                            mlx_coordinator::port_mutex(synth_agent.port));
+                        synth_out = agent_stream::stream_agent(
+                            synth_agent, synth_agent.system_prompt, synth_prompt,
+                            synth_on_tok, nullptr, session_id);
+                    }
                 } catch (const std::exception& e) {
                     emit("error", {{"error", e.what()}, {"agent_id", synth_name}});
                 }
