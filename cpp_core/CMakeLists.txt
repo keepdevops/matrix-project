@@ -34,8 +34,21 @@ endif()
 
 message(STATUS "MLX_PREFIX = ${MLX_PREFIX}")
 
-set(MLX_INCLUDE "${MLX_PREFIX}/include")
-set(MLX_LIB     "${MLX_PREFIX}/lib/libmlx.dylib")
+# Prefer site-packages copies of headers + dylib over the top-level ones.
+# The Python extension mlx/core.so and site-packages/mlx/lib/libmlx.dylib are
+# compiled together and must match; the top-level include/ + lib/ may differ.
+set(MLX_SITEPKG "${MLX_PREFIX}/lib/python3.12/site-packages/mlx")
+if(EXISTS "${MLX_SITEPKG}/include/mlx/mlx.h"
+   AND EXISTS "${MLX_SITEPKG}/lib/libmlx.dylib")
+  set(MLX_INCLUDE "${MLX_SITEPKG}/include")
+  set(MLX_LIB     "${MLX_SITEPKG}/lib/libmlx.dylib")
+  message(STATUS "Using site-packages MLX headers+lib (version-matched)")
+else()
+  set(MLX_INCLUDE "${MLX_PREFIX}/include")
+  set(MLX_LIB     "${MLX_PREFIX}/lib/libmlx.dylib")
+  message(STATUS "Using top-level MLX headers+lib")
+endif()
+message(STATUS "MLX_LIB = ${MLX_LIB}")
 
 if(NOT EXISTS "${MLX_INCLUDE}/mlx/mlx.h")
   message(FATAL_ERROR
@@ -71,17 +84,48 @@ target_link_libraries(matrix_mlx_embed_lib PUBLIC
   "${ACCEL_FW}"
   "${FOUNDATION_FW}")
 
-# ── Probe binary ─────────────────────────────────────────────────────────────
+# ── Probe binary (MS-151) ────────────────────────────────────────────────────
 add_executable(mlx_embed_probe
   ../tests/cpp/mlx_embed_probe.cpp)
 
 target_link_libraries(mlx_embed_probe PRIVATE matrix_mlx_embed_lib)
 target_compile_definitions(mlx_embed_probe PRIVATE MATRIX_MLX_EMBED=1)
 
-# Set rpath so the binary finds libmlx.dylib at runtime
 set_target_properties(mlx_embed_probe PROPERTIES
-  BUILD_RPATH "${MLX_PREFIX}/lib"
-  INSTALL_RPATH "${MLX_PREFIX}/lib")
+  BUILD_RPATH  "${MLX_PREFIX}/lib/python3.12/site-packages/mlx/lib;${MLX_PREFIX}/lib"
+  INSTALL_RPATH "${MLX_PREFIX}/lib/python3.12/site-packages/mlx/lib;${MLX_PREFIX}/lib")
+
+# ── CPython embedding (MS-152) ────────────────────────────────────────────────
+# Locate the Python 3.12 shared library and headers inside MLX_PREFIX (the
+# mlx-env conda environment ships its own Python runtime).
+set(PY_INCLUDE "${MLX_PREFIX}/include/python3.12")
+set(PY_LIB     "${MLX_PREFIX}/lib/libpython3.12.dylib")
+
+if(EXISTS "${PY_INCLUDE}/Python.h" AND EXISTS "${PY_LIB}")
+  message(STATUS "Python 3.12 found at ${MLX_PREFIX} — building mlx_generate_probe")
+
+  add_library(matrix_mlx_generate_lib STATIC
+    src/mlx_embed_generate.cpp)
+
+  target_include_directories(matrix_mlx_generate_lib PUBLIC src "${PY_INCLUDE}")
+  target_compile_definitions(matrix_mlx_generate_lib PUBLIC MATRIX_MLX_EMBED=1)
+  target_link_libraries(matrix_mlx_generate_lib PUBLIC
+    matrix_mlx_embed_lib
+    "${PY_LIB}")
+
+  add_executable(mlx_generate_probe
+    ../tests/cpp/mlx_generate_probe.cpp)
+
+  target_link_libraries(mlx_generate_probe PRIVATE matrix_mlx_generate_lib)
+  target_compile_definitions(mlx_generate_probe PRIVATE MATRIX_MLX_EMBED=1)
+
+  set_target_properties(mlx_generate_probe PROPERTIES
+    BUILD_RPATH  "${MLX_PREFIX}/lib"
+    INSTALL_RPATH "${MLX_PREFIX}/lib")
+else()
+  message(WARNING
+    "Python 3.12 not found at ${MLX_PREFIX} — skipping mlx_generate_probe. "
+    "Expected: ${PY_INCLUDE}/Python.h and ${PY_LIB}")
+endif()
 
 message(STATUS "Configured matrix_mlx_embed for ${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}")
-message(STATUS "Build with: cmake --build <build-dir> --target mlx_embed_probe")
