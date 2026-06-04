@@ -24,6 +24,7 @@ inline void dispatch_write_history(
     entry["timestamp"]   = timestamp_ms;
     if (!envelope.value("final", json()).is_null()) entry["_final"] = envelope["final"];
     if (envelope.contains("mode"))  entry["_mode"]   = envelope["mode"];
+    if (envelope.contains("meta"))  entry["_meta"]   = envelope["meta"];
     entry["_session_id"] = session_id;
     entry["_run_id"]     = run_id;
     code_fence::normalize_agents_in_entry(entry);
