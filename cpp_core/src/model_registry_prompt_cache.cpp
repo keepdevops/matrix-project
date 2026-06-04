@@ -46,10 +46,12 @@ std::string build_stream_setup(const std::string& model_path,
         return c.str();
     }
 
-    // Session prompt-cache path with LRU eviction and optional QuantizedKVCache.
-    const std::string make_cache = quantized
-        ? "make_prompt_cache(_m, kv_bits=4)"
-        : "make_prompt_cache(_m)";
+    // Session prompt-cache path with LRU eviction and optional quantized KV.
+    // #291 fix: make_prompt_cache has no kv_bits param — 4-bit KV is requested on
+    // the generation call (generate_step accepts kv_bits/quantized_kv_start), so
+    // the cache is always built plain and quantization is applied during decode.
+    const std::string make_cache = "make_prompt_cache(_m)";
+    const std::string kv_kwargs  = quantized ? ", kv_bits=4, quantized_kv_start=0" : "";
 
     c << "import sys as _sys, time as _t\n"
       << "from mlx_lm.models.cache import (make_prompt_cache, trim_prompt_cache,"
@@ -88,8 +90,10 @@ std::string build_stream_setup(const std::string& model_path,
       << "    __reg_persist__ = 1\n"
       << "    print('matrix pc sid=%s ctx=%d delta=%d' % (_sid, len(_full),"
          " len(_feed)), file=_sys.stderr)\n"
+      // #291 fix: report the true live session count (no drift from opportunistic eviction).
+      << "__reg_sess_size__ = len(__mlx_sess__)\n"
       << "__reg_stream__ = _mlxlm.stream_generate(_m, _tk, prompt=_feed,"
-         " max_tokens=" << max_tokens << ", prompt_cache=_cache)\n";
+         " max_tokens=" << max_tokens << ", prompt_cache=_cache" << kv_kwargs << ")\n";
     return c.str();
 }
 
@@ -131,8 +135,8 @@ int prompt_cache_session_count() {
     return g_sess_count.load();
 }
 
-void update_session_count(int delta) {
-    g_sess_count.fetch_add(delta);
+void set_session_count(int n) {
+    g_sess_count.store(n);
 }
 
 }  // namespace model_mem
