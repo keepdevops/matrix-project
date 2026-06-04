@@ -968,6 +968,7 @@ body[data-layout="brewlate"] {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  text-align: right;            /* Edit sits on the left; meta info on the right */
   text-transform: uppercase;
 }
 
