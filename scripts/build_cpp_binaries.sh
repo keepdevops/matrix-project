@@ -298,6 +298,12 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_port_assign" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_port_assign"
 
+echo "Building test_sse_usage_capture..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_sse_usage_capture" \
+  "$ROOT/tests/cpp/test_sse_usage_capture.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_sse_usage_capture"
+
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
   "$ROOT/tests/cpp/rag_embed_test.cpp" \
