@@ -1,4 +1,10 @@
-"""Smoke: run a mode through run_mode, then verify expected Prometheus series exist."""
+"""Smoke: exercise the telemetry instrumentation primitives, then verify the
+expected Prometheus series exist.
+
+(Previously this ran the registry's run_mode(); run_mode was the only caller of
+these primitives and has been removed, so the test now drives instrument_mode /
+instrument_generate directly — the live helpers in telemetry/metrics.py.)
+"""
 from __future__ import annotations
 
 import asyncio
@@ -8,36 +14,29 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from orchestration.modes import run_mode  # noqa: E402
-from orchestration.telemetry import (  # noqa: E402
-    AGENT_REQUESTS,
-    AGENT_TOKENS,
-    configure_logging,
-    get_logger,
-    metrics_text,
-)
-
-# Reuse the FakeBackend + ctx builder from the modes test.
-sys.path.insert(0, str(REPO / "tests" / "modes"))
-from test_registry import _make_ctx  # noqa: E402
+from backends.base import TokenChunk  # noqa: E402
+from orchestration.telemetry import configure_logging, get_logger, metrics_text  # noqa: E402
+from orchestration.telemetry.metrics import instrument_generate, instrument_mode  # noqa: E402
 
 
-def test_run_mode_emits_metrics():
-    ctx = _make_ctx(["a", "b"])
+def test_instrumentation_emits_metrics():
+    @instrument_generate("worker")
+    async def _gen():
+        yield TokenChunk(text="hello")
+        yield TokenChunk(text="", done=True)
 
-    async def consume() -> int:
-        n = 0
-        async for _ in run_mode("pipeline", ctx, "q"):
-            n += 1
-        return n
+    async def run() -> None:
+        async with instrument_mode("map_reduce", ["worker"]):
+            async for _ in _gen():
+                pass
 
-    assert asyncio.run(consume()) > 0
+    asyncio.run(run())
 
     body, ctype = metrics_text()
     text = body.decode()
     assert "agent_requests_total" in text
-    assert 'mode="pipeline"' in text
-    assert 'agent_id="a"' in text
+    assert 'mode="map_reduce"' in text
+    assert 'agent_id="worker"' in text
     assert "agent_tokens_total" in text
     assert "agent_latency_seconds" in text
 
