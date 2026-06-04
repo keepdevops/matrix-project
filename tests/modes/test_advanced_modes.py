@@ -11,8 +11,20 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 from orchestration.manager import AgentConfig  # noqa: E402
-from orchestration.modes import get_mode  # noqa: E402
 from orchestration.modes.base import ModeContext  # noqa: E402
+from orchestration.modes.critic_debate import CriticDebateMode  # noqa: E402
+from orchestration.modes.map_reduce import MapReduceMode  # noqa: E402
+from orchestration.modes.speculative import SpeculativeMode  # noqa: E402
+from orchestration.modes.tree_of_thought import TreeOfThoughtMode  # noqa: E402
+
+# Direct dispatch — replaces the removed registry's get_mode(). These four are
+# the live advanced modes served by the orchestrate sidecar.
+_MODE_CLASSES = {
+    "map_reduce": MapReduceMode,
+    "critic_debate": CriticDebateMode,
+    "speculative": SpeculativeMode,
+    "tree_of_thought": TreeOfThoughtMode,
+}
 from tests.modes.fake_backend import FakeBackend, FailingBackend, ScriptedBackend  # noqa: E402
 
 
@@ -42,7 +54,7 @@ def _ctx(agents: list[str], backends: dict, **params) -> ModeContext:
 
 
 def _collect(mode_id: str, ctx: ModeContext, query: str = "q") -> list:
-    cls = get_mode(mode_id)
+    cls = _MODE_CLASSES[mode_id]
 
     async def run():
         return [ev async for ev in cls().execute(ctx, query)]
