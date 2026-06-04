@@ -1260,3 +1260,43 @@ def test_ms171b_err_accepts_std_string():
     char* mismatch that broke the in-process build)."""
     src = _read_ms171b("cpp_core/src/coordinator_routes_mlx.cpp")
     assert "void err(httplib::Response& res, int status, const std::string& msg)" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-83 — Response Annotation (Thumbs Up/Down + Comment)
+# ---------------------------------------------------------------------------
+
+def test_ms83_annotations_endpoint():
+    """MS-83: coordinator_routes_annotations.h must implement POST/GET /api/annotations."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_annotations.h").read_text()
+    assert "/api/annotations" in src
+    assert "rating" in src
+    assert "run_id" in src
+
+
+def test_ms83_annotations_api_js():
+    """MS-83: annotationsApi.js must export submitAnnotation and fetchAnnotation."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/annotationsApi.js").read_text()
+    assert "submitAnnotation" in src
+    assert "fetchAnnotation" in src
+
+
+def test_ms83_response_rating_component():
+    """MS-83: ResponseRating.js must handle rating + comment."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/ResponseRating.js").read_text()
+    assert "rating" in src
+    assert "comment" in src
+
+
+def test_ms83_response_rating_in_conversation_turn():
+    """MS-83: ConversationTurn must render ResponseRating for each entry."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/ConversationTurn.js").read_text()
+    assert "ResponseRating" in src
