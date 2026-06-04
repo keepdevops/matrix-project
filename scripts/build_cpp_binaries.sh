@@ -282,8 +282,6 @@ echo "Building test_model_registry..."
 c++ -std=c++17 -O0 -g -o "$ROOT/test_model_registry" \
   "$ROOT/tests/cpp/test_model_registry.cpp" \
   "$CPP_SRC/model_registry.cpp" \
-  "$CPP_SRC/paged_kv_cache.cpp" \
-  "$CPP_SRC/flash_attention_wrapper.cpp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_model_registry"
 
