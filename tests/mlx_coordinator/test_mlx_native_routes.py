@@ -1457,3 +1457,35 @@ def test_ms87_trajectory_api_js():
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "src/api/trajectoryApi.js").read_text()
     assert "fetchTrajectoriesJson" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-88 — Swarm Supervisor + Contract-Driven Policy Engine
+# ---------------------------------------------------------------------------
+
+def test_ms88_swarm_supervisor_header():
+    """MS-88: swarm_supervisor.h must define PolicyDecision, SupervisorResult, analyse."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/swarm_supervisor.h").read_text()
+    assert "PolicyDecision" in src
+    assert "SupervisorResult" in src
+    assert "analyse" in src
+    assert "apply" in src
+
+
+def test_ms88_supervisor_in_context():
+    """MS-88: CoordinatorState must hold supervisor_enabled and supervisor_audit."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_context.h").read_text()
+    assert "supervisor_enabled" in src
+    assert "supervisor_audit" in src
+
+
+def test_ms88_supervisor_audit_route():
+    """MS-88: coordinator_routes_supervisor.h must serve GET /api/supervisor/audit."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_supervisor.h").read_text()
+    assert "/api/supervisor/audit" in src
