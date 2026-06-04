@@ -602,6 +602,8 @@ body[data-layout="brewlate"] {
 .brew-agents-popout-body {
   overflow-y: auto;
   flex: 1 1 auto;
+  min-height: 0;            /* allow the body to shrink within the popout's
+                              max-height so overflow-y:auto actually scrolls */
   padding: 0.5rem 0.65rem 0.75rem;
 }
 
