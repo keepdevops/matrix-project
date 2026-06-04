@@ -1529,3 +1529,35 @@ def test_ms89_token_flow_sankey():
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "src/components/TokenFlowSankey.js").read_text()
     assert "contracts" in src or "token" in src.lower()
+
+
+# ---------------------------------------------------------------------------
+# MS-90 — Trajectory Quality Scoring for Distillation Export
+# ---------------------------------------------------------------------------
+
+def test_ms90_trajectory_quality_header():
+    """MS-90: trajectory_quality.h must define QualityFactors and compute()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/trajectory_quality.h").read_text()
+    assert "trajectory_quality" in src
+    assert "QualityFactors" in src
+    assert "compute" in src
+    assert "from_json" in src
+
+
+def test_ms90_quality_score_badge():
+    """MS-90: QualityScoreBadge.js must render colour-coded score."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/QualityScoreBadge.js").read_text()
+    assert "score" in src
+
+
+def test_ms90_conversation_turn_shows_quality():
+    """MS-90: ConversationTurn must render QualityScoreBadge from entry._meta."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/ConversationTurn.js").read_text()
+    assert "QualityScoreBadge" in src
+    assert "quality_score" in src
