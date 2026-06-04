@@ -7,6 +7,7 @@
 #include "agent_contract.h"
 #include "context_gate.h"
 #include "kv_auto_clear.h"
+#include "mlx_memory_guard.h"
 #include "token_budget_hierarchy.h"
 #include "json.hpp"
 #include "swarm_config_store.h"
@@ -70,6 +71,7 @@ struct CoordinatorState {
     kv_auto_clear::Config kv_auto_clear_config;
     kv_auto_clear::State  kv_auto_clear_state;
     std::mutex            kv_auto_clear_mutex;
+    mlx_mem_guard::Config mlx_memory_guard_config;
 
     SwarmPaths swarm_paths() const {
         return SwarmPaths{config_path_global, source_config_path_global};

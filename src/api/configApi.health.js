@@ -73,3 +73,17 @@ export async function checkRagHealth() {
     return { ok: false, error: err?.message || 'unreachable' };
   }
 }
+
+// MS-171: fetch /api/mlx/pressure — includes unified_memory on macOS builds.
+export async function fetchMlxPressure() {
+  try {
+    const res = await fetch(`${API_BASE}/mlx/pressure`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    if (!data || typeof data !== 'object') return null;
+    return data;
+  } catch (e) {
+    console.error('[fetchMlxPressure] failed:', e);
+    return null;
+  }
+}

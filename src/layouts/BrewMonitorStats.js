@@ -1,5 +1,6 @@
 import React from 'react';
 import PressureCluster from '../components/PressureCluster';
+import MlxMemoryBar from '../components/MlxMemoryBar';
 
 function kvAggregate(readings) {
   if (!readings || readings.length === 0) return null;
@@ -83,6 +84,7 @@ export default function BrewMonitorStats({
             ))}
           </div>
         )}
+        <MlxMemoryBar online={online} />
         <PressureCluster
           online={online}
           readings={kvReadings}
