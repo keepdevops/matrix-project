@@ -124,6 +124,12 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
                           << " quantized=" << (qkv ? "yes" : "no")
                           << " idle_secs=" << isc << ")\n";
         }
+        // #297: resident-model idle eviction window (default 600s).
+        if (coord.contains("model_idle_secs") && coord["model_idle_secs"].is_number_integer()) {
+            const int mis = coord["model_idle_secs"].get<int>();
+            model_mem::configure_model_idle(mis);
+            std::cout << "♻️  model idle-eviction window: " << mis << "s\n";
+        }
 #endif
     }
     backend_router::configure_from_startup(config);

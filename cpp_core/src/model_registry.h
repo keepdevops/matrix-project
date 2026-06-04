@@ -103,6 +103,11 @@ void configure_prompt_cache(bool enabled, int min_ctx_tokens,
 
 // Returns the current number of active prompt-cache sessions (atomic, no GIL).
 int prompt_cache_session_count();
+
+// #297: resident-model idle eviction window. evict_idle() reclaims models
+// unused longer than model_idle_secs(); the MLX routes call it opportunistically.
+void configure_model_idle(int idle_secs);
+int  model_idle_secs();
 #endif
 
 }  // namespace model_mem
