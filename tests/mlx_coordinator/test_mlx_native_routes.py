@@ -1084,3 +1084,36 @@ def test_ms80_history_diff_hook():
            / "src/hooks/useHistoryDiff.js").read_text()
     assert "diffHistory" in src
     assert "entryA" in src and "entryB" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-81 — Session Export (Markdown / JSON download)
+# ---------------------------------------------------------------------------
+
+def test_ms81_session_export_md_endpoint():
+    """MS-81: coordinator_routes_session_export.h must implement export.md and export.json."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_session_export.h").read_text()
+    assert "export.md" in src
+    assert "export.json" in src
+    assert "Content-Disposition" in src
+
+
+def test_ms81_session_api_js():
+    """MS-81: sessionApi.js must export exportSessionMd and exportSessionJson."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/sessionApi.js").read_text()
+    assert "exportSessionMd" in src
+    assert "exportSessionJson" in src
+
+
+def test_ms81_session_export_buttons():
+    """MS-81: SessionExportButtons.js must render MD and JSON download buttons."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/SessionExportButtons.js").read_text()
+    assert "sessionId" in src
+    assert "MD" in src or "md" in src.lower()
+    assert "JSON" in src or "json" in src.lower()
