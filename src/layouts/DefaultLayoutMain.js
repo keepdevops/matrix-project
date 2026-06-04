@@ -24,6 +24,7 @@ export default function DefaultLayoutMain({
   currentSession, backend, switchBackend,
   useRag, pendingPrompt, flatPickAgent, excludedBreaker, stageOutputs,
   selectedPrompt, selectedTemperature, budgetExhausted,
+  qualityPassTarget, onQualityPassTargetChange,
   onSubmit, onQualityPass, onPromptConsumed,
   onFollowUp, onClearSession, onSwitchSession,
   onSaveCode, onPickFlatAgent, onSendBestContinue, onUseRagChange,
@@ -39,6 +40,7 @@ export default function DefaultLayoutMain({
         onQualityPass={onQualityPass} useRag={useRag} onUseRagChange={onUseRagChange}
         activeAgents={activeAgents} backend={backend} onBackendChange={switchBackend}
         budgetExhausted={budgetExhausted}
+        qualityPassTarget={qualityPassTarget} onQualityPassTargetChange={onQualityPassTargetChange}
       />
       {excludedBreaker.length > 0 && (
         <div className="dispatch-hint-banner dispatch-hint-banner--breaker" role="status">

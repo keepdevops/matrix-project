@@ -5,6 +5,7 @@
 #include "coordinator_context.h"
 #include "token_ledger.h"
 #include "agent_health.h"
+#include "pressure.h"
 #include "response_cache.h"
 #include "rl_trajectory_logger.h"
 #include "httplib.h"
@@ -84,6 +85,33 @@ inline void register_coordinator_routes_metrics(httplib::Server& svr, Coordinato
         for (const auto& a : st.agents)
             out << "matrix_agent_draft_max{agent=\"" << a.name << "\"} "
                 << a.draft_max << "\n";
+
+        // Live speculative draft acceptance + KV fill from pressure snapshot
+        {
+            auto pressure = snapshot_pressure(st.agents);
+            out << "# HELP matrix_agent_draft_acceptance Draft token acceptance rate (0-1; -1 when inactive)\n"
+                << "# TYPE matrix_agent_draft_acceptance gauge\n";
+            for (const auto& slot : pressure) {
+                for (const auto& name : slot.value("names", json::array())) {
+                    double acc = slot.contains("draft_acceptance_rate")
+                        ? slot["draft_acceptance_rate"].get<double>()
+                        : (slot.contains("draft_efficiency")
+                            ? slot["draft_efficiency"].get<double>() : -1.0);
+                    out << "matrix_agent_draft_acceptance{agent=\"" << name.get<std::string>() << "\"} "
+                        << acc << "\n";
+                }
+            }
+            out << "# HELP matrix_agent_kv_fill KV cache fill ratio (0-1; -1 when unknown)\n"
+                << "# TYPE matrix_agent_kv_fill gauge\n";
+            for (const auto& slot : pressure) {
+                for (const auto& name : slot.value("names", json::array())) {
+                    double fill = slot.contains("usage") && !slot["usage"].is_null()
+                        ? slot["usage"].get<double>() : -1.0;
+                    out << "matrix_agent_kv_fill{agent=\"" << name.get<std::string>() << "\"} "
+                        << fill << "\n";
+                }
+            }
+        }
 
         // RL trajectory rolling stats
         {

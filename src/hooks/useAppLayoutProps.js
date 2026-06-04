@@ -21,6 +21,7 @@ export function useAppLayoutProps(props) {
     handleExpandProgrammer,
     setShowHelp, setShowRagAdmin, setShowCachePanel,
     budgetExhausted,
+    qualityPassTarget, setQualityPassTarget,
   } = props;
 
   return useMemo(() => ({
@@ -88,6 +89,8 @@ export function useAppLayoutProps(props) {
     onUseRagChange: setUseRag,
     onExpandProgrammer: handleExpandProgrammer,
     budgetExhausted,
+    qualityPassTarget,
+    onQualityPassTargetChange: setQualityPassTarget,
   }), [
     online, activeAgents, modes, activeMode, kvReadings, kvFetchFailed, hostMemory,
     responses, agentErrors, finalAnswer, loading, error, history, lastMeta,
@@ -100,5 +103,6 @@ export function useAppLayoutProps(props) {
     handleHistorySelect, handleSubmit, handleQualityPass, setSelectedPrompt, handleFollowUp, handleClearSession,
     handleSwitchSession, handleSaveCode, setFlatPickAgent, handleSendBestContinue, handleExpandProgrammer,
     setShowHelp, setShowRagAdmin, setShowCachePanel, setUseRag, budgetExhausted,
+    qualityPassTarget, setQualityPassTarget,
   ]);
 }
