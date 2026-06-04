@@ -24,6 +24,8 @@ matrix_config_service
 swarm_config_store_test
 rag_embed_test
 code_fence_normalize_test
+# Compiled C++ test binaries (built by scripts/build_cpp_binaries.sh)
+/test_*
 
 # IDE / tooling
 .clangd
