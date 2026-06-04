@@ -1342,3 +1342,36 @@ def test_ms84_context_has_hierarchy_and_contracts():
            / "cpp_core/src/coordinator_context.h").read_text()
     assert "BudgetHierarchy" in src or "token_budget_hierarchy" in src
     assert "ContractLedger" in src or "contract_ledger" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-85 — Adaptive Controls + Symbolic Importance + RAG Enrichment
+# ---------------------------------------------------------------------------
+
+def test_ms85_symbolic_importance():
+    """MS-85: symbolic_importance.h must define score() and rank()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/symbolic_importance.h").read_text()
+    assert "symbolic_importance" in src
+    assert "score" in src
+    assert "rank" in src
+
+
+def test_ms85_adaptive_select():
+    """MS-85: adaptive_select.h must define Factors and compute()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/adaptive_select.h").read_text()
+    assert "adaptive_select" in src
+    assert "Factors" in src
+    assert "compute" in src
+
+
+def test_ms85_dispatch_uses_adaptive_select():
+    """MS-85: dispatch must call adaptive_select::compute() and emit meta.avg_importance."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_dispatch.cpp").read_text()
+    assert "adaptive_select::compute" in src
+    assert "avg_importance" in src
