@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import BrewMonitorStats from './BrewMonitorStats';
+import RssPanel from '../components/RssPanel';
 // Body: Port Pressure via PressureCluster — impl in BrewMonitorStats.js
 
 export default function BrewMonitorPopout({
@@ -52,6 +53,7 @@ export default function BrewMonitorPopout({
         cacheStatus={cacheStatus}
         onClearCache={onClearCache}
       />
+      <RssPanel />
     </div>
   );
 }

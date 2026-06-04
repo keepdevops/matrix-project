@@ -654,3 +654,43 @@ def test_ms148_health_uses_connection_pool():
     assert "pool_checkin" in health_section, (
         "health endpoint must return connections via pool_checkin"
     )
+
+
+# ---------------------------------------------------------------------------
+# MS-69 Phase B — RSS publish hooks in model_registry_embed.cpp
+# ---------------------------------------------------------------------------
+
+def test_ms69b_rss_header_included():
+    """MS-69B: model_registry_embed.cpp must include rss_generator.h."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/model_registry_embed.cpp").read_text()
+    assert '#include "rss_generator.h"' in src, (
+        "model_registry_embed.cpp must include rss_generator.h for RSS hooks"
+    )
+
+
+def test_ms69b_publish_on_first_load():
+    """MS-69B: note_generation() must publish an RSS event on first model load (gen_calls==0)."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/model_registry_embed.cpp").read_text()
+    assert "first_load" in src, (
+        "note_generation must detect first load via gen_calls==0"
+    )
+    assert "MLX model loaded:" in src, (
+        "note_generation must publish 'MLX model loaded:' RSS event"
+    )
+
+
+def test_ms69b_publish_on_eviction():
+    """MS-69B: evict_idle() must publish an RSS event per evicted model."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/model_registry_embed.cpp").read_text()
+    assert "MLX model evicted:" in src, (
+        "evict_idle must publish 'MLX model evicted:' RSS event for each stale key"
+    )
+    assert "reason=idle" in src, (
+        "eviction RSS event must include reason=idle"
+    )

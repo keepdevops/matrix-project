@@ -2,6 +2,7 @@
 // MS-68 2c′-B: prompt-cache session management.
 
 #include "model_registry_prompt_cache.h"
+#include "rss_generator.h"
 
 #include <Python.h>
 #include <atomic>
@@ -117,6 +118,12 @@ int evict_prompt_cache_sessions(int idle_secs) {
     if (rm) remaining = static_cast<int>(PyLong_AsLong(rm));
 
     g_sess_count.store(remaining);
+    if (evicted > 0) {
+        rss_generator::publish(rss_generator::Category::TokenRegulation,
+            "Prompt-cache sessions evicted: " + std::to_string(evicted),
+            "remaining=" + std::to_string(remaining)
+            + " idle_secs=" + std::to_string(idle_secs));
+    }
     return evicted;
 }
 
