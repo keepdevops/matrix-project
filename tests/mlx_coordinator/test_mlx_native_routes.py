@@ -1375,3 +1375,45 @@ def test_ms85_dispatch_uses_adaptive_select():
            / "cpp_core/src/coordinator_routes_dispatch.cpp").read_text()
     assert "adaptive_select::compute" in src
     assert "avg_importance" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-86 — KV Importance Eviction + Progressive Compaction
+# ---------------------------------------------------------------------------
+
+def test_ms86_kv_importance_indexer():
+    """MS-86: kv_importance_indexer.h must define SlotScore and score_port."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/kv_importance_indexer.h").read_text()
+    assert "kv_importance" in src
+    assert "SlotScore" in src
+    assert "score_port" in src
+
+
+def test_ms86_session_compaction():
+    """MS-86: session_compaction.h must define score_run and runs_to_drop."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/session_compaction.h").read_text()
+    assert "session_compaction" in src
+    assert "score_run" in src
+    assert "runs_to_drop" in src
+
+
+def test_ms86_context_gate_fidelity():
+    """MS-86: context_gate.h must emit importance_original and fidelity_ratio."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/context_gate.h").read_text()
+    assert "fidelity_ratio" in src
+    assert "importance_original" in src
+
+
+def test_ms86_kv_auto_clear_uses_importance():
+    """MS-86: kv_auto_clear.h must use kv_importance_indexer for selective eviction."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/kv_auto_clear.h").read_text()
+    assert "kv_importance" in src
+    assert "score_port" in src or "SlotScore" in src
