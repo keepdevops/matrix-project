@@ -43,7 +43,7 @@ void cors(httplib::Response& res) {
     res.set_header("Access-Control-Allow-Origin", "*");
 }
 
-void err(httplib::Response& res, int status, const char* msg) {
+void err(httplib::Response& res, int status, const std::string& msg) {
     cors(res);
     res.status = status;
     res.set_content(json{{"error", msg}}.dump(), "application/json");
@@ -116,6 +116,12 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
 
+#ifdef MATRIX_MLX_INPROC
+        // MS-171 Phase B: reclaim idle resident models under high pressure
+        // before the hard guard rejects (auto-publishes eviction RSS events).
+        if (mlx_mem_guard::pressure_exceeds(st.mlx_memory_guard_config))
+            model_mem::ModelRegistry::instance().evict_idle(60);
+#endif
         // MS-171: reject early if unified memory is below guard threshold.
         { const json mc = mlx_mem_guard::check(st.mlx_memory_guard_config);
           if (!mc.value("ok", true)) { err(res, 503, mc.value("error", "low memory")); return; } }
@@ -189,6 +195,12 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
 
+#ifdef MATRIX_MLX_INPROC
+        // MS-171 Phase B: reclaim idle resident models under high pressure
+        // before the hard guard rejects (auto-publishes eviction RSS events).
+        if (mlx_mem_guard::pressure_exceeds(st.mlx_memory_guard_config))
+            model_mem::ModelRegistry::instance().evict_idle(60);
+#endif
         // MS-171: reject early if unified memory is below guard threshold.
         { const json mc = mlx_mem_guard::check(st.mlx_memory_guard_config);
           if (!mc.value("ok", true)) { err(res, 503, mc.value("error", "low memory")); return; } }
