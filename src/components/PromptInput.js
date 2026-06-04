@@ -2,6 +2,8 @@ import React from 'react';
 import RagControlsPanel from './RagControlsPanel';
 import ModeParamControls from './ModeParamControls';
 import PromptInputActions from './PromptInputActions';
+import QualityPassSelector from './QualityPassSelector';
+import QualityPassSelector from './QualityPassSelector';
 import { usePromptInput } from './usePromptInput';
 
 function PromptInput({
@@ -14,6 +16,8 @@ function PromptInput({
   onPromptConsumed,
   canContinue = false,
   onQualityPass,
+  qualityPassTarget = null,
+  onQualityPassTargetChange,
   useRag = false,
   onUseRagChange,
   activeAgents = [],
@@ -72,6 +76,18 @@ function PromptInput({
                 title="Token budget exhausted — reset to continue">
             Budget exhausted
           </span>
+        )}
+        {activeAgents.length > 0 && onQualityPass && (
+          <QualityPassSelector
+            activeAgents={activeAgents} value={qualityPassTarget}
+            onChange={onQualityPassTargetChange} disabled={loading || disabled}
+          />
+        )}
+        {activeAgents.length > 0 && onQualityPass && (
+          <QualityPassSelector
+            activeAgents={activeAgents} value={qualityPassTarget}
+            onChange={onQualityPassTargetChange} disabled={loading || disabled}
+          />
         )}
         <PromptInputActions
           backend={backend} onBackendChange={onBackendChange}

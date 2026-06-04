@@ -25,6 +25,7 @@ export default function DefaultLayout({
   onFollowUp, onClearSession, onSwitchSession,
   onSaveCode, onPickFlatAgent, onSendBestContinue,
   onUseRagChange, selectedPrompt, selectedTemperature,
+  qualityPassTarget, onQualityPassTargetChange,
 }) {
   return (
     <div className="matrix-container">
@@ -77,6 +78,10 @@ export default function DefaultLayout({
           onSaveCode={onSaveCode} onPickFlatAgent={onPickFlatAgent}
           onSendBestContinue={onSendBestContinue} onUseRagChange={onUseRagChange}
           budgetExhausted={budgetExhausted}
+<<<<<<< Updated upstream
+=======
+          qualityPassTarget={qualityPassTarget} onQualityPassTargetChange={onQualityPassTargetChange}
+>>>>>>> Stashed changes
         />
       )}
 

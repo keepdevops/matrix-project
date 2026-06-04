@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import './styles/responsive.css';
 import './themes/light.css';
@@ -23,6 +23,7 @@ import { useAppHandlers } from './hooks/useAppHandlers';
 import { useAppCallbacks } from './hooks/useAppCallbacks';
 import { useTokenBudget } from './hooks/useTokenBudget';
 import { useAgentHealth } from './hooks/useAgentHealth';
+
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
@@ -64,6 +65,7 @@ function App() {
     responses, activeAgents, flatPickAgent, modeWarnings, memoryPressure, hostMemory,
     kvReadings,
     agentHealthByName,
+    qualityPassTarget,
     onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
   });
 
@@ -79,6 +81,8 @@ function App() {
   });
 
   const { byName: agentHealthByName } = useAgentHealth({ online });
+  const [qualityPassTarget, setQualityPassTarget] = useState(null);
+  const [qualityPassTarget, setQualityPassTarget] = useState(null);
 
   const { overrun: budgetExhausted } = useTokenBudget({
     sessionId: currentSession?.sessionId,
@@ -108,6 +112,7 @@ function App() {
     handleExpandProgrammer,
     setShowHelp, setShowRagAdmin, setShowCachePanel,
     budgetExhausted,
+    qualityPassTarget, setQualityPassTarget,
   });
 
   const Layout = LAYOUTS[layout]?.component ?? BrewlateLayout;
