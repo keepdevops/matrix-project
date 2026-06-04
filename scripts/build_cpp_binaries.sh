@@ -291,6 +291,12 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_prompt_cache_lcp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_prompt_cache_lcp"
 
+echo "Building test_port_assign..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_port_assign" \
+  "$ROOT/tests/cpp/test_port_assign.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_port_assign"
+
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
   "$ROOT/tests/cpp/rag_embed_test.cpp" \
