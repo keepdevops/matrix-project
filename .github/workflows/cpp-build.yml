@@ -1,10 +1,10 @@
 name: C++ build
 
-# Compile-checks the C++ surface on every PR/push that touches it. Previously
-# the binaries were only built on release tags, and the MLX native-coordinator
-# code (cpp_core/src/coordinator_routes_mlx.cpp + everything behind
-# #ifdef MATRIX_MLX_NATIVE_COORD) was never compiled in CI — a type error there
-# sat dormant on main until an in-process build surfaced it (MS-171 Phase B).
+# Compile-checks AND unit-tests the C++ surface on every PR/push that touches it.
+# Previously the binaries were only built on release tags, and the MLX
+# native-coordinator code (cpp_core/src/coordinator_routes_mlx.cpp + everything
+# behind #ifdef MATRIX_MLX_NATIVE_COORD) was never compiled in CI — a type error
+# there sat dormant on main until an in-process build surfaced it (MS-171 Phase B).
 #
 # Runs on macos-14 (Apple Silicon): the build is macOS-arm64 targeted — it uses
 # sys/sysctl.h and hardcoded Homebrew paths (/opt/homebrew) for prometheus-cpp
@@ -17,11 +17,13 @@ on:
     branches: [main]
     paths:
       - 'cpp_core/**'
+      - 'tests/cpp/**'
       - 'scripts/build_cpp_binaries.sh'
       - '.github/workflows/cpp-build.yml'
   pull_request:
     paths:
       - 'cpp_core/**'
+      - 'tests/cpp/**'
       - 'scripts/build_cpp_binaries.sh'
       - '.github/workflows/cpp-build.yml'
 
@@ -30,7 +32,7 @@ permissions:
 
 jobs:
   build:
-    name: Compile (${{ matrix.variant }})
+    name: Compile + test (${{ matrix.variant }})
     runs-on: macos-14
     strategy:
       fail-fast: false
@@ -46,3 +48,12 @@ jobs:
 
       - name: Build binaries (${{ matrix.variant }})
         run: ${{ matrix.env }} bash scripts/build_cpp_binaries.sh
+
+      - name: Run C++ unit tests
+        run: |
+          set -e
+          tests="test_kv_token_semaphore test_backend_registry test_backend_selection test_backend_router test_routing_decision_log test_rss_generator test_model_registry test_prompt_cache_lcp test_port_assign test_sse_usage_capture rag_embed_test"
+          for t in $tests; do
+            echo "── $t ──"
+            "./$t"
+          done
