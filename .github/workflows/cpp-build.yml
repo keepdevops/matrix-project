@@ -1,0 +1,48 @@
+name: C++ build
+
+# Compile-checks the C++ surface on every PR/push that touches it. Previously
+# the binaries were only built on release tags, and the MLX native-coordinator
+# code (cpp_core/src/coordinator_routes_mlx.cpp + everything behind
+# #ifdef MATRIX_MLX_NATIVE_COORD) was never compiled in CI — a type error there
+# sat dormant on main until an in-process build surfaced it (MS-171 Phase B).
+#
+# Runs on macos-14 (Apple Silicon): the build is macOS-arm64 targeted — it uses
+# sys/sysctl.h and hardcoded Homebrew paths (/opt/homebrew) for prometheus-cpp
+# and libpq, matching the project's Apple-Silicon MVP scope. INPROC
+# (MATRIX_MLX_INPROC=1) is out of scope here (needs the mlx-env conda + libpython);
+# the dormant bug lived in always-compiled-under-NATIVE_COORD code, covered below.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cpp_core/**'
+      - 'scripts/build_cpp_binaries.sh'
+      - '.github/workflows/cpp-build.yml'
+  pull_request:
+    paths:
+      - 'cpp_core/**'
+      - 'scripts/build_cpp_binaries.sh'
+      - '.github/workflows/cpp-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile (${{ matrix.variant }})
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { variant: default,      env: '' }
+          - { variant: native-coord, env: 'MATRIX_MLX_NATIVE_COORD=1' }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install C++ deps (Homebrew)
+        run: brew install prometheus-cpp libpq
+
+      - name: Build binaries (${{ matrix.variant }})
+        run: ${{ matrix.env }} bash scripts/build_cpp_binaries.sh
