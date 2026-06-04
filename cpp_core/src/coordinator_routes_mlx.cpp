@@ -43,7 +43,10 @@ void cors(httplib::Response& res) {
     res.set_header("Access-Control-Allow-Origin", "*");
 }
 
-void err(httplib::Response& res, int status, const char* msg) {
+// Accepts both string literals and std::string (e.g. mlx_mem_guard's
+// mc.value("error", …) returns std::string — passing it to a const char*
+// parameter broke the MATRIX_MLX_NATIVE_COORD build).
+void err(httplib::Response& res, int status, const std::string& msg) {
     cors(res);
     res.status = status;
     res.set_content(json{{"error", msg}}.dump(), "application/json");
