@@ -6,6 +6,8 @@ import {
   MIN_TIMEOUT, MAX_TIMEOUT,
   MIN_GPU_LAYERS, MAX_GPU_LAYERS,
   MIN_CONCURRENCY, MAX_CONCURRENCY,
+  MIN_MAX_INPUT_TOKENS, MAX_MAX_INPUT_TOKENS,
+  MIN_MAX_OUTPUT_TOKENS, MAX_MAX_OUTPUT_TOKENS,
 } from './TokenBudgetGrid';
 
 function clamp(n, lo, hi) {
@@ -26,13 +28,19 @@ export function useTokenBudgetSave({ onRolesChange }) {
   const isDirty = (role) => {
     const d = drafts[role.name];
     if (!d) return false;
-    const { max_tokens: dm, context: dc, read_timeout_secs: dt, gpu_layers: dg, max_concurrency: dmc } = d;
+    const {
+      max_tokens: dm, context: dc, read_timeout_secs: dt,
+      gpu_layers: dg, max_concurrency: dmc,
+      max_input_tokens: dmit, max_output_tokens: dmot,
+    } = d;
     return (
-      (dm  !== undefined && dm  !== '' && Number(dm)  !== role.max_tokens) ||
-      (dc  !== undefined && dc  !== '' && Number(dc)  !== role.context) ||
-      (dt  !== undefined && dt  !== '' && Number(dt)  !== role.read_timeout_secs) ||
-      (dg  !== undefined && dg  !== '' && Number(dg)  !== role.gpu_layers) ||
-      (dmc !== undefined && dmc !== '' && Number(dmc) !== role.max_concurrency)
+      (dm   !== undefined && dm   !== '' && Number(dm)   !== role.max_tokens) ||
+      (dc   !== undefined && dc   !== '' && Number(dc)   !== role.context) ||
+      (dt   !== undefined && dt   !== '' && Number(dt)   !== role.read_timeout_secs) ||
+      (dg   !== undefined && dg   !== '' && Number(dg)   !== role.gpu_layers) ||
+      (dmc  !== undefined && dmc  !== '' && Number(dmc)  !== role.max_concurrency) ||
+      (dmit !== undefined && dmit !== '' && Number(dmit) !== (role.max_input_tokens ?? 0)) ||
+      (dmot !== undefined && dmot !== '' && Number(dmot) !== (role.max_output_tokens ?? 0))
     );
   };
 
@@ -49,6 +57,10 @@ export function useTokenBudgetSave({ onRolesChange }) {
       patch.gpu_layers = clamp(Number(d.gpu_layers), MIN_GPU_LAYERS, MAX_GPU_LAYERS);
     if (d.max_concurrency !== undefined && d.max_concurrency !== '' && role.max_concurrency !== undefined)
       patch.max_concurrency = clamp(Number(d.max_concurrency), MIN_CONCURRENCY, MAX_CONCURRENCY);
+    if (d.max_input_tokens !== undefined && d.max_input_tokens !== '')
+      patch.max_input_tokens = clamp(Number(d.max_input_tokens), MIN_MAX_INPUT_TOKENS, MAX_MAX_INPUT_TOKENS);
+    if (d.max_output_tokens !== undefined && d.max_output_tokens !== '')
+      patch.max_output_tokens = clamp(Number(d.max_output_tokens), MIN_MAX_OUTPUT_TOKENS, MAX_MAX_OUTPUT_TOKENS);
     if (Object.keys(patch).length === 0) return;
 
     setBusy(prev => ({ ...prev, [role.name]: true }));

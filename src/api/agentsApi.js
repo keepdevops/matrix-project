@@ -29,11 +29,18 @@ export async function setAgentDescription(name, description) {
   return response.json();
 }
 
-export async function setAgentTokens(name, { max_tokens, context, read_timeout_secs } = {}) {
+export async function setAgentTokens(name, {
+  max_tokens, context, read_timeout_secs,
+  gpu_layers, max_concurrency, max_input_tokens, max_output_tokens,
+} = {}) {
   const body = {};
   if (Number.isFinite(max_tokens)) body.max_tokens = max_tokens;
   if (Number.isFinite(context)) body.context = context;
   if (Number.isFinite(read_timeout_secs)) body.read_timeout_secs = read_timeout_secs;
+  if (Number.isFinite(gpu_layers)) body.gpu_layers = gpu_layers;
+  if (Number.isFinite(max_concurrency)) body.max_concurrency = max_concurrency;
+  if (Number.isFinite(max_input_tokens)) body.max_input_tokens = max_input_tokens;
+  if (Number.isFinite(max_output_tokens)) body.max_output_tokens = max_output_tokens;
   const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}/tokens`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
