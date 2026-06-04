@@ -68,9 +68,11 @@
       "max_items": 50
     },
     "prompt_cache": {
-      "_note": "MS-68 2c′: per-session KV reuse for in-process MLX (MATRIX_MLX_INPROC builds only). Keep off until 2c′-B eviction lands.",
+      "_note": "MS-68 2c′-B: per-session KV reuse for MATRIX_MLX_INPROC builds. Idle sessions evicted after idle_secs; quantized uses QuantizedKVCache(kv_bits=4).",
       "enabled": false,
-      "min_ctx_tokens": 1024
+      "min_ctx_tokens": 1024,
+      "quantized": false,
+      "idle_secs": 600
     }
   },
   "ui": {

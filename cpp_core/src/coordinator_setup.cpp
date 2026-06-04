@@ -111,15 +111,18 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
                 std::cout << "📡 RSS feeds enabled (max_items=" << cap << ")\n";
         }
 #ifdef MATRIX_MLX_INPROC
-        // MS-68 2c′: in-process session prompt-cache reuse (default OFF).
+        // MS-68 2c′-B: in-process session prompt-cache reuse (default OFF).
         if (coord.contains("prompt_cache") && coord["prompt_cache"].is_object()) {
             const auto& pc = coord["prompt_cache"];
-            const bool on = pc.value("enabled", false);
-            const int  mc = pc.value("min_ctx_tokens", 1024);
-            model_mem::configure_prompt_cache(on, mc);
+            const bool on  = pc.value("enabled", false);
+            const int  mc  = pc.value("min_ctx_tokens", 1024);
+            const bool qkv = pc.value("quantized", false);
+            const int  isc = pc.value("idle_secs", 600);
+            model_mem::configure_prompt_cache(on, mc, qkv, isc);
             if (on)
-                std::cout << "🧠 in-process prompt-cache reuse enabled (min_ctx_tokens="
-                          << mc << ")\n";
+                std::cout << "🧠 prompt-cache reuse enabled (min_ctx=" << mc
+                          << " quantized=" << (qkv ? "yes" : "no")
+                          << " idle_secs=" << isc << ")\n";
         }
 #endif
     }

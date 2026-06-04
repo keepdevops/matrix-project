@@ -76,6 +76,7 @@ if [ "${MATRIX_MLX_INPROC:-0}" = "1" ]; then
   INPROC_FLAGS+=("-DMATRIX_MLX_INPROC=1" "-DMATRIX_MLX_EMBED=1")
   INPROC_INCLUDES+=("-I$PY_INC")
   INPROC_SOURCES+=("$CPP_SRC/model_registry_embed.cpp")
+  INPROC_SOURCES+=("$CPP_SRC/model_registry_prompt_cache.cpp")  # MS-68 2c′-B
   INPROC_LIBS+=("$PY_DYLIB" "-Wl,-rpath,$MLX_ENV/lib")
   echo "MLX in-process inference ENABLED (MATRIX_MLX_INPROC=1) — linking $PY_DYLIB"
 fi

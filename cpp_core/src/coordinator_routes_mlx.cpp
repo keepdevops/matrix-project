@@ -367,6 +367,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         const json reg = model_mem::ModelRegistry::instance().snapshot();
         out["resident_models"] = reg["models"];
         out["resident_count"]  = reg["resident_count"];
+#ifdef MATRIX_MLX_INPROC
+        // MS-68 2c′-B: surface active prompt-cache session count (atomic, no GIL).
+        out["prompt_cache_sessions"] = model_mem::prompt_cache_session_count();
+#endif
         cors(res);
         res.set_content(out.dump(), "application/json");
     });
