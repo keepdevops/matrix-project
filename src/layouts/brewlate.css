@@ -565,17 +565,20 @@ body[data-layout="brewlate"] {
 }
 
 .brew-agents-popout {
-  position: absolute;
-  top: 2.75rem;
-  left: 0.75rem;
-  right: 0.75rem;
-  z-index: 24;
+  position: fixed;
+  top: 3.5rem;
+  left: 0;
+  right: 0;
+  margin: 0 auto;                 /* center horizontally without transform
+                                     (the open animation uses translateY) */
+  width: min(640px, 94vw);
+  z-index: 1000;
   border: 1px solid var(--brew-accent-dim);
   border-radius: 10px;
   background: var(--brew-surface-deep);
   box-shadow: 0 8px 32px color-mix(in srgb, #000 55%, transparent), 0 0 0 1px var(--brew-accent-a12);
   animation: brew-popout-in 220ms ease;
-  max-height: min(65vh, 480px);
+  max-height: min(78vh, 620px);
   display: flex;
   flex-direction: column;
   overflow: hidden;

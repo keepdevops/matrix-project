@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import TokenBudgetPanel from '../components/TokenBudgetPanel';
 
 export default function BrewAgentsPopout({
@@ -30,7 +31,9 @@ export default function BrewAgentsPopout({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body> so no overflow:hidden ancestor (the configure section is
+  // position:relative + overflow:hidden) can clip the panel or its scroll area.
+  return createPortal(
     <div ref={rootRef} className="brew-agents-popout" role="dialog" aria-label="Agent token budgets">
       <div className="brew-agents-popout-header">
         <span className="brew-agents-popout-title">Token Budgets</span>
@@ -41,6 +44,7 @@ export default function BrewAgentsPopout({
       <div className="brew-agents-popout-body brew-token-budget-wrap">
         <TokenBudgetPanel roles={roles} onRolesChange={onRolesChange} selected={selected} />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
