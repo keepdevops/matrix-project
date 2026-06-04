@@ -77,6 +77,7 @@ if [ "${MATRIX_MLX_INPROC:-0}" = "1" ]; then
   INPROC_INCLUDES+=("-I$PY_INC")
   INPROC_SOURCES+=("$CPP_SRC/model_registry_embed.cpp")
   INPROC_SOURCES+=("$CPP_SRC/model_registry_prompt_cache.cpp")  # MS-68 2c′-B
+  INPROC_SOURCES+=("$CPP_SRC/model_registry_prompt_cache_codegen.cpp")  # #291: pure codegen
   INPROC_LIBS+=("$PY_DYLIB" "-Wl,-rpath,$MLX_ENV/lib")
   echo "MLX in-process inference ENABLED (MATRIX_MLX_INPROC=1) — linking $PY_DYLIB"
 fi
@@ -291,6 +292,13 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_prompt_cache_lcp" \
   "$ROOT/tests/cpp/test_prompt_cache_lcp.cpp" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_prompt_cache_lcp"
+
+echo "Building test_prompt_cache_codegen..."  # #291: kv_bits codegen guard (pure)
+c++ -std=c++17 -O0 -g -o "$ROOT/test_prompt_cache_codegen" \
+  "$ROOT/tests/cpp/test_prompt_cache_codegen.cpp" \
+  "$CPP_SRC/model_registry_prompt_cache_codegen.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_prompt_cache_codegen"
 
 echo "Building test_port_assign..."
 c++ -std=c++17 -O0 -g -o "$ROOT/test_port_assign" \
