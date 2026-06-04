@@ -1,7 +1,6 @@
 """Tests for /api/orchestrate and /api/orchestrate/stream handlers."""
 from __future__ import annotations
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +10,6 @@ from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 from backends.base import TokenChunk
 from orchestration.manager import AgentConfig
 from orchestration.mlx_coordinator.backend import MlxBackend
-from orchestration.mlx_coordinator.session import SessionStore
 from orchestration.mlx_coordinator.service_orchestrate import _fetch_rag_chunks
 
 
@@ -53,9 +51,9 @@ def _make_agent(agent_id: str) -> AgentConfig:
 
 
 def _make_orchestrate_app(tokens=("ok",)):
-    from orchestration.mlx_coordinator.service import make_app
+    from orchestration.mlx_coordinator.sidecar import make_sidecar_app
 
-    app = make_app()
+    app = make_sidecar_app()
     agents = {
         "worker": _make_agent("worker"),
         "synth": _make_agent("synth"),
@@ -70,11 +68,11 @@ def _make_orchestrate_app(tokens=("ok",)):
     backends = {"mlx": backend}
 
     async def _startup(a):
+        # The orchestrate routes (register_orchestrate_routes) read only
+        # app["swarm"] + app["backends"]; sessions/active_mode were artifacts of
+        # the retired full coordinator (service.make_app) and aren't used here.
         a["swarm"] = agents
         a["backends"] = backends
-        a["sessions"] = SessionStore()
-        a["active_mode"] = "flat"
-        a["_cleanup_task"] = asyncio.create_task(asyncio.sleep(9999))
 
     app.on_startup.clear()
     app.on_startup.append(_startup)
