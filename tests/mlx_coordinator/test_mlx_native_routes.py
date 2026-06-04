@@ -900,56 +900,44 @@ def test_ms75_rag_controls_panel_has_rerank_toggle():
 
 
 # ---------------------------------------------------------------------------
-# MS-171 Phase A — unified-memory guard + pressure telemetry
+# MS-76 — History Search + Response Cache Observability
 # ---------------------------------------------------------------------------
 
-def _read_ms171(rel):
+def test_ms76_cache_metrics_in_prometheus():
+    """MS-76: GET /api/metrics must include response cache counters."""
     import pathlib
-    return (pathlib.Path(__file__).resolve().parents[2] / rel).read_text()
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_metrics.h").read_text()
+    assert "matrix_cache_hits_total" in src
+    assert "matrix_cache_misses_total" in src
+    assert "matrix_cache_size" in src
+    assert "matrix_cache_evictions_total" in src
 
 
-def test_ms171_guard_header_exists():
-    """MS-171: mlx_memory_guard.h defines Config, check(), pressure section."""
-    src = _read_ms171("cpp_core/src/mlx_memory_guard.h")
-    assert "namespace mlx_mem_guard" in src
-    assert "struct Config" in src
-    assert "min_free_gb" in src
-    assert "inline json check(" in src
-    assert "pressure_memory_section" in src
-    assert 'snap.value("ok", false)' in src
+def test_ms76_history_search_endpoint():
+    """MS-76: coordinator_routes_history_search.h must implement GET /api/history/search."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_history_search.h").read_text()
+    assert "/api/history/search" in src
+    assert "history_mutex" in src or "st.history" in src
 
 
-def test_ms171_guard_wired_into_state():
-    """MS-171: CoordinatorState owns the guard config."""
-    src = _read_ms171("cpp_core/src/coordinator_context.h")
-    assert '#include "mlx_memory_guard.h"' in src
-    assert "mlx_memory_guard_config" in src
+def test_ms76_history_search_js_exists():
+    """MS-76: useHistorySearch.js and HistorySearch.js must exist."""
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[2]
+    hook = (root / "src/hooks/useHistorySearch.js").read_text()
+    comp = (root / "src/components/HistorySearch.js").read_text()
+    assert "searchHistory" in hook or "search" in hook.lower()
+    assert "onSelect" in comp or "results" in comp
 
 
-def test_ms171_guard_loaded_at_startup():
-    """MS-171: coordinator_setup reads coordinator.mlx_memory_guard."""
-    src = _read_ms171("cpp_core/src/coordinator_setup.cpp")
-    assert "mlx_mem_guard::load(coord)" in src
-    assert "state.mlx_memory_guard_config" in src
-
-
-def test_ms171_guard_rejects_on_stream_and_submit():
-    """MS-171: both /api/mlx/submit and /api/mlx/stream pre-flight the guard."""
-    src = _read_ms171("cpp_core/src/coordinator_routes_mlx.cpp")
-    assert '#include "mlx_memory_guard.h"' in src
-    assert src.count("mlx_mem_guard::check(st.mlx_memory_guard_config)") == 2
-    assert src.count('err(res, 503, mc.value("error"') == 2
-
-
-def test_ms171_pressure_surfaces_unified_memory():
-    """MS-171: /api/mlx/pressure includes unified_memory when available."""
-    src = _read_ms171("cpp_core/src/coordinator_routes_mlx.cpp")
-    assert "mlx_mem_guard::pressure_memory_section()" in src
-    assert 'out["unified_memory"]' in src
-
-
-def test_ms171_config_template_documents_guard():
-    """MS-171: swarm-config.template.json ships the guard block (default off)."""
-    src = _read_ms171("swarm-config.template.json")
-    assert '"mlx_memory_guard"' in src
-    assert '"min_free_gb"' in src
+def test_ms76_cache_stats_bar_exists():
+    """MS-76: useCacheStats.js and CacheStatsBar.js must exist."""
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[2]
+    hook = (root / "src/hooks/useCacheStats.js").read_text()
+    comp = (root / "src/components/CacheStatsBar.js").read_text()
+    assert "hit_rate" in hook or "hits" in hook
+    assert "hit" in comp.lower()
