@@ -1,9 +1,10 @@
 #ifdef MATRIX_MLX_EMBED
 // MS-68: in-process MLX generation for model_mem::ModelRegistry (interpreter
-// lifecycle, serialized GPU lane, PyIter_Next streaming; from MS-161). 2c′ adds
-// per-session prompt-cache reuse. Calls recorded via note_generation().
+// lifecycle, serialized GPU lane, PyIter_Next streaming; from MS-161). 2c′-B
+// delegates prompt-cache session management to model_registry_prompt_cache.cpp.
 
 #include "model_registry.h"
+#include "model_registry_prompt_cache.h"
 
 #include <Python.h>
 
@@ -24,6 +25,8 @@ std::mutex  g_lane_mu;   // serializes ALL generation (one GPU — MS-160)
 // MS-68 2c′: per-session prompt-cache reuse config (default OFF).
 std::atomic<bool> g_pc_enabled{false};
 std::atomic<int>  g_pc_min_ctx{1024};
+std::atomic<bool> g_pc_quantized{false};
+std::atomic<int>  g_pc_idle_secs{600};
 
 std::string resolve_home() {
     const char* env = std::getenv("MLX_ENV_PREFIX");
@@ -140,56 +143,7 @@ GenResult ModelRegistry::generate(const Agent& agent, const std::string& prompt,
     return r;
 }
 
-// Stream-setup Python. cache off → today's stateless path, byte-for-byte.
-// 2c′ on → tokenize, longest-common-prefix vs cached ids, trim to it, feed delta.
-static std::string build_stream_setup(const std::string& model_path,
-                                      const std::string& prompt, int max_tokens,
-                                      bool use_cache, const std::string& session_id,
-                                      int min_ctx) {
-    std::ostringstream c;
-    c << "import mlx_lm as _mlxlm\n"
-      << "globals().setdefault('__mlx_reg__', {})\n"
-      << "_p = '" << esc(model_path) << "'\n"
-      << "if _p not in __mlx_reg__:\n"
-      << "    __mlx_reg__[_p] = _mlxlm.load(_p)\n"
-      << "_m, _tk = __mlx_reg__[_p]\n";
-    if (!use_cache) {
-        c << "__reg_persist__ = 0\n"
-          << "__reg_stream__ = _mlxlm.stream_generate(_m, _tk, prompt='"
-          << esc(prompt) << "', max_tokens=" << max_tokens << ")\n";
-        return c.str();
-    }
-    // Session prompt-cache reuse path.
-    c << "import sys as _sys\n"
-      << "from mlx_lm.models.cache import (make_prompt_cache, trim_prompt_cache,"
-         " can_trim_prompt_cache)\n"
-      << "globals().setdefault('__mlx_sess__', {})\n"
-      << "_sid = '" << esc(session_id) << "'\n"
-      << "_full = list(_tk.encode('" << esc(prompt) << "'))\n"
-      << "if len(_full) < " << min_ctx << ":\n"
-      << "    __mlx_sess__.pop(_sid, None)\n"
-      << "    _cache = make_prompt_cache(_m); _feed = _full; __reg_persist__ = 0\n"
-      << "else:\n"
-      << "    _ent = __mlx_sess__.get(_sid)\n"
-      << "    if _ent is None:\n"
-      << "        _cache = make_prompt_cache(_m); _feed = _full; _lcp = 0\n"
-      << "    else:\n"
-      << "        _cache, _cached = _ent\n"
-      << "        _lcp = 0; _nn = min(len(_cached), len(_full))\n"
-      << "        while _lcp < _nn and _cached[_lcp] == _full[_lcp]: _lcp += 1\n"
-      << "        _tr = len(_cached) - _lcp\n"
-      << "        if _tr > 0 and can_trim_prompt_cache(_cache): trim_prompt_cache(_cache, _tr)\n"
-      << "        _feed = _full[_lcp:]\n"
-      << "    if not _feed:\n"   // identical to cached prompt → re-feed last token
-      << "        if can_trim_prompt_cache(_cache): trim_prompt_cache(_cache, 1)\n"
-      << "        _feed = _full[-1:]\n"
-      << "    __mlx_sess__[_sid] = [_cache, _full]; __reg_persist__ = 1\n"
-      << "    print('matrix prompt-cache sid=%s ctx=%d delta=%d' % (_sid, len(_full),"
-         " len(_feed)), file=_sys.stderr)\n"
-      << "__reg_stream__ = _mlxlm.stream_generate(_m, _tk, prompt=_feed, max_tokens="
-      << max_tokens << ", prompt_cache=_cache)\n";
-    return c.str();
-}
+// build_stream_setup() moved to model_registry_prompt_cache.cpp (MS-68 2c′-B).
 
 GenResult ModelRegistry::generate_stream(const Agent& agent, const std::string& prompt,
                                          int max_tokens, const OnToken& on_token,
@@ -205,13 +159,20 @@ GenResult ModelRegistry::generate_stream(const Agent& agent, const std::string& 
         PyGILState_STATE gil = PyGILState_Ensure();
 
         const std::string code = build_stream_setup(
-            model_path, prompt, max_tokens, use_cache, session_id, g_pc_min_ctx.load());
+            model_path, prompt, max_tokens, use_cache, session_id,
+            g_pc_min_ctx.load(), g_pc_quantized.load(), g_pc_idle_secs.load());
 
         PyObject* main_mod  = PyImport_AddModule("__main__");
         PyObject* main_dict = PyModule_GetDict(main_mod);
         PyObject* ret = PyRun_String(code.c_str(), Py_file_input, main_dict, main_dict);
         if (!ret) { PyErr_Print(); PyGILState_Release(gil); r.error = "stream setup failed"; return r; }
         Py_DECREF(ret);
+
+        // Sync the C++ session counter with what the Python code reported.
+        if (use_cache) {
+            PyObject* sd = PyDict_GetItemString(main_dict, "__reg_sess_delta__");
+            if (sd) update_session_count(static_cast<int>(PyLong_AsLong(sd)));
+        }
 
         PyObject* gen = PyDict_GetItemString(main_dict, "__reg_stream__");  // borrowed
         if (!gen) { PyGILState_Release(gil); r.error = "generator not created"; return r; }
@@ -265,9 +226,12 @@ GenResult ModelRegistry::generate_stream(const Agent& agent, const std::string& 
     return r;
 }
 
-void configure_prompt_cache(bool enabled, int min_ctx_tokens) {
+void configure_prompt_cache(bool enabled, int min_ctx_tokens,
+                            bool quantized, int idle_secs) {
     g_pc_enabled.store(enabled);
     g_pc_min_ctx.store(min_ctx_tokens > 0 ? min_ctx_tokens : 1024);
+    g_pc_quantized.store(quantized);
+    g_pc_idle_secs.store(idle_secs > 0 ? idle_secs : 600);
 }
 
 int ModelRegistry::evict_idle(int max_idle_secs) {
@@ -276,14 +240,14 @@ int ModelRegistry::evict_idle(int max_idle_secs) {
         std::lock_guard<std::mutex> lk(mu_);
         const auto now = std::chrono::steady_clock::now();
         for (auto& [key, e] : entries_) {
-            if (e.gen_calls == 0) continue;   // no resident model under this key
+            if (e.gen_calls == 0) continue;
             const double idle = std::chrono::duration<double>(now - e.last_used).count();
             if (idle > max_idle_secs) stale.push_back(key);
         }
     }
-    if (stale.empty()) return 0;
+    if (stale.empty() && !g_pc_enabled.load()) return 0;
 
-    std::lock_guard<std::mutex> lane(g_lane_mu);   // touch Python under the lane
+    std::lock_guard<std::mutex> lane(g_lane_mu);
     ensure_interp();
     PyGILState_STATE gil = PyGILState_Ensure();
     for (const auto& key : stale) {
@@ -293,6 +257,9 @@ int ModelRegistry::evict_idle(int max_idle_secs) {
              << "__reg_evicted__ = '1'\n";
         py_run_read(code.str().c_str(), "__reg_evicted__");
     }
+    // MS-68 2c′-B: also evict idle prompt-cache sessions.
+    if (g_pc_enabled.load())
+        evict_prompt_cache_sessions(g_pc_idle_secs.load());
     PyGILState_Release(gil);
 
     std::lock_guard<std::mutex> lk(mu_);
