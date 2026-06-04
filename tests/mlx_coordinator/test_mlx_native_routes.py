@@ -1561,3 +1561,29 @@ def test_ms90_conversation_turn_shows_quality():
            / "src/components/ConversationTurn.js").read_text()
     assert "QualityScoreBadge" in src
     assert "quality_score" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-91 — Entropy-Guided KV Eviction + Multi-Swarm Contract Negotiation
+# ---------------------------------------------------------------------------
+
+def test_ms91_kv_layer_entropy():
+    """MS-91: kv_layer_entropy.h must define LayerProfile and rank_for_eviction."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/kv_layer_entropy.h").read_text()
+    assert "kv_layer" in src
+    assert "LayerProfile" in src
+    assert "eviction_priority" in src
+    assert "rank_for_eviction" in src
+
+
+def test_ms91_swarm_negotiator():
+    """MS-91: swarm_negotiator.h must define NegotiationRequest and negotiate()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/swarm_negotiator.h").read_text()
+    assert "swarm_negotiator" in src
+    assert "NegotiationRequest" in src
+    assert "NegotiationResult" in src
+    assert "negotiate" in src
