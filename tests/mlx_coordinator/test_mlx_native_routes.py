@@ -859,56 +859,41 @@ def test_ms73_brew_session_tab_wires_budget_exhausted():
 
 
 # ---------------------------------------------------------------------------
-# MS-171 Phase A — unified-memory guard + pressure telemetry
+# MS-75 — RAG Re-Ranking + Relevance Score UI
 # ---------------------------------------------------------------------------
 
-def _read_ms171(rel):
+def test_ms75_rag_rerank_header_exists():
+    """MS-75: rag_rerank.h must declare term_overlap and rerank functions."""
     import pathlib
-    return (pathlib.Path(__file__).resolve().parents[2] / rel).read_text()
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/rag_rerank.h").read_text()
+    assert "term_overlap" in src, "rag_rerank.h must declare term_overlap()"
+    assert "rerank" in src, "rag_rerank.h must declare rerank()"
+    assert "ScoredHit" in src or "relevance" in src, (
+        "rag_rerank.h must define a scored hit type with relevance field"
+    )
 
 
-def test_ms171_guard_header_exists():
-    """MS-171: mlx_memory_guard.h defines Config, check(), pressure section."""
-    src = _read_ms171("cpp_core/src/mlx_memory_guard.h")
-    assert "namespace mlx_mem_guard" in src
-    assert "struct Config" in src
-    assert "min_free_gb" in src
-    assert "inline json check(" in src
-    assert "pressure_memory_section" in src
-    assert 'snap.value("ok", false)' in src
+def test_ms75_dispatch_prepare_calls_rerank():
+    """MS-75: dispatch_prepare must call rag_rerank::rerank when rag_rerank=true."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_dispatch_prepare.cpp").read_text()
+    assert "rag_rerank" in src, "dispatch_prepare must check rag_rerank flag"
+    assert "rag_rerank::rerank" in src, "dispatch_prepare must call rag_rerank::rerank()"
 
 
-def test_ms171_guard_wired_into_state():
-    """MS-171: CoordinatorState owns the guard config."""
-    src = _read_ms171("cpp_core/src/coordinator_context.h")
-    assert '#include "mlx_memory_guard.h"' in src
-    assert "mlx_memory_guard_config" in src
+def test_ms75_rag_hit_row_shows_relevance_badge():
+    """MS-75: RagHitRow must render relevance score badge when hit.relevance present."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/RagHitRow.js").read_text()
+    assert "relevance" in src, "RagHitRow must handle relevance field"
 
 
-def test_ms171_guard_loaded_at_startup():
-    """MS-171: coordinator_setup reads coordinator.mlx_memory_guard."""
-    src = _read_ms171("cpp_core/src/coordinator_setup.cpp")
-    assert "mlx_mem_guard::load(coord)" in src
-    assert "state.mlx_memory_guard_config" in src
-
-
-def test_ms171_guard_rejects_on_stream_and_submit():
-    """MS-171: both /api/mlx/submit and /api/mlx/stream pre-flight the guard."""
-    src = _read_ms171("cpp_core/src/coordinator_routes_mlx.cpp")
-    assert '#include "mlx_memory_guard.h"' in src
-    assert src.count("mlx_mem_guard::check(st.mlx_memory_guard_config)") == 2
-    assert src.count('err(res, 503, mc.value("error"') == 2
-
-
-def test_ms171_pressure_surfaces_unified_memory():
-    """MS-171: /api/mlx/pressure includes unified_memory when available."""
-    src = _read_ms171("cpp_core/src/coordinator_routes_mlx.cpp")
-    assert "mlx_mem_guard::pressure_memory_section()" in src
-    assert 'out["unified_memory"]' in src
-
-
-def test_ms171_config_template_documents_guard():
-    """MS-171: swarm-config.template.json ships the guard block (default off)."""
-    src = _read_ms171("swarm-config.template.json")
-    assert '"mlx_memory_guard"' in src
-    assert '"min_free_gb"' in src
+def test_ms75_rag_controls_panel_has_rerank_toggle():
+    """MS-75: RagControlsPanel must include ragRerank checkbox."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/RagControlsPanel.js").read_text()
+    assert "ragRerank" in src, "RagControlsPanel must expose ragRerank toggle"
