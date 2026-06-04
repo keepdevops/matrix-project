@@ -22,6 +22,7 @@ import { useAppLayoutProps } from './hooks/useAppLayoutProps';
 import { useAppHandlers } from './hooks/useAppHandlers';
 import { useAppCallbacks } from './hooks/useAppCallbacks';
 import { useTokenBudget } from './hooks/useTokenBudget';
+import { useAgentHealth } from './hooks/useAgentHealth';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
@@ -62,6 +63,7 @@ function App() {
     submit, loadHistory, currentSession, activeMode, useRag,
     responses, activeAgents, flatPickAgent, modeWarnings, memoryPressure, hostMemory,
     kvReadings,
+    agentHealthByName,
     onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
   });
 
@@ -75,6 +77,8 @@ function App() {
     setShowHelp, setShowRagAdmin, setShowCachePanel,
     setDeployPending, setCacheStatus, handleSubmit,
   });
+
+  const { byName: agentHealthByName } = useAgentHealth({ online });
 
   const { overrun: budgetExhausted } = useTokenBudget({
     sessionId: currentSession?.sessionId,
