@@ -814,3 +814,45 @@ def test_ms72_orchestrate_stream_records_tes():
     assert "meta" in src and "tes" in src, (
         "useOrchestrateStream must extract meta.tes and forward to onTes"
     )
+
+
+# ---------------------------------------------------------------------------
+# MS-73 — Token Budget Dashboard + overrun hard-stop
+# ---------------------------------------------------------------------------
+
+def test_ms73_reject_on_overrun_in_context():
+    """MS-73: CoordinatorState must have reject_on_overrun field."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_context.h").read_text()
+    assert "reject_on_overrun" in src, (
+        "coordinator_context.h must declare reject_on_overrun in CoordinatorState"
+    )
+
+
+def test_ms73_dispatch_enforces_overrun():
+    """MS-73: dispatch route must return 429 when reject_on_overrun and ledger overrun."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_dispatch.cpp").read_text()
+    assert "reject_on_overrun" in src, "dispatch must check reject_on_overrun"
+    assert "token_budget_exceeded" in src, "dispatch must return token_budget_exceeded error"
+
+
+def test_ms73_metrics_json_route_exists():
+    """MS-73: GET /api/metrics-json must exist for TokenBudgetDashboard polling."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_metrics.h").read_text()
+    assert "/api/metrics-json" in src, (
+        "coordinator_routes_metrics.h must register GET /api/metrics-json"
+    )
+
+
+def test_ms73_brew_session_tab_wires_budget_exhausted():
+    """MS-73: BrewSessionTab must pass budgetExhausted from useTokenBudget to PromptInput."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/layouts/BrewSessionTab.js").read_text()
+    assert "useTokenBudget" in src, "BrewSessionTab must import useTokenBudget"
+    assert "budgetExhausted" in src, "BrewSessionTab must pass budgetExhausted to PromptInput"
