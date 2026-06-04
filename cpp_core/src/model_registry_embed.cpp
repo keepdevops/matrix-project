@@ -1,9 +1,7 @@
 #ifdef MATRIX_MLX_EMBED
-// MS-68 Phase 2a: in-process MLX generation for model_mem::ModelRegistry.
-// Folded in from MS-161's mlx_inproc::MlxModelRegistry — same interpreter
-// lifecycle, serialized GPU lane, and PyIter_Next streaming. The only change:
-// these are now ModelRegistry members, and each call is recorded against the
-// (model_id, quant) accounting entries via note_generation().
+// MS-68: in-process MLX generation for model_mem::ModelRegistry (interpreter
+// lifecycle, serialized GPU lane, PyIter_Next streaming; from MS-161). 2c′ adds
+// per-session prompt-cache reuse. Calls recorded via note_generation().
 
 #include "model_registry.h"
 
@@ -142,9 +140,8 @@ GenResult ModelRegistry::generate(const Agent& agent, const std::string& prompt,
     return r;
 }
 
-// Build the stream-setup Python. Default (cache off): today's stateless path,
-// byte-for-byte. With session prompt-cache (2c′): tokenize → longest-common-
-// prefix vs the cached ids → trim cache to it → feed only the delta.
+// Stream-setup Python. cache off → today's stateless path, byte-for-byte.
+// 2c′ on → tokenize, longest-common-prefix vs cached ids, trim to it, feed delta.
 static std::string build_stream_setup(const std::string& model_path,
                                       const std::string& prompt, int max_tokens,
                                       bool use_cache, const std::string& session_id,
@@ -243,8 +240,7 @@ GenResult ModelRegistry::generate_stream(const Agent& agent, const std::string& 
         if (PyErr_Occurred()) { PyErr_Print(); }
         PyDict_DelItemString(main_dict, "__reg_stream__");
 
-        // 2c′: drop the generated tokens from the session cache so it holds
-        // exactly the prompt KV (matches __mlx_sess__[sid] = _full).
+        // 2c′: drop generated tokens so the cache holds exactly the prompt KV.
         if (use_cache) {
             std::ostringstream fin;
             fin << "if __mlx_sess__.get('" << esc(session_id) << "') is not None and "
