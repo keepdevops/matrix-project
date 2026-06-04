@@ -73,9 +73,11 @@ public:
     GenResult generate(const Agent& agent, const std::string& prompt, int max_tokens);
 
     // Streaming variant — drives mlx_lm.stream_generate, invoking on_token per
-    // chunk. Same lane, same accounting.
+    // chunk. Same lane, same accounting. MS-68 2c′: when prompt-cache reuse is
+    // enabled and session_id is set, reuses a per-session KV cache (delta-feed).
     GenResult generate_stream(const Agent& agent, const std::string& prompt,
-                              int max_tokens, const OnToken& on_token);
+                              int max_tokens, const OnToken& on_token,
+                              const std::string& session_id = "");
 
     int evict_idle(int max_idle_secs = DEFAULT_IDLE_SECS);  // returns # evicted
 #endif
@@ -91,5 +93,11 @@ private:
                          const std::string& agent_name);
 #endif
 };
+
+#ifdef MATRIX_MLX_EMBED
+// MS-68 2c′: configure per-session prompt-cache reuse (default OFF). Below
+// min_ctx_tokens the cache is skipped (decode-dominated; reuse doesn't pay).
+void configure_prompt_cache(bool enabled, int min_ctx_tokens);
+#endif
 
 }  // namespace model_mem

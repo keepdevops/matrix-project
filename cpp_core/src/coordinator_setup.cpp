@@ -2,6 +2,9 @@
 #include "coordinator_setup_wire.h"
 #include "backend_router.h"
 #include "rss_generator.h"
+#ifdef MATRIX_MLX_INPROC
+#include "model_registry.h"   // MS-68 2c′: configure_prompt_cache
+#endif
 #include "config/coordinator_config_validate.h"
 #include "config/http_url_parse.h"
 #include "config/swarm_config_dir_load.h"
@@ -107,6 +110,18 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
             if (on)
                 std::cout << "📡 RSS feeds enabled (max_items=" << cap << ")\n";
         }
+#ifdef MATRIX_MLX_INPROC
+        // MS-68 2c′: in-process session prompt-cache reuse (default OFF).
+        if (coord.contains("prompt_cache") && coord["prompt_cache"].is_object()) {
+            const auto& pc = coord["prompt_cache"];
+            const bool on = pc.value("enabled", false);
+            const int  mc = pc.value("min_ctx_tokens", 1024);
+            model_mem::configure_prompt_cache(on, mc);
+            if (on)
+                std::cout << "🧠 in-process prompt-cache reuse enabled (min_ctx_tokens="
+                          << mc << ")\n";
+        }
+#endif
     }
     backend_router::configure_from_startup(config);
 }

@@ -218,7 +218,7 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
                     // MS-161 Phase C / MS-68 2b: stream in-process (inproc or auto).
                     if (resolve_inproc(agent)) {
                         const int mt = agent.max_tokens > 0 ? agent.max_tokens : 512;
-                        auto sr = model_mem::ModelRegistry::instance().generate_stream(agent, prompt, mt, on_tok);
+                        auto sr = model_mem::ModelRegistry::instance().generate_stream(agent, prompt, mt, on_tok, session_id);
                         agent_out = sr.ok ? sr.text : ("[inproc error] " + sr.error);
                     } else
 #endif
