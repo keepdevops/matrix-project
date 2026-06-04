@@ -1173,13 +1173,19 @@ def test_ms171b_config_has_evict_at_pct():
 
 
 def test_ms171b_pressure_exceeds_helper():
-    """MS-171B: pressure_exceeds() gates on enabled + range + live pressure."""
+    """MS-171B: pressure_exceeds gates on enabled + range + pressure.
+
+    The decision logic now has a BEHAVIORAL guard — tests/cpp/test_mlx_mem_guard.cpp
+    exercises pressure_exceeds_at() (disabled / out-of-range / bad-telemetry / at &
+    below threshold), built + run in CI. This keeps only a thin structural check
+    that pressure_exceeds() still delegates to that unit-tested predicate, rather
+    than asserting the function body text (which stayed green even when broken)."""
     src = _read_ms171b("cpp_core/src/mlx_memory_guard.h")
+    assert "pressure_exceeds_at(" in src, "pure predicate must exist (unit-tested)"
     assert "inline bool pressure_exceeds(const Config& cfg)" in src
-    # disabled / out-of-range / no-telemetry all return false (never evict blindly)
-    assert "cfg.evict_at_pct <= 0 || cfg.evict_at_pct > 100" in src
-    assert 'if (!snap.value("ok", false)) return false;' in src
-    assert "return pct >= cfg.evict_at_pct;" in src
+    assert "return pressure_exceeds_at(cfg" in src, (
+        "pressure_exceeds() must delegate its decision to pressure_exceeds_at()"
+    )
 
 
 def test_ms171b_routes_evict_before_reject():

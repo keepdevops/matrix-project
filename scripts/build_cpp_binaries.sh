@@ -300,6 +300,12 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_prompt_cache_codegen" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_prompt_cache_codegen"
 
+echo "Building test_mlx_mem_guard..."  # MS-171B: pressure_exceeds_at decision (pure)
+c++ -std=c++17 -O0 -g -o "$ROOT/test_mlx_mem_guard" \
+  "$ROOT/tests/cpp/test_mlx_mem_guard.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_mlx_mem_guard"
+
 echo "Building test_port_assign..."
 c++ -std=c++17 -O0 -g -o "$ROOT/test_port_assign" \
   "$ROOT/tests/cpp/test_port_assign.cpp" \

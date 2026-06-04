@@ -50,20 +50,28 @@ inline json check(const Config& cfg) {
     };
 }
 
-// MS-171 Phase B: true when proactive eviction should fire — i.e. the
-// guard is enabled, evict_at_pct is in (0,100], and live unified-memory
-// pressure has reached that mark. Reads telemetry directly; false when
-// unavailable (non-Apple builds) so callers never evict blindly.
+// MS-171 Phase B: PURE eviction decision — given a config and a memory reading,
+// should proactive eviction fire? Guard must be enabled, evict_at_pct in (0,100],
+// telemetry sane (total>0), and pressure% at/above the mark. No I/O, so it is
+// unit-tested directly (tests/cpp/test_mlx_mem_guard.cpp) instead of grep-asserted.
+inline bool pressure_exceeds_at(const Config& cfg, double total_gb, double free_gb) {
+    if (!cfg.enabled || cfg.evict_at_pct <= 0 || cfg.evict_at_pct > 100)
+        return false;
+    if (total_gb <= 0.0) return false;
+    const int pct = static_cast<int>((1.0 - free_gb / total_gb) * 100.0);
+    return pct >= cfg.evict_at_pct;
+}
+
+// true when proactive eviction should fire against *live* unified-memory
+// pressure. Reads telemetry; false when unavailable (non-Apple builds) so
+// callers never evict blindly. Decision delegated to pressure_exceeds_at().
 inline bool pressure_exceeds(const Config& cfg) {
     if (!cfg.enabled || cfg.evict_at_pct <= 0 || cfg.evict_at_pct > 100)
         return false;
     const json snap = host_memory_snapshot();
     if (!snap.value("ok", false)) return false;
-    const double total = snap.value("total_gb", 0.0);
-    const double free  = snap.value("free_gb",  0.0);
-    if (total <= 0.0) return false;
-    const int pct = static_cast<int>((1.0 - free / total) * 100.0);
-    return pct >= cfg.evict_at_pct;
+    return pressure_exceeds_at(cfg, snap.value("total_gb", 0.0),
+                                    snap.value("free_gb",  0.0));
 }
 
 // Unified-memory section for the /api/mlx/pressure response.
