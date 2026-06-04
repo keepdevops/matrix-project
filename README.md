@@ -114,6 +114,12 @@ it with Matrix Swarm for parallel planning + deep execution.
 - **Broadcast history** — last 10 prompts and full responses, click to reload.
 - **CLEAR KV** — drop llama-server KV cache, restart MLX servers, and reset
   conversation session state between unrelated prompts.
+- **Monitor popout** — live runtime telemetry: KV-cache status + per-port KV
+  pressure gauge, a **Unified Memory** gauge (works on any coordinator build —
+  native/INPROC report `unified_memory`, plain builds fall back to the host
+  `/api/memory` snapshot), MLX per-port Q/W/D pressure, and opt-in RSS event
+  feeds (`coordinator.rss.enabled`; model load/evict + token-regulation events,
+  published by the in-process MLX build).
 - **SAVE CODE** — export every agent's code blocks to one timestamped file.
 - **Pre-built swarm configs** — `swarm-config.json` (generated; see below),
   plus authored variants `swarm-config-16gb.json`, `swarm-config-32gb.json`,

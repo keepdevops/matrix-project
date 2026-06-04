@@ -63,6 +63,8 @@ export default function HelpModalReference() {
           <dd>One automatic retry (250 ms backoff) on transient HTTP failures (5xx / empty 200 / connect error). 4xx errors don't retry. In pipeline mode a failed stage is recorded in <code>meta.errors[]</code> and the chain continues from the last good output rather than passing the error message downstream. Cascade filters failed agents out of the synthesizer's input.</dd>
           <dt>Per-run metrics</dt>
           <dd>Every dispatch envelope carries <code>meta.timings {`{ agent: { calls, total_ms, completion_tokens } }`}</code> plus <code>meta.wall_ms</code>. The <strong>RUN METRICS</strong> strip below FINAL ANSWER renders this as a per-agent bar chart so you can see who's hot, slow, or idle. The streaming endpoint emits a final <code>metrics</code> SSE event with the same shape.</dd>
+          <dt>Monitor popout</dt>
+          <dd>The header <strong>Monitor</strong> shows live health: KV-cache status/size with a per-port pressure gauge, a <strong>Unified Memory</strong> gauge (works on any coordinator build — native builds report <code>unified_memory</code>, plain builds fall back to the host <code>/api/memory</code> snapshot), MLX per-port Q/W/D pressure, a <strong>Clear KV</strong> button, and opt-in <strong>RSS feeds</strong> (History / Config / Token Regulation). RSS needs <code>coordinator.rss.enabled</code>, and events are published only by the in-process MLX build (model load/evict, token regulation).</dd>
         </dl>
       </div>
 
