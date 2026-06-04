@@ -57,6 +57,10 @@ function App() {
 
   const { onModeWarning, onMemoryPressureWarning, onSaveCodeToast } = useAppCallbacks({ showToast });
 
+  const handleForked = ({ fork_session_id }) => {
+    if (fork_session_id) setCurrentSession({ sessionId: fork_session_id });
+  };
+
   const {
     pendingPrompt, handleSubmit, handleQualityPass,
     handleFollowUp, handleSendBestContinue, handleSaveCode,
@@ -107,7 +111,7 @@ function App() {
     handleOpenRagAdmin, handleOpenCachePanel, handleOpenHelp,
     setTheme, setLayout, handleDeployed,
     handleHistorySelect, handleSubmit, handleQualityPass,
-    setSelectedPrompt, handleFollowUp, handleClearSession, handleSwitchSession,
+    setSelectedPrompt, handleFollowUp, handleClearSession, handleSwitchSession, handleForked,
     handleSaveCode, setFlatPickAgent, handleSendBestContinue, setUseRag,
     handleExpandProgrammer,
     setShowHelp, setShowRagAdmin, setShowCachePanel,

@@ -19,7 +19,7 @@ export default function BrewlateLayout({
   currentSession, backend, switchBackend,
   showHistory, showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, flatPickAgent, excludedBreaker, stageOutputs, budgetExhausted,
-  qualityPassTarget, onQualityPassTargetChange,
+  qualityPassTarget, onQualityPassTargetChange, onForked,
   warningsByMode, memoryPressure, theme, layout: currentLayout,
   pendingPrompt, selectedPrompt, selectedTemperature,
   onModeChange, onClearCache, onToggleHistory,
