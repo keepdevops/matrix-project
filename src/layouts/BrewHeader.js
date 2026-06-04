@@ -30,7 +30,15 @@ export default function BrewHeader({
 
   return (
     <header className="brew-header">
-      <span className="brew-logo">Brewlatte</span>
+      <span className="brew-logo">
+        <img
+          src={`${process.env.PUBLIC_URL || ''}/images/brew-agent-cup.png`}
+          alt=""
+          className="brew-logo-cup"
+          draggable={false}
+        />
+        Brewlatte
+      </span>
 
       <span className={`brew-status-pill${online ? ' online' : ''}`}
         role="status" aria-live="polite">

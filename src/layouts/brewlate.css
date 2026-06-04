@@ -150,6 +150,9 @@ body[data-layout="brewlate"] {
 }
 
 .brew-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
   font-size: 1.35rem;
@@ -157,6 +160,14 @@ body[data-layout="brewlate"] {
   letter-spacing: 0.02em;
   margin-right: 1.5rem;
   white-space: nowrap;
+}
+
+.brew-logo-cup {
+  height: 1.9em;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  pointer-events: none;
 }
 
 .brew-tabs {
@@ -591,6 +602,8 @@ body[data-layout="brewlate"] {
 .brew-agents-popout-body {
   overflow-y: auto;
   flex: 1 1 auto;
+  min-height: 0;            /* allow the body to shrink within the popout's
+                              max-height so overflow-y:auto actually scrolls */
   padding: 0.5rem 0.65rem 0.75rem;
 }
 
@@ -864,17 +877,18 @@ body[data-layout="brewlate"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 88px;
-  padding: 0.5rem 0.75rem 0.25rem;
+  min-height: 124px;
+  padding: 0.6rem 0.75rem 0.3rem;
   background:
     radial-gradient(ellipse 70% 55% at 50% 35%, var(--brew-accent-a22) 0%, transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--brew-panel) 90%, transparent) 0%, transparent 100%);
 }
 
 .brew-agent-card-cup {
-  width: 72px;
+  width: 148px;
+  max-width: 100%;
   height: auto;
-  max-height: 72px;
+  max-height: 108px;
   object-fit: contain;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
   pointer-events: none;
