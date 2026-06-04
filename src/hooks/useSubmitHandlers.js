@@ -12,6 +12,7 @@ export function useSubmitHandlers({
   responses, activeAgents, flatPickAgent,
   modeWarnings = [], memoryPressure = null, hostMemory = null,
   kvReadings = [],
+  agentHealthByName = {},
   qualityPassTarget = null,
   onModeWarning, onSaveCodeToast, onMemoryPressureWarning,
 }) {
@@ -42,6 +43,12 @@ export function useSubmitHandlers({
       return;
     }
 
+    if (!opts.qualityPass && !opts.followup && Object.keys(agentHealthByName).length > 0) {
+      const tripped = activeAgents
+        .filter(a => agentHealthByName[a.name]?.tripped)
+        .map(a => `${a.name}: circuit breaker open`);
+      if (tripped.length > 0) onModeWarning?.(tripped);
+    }
     if (modeWarnings.length > 0 && !opts.qualityPass && !opts.followup) onModeWarning?.(modeWarnings);
     if (memoryPressure?.shouldWarnOnSubmit && !opts.qualityPass && !opts.followup && !opts.skipMemoryWarn) {
       onMemoryPressureWarning?.(memoryPressure);
@@ -73,7 +80,7 @@ export function useSubmitHandlers({
     } finally {
       setPendingPrompt(null);
     }
-  }, [submit, loadHistory, currentSession, activeMode, useRag, kvReadings, hostMemory, modeWarnings, memoryPressure, onModeWarning, onMemoryPressureWarning]);
+  }, [submit, loadHistory, currentSession, activeMode, useRag, kvReadings, hostMemory, modeWarnings, memoryPressure, agentHealthByName, activeAgents, onModeWarning, onMemoryPressureWarning]);
 
   const handleQualityPass = useCallback(async (temperature = 0.2) => {
     const policy = qualityPassContextPolicy(activeMode || 'pipeline');
