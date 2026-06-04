@@ -6,17 +6,9 @@
 
 #include <string>
 
-namespace model_mem {
+#include "model_registry_prompt_cache_codegen.h"  // build_stream_setup (pure codegen)
 
-// Build the Python setup snippet for generate_stream:
-//   cache OFF → stateless path (byte-identical to pre-2c′).
-//   cache ON  → tokenize, LCP, trim, delta-feed; timestamps updated; stale
-//               sessions evicted opportunistically (idle > idle_secs).
-//   quantized → use QuantizedKVCache(kv_bits=4) for new sessions.
-std::string build_stream_setup(const std::string& model_path,
-                               const std::string& prompt, int max_tokens,
-                               bool use_cache, const std::string& session_id,
-                               int min_ctx, bool quantized, int idle_secs);
+namespace model_mem {
 
 // Evict sessions from __mlx_sess__ that have been idle > idle_secs.
 // Returns number of sessions evicted. Must hold lane + GIL.

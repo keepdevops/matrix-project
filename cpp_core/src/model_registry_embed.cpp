@@ -5,6 +5,7 @@
 
 #include "model_registry.h"
 #include "model_registry_prompt_cache.h"
+#include "model_idle_policy.h"   // #297: pure idle-eviction predicate
 #include "rss_generator.h"
 
 #include <Python.h>
@@ -263,9 +264,9 @@ int ModelRegistry::evict_idle(int max_idle_secs) {
         std::lock_guard<std::mutex> lk(mu_);
         const auto now = std::chrono::steady_clock::now();
         for (auto& [key, e] : entries_) {
-            if (e.gen_calls == 0) continue;
             const double idle = std::chrono::duration<double>(now - e.last_used).count();
-            if (idle > max_idle_secs) stale.push_back(key);
+            if (model_idle_evictable(e.gen_calls, idle, max_idle_secs))
+                stale.push_back(key);
         }
     }
     if (stale.empty() && !g_pc_enabled.load()) return 0;
