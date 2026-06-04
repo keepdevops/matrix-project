@@ -722,7 +722,12 @@ def test_ms70_history_utils_exists():
 
 
 def test_ms70_tes_stamped_in_dispatch_meta():
-    """MS-70: coordinator_routes_dispatch_meta.h must stamp meta.tes after token_budget."""
+    """MS-70: dispatch_meta wires tes::compute into meta.tes.
+
+    Structural-only wiring check — the TES *math* itself has a behavioral guard
+    in tests/cpp/test_tes_compute.cpp (compute()/compute_rich() weighting, edge
+    cases, RAG enrichment), built + run in CI. This just confirms the call site
+    is still present."""
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "cpp_core/src/coordinator_routes_dispatch_meta.h").read_text()
@@ -781,7 +786,10 @@ def test_ms72_sse_reader_on_tes_callback():
 # ---------------------------------------------------------------------------
 
 def test_ms72_stream_llama_records_tokens():
-    """MS-72: agent_stream_llama.h must call token_ledger::add after streaming."""
+    """MS-72: agent_stream_llama.h must call token_ledger::add after streaming.
+
+    Wiring check only (that stream_llama records tokens). The ledger's accounting
+    and overrun gate have a behavioral guard in tests/cpp/test_token_ledger.cpp."""
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "cpp_core/src/agent_stream_llama.h").read_text()

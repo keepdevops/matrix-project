@@ -52,7 +52,7 @@ jobs:
       - name: Run C++ unit tests
         run: |
           set -e
-          tests="test_kv_token_semaphore test_backend_registry test_backend_selection test_backend_router test_routing_decision_log test_rss_generator test_model_registry test_prompt_cache_lcp test_prompt_cache_codegen test_mlx_mem_guard test_port_assign test_sse_usage_capture rag_embed_test"
+          tests="test_kv_token_semaphore test_backend_registry test_backend_selection test_backend_router test_routing_decision_log test_rss_generator test_model_registry test_prompt_cache_lcp test_prompt_cache_codegen test_mlx_mem_guard test_tes_compute test_token_ledger test_port_assign test_sse_usage_capture rag_embed_test"
           for t in $tests; do
             echo "── $t ──"
             "./$t"

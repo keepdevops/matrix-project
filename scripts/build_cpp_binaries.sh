@@ -306,6 +306,19 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_mlx_mem_guard" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_mlx_mem_guard"
 
+echo "Building test_tes_compute..."  # MS-70/72: Token Efficiency Score math (pure)
+c++ -std=c++17 -O0 -g -o "$ROOT/test_tes_compute" \
+  "$ROOT/tests/cpp/test_tes_compute.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_tes_compute"
+
+echo "Building test_token_ledger..."  # MS-71/73: token accounting + overrun gate
+c++ -std=c++17 -O0 -g -o "$ROOT/test_token_ledger" \
+  "$ROOT/tests/cpp/test_token_ledger.cpp" \
+  "$CPP_SRC/token_ledger.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_token_ledger"
+
 echo "Building test_port_assign..."
 c++ -std=c++17 -O0 -g -o "$ROOT/test_port_assign" \
   "$ROOT/tests/cpp/test_port_assign.cpp" \
