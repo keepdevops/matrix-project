@@ -15,7 +15,7 @@ export default function DefaultLayout({
   showConfig, showHistory, showConfigPanel, deployPending,
   showHelp, showConverter, showRagAdmin, showCachePanel,
   cacheStatus, useRag, pendingPrompt,
-  flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, memoryPressure,
+  flatPickAgent, excludedBreaker, stageOutputs, warningsByMode, memoryPressure, budgetExhausted,
   theme, layout, onSetTheme, onSetLayout,
   onModeChange, onClearCache,
   onToggleConfig, onToggleHistory,
@@ -76,6 +76,7 @@ export default function DefaultLayout({
           onFollowUp={onFollowUp} onClearSession={onClearSession} onSwitchSession={onSwitchSession}
           onSaveCode={onSaveCode} onPickFlatAgent={onPickFlatAgent}
           onSendBestContinue={onSendBestContinue} onUseRagChange={onUseRagChange}
+          budgetExhausted={budgetExhausted}
         />
       )}
 
