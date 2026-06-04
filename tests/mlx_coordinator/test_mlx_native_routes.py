@@ -774,3 +774,43 @@ def test_ms72_sse_reader_on_tes_callback():
     assert "meta.tes" in src or "meta?.tes" in src, (
         "readSseStream must extract meta.tes from session/metrics events"
     )
+
+
+# ---------------------------------------------------------------------------
+# MS-72 — Streaming token accounting + TES propagation
+# ---------------------------------------------------------------------------
+
+def test_ms72_stream_llama_records_tokens():
+    """MS-72: agent_stream_llama.h must call token_ledger::add after streaming."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/agent_stream_llama.h").read_text()
+    assert "token_ledger::add" in src, (
+        "agent_stream_llama.h must call token_ledger::add after stream completes"
+    )
+    assert "tokens_evaluated" in src or "tokens_predicted" in src, (
+        "agent_stream_llama.h must parse llama-server timings for real token counts"
+    )
+
+
+def test_ms72_sse_reader_exposes_ontes():
+    """MS-72: sseStreamReader.js must accept and call onTes callback."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/sseStreamReader.js").read_text()
+    assert "onTes" in src, (
+        "sseStreamReader.js readSseStream must accept onTes callback"
+    )
+
+
+def test_ms72_orchestrate_stream_records_tes():
+    """MS-72: useOrchestrateStream.js must call onTes with meta.tes on done."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/hooks/useOrchestrateStream.js").read_text()
+    assert "onTes" in src, (
+        "useOrchestrateStream must accept and call onTes for TES sparkline"
+    )
+    assert "meta" in src and "tes" in src, (
+        "useOrchestrateStream must extract meta.tes and forward to onTes"
+    )
