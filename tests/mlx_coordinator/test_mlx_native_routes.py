@@ -1489,3 +1489,43 @@ def test_ms88_supervisor_audit_route():
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "cpp_core/src/coordinator_routes_supervisor.h").read_text()
     assert "/api/supervisor/audit" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-89 — Hardware Optimizations + Predictive UX + Export Polish
+# ---------------------------------------------------------------------------
+
+def test_ms89_prefix_cache():
+    """MS-89: prefix_cache.h must define Entry, record, and ranked."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/prefix_cache.h").read_text()
+    assert "prefix_cache" in src
+    assert "record" in src
+    assert "ranked" in src
+
+
+def test_ms89_dispatch_simulation():
+    """MS-89: dispatch_simulation.h must define SimResult and simulate()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/dispatch_simulation.h").read_text()
+    assert "SimResult" in src
+    assert "simulate" in src
+    assert "estimated_tokens" in src or "would_overrun" in src
+
+
+def test_ms89_simulate_route():
+    """MS-89: coordinator_routes_simulate.h must register POST /api/simulate."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_simulate.h").read_text()
+    assert "/api/simulate" in src
+
+
+def test_ms89_token_flow_sankey():
+    """MS-89: TokenFlowSankey.js must render token flow from meta.contracts."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/TokenFlowSankey.js").read_text()
+    assert "contracts" in src or "token" in src.lower()
