@@ -1117,3 +1117,43 @@ def test_ms81_session_export_buttons():
     assert "sessionId" in src
     assert "MD" in src or "md" in src.lower()
     assert "JSON" in src or "json" in src.lower()
+
+
+# ---------------------------------------------------------------------------
+# MS-82 — Prompt Templates with Variable Substitution
+# ---------------------------------------------------------------------------
+
+def test_ms82_template_routes_exist():
+    """MS-82: coordinator_routes_templates.h must implement CRUD + render."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_templates.h").read_text()
+    assert "/api/templates" in src
+    assert "/render" in src
+    assert "substitute" in src
+
+
+def test_ms82_template_substitute_util():
+    """MS-82: templateSubstitute.js must export substitute and extractVariables."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/utils/templateSubstitute.js").read_text()
+    assert "substitute" in src
+    assert "extractVariables" in src
+
+
+def test_ms82_template_manager_component():
+    """MS-82: TemplateManager.js must render variable form and emit onInsert."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/TemplateManager.js").read_text()
+    assert "onInsert" in src or "variables" in src
+
+
+def test_ms82_templates_api_js():
+    """MS-82: templatesApi.js must export renderTemplate and saveTemplate."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/templatesApi.js").read_text()
+    assert "renderTemplate" in src
+    assert "saveTemplate" in src
