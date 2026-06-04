@@ -97,6 +97,6 @@ export function useAppLayoutProps(props) {
     handleOpenCachePanel, handleOpenHelp, setTheme, setLayout, handleDeployed,
     handleHistorySelect, handleSubmit, handleQualityPass, setSelectedPrompt, handleFollowUp, handleClearSession,
     handleSwitchSession, handleSaveCode, setFlatPickAgent, handleSendBestContinue, handleExpandProgrammer,
-    setShowHelp, setShowRagAdmin, setShowCachePanel,
+    setShowHelp, setShowRagAdmin, setShowCachePanel, setUseRag,
   ]);
 }

@@ -1,5 +1,4 @@
 import { buildCodeExport, downloadBlob } from '../utils/codeSave';
-import { qualityPassContextPolicy } from '../utils/qualityPassContext';
 
 export function buildQualityPassInstruction() {
   return [

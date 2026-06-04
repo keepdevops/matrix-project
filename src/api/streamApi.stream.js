@@ -2,7 +2,7 @@ import { API_BASE, MLX_API_BASE } from './base';
 import { buildStreamBody, fetchSseStream, readSseStream } from './sseStreamReader';
 
 function dispatchStreamEvent(eventName, dataStr, callbacks) {
-  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onRouting, onDone, onError, onSession } = callbacks;
+  const { onToken, onAgentDone, onSelected, onStage, onSynthesisStart, onMetrics, onRouting, onError, onSession } = callbacks;
   let data;
   try { data = JSON.parse(dataStr); } catch { data = dataStr; }
   if (eventName === 'token') onToken?.(data.agent, data.delta);

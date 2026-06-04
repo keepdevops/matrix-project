@@ -3,7 +3,6 @@ import {
   fetchModels,
   fetchSwarmConfig,
   fetchHostMemory,
-  fetchModes,
 } from '../api/swarmApi';
 import { useKvPoller } from './useKvPoller';
 import { useCoordinatorRefresh } from './useCoordinatorRefresh';

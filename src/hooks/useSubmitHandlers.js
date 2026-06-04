@@ -73,7 +73,7 @@ export function useSubmitHandlers({
     } finally {
       setPendingPrompt(null);
     }
-  }, [submit, loadHistory, currentSession, activeMode, useRag, modeWarnings, memoryPressure, onModeWarning, onMemoryPressureWarning]);
+  }, [submit, loadHistory, currentSession, activeMode, useRag, kvReadings, hostMemory, modeWarnings, memoryPressure, onModeWarning, onMemoryPressureWarning]);
 
   const handleQualityPass = useCallback(async (temperature = 0.2) => {
     const policy = qualityPassContextPolicy(activeMode || 'pipeline');
