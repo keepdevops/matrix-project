@@ -4,6 +4,7 @@ import BrewResourcePopout from './BrewResourcePopout';
 import BrewConfigAgentsSection from './BrewConfigAgentsSection';
 import BrewConfigEngineProfile from './BrewConfigEngineProfile';
 import { DeployProgress } from '../components/DeployProgress';
+import VllmPanel from '../components/VllmPanel';
 
 export default function BrewConfigPanel({
   roles, setRoles, models, selected, roleModels, engine, activeProfile, engineModels,
@@ -60,6 +61,8 @@ export default function BrewConfigPanel({
           agentStatuses={agentStatuses} responses={responses} agentErrors={agentErrors}
           lastMeta={lastMeta} setLeftPopout={setLeftPopout}
         />
+
+        {engine === 'vllm' && <VllmPanel />}
 
         {(canDeploy || online) && (
           <BrewResourcePopout riskEstimate={riskEstimate} roles={roles} selected={selected} />
