@@ -1013,3 +1013,35 @@ def test_ms78_preset_actions_component():
            / "src/components/PresetActions.js").read_text()
     assert "export" in src.lower() or "Export" in src
     assert "duplicate" in src.lower() or "Duplicate" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-79 — Conversation Branching (Fork from History Entry)
+# ---------------------------------------------------------------------------
+
+def test_ms79_fork_endpoint_exists():
+    """MS-79: coordinator_routes_history_fork.h must implement POST /api/history/:run_id/fork."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_history_fork.h").read_text()
+    assert "/fork" in src
+    assert "fork_session_id" in src
+    assert "session_new_id" in src
+
+
+def test_ms79_fork_session_hook():
+    """MS-79: useForkSession.js must wrap forkSession and return forkResult."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/hooks/useForkSession.js").read_text()
+    assert "forkSession" in src
+    assert "forkResult" in src or "fork_session_id" in src
+
+
+def test_ms79_fork_button_in_conversation_turn():
+    """MS-79: ConversationTurn must render ForkButton when entry._run_id present."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/ConversationTurn.js").read_text()
+    assert "ForkButton" in src
+    assert "_run_id" in src
