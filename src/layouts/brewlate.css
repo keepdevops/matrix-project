@@ -877,18 +877,18 @@ body[data-layout="brewlate"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 124px;
-  padding: 0.6rem 0.75rem 0.3rem;
+  min-height: 224px;
+  padding: 0.5rem 0.25rem 0.25rem;
   background:
     radial-gradient(ellipse 70% 55% at 50% 35%, var(--brew-accent-a22) 0%, transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--brew-panel) 90%, transparent) 0%, transparent 100%);
 }
 
 .brew-agent-card-cup {
-  width: 148px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 300px;
   height: auto;
-  max-height: 108px;
+  max-height: 204px;
   object-fit: contain;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
   pointer-events: none;
