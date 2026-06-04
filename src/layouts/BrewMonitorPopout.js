@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import BrewMonitorStats from './BrewMonitorStats';
 import RssPanel from '../components/RssPanel';
+import { useCacheStats } from '../hooks/useCacheStats';
+import CacheStatsBar from '../components/CacheStatsBar';
 // Body: Port Pressure via PressureCluster — impl in BrewMonitorStats.js
 
 export default function BrewMonitorPopout({
@@ -35,6 +37,8 @@ export default function BrewMonitorPopout({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  const cacheStats = useCacheStats({ online });
+
   if (!open) return null;
 
   return (
@@ -43,6 +47,7 @@ export default function BrewMonitorPopout({
         <span className="brew-monitor-popout-title">Monitor</span>
         <button type="button" className="brew-monitor-popout-close" onClick={onClose} aria-label="Close monitor">✕</button>
       </div>
+      <CacheStatsBar stats={cacheStats} />
       <BrewMonitorStats
         online={online}
         kvReadings={kvReadings}
