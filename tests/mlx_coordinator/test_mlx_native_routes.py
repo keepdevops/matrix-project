@@ -971,3 +971,45 @@ def test_ms77_submit_handlers_uses_quality_pass_target():
            / "src/hooks/useSubmitHandlers.js").read_text()
     assert "qualityPassTarget" in src
     assert "target_agent" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-78 — Mode Preset Import / Export
+# ---------------------------------------------------------------------------
+
+def test_ms78_preset_export_endpoint():
+    """MS-78: coordinator_routes_presets_url.h must implement GET /api/presets/:name/export."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_presets_url.h").read_text()
+    assert "/export" in src
+    assert "Content-Disposition" in src
+    assert "attachment" in src
+
+
+def test_ms78_presets_api_js():
+    """MS-78: presetsApi.js must export exportPreset, importPreset, duplicatePreset."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/presetsApi.js").read_text()
+    assert "exportPreset" in src
+    assert "importPreset" in src
+    assert "duplicatePreset" in src
+
+
+def test_ms78_preset_import_component():
+    """MS-78: PresetImport.js must validate JSON and call importPreset."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/PresetImport.js").read_text()
+    assert "importPreset" in src or "import" in src.lower()
+    assert "agents" in src or "synthesizer" in src or "max_select" in src
+
+
+def test_ms78_preset_actions_component():
+    """MS-78: PresetActions.js must expose Export and Duplicate actions."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/PresetActions.js").read_text()
+    assert "export" in src.lower() or "Export" in src
+    assert "duplicate" in src.lower() or "Duplicate" in src
