@@ -150,6 +150,9 @@ body[data-layout="brewlate"] {
 }
 
 .brew-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
   font-size: 1.35rem;
@@ -157,6 +160,14 @@ body[data-layout="brewlate"] {
   letter-spacing: 0.02em;
   margin-right: 1.5rem;
   white-space: nowrap;
+}
+
+.brew-logo-cup {
+  height: 1.9em;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  pointer-events: none;
 }
 
 .brew-tabs {
