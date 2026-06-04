@@ -25,8 +25,10 @@ int evict_prompt_cache_sessions(int idle_secs);
 // Returns cached count of active prompt-cache sessions (atomic — no GIL needed).
 int prompt_cache_session_count();
 
-// Called after each setup run to synchronise the C++ counter.
-void update_session_count(int delta);
+// Called after each setup run to synchronise the C++ counter to the true live
+// session count (__reg_sess_size__ = len(__mlx_sess__)). Absolute, not a delta,
+// so opportunistic idle eviction can't make the gauge drift (#291).
+void set_session_count(int n);
 
 }  // namespace model_mem
 #endif  // MATRIX_MLX_EMBED

@@ -179,10 +179,11 @@ GenResult ModelRegistry::generate_stream(const Agent& agent, const std::string& 
         if (!ret) { PyErr_Print(); PyGILState_Release(gil); r.error = "stream setup failed"; return r; }
         Py_DECREF(ret);
 
-        // Sync the C++ session counter with what the Python code reported.
+        // Sync the C++ session counter to the true live size (#291: absolute,
+        // not a delta — opportunistic eviction can't make it drift).
         if (use_cache) {
-            PyObject* sd = PyDict_GetItemString(main_dict, "__reg_sess_delta__");
-            if (sd) update_session_count(static_cast<int>(PyLong_AsLong(sd)));
+            PyObject* sz = PyDict_GetItemString(main_dict, "__reg_sess_size__");
+            if (sz) set_session_count(static_cast<int>(PyLong_AsLong(sz)));
         }
 
         PyObject* gen = PyDict_GetItemString(main_dict, "__reg_stream__");  // borrowed
