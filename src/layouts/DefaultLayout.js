@@ -78,10 +78,7 @@ export default function DefaultLayout({
           onSaveCode={onSaveCode} onPickFlatAgent={onPickFlatAgent}
           onSendBestContinue={onSendBestContinue} onUseRagChange={onUseRagChange}
           budgetExhausted={budgetExhausted}
-<<<<<<< Updated upstream
-=======
           qualityPassTarget={qualityPassTarget} onQualityPassTargetChange={onQualityPassTargetChange}
->>>>>>> Stashed changes
         />
       )}
 
