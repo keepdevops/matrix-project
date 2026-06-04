@@ -6,6 +6,7 @@ import RagSources from '../components/RagSources';
 import MetricsStrip from '../components/MetricsStrip';
 import PipelineStageOutputs from '../components/PipelineStageOutputs';
 import PromptInput from '../components/PromptInput';
+import { useTokenBudget } from '../hooks/useTokenBudget';
 
 export default function BrewSessionTab({
   history, currentSession, responses, finalAnswer, loading, error, pendingPrompt,
@@ -14,6 +15,7 @@ export default function BrewSessionTab({
   onSubmit, onFollowUp, onClearSession, onSwitchSession, onQualityPass,
   onPromptConsumed, onSaveCode, onUseRagChange, switchBackend, onExpandProgrammer,
 }) {
+  const { overrun } = useTokenBudget({ sessionId: currentSession?.sessionId, online });
   return (
     <div className="brew-session-tab">
       <div className="brew-session-scroll">
@@ -73,6 +75,7 @@ export default function BrewSessionTab({
           backend={backend}
           onBackendChange={switchBackend}
           activeMode={activeMode}
+          budgetExhausted={overrun}
           submitLabel="BREW"
           submitLoadingLabel="BREWING…"
           qualityPassLabel="REFINE"
