@@ -242,11 +242,11 @@ h1 {
 .kv-gauge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  gap: 8px;
+  padding: 5px 11px;
   border: 1px solid rgba(0, 255, 65, 0.3);
-  border-radius: 4px;
-  font-size: 0.75rem;
+  border-radius: 5px;
+  font-size: 0.86rem;
   font-family: inherit;
   letter-spacing: 0.04em;
   background: var(--color-primary-tint-xs);
@@ -269,11 +269,11 @@ h1 {
 .kv-gauge-track {
   display: flex;
   gap: 2px;
-  width: 96px;
-  height: 10px;
+  width: 132px;
+  height: 14px;
   background: var(--color-overlay-dark);
   border: 1px solid rgba(0, 255, 65, 0.2);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -308,7 +308,7 @@ h1 {
 
 .kv-gauge-digital .kv-gauge-num,
 .kv-gauge-digital .kv-gauge-ghost {
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   grid-area: 1 / 1;
 }
 
@@ -331,7 +331,7 @@ h1 {
 
 .kv-gauge-digital .kv-gauge-unit {
   margin-left: 3px;
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   opacity: 0.7;
 }
 
