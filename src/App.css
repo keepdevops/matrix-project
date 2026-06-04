@@ -2472,3 +2472,84 @@ h1 {
   color: var(--color-error, var(--color-error));
   border-color: var(--color-error, var(--color-error));
 }
+
+/* ========== RSS Panel (MS-69 Phase B) ========== */
+.rss-panel {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.1));
+  padding-top: 0.5rem;
+}
+.rss-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+.rss-panel-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--color-label, #8888a8);
+  flex-shrink: 0;
+}
+.rss-panel-tabs { display: flex; gap: 0.25rem; flex: 1; }
+.rss-tab {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.15));
+  background: transparent;
+  color: var(--color-label, #8888a8);
+  cursor: pointer;
+}
+.rss-tab--active {
+  background: var(--color-accent-dim, rgba(120,100,255,0.2));
+  border-color: var(--color-accent, #7864ff);
+  color: var(--color-accent, #7864ff);
+}
+.rss-panel-meta {
+  font-size: 0.65rem;
+  color: var(--color-dim, #666);
+  flex-shrink: 0;
+}
+.rss-panel-notice {
+  font-size: 0.72rem;
+  color: var(--color-dim, #666);
+  padding: 0.3rem 0;
+}
+.rss-item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.rss-item {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  grid-template-rows: auto auto;
+  gap: 0 0.4rem;
+  font-size: 0.72rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.06));
+}
+.rss-item-time {
+  grid-row: 1;
+  color: var(--color-dim, #666);
+  font-size: 0.65rem;
+}
+.rss-item-title {
+  grid-row: 1;
+  color: var(--color-text, #d0d0e0);
+  font-weight: 500;
+}
+.rss-item-desc {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--color-label, #8888a8);
+  font-size: 0.68rem;
+}

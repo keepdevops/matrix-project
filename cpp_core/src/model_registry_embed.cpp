@@ -5,6 +5,7 @@
 
 #include "model_registry.h"
 #include "model_registry_prompt_cache.h"
+#include "rss_generator.h"
 
 #include <Python.h>
 
@@ -90,11 +91,21 @@ void ModelRegistry::note_generation(const std::string& model_id,
                                     const std::string& quant,
                                     const std::string& agent_name) {
     const ModelKey key{model_id, quant.empty() ? "default" : quant};
-    std::lock_guard<std::mutex> lk(mu_);
-    auto& e = entries_[key];
-    e.agents_seen.insert(agent_name);
-    e.gen_calls += 1;
-    e.last_used = std::chrono::steady_clock::now();
+    bool first_load = false;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        auto& e = entries_[key];
+        first_load = (e.gen_calls == 0);
+        e.agents_seen.insert(agent_name);
+        e.gen_calls += 1;
+        e.last_used = std::chrono::steady_clock::now();
+    }
+    if (first_load) {
+        rss_generator::publish(rss_generator::Category::History,
+            "MLX model loaded: " + model_id,
+            "quant=" + (quant.empty() ? "default" : quant)
+            + " agent=" + agent_name);
+    }
 }
 
 GenResult ModelRegistry::generate(const Agent& agent, const std::string& prompt,
@@ -262,8 +273,15 @@ int ModelRegistry::evict_idle(int max_idle_secs) {
         evict_prompt_cache_sessions(g_pc_idle_secs.load());
     PyGILState_Release(gil);
 
-    std::lock_guard<std::mutex> lk(mu_);
-    for (const auto& key : stale) entries_.erase(key);
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        for (const auto& key : stale) entries_.erase(key);
+    }
+    for (const auto& key : stale) {
+        rss_generator::publish(rss_generator::Category::History,
+            "MLX model evicted: " + key.model_id,
+            "quant=" + key.quant + " reason=idle");
+    }
     return static_cast<int>(stale.size());
 }
 
