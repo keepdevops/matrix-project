@@ -1045,3 +1045,42 @@ def test_ms79_fork_button_in_conversation_turn():
            / "src/components/ConversationTurn.js").read_text()
     assert "ForkButton" in src
     assert "_run_id" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-80 — Response Diff (A/B Comparison)
+# ---------------------------------------------------------------------------
+
+def test_ms80_diff_endpoint_exists():
+    """MS-80: coordinator_routes_history_diff.h must implement POST /api/history/diff."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_history_diff.h").read_text()
+    assert "/api/history/diff" in src
+    assert "run_id_a" in src and "run_id_b" in src
+
+
+def test_ms80_word_diff_util():
+    """MS-80: wordDiff.js must exist with same/add/remove token types."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/utils/wordDiff.js").read_text()
+    assert "wordDiff" in src
+    assert "same" in src or "add" in src or "remove" in src
+
+
+def test_ms80_diff_view_component():
+    """MS-80: DiffView.js must render word-level diff with textA/textB props."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/DiffView.js").read_text()
+    assert "textA" in src and "textB" in src
+
+
+def test_ms80_history_diff_hook():
+    """MS-80: useHistoryDiff.js must manage entryA/entryB and call diffHistory."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/hooks/useHistoryDiff.js").read_text()
+    assert "diffHistory" in src
+    assert "entryA" in src and "entryB" in src
