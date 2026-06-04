@@ -2556,33 +2556,33 @@ h1 {
 
 /* ========== MLX Unified Memory Bar (MS-171) ========== */
 .mlx-mem-bar {
-  margin-top: 0.5rem;
-  margin-bottom: 0.4rem;
+  margin-top: 0.65rem;
+  margin-bottom: 0.55rem;
 }
 .mlx-mem-bar-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.32rem;
 }
 .mlx-mem-bar-title {
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--color-label, #8888a8);
 }
 .mlx-mem-bar-stat {
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   color: var(--color-dim, #888);
 }
 .mlx-mem-bar-track {
-  height: 6px;
-  border-radius: 3px;
+  height: 12px;
+  border-radius: 6px;
   background: var(--color-border, rgba(255,255,255,0.1));
   overflow: hidden;
 }
 .mlx-mem-bar-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 6px;
   transition: width 0.3s ease, background 0.3s ease;
 }

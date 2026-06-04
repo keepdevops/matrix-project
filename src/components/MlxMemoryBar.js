@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { fetchMlxPressure } from '../api/configApi.health';
+import { fetchMlxPressure, fetchHostMemory } from '../api/configApi.health';
 
 const POLL_MS = 15000;
 
-// MS-171: unified-memory pressure bar for the Monitor popout. Self-fetches
-// /api/mlx/pressure; renders nothing until a macOS build returns unified_memory.
+// MS-171: unified-memory pressure bar for the Monitor popout. Prefers
+// /api/mlx/pressure's unified_memory (native MLX builds); falls back to the
+// always-available /api/memory host snapshot so the gauge still shows on plain
+// coordinator builds. Renders nothing only when no memory telemetry is available.
 export default function MlxMemoryBar({ online }) {
   const [mem, setMem] = useState(null);
   const timer = useRef(null);
@@ -13,8 +15,19 @@ export default function MlxMemoryBar({ online }) {
     if (!online) { setMem(null); return undefined; }
     let alive = true;
     const load = async () => {
-      const data = await fetchMlxPressure();
-      if (alive) setMem(data?.unified_memory ?? null);
+      let um = (await fetchMlxPressure())?.unified_memory ?? null;
+      if (!um) {
+        // Fallback: /api/memory is served by every coordinator build.
+        const host = await fetchHostMemory();
+        if (host?.ok && host.total_gb > 0) {
+          um = {
+            total_gb: host.total_gb,
+            free_gb: host.free_gb,
+            pressure_pct: Math.round((1 - host.free_gb / host.total_gb) * 100),
+          };
+        }
+      }
+      if (alive) setMem(um);
     };
     load();
     timer.current = setInterval(load, POLL_MS);
