@@ -319,6 +319,18 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_token_ledger" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_token_ledger"
 
+echo "Building test_token_budget_hierarchy..."  # MS-84: agent>mode>global resolve (pure)
+c++ -std=c++17 -O0 -g -o "$ROOT/test_token_budget_hierarchy" \
+  "$ROOT/tests/cpp/test_token_budget_hierarchy.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_token_budget_hierarchy"
+
+echo "Building test_kv_layer_entropy..."  # MS-91: rank_for_eviction contract (pure)
+c++ -std=c++17 -O0 -g -o "$ROOT/test_kv_layer_entropy" \
+  "$ROOT/tests/cpp/test_kv_layer_entropy.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_kv_layer_entropy"
+
 echo "Building test_port_assign..."
 c++ -std=c++17 -O0 -g -o "$ROOT/test_port_assign" \
   "$ROOT/tests/cpp/test_port_assign.cpp" \

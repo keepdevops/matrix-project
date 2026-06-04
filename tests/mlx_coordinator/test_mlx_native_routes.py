@@ -1321,7 +1321,11 @@ def test_ms83_response_rating_in_conversation_turn():
 # ---------------------------------------------------------------------------
 
 def test_ms84_budget_hierarchy():
-    """MS-84: token_budget_hierarchy.h must define BudgetHierarchy and resolve()."""
+    """MS-84: token_budget_hierarchy.h defines BudgetHierarchy + resolve().
+
+    Structural check only — the agent>mode>global resolution and the JSON loader
+    have a behavioral guard in tests/cpp/test_token_budget_hierarchy.cpp (built +
+    run in CI)."""
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "cpp_core/src/token_budget_hierarchy.h").read_text()
@@ -1582,7 +1586,11 @@ def test_ms90_conversation_turn_shows_quality():
 # ---------------------------------------------------------------------------
 
 def test_ms91_kv_layer_entropy():
-    """MS-91: kv_layer_entropy.h must define LayerProfile and rank_for_eviction."""
+    """MS-91: kv_layer_entropy.h defines LayerProfile + rank_for_eviction.
+
+    Structural check only — the ranking contract (descending eviction_priority,
+    empty-context → 1.0, [0,1] clamp, port identity) has a behavioral guard in
+    tests/cpp/test_kv_layer_entropy.cpp (built + run in CI)."""
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "cpp_core/src/kv_layer_entropy.h").read_text()
