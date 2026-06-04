@@ -54,11 +54,17 @@ inline std::string stream_llama(const Agent& agent,
 
     std::string accumulated;
     std::string buf;
+    std::string last_data;  // MS-72: last non-DONE data: payload for timings/usage
     bool done = false;
 
     auto receiver = [&](const char* data, size_t n) -> bool {
         if (cancel && cancel->load()) return false;
         buf.append(data, n);
+        // Capture last raw data: line for server-side token counts
+        const std::string chunk(data, n);
+        size_t dp = chunk.rfind("\ndata: ");
+        if (dp == std::string::npos && chunk.rfind("data: ", 0) == 0) dp = std::string::npos, last_data = chunk.substr(6);
+        else if (dp != std::string::npos) { std::string cand = chunk.substr(dp + 7); if (cand != "[DONE]") last_data = cand; }
         sse::drain_frames(buf, on_chunk, accumulated, done);
         return true;
     };
@@ -90,9 +96,23 @@ inline std::string stream_llama(const Agent& agent,
         long words = 1;
         for (char c : accumulated) if (c == ' ') ++words;
         agent_metrics::record(agent.name, ms, words, -1);
-        // Approximate token counts (4 chars ≈ 1 token) for ledger accounting
+        // MS-72: prefer real token counts from server timings/usage over char estimates
         long ptoks = static_cast<long>((system_prompt.size() + prompt.size()) / 4 + 1);
         long ctoks = static_cast<long>(accumulated.size() / 4 + 1);
+        if (!last_data.empty()) {
+            try {
+                auto j = json::parse(last_data);
+                if (j.contains("timings")) {
+                    auto& t = j["timings"];
+                    if (t.contains("tokens_evaluated")) ptoks = t["tokens_evaluated"].get<long>();
+                    if (t.contains("tokens_predicted")) ctoks = t["tokens_predicted"].get<long>();
+                } else if (j.contains("usage")) {
+                    auto& u = j["usage"];
+                    if (u.contains("prompt_tokens"))     ptoks = u["prompt_tokens"].get<long>();
+                    if (u.contains("completion_tokens")) ctoks = u["completion_tokens"].get<long>();
+                }
+            } catch (...) {}
+        }
         token_ledger::add(session_context::current(), ptoks, ctoks);
     }
     return accumulated;
@@ -145,11 +165,16 @@ inline std::string stream_mlx(const Agent& agent,
 
     std::string accumulated;
     std::string buf;
+    std::string last_data;  // MS-72: last non-DONE data: payload for usage counts
     bool done = false;
 
     auto receiver = [&](const char* data, size_t n) -> bool {
         if (cancel && cancel->load()) return false;
         buf.append(data, n);
+        const std::string chunk(data, n);
+        size_t dp = chunk.rfind("\ndata: ");
+        if (dp == std::string::npos && chunk.rfind("data: ", 0) == 0) { std::string cand = chunk.substr(6); if (cand != "[DONE]") last_data = cand; }
+        else if (dp != std::string::npos) { std::string cand = chunk.substr(dp + 7); if (cand != "[DONE]") last_data = cand; }
         sse::drain_frames(buf, on_chunk, accumulated, done);
         return true;
     };
@@ -179,11 +204,22 @@ inline std::string stream_mlx(const Agent& agent,
     accumulated = strip_template_leakage(std::move(accumulated));
     if (!accumulated.empty()) {
         double secs  = std::chrono::duration<double>(t_end - t_start).count();
-        long   ctoks = static_cast<long>(accumulated.size() / 4 + 1);
+        // MS-72: prefer real usage counts; fall back to char estimate
+        long ptoks = static_cast<long>((system_prompt.size() + prompt.size()) / 4 + 1);
+        long ctoks = static_cast<long>(accumulated.size() / 4 + 1);
+        if (!last_data.empty()) {
+            try {
+                auto j = json::parse(last_data);
+                if (j.contains("usage")) {
+                    auto& u = j["usage"];
+                    if (u.contains("prompt_tokens"))     ptoks = u["prompt_tokens"].get<long>();
+                    if (u.contains("completion_tokens")) ctoks = u["completion_tokens"].get<long>();
+                }
+            } catch (...) {}
+        }
         mlx_inflight::record_completion(agent.port, secs, ctoks);
         double ms    = std::chrono::duration<double, std::milli>(t_end - t_start).count();
         agent_metrics::record(agent.name, ms, ctoks, -1);
-        long ptoks   = static_cast<long>((system_prompt.size() + prompt.size()) / 4 + 1);
         token_ledger::add(session_context::current(), ptoks, ctoks);
 #ifdef MATRIX_MLX_NATIVE_COORD
         // MS-149: record assistant response in the MLX session store

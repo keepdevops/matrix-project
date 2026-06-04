@@ -19,7 +19,7 @@ export function buildStreamBody(prompt, temperature, opts = {}, extra = {}) {
   return body;
 }
 
-export async function readSseStream(body, { dispatchEvent, onDone, onReadError, logPrefix = '[stream]' }) {
+export async function readSseStream(body, { dispatchEvent, onDone, onTes, onReadError, logPrefix = '[stream]' }) {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
@@ -42,6 +42,14 @@ export async function readSseStream(body, { dispatchEvent, onDone, onReadError, 
           else if (line.startsWith('data: ')) dataStr = line.slice(6);
         }
         if (eventName === 'done') { fireOnce(); continue; }
+        // MS-72: extract meta.tes from session/metrics events and emit via onTes
+        if (onTes && (eventName === 'session' || eventName === 'metrics')) {
+          try {
+            const d = JSON.parse(dataStr);
+            if (typeof d?.meta?.tes === 'number') onTes(d.meta.tes);
+            else if (typeof d?.tes === 'number') onTes(d.tes);
+          } catch { /* non-JSON event — ignore */ }
+        }
         dispatchEvent(eventName, dataStr);
       }
     }

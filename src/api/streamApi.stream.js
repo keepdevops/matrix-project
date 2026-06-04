@@ -46,6 +46,7 @@ export function submitPromptStream(prompt, temperature = 0.2, opts = {}, callbac
       await readSseStream(streamBody, {
         logPrefix: '[stream]',
         onDone: callbacks.onDone,
+        onTes: callbacks.onTes,
         onReadError: (err) => callbacks.onError?.(null, err.message),
         dispatchEvent: (ev, data) => dispatchStreamEvent(ev, data, callbacks),
       });
@@ -71,6 +72,7 @@ export function submitPromptStreamMlx(prompt, temperature = 0.2, opts = {}, call
       await readSseStream(streamBody, {
         logPrefix: '[mlx-stream]',
         onDone: callbacks.onDone,
+        onTes: callbacks.onTes,
         onReadError: (err) => callbacks.onError?.(null, err.message),
         dispatchEvent: (ev, data) => dispatchMlxEvent(ev, data, callbacks),
       });

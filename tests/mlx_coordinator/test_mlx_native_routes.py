@@ -728,3 +728,49 @@ def test_ms70_tes_stamped_in_dispatch_meta():
            / "cpp_core/src/coordinator_routes_dispatch_meta.h").read_text()
     assert 'tes::compute' in src, "dispatch_meta must call tes::compute()"
     assert '"tes"' in src, "dispatch_meta must write meta['tes']"
+
+
+# ---------------------------------------------------------------------------
+# MS-72 — Streaming token accounting + TES onTes callback
+# ---------------------------------------------------------------------------
+
+def test_ms72_stream_llama_captures_last_data():
+    """MS-72: stream_llama must capture last_data for timings/usage parsing."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/agent_stream_llama.h").read_text()
+    assert "last_data" in src, (
+        "stream_llama must capture last non-DONE data: payload in last_data"
+    )
+    assert "tokens_evaluated" in src, (
+        "stream_llama must extract tokens_evaluated from timings"
+    )
+    assert "tokens_predicted" in src, (
+        "stream_llama must extract tokens_predicted from timings"
+    )
+
+
+def test_ms72_stream_mlx_captures_usage():
+    """MS-72: stream_mlx must parse usage.prompt_tokens/completion_tokens."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/agent_stream_llama.h").read_text()
+    assert "prompt_tokens" in src, (
+        "stream_mlx must parse usage.prompt_tokens from final SSE chunk"
+    )
+    assert "completion_tokens" in src, (
+        "stream_mlx must parse usage.completion_tokens from final SSE chunk"
+    )
+
+
+def test_ms72_sse_reader_on_tes_callback():
+    """MS-72: sseStreamReader.js must accept and call onTes for meta.tes."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/sseStreamReader.js").read_text()
+    assert "onTes" in src, (
+        "readSseStream must accept onTes callback (MS-72)"
+    )
+    assert "meta.tes" in src or "meta?.tes" in src, (
+        "readSseStream must extract meta.tes from session/metrics events"
+    )
