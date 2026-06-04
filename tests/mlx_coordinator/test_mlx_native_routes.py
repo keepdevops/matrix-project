@@ -856,3 +856,59 @@ def test_ms73_brew_session_tab_wires_budget_exhausted():
            / "src/layouts/BrewSessionTab.js").read_text()
     assert "useTokenBudget" in src, "BrewSessionTab must import useTokenBudget"
     assert "budgetExhausted" in src, "BrewSessionTab must pass budgetExhausted to PromptInput"
+
+
+# ---------------------------------------------------------------------------
+# MS-171 Phase A — unified-memory guard + pressure telemetry
+# ---------------------------------------------------------------------------
+
+def _read_ms171(rel):
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parents[2] / rel).read_text()
+
+
+def test_ms171_guard_header_exists():
+    """MS-171: mlx_memory_guard.h defines Config, check(), pressure section."""
+    src = _read_ms171("cpp_core/src/mlx_memory_guard.h")
+    assert "namespace mlx_mem_guard" in src
+    assert "struct Config" in src
+    assert "min_free_gb" in src
+    assert "inline json check(" in src
+    assert "pressure_memory_section" in src
+    assert 'snap.value("ok", false)' in src
+
+
+def test_ms171_guard_wired_into_state():
+    """MS-171: CoordinatorState owns the guard config."""
+    src = _read_ms171("cpp_core/src/coordinator_context.h")
+    assert '#include "mlx_memory_guard.h"' in src
+    assert "mlx_memory_guard_config" in src
+
+
+def test_ms171_guard_loaded_at_startup():
+    """MS-171: coordinator_setup reads coordinator.mlx_memory_guard."""
+    src = _read_ms171("cpp_core/src/coordinator_setup.cpp")
+    assert "mlx_mem_guard::load(coord)" in src
+    assert "state.mlx_memory_guard_config" in src
+
+
+def test_ms171_guard_rejects_on_stream_and_submit():
+    """MS-171: both /api/mlx/submit and /api/mlx/stream pre-flight the guard."""
+    src = _read_ms171("cpp_core/src/coordinator_routes_mlx.cpp")
+    assert '#include "mlx_memory_guard.h"' in src
+    assert src.count("mlx_mem_guard::check(st.mlx_memory_guard_config)") == 2
+    assert src.count('err(res, 503, mc.value("error"') == 2
+
+
+def test_ms171_pressure_surfaces_unified_memory():
+    """MS-171: /api/mlx/pressure includes unified_memory when available."""
+    src = _read_ms171("cpp_core/src/coordinator_routes_mlx.cpp")
+    assert "mlx_mem_guard::pressure_memory_section()" in src
+    assert 'out["unified_memory"]' in src
+
+
+def test_ms171_config_template_documents_guard():
+    """MS-171: swarm-config.template.json ships the guard block (default off)."""
+    src = _read_ms171("swarm-config.template.json")
+    assert '"mlx_memory_guard"' in src
+    assert '"min_free_gb"' in src
