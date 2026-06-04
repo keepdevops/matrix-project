@@ -29,6 +29,11 @@ std::atomic<int>  g_pc_min_ctx{1024};
 std::atomic<bool> g_pc_quantized{false};
 std::atomic<int>  g_pc_idle_secs{600};
 
+// #297: resident-model idle eviction window (seconds). evict_idle() reclaims
+// models unused longer than this. Triggered opportunistically from the MLX
+// routes (see coordinator_routes_mlx.cpp).
+std::atomic<int>  g_model_idle_secs{600};
+
 std::string resolve_home() {
     const char* env = std::getenv("MLX_ENV_PREFIX");
     if (env && env[0]) return env;
@@ -245,6 +250,12 @@ void configure_prompt_cache(bool enabled, int min_ctx_tokens,
     g_pc_quantized.store(quantized);
     g_pc_idle_secs.store(idle_secs > 0 ? idle_secs : 600);
 }
+
+void configure_model_idle(int idle_secs) {
+    g_model_idle_secs.store(idle_secs > 0 ? idle_secs : 600);
+}
+
+int model_idle_secs() { return g_model_idle_secs.load(); }
 
 int ModelRegistry::evict_idle(int max_idle_secs) {
     std::vector<ModelKey> stale;

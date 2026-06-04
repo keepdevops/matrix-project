@@ -122,6 +122,11 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
 
         // Track user message; evict stale sessions opportunistically
         mlx_sessions().cleanup_idle();
+#ifdef MATRIX_MLX_INPROC
+        // #297: reclaim resident in-process models idle past the cap (also fires
+        // the model-evicted RSS event and sweeps idle prompt caches).
+        model_mem::ModelRegistry::instance().evict_idle(model_mem::model_idle_secs());
+#endif
         mlx_sessions().append_message(session_id, "user", prompt);
 
         // Flat broadcast — collect per-agent outputs for history
@@ -190,6 +195,11 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
 
         // Track user message; evict stale sessions opportunistically
         mlx_sessions().cleanup_idle();
+#ifdef MATRIX_MLX_INPROC
+        // #297: reclaim resident in-process models idle past the cap (also fires
+        // the model-evicted RSS event and sweeps idle prompt caches).
+        model_mem::ModelRegistry::instance().evict_idle(model_mem::model_idle_secs());
+#endif
         mlx_sessions().append_message(session_id, "user", prompt);
 
         const std::string mode = read_mode();  // snapshot before entering the stream
