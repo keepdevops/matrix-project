@@ -21,6 +21,7 @@ import { useSessionHandlers } from './hooks/useSessionHandlers';
 import { useAppLayoutProps } from './hooks/useAppLayoutProps';
 import { useAppHandlers } from './hooks/useAppHandlers';
 import { useAppCallbacks } from './hooks/useAppCallbacks';
+import { useTokenBudget } from './hooks/useTokenBudget';
 import { LAYOUTS } from './layouts/registry';
 import BrewlateLayout from './layouts/BrewlateLayout';
 
@@ -75,6 +76,11 @@ function App() {
     setDeployPending, setCacheStatus, handleSubmit,
   });
 
+  const { overrun: budgetExhausted } = useTokenBudget({
+    sessionId: currentSession?.sessionId,
+    online,
+  });
+
   const showConfigPanel = showConfig || (!online && !deployPending && activeAgents.length === 0);
   const excludedBreaker = lastMeta?.excluded_unhealthy || [];
   const stageOutputs = Array.isArray(lastMeta?.stage_outputs) ? lastMeta.stage_outputs : [];
@@ -97,6 +103,7 @@ function App() {
     handleSaveCode, setFlatPickAgent, handleSendBestContinue, setUseRag,
     handleExpandProgrammer,
     setShowHelp, setShowRagAdmin, setShowCachePanel,
+    budgetExhausted,
   });
 
   const Layout = LAYOUTS[layout]?.component ?? BrewlateLayout;
