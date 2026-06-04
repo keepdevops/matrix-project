@@ -63,10 +63,20 @@ ConfigureResult handle_configure(const json& request_body, const std::string& pr
         for (int p : failed) { fa.push_back(p); if (!fl.empty()) fl += ", "; fl += std::to_string(p); }
         std::cerr << "[Configure] Health timeout. Ports not ready: " << fl << "\n";
         g_configure_progress.active.store(false);
+        std::string hint = ". MLX can take 1-2 min per model on first load.";
+        for (int p : failed) {
+            auto it = built.pgs.find(p);
+            if (it != built.pgs.end() && it->second.backend == "llama") {
+                hint = ". Llama ports must pass a /completion smoke test — see agent_logs/"
+                       + std::to_string(p)
+                       + ".log for 'Insufficient Memory' or 'Compute error' "
+                         "(duplicate large models or too many agents for unified memory).";
+                break;
+            }
+        }
         return {false, 503, {
             {"error", "Servers failed to become healthy within several minutes. Check agent_logs/"
-                      + std::to_string(failed[0]) + ".log. Ports not ready: " + fl
-                      + ". MLX can take 1-2 min per model on first load."},
+                      + std::to_string(failed[0]) + ".log. Ports not ready: " + fl + hint},
             {"failedPorts", fa}
         }};
     }

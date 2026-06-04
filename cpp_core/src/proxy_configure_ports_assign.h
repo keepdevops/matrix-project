@@ -33,6 +33,10 @@ inline std::string assign_key(const std::string& bk, const std::string& model,
     if (bk == "docker") return "docker:shared";
     if ((bk == "docker-vllm") && fixed_port > 0) return "docker-vllm:" + std::to_string(fixed_port);
     if ((bk == "mlx" || bk == "vllm") && fixed_port > 0) return bk + ":" + std::to_string(fixed_port);
+    // Llama: group by model path only. server_group is a UI label; splitting the
+    // same GGUF across groups duplicates ~18GB+ GPU loads and causes Metal OOM.
+    // (merge_group only checks backend+model, so model-only keying is consistent.)
+    if (bk == "llama") return bk + ":" + model;
     return bk + ":" + model + ":" + sg;
 }
 
