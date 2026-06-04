@@ -22,7 +22,7 @@ export default function DefaultLayout({
   onOpenConverter, onOpenRagAdmin, onOpenCachePanel, onOpenHelp,
   onDeployed, onHistorySelect,
   onSubmit, onQualityPass, onPromptConsumed,
-  onFollowUp, onClearSession, onSwitchSession,
+  onFollowUp, onClearSession, onSwitchSession, onForked,
   onSaveCode, onPickFlatAgent, onSendBestContinue,
   onUseRagChange, selectedPrompt, selectedTemperature,
   qualityPassTarget, onQualityPassTargetChange,
@@ -74,7 +74,7 @@ export default function DefaultLayout({
           flatPickAgent={flatPickAgent} excludedBreaker={excludedBreaker} stageOutputs={stageOutputs}
           selectedPrompt={selectedPrompt} selectedTemperature={selectedTemperature}
           onSubmit={onSubmit} onQualityPass={onQualityPass} onPromptConsumed={onPromptConsumed}
-          onFollowUp={onFollowUp} onClearSession={onClearSession} onSwitchSession={onSwitchSession}
+          onFollowUp={onFollowUp} onClearSession={onClearSession} onSwitchSession={onSwitchSession} onForked={onForked}
           onSaveCode={onSaveCode} onPickFlatAgent={onPickFlatAgent}
           onSendBestContinue={onSendBestContinue} onUseRagChange={onUseRagChange}
           budgetExhausted={budgetExhausted}

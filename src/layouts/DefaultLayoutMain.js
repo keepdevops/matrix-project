@@ -26,7 +26,7 @@ export default function DefaultLayoutMain({
   selectedPrompt, selectedTemperature, budgetExhausted,
   qualityPassTarget, onQualityPassTargetChange,
   onSubmit, onQualityPass, onPromptConsumed,
-  onFollowUp, onClearSession, onSwitchSession,
+  onFollowUp, onClearSession, onSwitchSession, onForked,
   onSaveCode, onPickFlatAgent, onSendBestContinue, onUseRagChange,
 }) {
   return (
@@ -60,6 +60,7 @@ export default function DefaultLayoutMain({
         responses={responses} finalAnswer={finalAnswer} loading={loading}
         pendingPrompt={pendingPrompt} onFollowUp={onFollowUp}
         onClear={onClearSession} onSwitchSession={onSwitchSession}
+        onForked={onForked}
       />
       <FinalAnswerPanel text={finalAnswer} />
       <RagSources rag={lastMeta?.rag} />

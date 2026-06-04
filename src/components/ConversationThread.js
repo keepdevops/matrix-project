@@ -6,7 +6,7 @@ import { ReplyBox, SessionSwitcher } from './ConversationControls';
 
 const ConversationThread = memo(function ConversationThread({
   history, sessionId, responses, finalAnswer, loading, pendingPrompt,
-  onFollowUp, onClear, onSwitchSession,
+  onFollowUp, onClear, onSwitchSession, onForked,
 }) {
   const bottomRef = useRef(null);
   const turns = useMemo(
@@ -44,6 +44,7 @@ const ConversationThread = memo(function ConversationThread({
             key={entry._run_id ?? i}
             entry={entry}
             finalAnswer={i === latestTurnIdx && !loading ? finalAnswer : null}
+            onForked={onForked}
           />
         ))}
         {showPending && <PendingTurn prompt={pendingPrompt} />}
