@@ -75,9 +75,10 @@
       "idle_secs": 600
     },
     "mlx_memory_guard": {
-      "_note": "MS-171: reject /api/mlx/stream and /api/mlx/submit with 503 when unified free memory < min_free_gb. Fails open when memory telemetry unavailable.",
+      "_note": "MS-171: reject /api/mlx/stream and /api/mlx/submit with 503 when unified free memory < min_free_gb. Fails open when memory telemetry unavailable. evict_at_pct>0 (Phase B) proactively evicts idle resident models when pressure reaches that %% before rejecting.",
       "enabled": false,
-      "min_free_gb": 2.0
+      "min_free_gb": 2.0,
+      "evict_at_pct": 0
     }
   },
   "ui": {

@@ -11,16 +11,18 @@ using json = nlohmann::json;
 namespace mlx_mem_guard {
 
 struct Config {
-    bool   enabled     = false;
-    double min_free_gb = 2.0;
+    bool   enabled      = false;
+    double min_free_gb  = 2.0;
+    int    evict_at_pct = 0;  // >0: proactively evict idle models at this pressure %
 };
 
 inline Config load(const nlohmann::json& coordinator_block) {
     Config c;
     if (!coordinator_block.contains("mlx_memory_guard")) return c;
     const auto& b = coordinator_block["mlx_memory_guard"];
-    c.enabled     = b.value("enabled",     false);
-    c.min_free_gb = b.value("min_free_gb", 2.0);
+    c.enabled      = b.value("enabled",      false);
+    c.min_free_gb  = b.value("min_free_gb",  2.0);
+    c.evict_at_pct = b.value("evict_at_pct", 0);
     return c;
 }
 
@@ -46,6 +48,22 @@ inline json check(const Config& cfg) {
         {"free_gb",      free_gb},
         {"threshold_gb", cfg.min_free_gb},
     };
+}
+
+// MS-171 Phase B: true when proactive eviction should fire — i.e. the
+// guard is enabled, evict_at_pct is in (0,100], and live unified-memory
+// pressure has reached that mark. Reads telemetry directly; false when
+// unavailable (non-Apple builds) so callers never evict blindly.
+inline bool pressure_exceeds(const Config& cfg) {
+    if (!cfg.enabled || cfg.evict_at_pct <= 0 || cfg.evict_at_pct > 100)
+        return false;
+    const json snap = host_memory_snapshot();
+    if (!snap.value("ok", false)) return false;
+    const double total = snap.value("total_gb", 0.0);
+    const double free  = snap.value("free_gb",  0.0);
+    if (total <= 0.0) return false;
+    const int pct = static_cast<int>((1.0 - free / total) * 100.0);
+    return pct >= cfg.evict_at_pct;
 }
 
 // Unified-memory section for the /api/mlx/pressure response.

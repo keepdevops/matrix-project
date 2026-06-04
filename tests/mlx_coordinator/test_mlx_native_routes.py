@@ -1157,3 +1157,106 @@ def test_ms82_templates_api_js():
            / "src/api/templatesApi.js").read_text()
     assert "renderTemplate" in src
     assert "saveTemplate" in src
+# MS-171 Phase B — proactive memory-pressure eviction
+# ---------------------------------------------------------------------------
+
+def _read_ms171b(rel):
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parents[2] / rel).read_text()
+
+
+def test_ms171b_config_has_evict_at_pct():
+    """MS-171B: guard Config + loader carry evict_at_pct."""
+    src = _read_ms171b("cpp_core/src/mlx_memory_guard.h")
+    assert "evict_at_pct" in src
+    assert 'b.value("evict_at_pct", 0)' in src
+
+
+def test_ms171b_pressure_exceeds_helper():
+    """MS-171B: pressure_exceeds() gates on enabled + range + live pressure."""
+    src = _read_ms171b("cpp_core/src/mlx_memory_guard.h")
+    assert "inline bool pressure_exceeds(const Config& cfg)" in src
+    # disabled / out-of-range / no-telemetry all return false (never evict blindly)
+    assert "cfg.evict_at_pct <= 0 || cfg.evict_at_pct > 100" in src
+    assert 'if (!snap.value("ok", false)) return false;' in src
+    assert "return pct >= cfg.evict_at_pct;" in src
+
+
+def test_ms171b_routes_evict_before_reject():
+    """MS-171B: submit + stream evict idle models under pressure before rejecting."""
+    src = _read_ms171b("cpp_core/src/coordinator_routes_mlx.cpp")
+    assert src.count("mlx_mem_guard::pressure_exceeds(st.mlx_memory_guard_config)") == 2
+    assert src.count("model_mem::ModelRegistry::instance().evict_idle(60)") == 2
+    # eviction is INPROC-gated (evict_idle only exists under MATRIX_MLX_EMBED)
+    assert "#ifdef MATRIX_MLX_INPROC" in src
+
+
+def test_ms171b_config_template_documents_evict_at_pct():
+    """MS-171B: swarm-config.template.json ships evict_at_pct (default 0)."""
+    src = _read_ms171b("swarm-config.template.json")
+    assert '"evict_at_pct": 0' in src
+
+
+# ---------------------------------------------------------------------------
+# MS-171 Phase A — unified-memory guard + pressure telemetry
+# (contract tests; restored — dropped from main during concurrent rebasing)
+# ---------------------------------------------------------------------------
+
+def _read_ms171a(rel):
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parents[2] / rel).read_text()
+
+
+def test_ms171_guard_header_exists():
+    """MS-171: mlx_memory_guard.h defines Config, check(), pressure section."""
+    src = _read_ms171a("cpp_core/src/mlx_memory_guard.h")
+    assert "namespace mlx_mem_guard" in src
+    assert "struct Config" in src
+    assert "min_free_gb" in src
+    assert "inline json check(" in src
+    assert "pressure_memory_section" in src
+    assert 'snap.value("ok", false)' in src
+
+
+def test_ms171_guard_wired_into_state():
+    """MS-171: CoordinatorState owns the guard config."""
+    src = _read_ms171a("cpp_core/src/coordinator_context.h")
+    assert '#include "mlx_memory_guard.h"' in src
+    assert "mlx_memory_guard_config" in src
+
+
+def test_ms171_guard_loaded_at_startup():
+    """MS-171: coordinator_setup reads coordinator.mlx_memory_guard."""
+    src = _read_ms171a("cpp_core/src/coordinator_setup.cpp")
+    assert "mlx_mem_guard::load(coord)" in src
+    assert "state.mlx_memory_guard_config" in src
+
+
+def test_ms171_guard_rejects_on_stream_and_submit():
+    """MS-171: both /api/mlx/submit and /api/mlx/stream pre-flight the guard."""
+    src = _read_ms171a("cpp_core/src/coordinator_routes_mlx.cpp")
+    assert '#include "mlx_memory_guard.h"' in src
+    assert src.count("mlx_mem_guard::check(st.mlx_memory_guard_config)") == 2
+    assert src.count('err(res, 503, mc.value("error"') == 2
+
+
+def test_ms171_pressure_surfaces_unified_memory():
+    """MS-171: /api/mlx/pressure includes unified_memory when available."""
+    src = _read_ms171a("cpp_core/src/coordinator_routes_mlx.cpp")
+    assert "mlx_mem_guard::pressure_memory_section()" in src
+    assert 'out["unified_memory"]' in src
+
+
+def test_ms171_config_template_documents_guard():
+    """MS-171: swarm-config.template.json ships the guard block (default off)."""
+    src = _read_ms171a("swarm-config.template.json")
+    assert '"mlx_memory_guard"' in src
+    assert '"min_free_gb"' in src
+
+
+def test_ms171b_err_accepts_std_string():
+    """MS-171B: err() takes const std::string& so guard can pass json string
+    values (regression: NATIVE_COORD build was never compiled, hid a const
+    char* mismatch that broke the in-process build)."""
+    src = _read_ms171b("cpp_core/src/coordinator_routes_mlx.cpp")
+    assert "void err(httplib::Response& res, int status, const std::string& msg)" in src
