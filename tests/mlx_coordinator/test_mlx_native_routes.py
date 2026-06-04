@@ -1300,3 +1300,45 @@ def test_ms83_response_rating_in_conversation_turn():
     src = (pathlib.Path(__file__).resolve().parents[2]
            / "src/components/ConversationTurn.js").read_text()
     assert "ResponseRating" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-84 — Agent Contracts + Hierarchical Budget + RAG Trajectory Hooks
+# ---------------------------------------------------------------------------
+
+def test_ms84_budget_hierarchy():
+    """MS-84: token_budget_hierarchy.h must define BudgetHierarchy and resolve()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/token_budget_hierarchy.h").read_text()
+    assert "BudgetHierarchy" in src
+    assert "resolve" in src
+    assert "load_hierarchy" in src or "load_budget_hierarchy" in src
+
+
+def test_ms84_agent_contract():
+    """MS-84: agent_contract.h must define AgentContract and ContractLedger."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/agent_contract.h").read_text()
+    assert "AgentContract" in src
+    assert "ContractLedger" in src
+    assert "overrun" in src
+
+
+def test_ms84_rag_trajectory():
+    """MS-84: rag_trajectory.h must define Entry and record hooks."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/rag_trajectory.h").read_text()
+    assert "rag_trajectory" in src
+    assert "Entry" in src or "session_id" in src
+
+
+def test_ms84_context_has_hierarchy_and_contracts():
+    """MS-84: CoordinatorState must hold BudgetHierarchy and ContractLedger."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_context.h").read_text()
+    assert "BudgetHierarchy" in src or "token_budget_hierarchy" in src
+    assert "ContractLedger" in src or "contract_ledger" in src
