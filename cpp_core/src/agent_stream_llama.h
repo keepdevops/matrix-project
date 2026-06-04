@@ -60,11 +60,8 @@ inline std::string stream_llama(const Agent& agent,
     auto receiver = [&](const char* data, size_t n) -> bool {
         if (cancel && cancel->load()) return false;
         buf.append(data, n);
-        // Capture last raw data: line for server-side token counts
-        const std::string chunk(data, n);
-        size_t dp = chunk.rfind("\ndata: ");
-        if (dp == std::string::npos && chunk.rfind("data: ", 0) == 0) dp = std::string::npos, last_data = chunk.substr(6);
-        else if (dp != std::string::npos) { std::string cand = chunk.substr(dp + 7); if (cand != "[DONE]") last_data = cand; }
+        // #302: capture the last JSON data: line (skips [DONE]) for real token counts.
+        sse::capture_last_json_data(std::string(data, n), last_data);
         sse::drain_frames(buf, on_chunk, accumulated, done);
         return true;
     };
@@ -171,10 +168,8 @@ inline std::string stream_mlx(const Agent& agent,
     auto receiver = [&](const char* data, size_t n) -> bool {
         if (cancel && cancel->load()) return false;
         buf.append(data, n);
-        const std::string chunk(data, n);
-        size_t dp = chunk.rfind("\ndata: ");
-        if (dp == std::string::npos && chunk.rfind("data: ", 0) == 0) { std::string cand = chunk.substr(6); if (cand != "[DONE]") last_data = cand; }
-        else if (dp != std::string::npos) { std::string cand = chunk.substr(dp + 7); if (cand != "[DONE]") last_data = cand; }
+        // #302: capture the last JSON data: line (skips [DONE]) for real usage counts.
+        sse::capture_last_json_data(std::string(data, n), last_data);
         sse::drain_frames(buf, on_chunk, accumulated, done);
         return true;
     };
