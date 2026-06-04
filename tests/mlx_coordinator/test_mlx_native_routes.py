@@ -856,3 +856,44 @@ def test_ms73_brew_session_tab_wires_budget_exhausted():
            / "src/layouts/BrewSessionTab.js").read_text()
     assert "useTokenBudget" in src, "BrewSessionTab must import useTokenBudget"
     assert "budgetExhausted" in src, "BrewSessionTab must pass budgetExhausted to PromptInput"
+
+
+# ---------------------------------------------------------------------------
+# MS-75 — RAG Re-Ranking + Relevance Score UI
+# ---------------------------------------------------------------------------
+
+def test_ms75_rag_rerank_header_exists():
+    """MS-75: rag_rerank.h must declare term_overlap and rerank functions."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/rag_rerank.h").read_text()
+    assert "term_overlap" in src, "rag_rerank.h must declare term_overlap()"
+    assert "rerank" in src, "rag_rerank.h must declare rerank()"
+    assert "ScoredHit" in src or "relevance" in src, (
+        "rag_rerank.h must define a scored hit type with relevance field"
+    )
+
+
+def test_ms75_dispatch_prepare_calls_rerank():
+    """MS-75: dispatch_prepare must call rag_rerank::rerank when rag_rerank=true."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_dispatch_prepare.cpp").read_text()
+    assert "rag_rerank" in src, "dispatch_prepare must check rag_rerank flag"
+    assert "rag_rerank::rerank" in src, "dispatch_prepare must call rag_rerank::rerank()"
+
+
+def test_ms75_rag_hit_row_shows_relevance_badge():
+    """MS-75: RagHitRow must render relevance score badge when hit.relevance present."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/RagHitRow.js").read_text()
+    assert "relevance" in src, "RagHitRow must handle relevance field"
+
+
+def test_ms75_rag_controls_panel_has_rerank_toggle():
+    """MS-75: RagControlsPanel must include ragRerank checkbox."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/RagControlsPanel.js").read_text()
+    assert "ragRerank" in src, "RagControlsPanel must expose ragRerank toggle"
