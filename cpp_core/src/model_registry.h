@@ -95,9 +95,14 @@ private:
 };
 
 #ifdef MATRIX_MLX_EMBED
-// MS-68 2c′: configure per-session prompt-cache reuse (default OFF). Below
-// min_ctx_tokens the cache is skipped (decode-dominated; reuse doesn't pay).
-void configure_prompt_cache(bool enabled, int min_ctx_tokens);
+// MS-68 2c′-B: configure per-session prompt-cache reuse.
+//   quantized=true → QuantizedKVCache(kv_bits=4) for new sessions.
+//   idle_secs      → evict sessions idle longer than this (default 600).
+void configure_prompt_cache(bool enabled, int min_ctx_tokens,
+                            bool quantized = false, int idle_secs = 600);
+
+// Returns the current number of active prompt-cache sessions (atomic, no GIL).
+int prompt_cache_session_count();
 #endif
 
 }  // namespace model_mem
