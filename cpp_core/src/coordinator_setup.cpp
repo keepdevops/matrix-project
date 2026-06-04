@@ -125,6 +125,11 @@ void coordinator_apply_coordinator_section(CoordinatorState& state, const nlohma
                           << " idle_secs=" << isc << ")\n";
         }
 #endif
+        // MS-171: unified-memory pre-flight guard for MLX routes.
+        state.mlx_memory_guard_config = mlx_mem_guard::load(coord);
+        if (state.mlx_memory_guard_config.enabled)
+            std::cout << "\xf0\x9f\x9b\xa1\xef\xb8\x8f  MLX memory guard enabled (min_free_gb="
+                      << state.mlx_memory_guard_config.min_free_gb << ")\n";
     }
     backend_router::configure_from_startup(config);
 }

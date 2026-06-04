@@ -73,6 +73,11 @@
       "min_ctx_tokens": 1024,
       "quantized": false,
       "idle_secs": 600
+    },
+    "mlx_memory_guard": {
+      "_note": "MS-171: reject /api/mlx/stream and /api/mlx/submit with 503 when unified free memory < min_free_gb. Fails open when memory telemetry unavailable.",
+      "enabled": false,
+      "min_free_gb": 2.0
     }
   },
   "ui": {

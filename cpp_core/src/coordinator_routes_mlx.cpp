@@ -5,6 +5,7 @@
 #include "agent_stream.h"
 #include "coordinator_routes_architect_persist.h"
 #include "mlx_inflight.h"
+#include "mlx_memory_guard.h"  // MS-171: unified-memory pre-flight guard
 #include "mlx_session_store.h"
 #include "model_registry.h"   // MS-68 Phase 2a: unified registry (accounting + inproc)
 #include "session_store.h"
@@ -115,6 +116,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
 
+        // MS-171: reject early if unified memory is below guard threshold.
+        { const json mc = mlx_mem_guard::check(st.mlx_memory_guard_config);
+          if (!mc.value("ok", true)) { err(res, 503, mc.value("error", "low memory")); return; } }
+
         // Track user message; evict stale sessions opportunistically
         mlx_sessions().cleanup_idle();
         mlx_sessions().append_message(session_id, "user", prompt);
@@ -178,6 +183,10 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         for (const auto& a : st.agents)
             if (a.engine == "mlx") mlx_agents.push_back(a);
         if (mlx_agents.empty()) { err(res, 503, "no MLX agents configured"); return; }
+
+        // MS-171: reject early if unified memory is below guard threshold.
+        { const json mc = mlx_mem_guard::check(st.mlx_memory_guard_config);
+          if (!mc.value("ok", true)) { err(res, 503, mc.value("error", "low memory")); return; } }
 
         // Track user message; evict stale sessions opportunistically
         mlx_sessions().cleanup_idle();
@@ -371,6 +380,9 @@ void register_coordinator_routes_mlx(httplib::Server& svr, CoordinatorState& st)
         // MS-68 2c′-B: surface active prompt-cache session count (atomic, no GIL).
         out["prompt_cache_sessions"] = model_mem::prompt_cache_session_count();
 #endif
+        // MS-171: unified memory telemetry (null on non-Apple builds).
+        const json mem = mlx_mem_guard::pressure_memory_section();
+        if (!mem.is_null()) out["unified_memory"] = mem;
         cors(res);
         res.set_content(out.dump(), "application/json");
     });
