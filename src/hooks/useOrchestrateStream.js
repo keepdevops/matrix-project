@@ -1,4 +1,5 @@
 import { submitOrchestrateStream, saveOrchestrateHistory } from '../api/orchestrateApi';
+import { useTesHistory } from './useTesHistory';
 
 /** RAF-throttled per-agent token accumulator for SSE streams. */
 export function createRafResponseAccumulator(setResponses) {
@@ -29,6 +30,11 @@ export function createRafResponseAccumulator(setResponses) {
  * Python-mode orchestrate SSE path — assembles per-agent tokens, sets final
  * answer/meta, persists history. Returns a Promise resolved on stream done.
  */
+export function useRunOrchestrateStream() {
+  const { record: recordTes } = useTesHistory();
+  return (opts) => runOrchestrateStream({ ...opts, onTes: recordTes });
+}
+
 export function runOrchestrateStream({
   prompt,
   orchestrateMode,
@@ -42,6 +48,7 @@ export function runOrchestrateStream({
   setLastMeta,
   setLoading,
   setError,
+  onTes,
 }) {
   const { assembled, scheduleFlush, flushNow, cancelFlush } =
     createRafResponseAccumulator(setResponses);
@@ -66,6 +73,7 @@ export function runOrchestrateStream({
         },
         onDone(data) {
           flushNow();
+          if (typeof data?.meta?.tes === 'number') onTes?.(data.meta.tes);
           const resultText = data?.result
             || Object.values(assembled).map(a => a.join('')).join('');
           setFinalAnswer(resultText || null);

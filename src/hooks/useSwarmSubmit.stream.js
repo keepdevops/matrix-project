@@ -3,6 +3,7 @@ export function buildStreamCallbacks({
   cancelRef, wallStart,
   setResponses, setAgentErrors, setFinalAnswer,
   setLastMeta, setLoading, setError, setCurrentSession,
+  onTes,
   resolve, reject,
 }) {
   return {
@@ -44,6 +45,9 @@ export function buildStreamCallbacks({
     },
     onRouting(data) {  // MS-161 Phase C: surface streamed backend-routing decisions
       if (data && typeof data === 'object') setLastMeta(prev => ({ ...(prev || {}), routing: data }));
+    },
+    onTes(tes) {  // MS-72: stream TES into sparkline history
+      onTes?.(tes);
     },
     onSelected({ classifier, agents: picked }) {
       setLastMeta(prev => ({ ...(prev || {}), classifier, selected: picked }));

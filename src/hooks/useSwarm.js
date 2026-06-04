@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { clearMlxSession, fetchHistory, checkHealth } from '../api/swarmApi';
 // Orchestrate: saveOrchestrateHistory, rag_chunks→ragMeta, timings — impl in useOrchestrateStream.js
 import { useSwarmSubmit } from './useSwarmSubmit';
+import { useTesHistory } from './useTesHistory';
 
 export function useSwarm() {
   const [responses, setResponses]         = useState({});
@@ -20,6 +21,8 @@ export function useSwarm() {
   const cancelRef = useRef(null);
   useEffect(() => () => { cancelRef.current?.(); }, []);
 
+  const { record: recordTes } = useTesHistory();
+
   const switchBackend = useCallback((next) => {
     if (next !== 'llama' && next !== 'mlx') return;
     setBackend(next);
@@ -37,6 +40,7 @@ export function useSwarm() {
     currentSession, backend, cancelRef,
     setLoading, setError, setResponses, setAgentErrors,
     setFinalAnswer, setLastMeta, setCurrentSession,
+    onTes: recordTes,
   });
 
   const loadHistory = useCallback(async () => {

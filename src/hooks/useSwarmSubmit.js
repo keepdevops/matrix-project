@@ -7,6 +7,7 @@ export function useSwarmSubmit({
   currentSession, backend, cancelRef,
   setLoading, setError, setResponses, setAgentErrors,
   setFinalAnswer, setLastMeta, setCurrentSession,
+  onTes,
 }) {
   const submit = useCallback((prompt, temperature = 0.7, opts = {}) => {
     if (cancelRef.current) { cancelRef.current(); cancelRef.current = null; }
@@ -50,13 +51,14 @@ export function useSwarmSubmit({
           cancelRef, wallStart,
           setResponses, setAgentErrors, setFinalAnswer,
           setLastMeta, setLoading, setError, setCurrentSession,
+          onTes,
           resolve, reject,
         }),
       );
     });
   }, [currentSession, backend, cancelRef,
       setLoading, setError, setResponses, setAgentErrors,
-      setFinalAnswer, setLastMeta, setCurrentSession]);
+      setFinalAnswer, setLastMeta, setCurrentSession, onTes]);
 
   return { submit };
 }
