@@ -37,7 +37,10 @@ export default function PressureCluster({
     return () => { cancelRef.current = true; clearInterval(id); };
   }, [online, useParentFeed, poll]);
 
-  const readings = useParentFeed ? (readingsProp || []) : readingsLocal;
+  const readings = useMemo(
+    () => (useParentFeed ? (readingsProp || []) : readingsLocal),
+    [useParentFeed, readingsProp, readingsLocal],
+  );
   const errored  = useParentFeed ? !!fetchFailedProp : erroredLocal;
 
   const mlx = useMemo(() => readings.filter(r => r && r.backend === 'mlx' && r.ok), [readings]);

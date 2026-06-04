@@ -65,7 +65,6 @@ function App() {
   });
 
   const {
-    mountedRef,
     handleToggleConfig, handleToggleHistory,
     handleOpenConverter, handleOpenRagAdmin, handleOpenCachePanel, handleOpenHelp,
     handleDeployed, handleClearCache, handleExpandProgrammer,

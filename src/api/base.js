@@ -58,8 +58,6 @@ export function coalesce(key, fn) {
   return p;
 }
 
-/** Models list changes rarely; short TTL avoids duplicate scans after shared mounts. */
-const MODELS_CACHE_TTL_MS = 20000;
 export let modelsCacheValue = null;
 export let modelsCacheAt = 0;
 
