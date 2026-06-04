@@ -66,6 +66,11 @@
     "rss": {
       "enabled": false,
       "max_items": 50
+    },
+    "prompt_cache": {
+      "_note": "MS-68 2c′: per-session KV reuse for in-process MLX (MATRIX_MLX_INPROC builds only). Keep off until 2c′-B eviction lands.",
+      "enabled": false,
+      "min_ctx_tokens": 1024
     }
   },
   "ui": {

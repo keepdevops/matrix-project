@@ -285,6 +285,12 @@ c++ -std=c++17 -O0 -g -o "$ROOT/test_model_registry" \
   -I"$CPP_SRC"
 ls -lart "$ROOT/test_model_registry"
 
+echo "Building test_prompt_cache_lcp..."
+c++ -std=c++17 -O0 -g -o "$ROOT/test_prompt_cache_lcp" \
+  "$ROOT/tests/cpp/test_prompt_cache_lcp.cpp" \
+  -I"$CPP_SRC"
+ls -lart "$ROOT/test_prompt_cache_lcp"
+
 echo "Building rag_embed_test..."
 c++ -std=c++17 -O0 -g -o "$ROOT/rag_embed_test" \
   "$ROOT/tests/cpp/rag_embed_test.cpp" \
