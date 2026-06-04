@@ -1417,3 +1417,43 @@ def test_ms86_kv_auto_clear_uses_importance():
            / "cpp_core/src/kv_auto_clear.h").read_text()
     assert "kv_importance" in src
     assert "score_port" in src or "SlotScore" in src
+
+
+# ---------------------------------------------------------------------------
+# MS-87 — Enhanced TES + RL Trajectory Logger + Impact Dashboard
+# ---------------------------------------------------------------------------
+
+def test_ms87_rl_trajectory_logger():
+    """MS-87: rl_trajectory_logger.h must define RlTrajectory, record, export_jsonl."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/rl_trajectory_logger.h").read_text()
+    assert "RlTrajectory" in src or "Trajectory" in src
+    assert "export_jsonl" in src
+    assert "rolling_stats" in src
+
+
+def test_ms87_tes_rich_compute():
+    """MS-87: tes.h must define TesFactors and compute_rich()."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/tes.h").read_text()
+    assert "TesFactors" in src
+    assert "compute_rich" in src
+    assert "fidelity_ratio" in src
+
+
+def test_ms87_impact_dashboard_exists():
+    """MS-87: ImpactDashboard.js must exist and use trajectory data."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/ImpactDashboard.js").read_text()
+    assert "ImpactDashboard" in src
+
+
+def test_ms87_trajectory_api_js():
+    """MS-87: trajectoryApi.js must export fetchTrajectoriesJson."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/api/trajectoryApi.js").read_text()
+    assert "fetchTrajectoriesJson" in src
