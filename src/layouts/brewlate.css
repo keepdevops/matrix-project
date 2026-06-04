@@ -952,6 +952,8 @@ body[data-layout="brewlate"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;              /* let the context drop to its own line when tight */
+  row-gap: 0.25rem;
   width: 100%;
   margin-top: auto;
   padding: 0.45rem 0.65rem 0.55rem;
@@ -964,10 +966,9 @@ body[data-layout="brewlate"] {
   font-size: 0.54rem;
   color: var(--brew-accent-a75);
   letter-spacing: 0.04em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
+  white-space: nowrap;          /* keep the number intact (no mid-number break) */
+  flex: 1 1 5.5rem;             /* wraps to its own full line when < 5.5rem
+                                  remains, so "CONTEXT 2,048" always fits whole */
   text-align: right;            /* Edit sits on the left; meta info on the right */
   text-transform: uppercase;
 }
