@@ -941,3 +941,33 @@ def test_ms76_cache_stats_bar_exists():
     comp = (root / "src/components/CacheStatsBar.js").read_text()
     assert "hit_rate" in hook or "hits" in hook
     assert "hit" in comp.lower()
+
+
+# ---------------------------------------------------------------------------
+# MS-77 — Speculative Decoding Observability + Quality Pass Agent Selector
+# ---------------------------------------------------------------------------
+
+def test_ms77_draft_acceptance_prometheus():
+    """MS-77: GET /api/metrics must include matrix_agent_draft_acceptance gauge."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_metrics.h").read_text()
+    assert "matrix_agent_draft_acceptance" in src
+    assert "matrix_agent_kv_fill" in src
+
+
+def test_ms77_quality_pass_selector_exists():
+    """MS-77: QualityPassSelector.js must exist and emit onTargetChange."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/components/QualityPassSelector.js").read_text()
+    assert "onTargetChange" in src or "onChange" in src
+
+
+def test_ms77_submit_handlers_uses_quality_pass_target():
+    """MS-77: useSubmitHandlers must accept qualityPassTarget and pass to dispatch."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src/hooks/useSubmitHandlers.js").read_text()
+    assert "qualityPassTarget" in src
+    assert "target_agent" in src
