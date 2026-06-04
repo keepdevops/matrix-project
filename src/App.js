@@ -61,6 +61,9 @@ function App() {
     if (fork_session_id) setCurrentSession({ sessionId: fork_session_id });
   };
 
+  const { byName: agentHealthByName } = useAgentHealth({ online });
+  const [qualityPassTarget, setQualityPassTarget] = useState(null);
+
   const {
     pendingPrompt, handleSubmit, handleQualityPass,
     handleFollowUp, handleSendBestContinue, handleSaveCode,
@@ -83,10 +86,6 @@ function App() {
     setShowHelp, setShowRagAdmin, setShowCachePanel,
     setDeployPending, setCacheStatus, handleSubmit,
   });
-
-  const { byName: agentHealthByName } = useAgentHealth({ online });
-  const [qualityPassTarget, setQualityPassTarget] = useState(null);
-  const [qualityPassTarget, setQualityPassTarget] = useState(null);
 
   const { overrun: budgetExhausted } = useTokenBudget({
     sessionId: currentSession?.sessionId,
