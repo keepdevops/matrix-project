@@ -29,7 +29,6 @@ export default function BrewAgentCardBody({
       )}
 
       <div className="brew-agent-card-footer">
-        <span className="brew-agent-card-meta">{meta}</span>
         {onEdit && (
           <button
             type="button"
@@ -47,6 +46,7 @@ export default function BrewAgentCardBody({
             title="View result"
           >⤢</button>
         )}
+        <span className="brew-agent-card-meta">{meta}</span>
       </div>
 
       {children ? <div className="brew-agent-card-body">{children}</div> : null}
