@@ -33,6 +33,7 @@ python3 scripts/brewctl launch
 | **PER-MODE ROSTER** | (Inside CONFIGURE.) Which agents participate per mode; pipeline order; synthesizer; max_select for router. |
 | **PRESETS** | Save mode + roster bundle under a name; apply in one click. |
 | **CLEAR KV** | Wipe KV cache on llama agents, restart MLX servers, and reset conversation session state. Do this before every new major prompt. |
+| **MONITOR** | Live health popout: KV-cache status + per-port pressure gauge, **Unified Memory** gauge (host memory; works on any build), MLX per-port Q/W/D pressure, Clear KV, and opt-in RSS feeds. RSS needs `coordinator.rss.enabled` (events only on the in-process MLX build). |
 | **HISTORY (N)** | Last 10 broadcasts; click any to reload prompt + responses. |
 | **Temperature** | Default 0.20. Keep 0.10–0.25 for code; 0.40–0.70 for brainstorming. |
 | **BROADCAST / Cmd+Enter** | Send prompt under active mode. |

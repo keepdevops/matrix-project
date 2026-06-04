@@ -480,3 +480,36 @@ When `swarm-config.json` carries `"rag": {"enabled": true}`, the C++ coordinator
 | MLX / `bge` / semantic | `~0.6` | True neighbors land at 0.1–0.5; noise at 0.8+. |
 
 Config shape: `"rag": { "enabled": true, "top_k": 3, "min_score": 1.0, "embedder": "hash" }`
+
+## 14. Monitor & live telemetry
+
+The Brewlatte **Monitor** popout (header trigger) surfaces live runtime health:
+
+| Element | Source | Notes |
+|---|---|---|
+| **KV cache** status/size + **KV pressure gauge** (header) | `/api/kv-pressure` per-port readings | Llama ports show fill %; segments per port. |
+| **Unified Memory** gauge | `/api/mlx/pressure` `unified_memory` → falls back to `/api/memory` | Works on **every** coordinator build: native/INPROC builds report the richer `unified_memory`; plain builds use the always-served host snapshot and compute pressure % from total/free. |
+| **MLX pressure** (per MLX port: Q / W / D) | `/api/mlx/pressure` | Inflight, waiting, decode pressure per `mlx_lm` port. |
+| **Llama ports** | `/api/kv-pressure` (backend ≠ mlx) | Per-port KV readings. |
+| **Clear KV** button | `POST /api/clear-cache` | Drops llama KV, restarts MLX servers, resets sessions. |
+| **RSS feeds** tabs (History / Config / Token Regulation) | `GET /api/rss/<category>` | See below. |
+
+### RSS event feeds (opt-in)
+
+Set `"coordinator": { "rss": { "enabled": true, "max_items": 100 } }` in
+`swarm-config.json` to register the `/api/rss/*` routes (RSS 2.0 XML). When
+disabled (the default — no `rss` key), the routes return 404 and the Monitor
+shows *"No events yet."*
+
+**Events are only published by the in-process MLX build** (`MATRIX_MLX_INPROC=1`),
+since the publishers live in `model_registry_embed.cpp` /
+`model_registry_prompt_cache.cpp`:
+
+| Category | Event | Trigger |
+|---|---|---|
+| History | `MLX model loaded: <id>` | first in-process generation for a model |
+| History | `MLX model evicted: <id>` (`reason=idle`) | `evict_idle()` reclaims an idle resident model |
+| Token Regulation | `Prompt-cache sessions evicted: N` | idle prompt-cache session sweep |
+
+On a plain (non-INPROC) coordinator the feeds are served but stay empty — there
+are no compiled publishers.
