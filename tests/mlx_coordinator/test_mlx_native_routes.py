@@ -694,3 +694,37 @@ def test_ms69b_publish_on_eviction():
     assert "reason=idle" in src, (
         "eviction RSS event must include reason=idle"
     )
+
+
+# ---------------------------------------------------------------------------
+# MS-70 — TES + history entry _meta persistence
+# ---------------------------------------------------------------------------
+
+def test_ms70_dispatch_history_persists_meta():
+    """MS-70: dispatch_write_history must save envelope['meta'] as entry['_meta']."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_dispatch_history.h").read_text()
+    assert '"_meta"' in src and 'envelope["meta"]' in src, (
+        "dispatch_write_history must copy envelope['meta'] → entry['_meta'] "
+        "so TES and token_budget survive history reload"
+    )
+
+
+def test_ms70_history_utils_exists():
+    """MS-70: src/utils/historyUtils.js must exist with enrichEntry and extractMetaSummary."""
+    import pathlib
+    p = pathlib.Path(__file__).resolve().parents[2] / "src/utils/historyUtils.js"
+    assert p.exists(), "src/utils/historyUtils.js must exist (MS-70)"
+    src = p.read_text()
+    assert "enrichEntry" in src, "historyUtils must export enrichEntry"
+    assert "extractMetaSummary" in src, "historyUtils must export extractMetaSummary"
+
+
+def test_ms70_tes_stamped_in_dispatch_meta():
+    """MS-70: coordinator_routes_dispatch_meta.h must stamp meta.tes after token_budget."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "cpp_core/src/coordinator_routes_dispatch_meta.h").read_text()
+    assert 'tes::compute' in src, "dispatch_meta must call tes::compute()"
+    assert '"tes"' in src, "dispatch_meta must write meta['tes']"
