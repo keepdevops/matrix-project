@@ -21,15 +21,26 @@ export default function BrewCodeResultsPanel({
   onSaveCode,
   onExpandProgrammer = null,
 }) {
-  const sources = useMemo(() => (
-    (activeAgents || [])
-      .map(({ name }) => {
+  const sources = useMemo(() => {
+    // Source from the union of active-agent names AND the keys of `responses`,
+    // so an agent that produced output (incl. code) is shown even if it isn't
+    // in the current activeAgents list or the names don't line up.
+    const names = [];
+    const seen = new Set();
+    for (const a of (activeAgents || [])) {
+      if (a?.name && !seen.has(a.name)) { seen.add(a.name); names.push(a.name); }
+    }
+    for (const name of Object.keys(responses || {})) {
+      if (!seen.has(name)) { seen.add(name); names.push(name); }
+    }
+    return names
+      .map((name) => {
         const text = responses[name];
         if (!text && !(loading && name)) return null;
         return { name, text: text || '' };
       })
-      .filter(Boolean)
-  ), [activeAgents, responses, loading]);
+      .filter(Boolean);
+  }, [activeAgents, responses, loading]);
 
   const codeSources = useMemo(
     () => sources.filter(({ text }) => agentHasCode(text)),
