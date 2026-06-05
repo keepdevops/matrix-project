@@ -281,13 +281,45 @@ body[data-layout="brewlate"] {
   font-weight: 700;
 }
 
-/* ── Body (two-column panels) ───────────────────────────────── */
+/* ── Body (two-column panels + draggable divider) ───────────── */
 .brew-body {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* left = --brew-split (default 1fr → 50/50), 8px resizer, right fills */
+  grid-template-columns: var(--brew-split, 1fr) 8px minmax(0, 1fr);
   gap: 0;
   overflow: hidden;
   height: 100%;
+}
+
+/* Draggable divider between the panels. */
+.brew-resizer {
+  cursor: col-resize;
+  background: var(--brew-border);
+  transition: background 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brew-resizer:hover,
+.brew-resizer:active,
+.brew-resizer:focus-visible {
+  background: var(--brew-accent);
+  outline: none;
+}
+/* Grip dots so the handle is discoverable. */
+.brew-resizer-grip {
+  width: 2px;
+  height: 26px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--brew-text-muted) 60%, transparent);
+  box-shadow: 3px 0 0 -1px color-mix(in srgb, var(--brew-text-muted) 60%, transparent),
+              -3px 0 0 -1px color-mix(in srgb, var(--brew-text-muted) 60%, transparent);
+  pointer-events: none;
+}
+.brew-resizer:hover .brew-resizer-grip,
+.brew-resizer:focus-visible .brew-resizer-grip {
+  background: var(--brew-bg);
+  box-shadow: 3px 0 0 -1px var(--brew-bg), -3px 0 0 -1px var(--brew-bg);
 }
 
 /* ── Shared panel shell ─────────────────────────────────────── */
