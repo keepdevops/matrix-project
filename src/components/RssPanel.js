@@ -64,10 +64,14 @@ export default function RssPanel() {
       </div>
 
       {status === 'error' && (
-        <div className="rss-panel-notice">RSS unavailable — coordinator unreachable or disabled.</div>
+        <div className="rss-panel-notice">
+          <strong>{CATEGORY_LABELS[category]}</strong> feed unavailable — coordinator unreachable or RSS disabled.
+        </div>
       )}
       {status === 'empty' && (
-        <div className="rss-panel-notice">No events yet. Enable <code>coordinator.rss.enabled</code> to start publishing.</div>
+        <div className="rss-panel-notice">
+          No <strong>{CATEGORY_LABELS[category]}</strong> events yet. Enable <code>coordinator.rss.enabled</code> to start publishing.
+        </div>
       )}
 
       {items.length > 0 && (
