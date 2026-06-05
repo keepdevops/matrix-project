@@ -17,6 +17,7 @@
 #include "rl_trajectory_logger.h"
 #include "swarm_supervisor.h"
 #include "coordinator_routes_push.h"
+#include "rss_generator.h"
 #include "token_ledger.h"
 #include <algorithm>
 #include <cmath>
@@ -94,6 +95,12 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
             // Hard-stop on overrun when configured
             if (st.reject_on_overrun && ledger.overrun()) {
                 session_context::clear();
+                // RSS Token Regulation event (no-op unless rss.enabled).
+                rss_generator::publish(rss_generator::Category::TokenRegulation,
+                    "Token budget exceeded",
+                    "session=" + dreq.session_id
+                    + " consumed=" + std::to_string(ledger.consumed)
+                    + " budget=" + std::to_string(ledger.budget));
                 res.status = 429;
                 res.set_content(json({
                     {"error",      "token_budget_exceeded"},
@@ -231,6 +238,12 @@ void register_coordinator_routes_dispatch(httplib::Server& svr, CoordinatorState
 
             // Assemble and record RL trajectory + async quality webhook
             dispatch_post::record_trajectory(st, envelope, dreq, mode_name, ms);
+
+            // RSS History event (no-op unless rss.enabled).
+            rss_generator::publish(rss_generator::Category::History,
+                "Dispatch: " + mode_name,
+                "agents=" + std::to_string(mode_agents.size())
+                + " wall_ms=" + std::to_string(envelope["meta"].value("wall_ms", 0.0)));
 
             session_context::clear();
             res.set_content(envelope.dump(), "application/json");

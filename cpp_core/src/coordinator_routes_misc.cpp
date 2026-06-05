@@ -3,6 +3,7 @@
 #include "coordinator_routes_cache.h"
 #include "coordinator_kv_ops.h"
 #include "host_memory.h"
+#include "rss_generator.h"
 
 void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st) {
     svr.Post("/api/clear-cache", [&st](const httplib::Request&, httplib::Response& res) {
@@ -13,6 +14,12 @@ void register_coordinator_routes_misc(httplib::Server& svr, CoordinatorState& st
             coordinator_kv_ops::agent_port_slots(st.agents));
         json results;
         for (const auto& a : st.agents) results[a.name] = port_results[a.port];
+
+        // RSS History event (no-op unless coordinator.rss.enabled).
+        rss_generator::publish(rss_generator::Category::History,
+            "KV cache cleared",
+            "ports=" + std::to_string(port_results.size())
+            + " agents=" + std::to_string(st.agents.size()));
 
         res.set_content(results.dump(), "application/json");
         std::cout << "✅ [Swarm Matrix] KV cache clear complete" << std::endl;
