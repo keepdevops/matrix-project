@@ -2,6 +2,7 @@
 #include "coordinator_routes_internal.h"
 #include "coordinator_routes_presets_impl.h"
 #include "coordinator_routes_presets_url.h"
+#include "rss_generator.h"
 
 void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState& st) {
     presets_url::register_get_delete_routes(svr, st);
@@ -34,6 +35,11 @@ void register_coordinator_routes_presets(httplib::Server& svr, CoordinatorState&
               persisted = coordinator_persist_modes_locked(st); }
             std::cout << "🎛️  [presets] saved '" << name << "' (mode="
                       << bundle["mode"].get<std::string>() << ")" << std::endl;
+            // RSS Config event (no-op unless rss.enabled).
+            rss_generator::publish(rss_generator::Category::Config,
+                "Preset saved: " + name,
+                "mode=" + bundle.value("mode", std::string("?"))
+                + (persisted ? " (persisted)" : ""));
             res.set_content(json({{"name",name},{"preset",bundle},{"persisted",persisted}
             }).dump(), "application/json");
         } catch (const std::exception& e) {
