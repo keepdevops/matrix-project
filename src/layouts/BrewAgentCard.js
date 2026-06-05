@@ -54,14 +54,6 @@ export default function BrewAgentCard({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } } : undefined}
     >
-      <div className="brew-agent-card-hero">
-        <img
-          src={`${process.env.PUBLIC_URL || ''}/images/brew-agent-cup.png`}
-          alt=""
-          className="brew-agent-card-cup"
-          draggable={false}
-        />
-      </div>
 
       <div className="brew-agent-card-name-row">
         {showCheckbox && (
