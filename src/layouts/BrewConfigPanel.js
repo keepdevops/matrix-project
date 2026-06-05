@@ -1,5 +1,4 @@
 import React from 'react';
-import BrewMonitorPopout from './BrewMonitorPopout';
 import BrewResourcePopout from './BrewResourcePopout';
 import BrewConfigAgentsSection from './BrewConfigAgentsSection';
 import BrewConfigEngineProfile from './BrewConfigEngineProfile';
@@ -12,7 +11,7 @@ export default function BrewConfigPanel({
   riskEstimate, serverLayout, canDeploy, agentCount, rosterPct, configLines,
   handleEngineChange, toggleRole, setModel, selectAllRoles, clearAllRoles, applyProfile,
   status, statusMsg, logTail, agentStatuses, deploy, reset,
-  showMonitor, setShowMonitor, showAgentsPopout, setShowAgentsPopout, setLeftPopout,
+  showAgentsPopout, setShowAgentsPopout, setLeftPopout,
   online, activeAgents, kvReadings, kvFetchFailed, excludedBreaker,
   cacheStatus, onClearCache, responses, agentErrors, lastMeta,
 }) {
@@ -21,30 +20,11 @@ export default function BrewConfigPanel({
       <div className="brew-panel-header">
         <span className="brew-panel-title">Configure</span>
         <div className="brew-panel-header-actions">
-          {(canDeploy || online) && (
-            <button
-              type="button"
-              className={`brew-monitor-trigger${showMonitor ? ' open' : ''}${online ? ' online' : ''}`}
-              onClick={() => setShowMonitor(v => !v)}
-              aria-expanded={showMonitor}
-              title="KV cache and port pressure"
-            >
-              <span className={`brew-monitor-trigger-dot${online ? ' online' : ''}`} />
-              MONITOR
-            </button>
-          )}
           <span className="brew-panel-badge">
             {activeProfile} • {agentCount} Agent{agentCount !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
-
-      <BrewMonitorPopout
-        open={showMonitor} onClose={() => setShowMonitor(false)}
-        online={online} kvReadings={kvReadings} kvFetchFailed={kvFetchFailed}
-        activeAgents={activeAgents} engine={engine} excludedBreaker={excludedBreaker}
-        cacheStatus={cacheStatus} onClearCache={onClearCache}
-      />
 
       <div className="brew-panel-scroll">
         <BrewConfigEngineProfile

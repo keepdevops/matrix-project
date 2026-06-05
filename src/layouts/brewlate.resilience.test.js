@@ -144,7 +144,9 @@ describe('ARIA audit — popout triggers', () => {
   });
 
   it('MONITOR trigger has aria-expanded', () => {
-    expect(panelSrc).toMatch(/aria-expanded=\{showMonitor\}/);
+    // Monitor now lives in the Session panel (BrewRightPanel), not Configure.
+    const rightSrc = read('layouts/BrewRightPanel.js');
+    expect(rightSrc).toMatch(/aria-expanded=\{monitor\.showMonitor\}/);
   });
 
   it('header utilities menu has aria-expanded and aria-label', () => {

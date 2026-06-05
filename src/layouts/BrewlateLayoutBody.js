@@ -23,7 +23,6 @@ export default function BrewlateLayoutBody({
           {...brewConfig}
           status={status} statusMsg={statusMsg} logTail={logTail} agentStatuses={agentStatuses}
           deploy={deploy} reset={reset}
-          showMonitor={showMonitor} setShowMonitor={setShowMonitor}
           showAgentsPopout={showAgentsPopout} setShowAgentsPopout={setShowAgentsPopout}
           setLeftPopout={setLeftPopout}
           online={online} activeAgents={activeAgents} kvReadings={kvReadings}
@@ -36,6 +35,11 @@ export default function BrewlateLayoutBody({
           deployed={deployed} rightTab={rightTab} onTabChange={onTabChange}
           preview={{ rosterPct: brewConfig.rosterPct, serverLayout: brewConfig.serverLayout, configLines: brewConfig.configLines, engine: brewConfig.engine }}
           rolesByName={rolesByName}
+          monitor={{
+            showMonitor, setShowMonitor, online, kvReadings, kvFetchFailed,
+            activeAgents, engine: brewConfig.engine, excludedBreaker,
+            cacheStatus, onClearCache,
+          }}
           session={{
             history, currentSession, responses, finalAnswer, loading, error, pendingPrompt,
             lastMeta, stageOutputs, excludedBreaker, selectedPrompt, selectedTemperature,

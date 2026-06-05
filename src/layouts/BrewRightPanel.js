@@ -6,6 +6,7 @@ import BrewSessionTab from './BrewSessionTab';
 import BrewAgentsTab from './BrewAgentsTab';
 import BrewBroadcastTab from './BrewBroadcastTab';
 import BrewRagTab from './BrewRagTab';
+import BrewMonitorPopout from './BrewMonitorPopout';
 
 const RIGHT_TABS = [
   ['session',  'Session'],
@@ -25,12 +26,36 @@ export default function BrewRightPanel({
   broadcast,
   rag,
   rolesByName,
+  monitor,
 }) {
   return (
     <div className="brew-panel brew-panel--right">
       <div className="brew-panel-header">
         <span className="brew-panel-title">{deployed ? 'Session' : 'Live Preview'}</span>
+        {deployed && monitor && (
+          <div className="brew-panel-header-actions">
+            <button
+              type="button"
+              className={`brew-monitor-trigger${monitor.showMonitor ? ' open' : ''}${monitor.online ? ' online' : ''}`}
+              onClick={() => monitor.setShowMonitor(v => !v)}
+              aria-expanded={monitor.showMonitor}
+              title="KV cache and port pressure"
+            >
+              <span className={`brew-monitor-trigger-dot${monitor.online ? ' online' : ''}`} />
+              MONITOR
+            </button>
+          </div>
+        )}
       </div>
+
+      {deployed && monitor && (
+        <BrewMonitorPopout
+          open={monitor.showMonitor} onClose={() => monitor.setShowMonitor(false)}
+          online={monitor.online} kvReadings={monitor.kvReadings} kvFetchFailed={monitor.kvFetchFailed}
+          activeAgents={monitor.activeAgents} engine={monitor.engine} excludedBreaker={monitor.excludedBreaker}
+          cacheStatus={monitor.cacheStatus} onClearCache={monitor.onClearCache}
+        />
+      )}
 
       {!deployed ? (
         <BrewPreviewPanel {...preview} />

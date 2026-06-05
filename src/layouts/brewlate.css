@@ -331,8 +331,9 @@ body[data-layout="brewlate"] {
   text-transform: uppercase;
 }
 
-.brew-panel--left {
-  position: relative;
+.brew-panel--left,
+.brew-panel--right {
+  position: relative;       /* anchor the Monitor popout (absolute) */
 }
 
 .brew-panel-header-actions {
