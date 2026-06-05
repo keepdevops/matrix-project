@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import BrewConfigPanel from './BrewConfigPanel';
 import BrewRightPanel from './BrewRightPanel';
+import BrewPanelResizer, { applyStoredSplit } from './BrewPanelResizer';
 
 export default function BrewlateLayoutBody({
   brewConfig, status, statusMsg, logTail, agentStatuses, deploy, reset,
@@ -14,8 +15,15 @@ export default function BrewlateLayoutBody({
   onSubmit, onFollowUp, onClearSession, onSwitchSession, onQualityPass,
   onPromptConsumed, onUseRagChange, switchBackend, onExpandProgrammer, onOpenRagAdmin,
 }) {
+  // Ref callback: restore the persisted split when the grid mounts.
+  const bodyRefCb = useCallback((el) => {
+    bodyEl.current = el;
+    applyStoredSplit(el);
+  }, []);
+  const bodyEl = React.useRef(null);
+
   return (
-    <div className="brew-body">
+    <div className="brew-body" ref={bodyRefCb}>
       <BrewConfigPanel
         {...brewConfig}
         status={status} statusMsg={statusMsg} logTail={logTail} agentStatuses={agentStatuses}
@@ -28,6 +36,8 @@ export default function BrewlateLayoutBody({
         cacheStatus={cacheStatus} onClearCache={onClearCache}
         responses={responses} agentErrors={agentErrors} lastMeta={lastMeta}
       />
+
+      <BrewPanelResizer targetRef={bodyEl} />
 
       <BrewRightPanel
         deployed={deployed} rightTab={rightTab} onTabChange={onTabChange}
