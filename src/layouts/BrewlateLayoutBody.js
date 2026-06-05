@@ -12,6 +12,7 @@ export default function BrewlateLayoutBody({
   stageOutputs, selectedPrompt, selectedTemperature, useRag, backend,
   activeMode, flatPickAgent, onPickFlatAgent, onSaveCode, onSendBestContinue,
   onSubmit, onFollowUp, onClearSession, onSwitchSession, onQualityPass,
+  qualityPassTarget, onQualityPassTargetChange,
   onPromptConsumed, onUseRagChange, switchBackend, onExpandProgrammer, onOpenRagAdmin,
 }) {
   // Full-screen panel swap: Configure fills the screen until the swarm is
@@ -45,6 +46,7 @@ export default function BrewlateLayoutBody({
             lastMeta, stageOutputs, excludedBreaker, selectedPrompt, selectedTemperature,
             useRag, backend, online, activeAgents, activeMode, onSubmit, onFollowUp,
             onClearSession, onSwitchSession, onQualityPass, onPromptConsumed, onSaveCode,
+            qualityPassTarget, onQualityPassTargetChange,
             onUseRagChange, switchBackend, onExpandProgrammer,
           }}
           agents={{

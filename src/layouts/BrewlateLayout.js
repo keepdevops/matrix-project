@@ -93,6 +93,7 @@ export default function BrewlateLayout({
         onSendBestContinue={onSendBestContinue} onSubmit={onSubmit}
         onFollowUp={onFollowUp} onClearSession={onClearSession} onSwitchSession={onSwitchSession}
         onQualityPass={onQualityPass} onPromptConsumed={onPromptConsumed}
+        qualityPassTarget={qualityPassTarget} onQualityPassTargetChange={onQualityPassTargetChange}
         onUseRagChange={onUseRagChange} switchBackend={switchBackend}
         onExpandProgrammer={onExpandProgrammer} onOpenRagAdmin={onOpenRagAdmin}
       />

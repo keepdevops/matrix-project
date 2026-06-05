@@ -13,6 +13,7 @@ export default function BrewSessionTab({
   lastMeta, stageOutputs, excludedBreaker,
   selectedPrompt, selectedTemperature, useRag, backend, online, activeAgents, activeMode,
   onSubmit, onFollowUp, onClearSession, onSwitchSession, onQualityPass,
+  qualityPassTarget, onQualityPassTargetChange,
   onPromptConsumed, onSaveCode, onUseRagChange, switchBackend, onExpandProgrammer,
 }) {
   const { overrun } = useTokenBudget({ sessionId: currentSession?.sessionId, online });
@@ -69,6 +70,8 @@ export default function BrewSessionTab({
           onPromptConsumed={onPromptConsumed}
           canContinue={Boolean(currentSession?.sessionId)}
           onQualityPass={onQualityPass}
+          qualityPassTarget={qualityPassTarget}
+          onQualityPassTargetChange={onQualityPassTargetChange}
           useRag={useRag}
           onUseRagChange={onUseRagChange}
           activeAgents={activeAgents}
