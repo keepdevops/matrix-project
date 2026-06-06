@@ -23,6 +23,27 @@ SIDECAR_PORT = 8001
 RAG_WRAPPER = REPO / "scripts" / "rag-docker-compose.sh"
 SIDECAR_SCRIPT = REPO / "scripts" / "rag-ingest-server.py"
 
+# Extra source trees to auto-index alongside the repo so agents can retrieve from
+# them — e.g. the llama.cpp source. Override with MATRIX_RAG_EXTRA_INDEX_PATHS
+# (colon-separated); defaults to the llama.cpp checkout when present.
+DEFAULT_EXTRA_INDEX_PATHS = ("/Users/Shared/llama/llama.cpp",)
+
+
+def _extra_index_paths() -> list[Path]:
+    raw = os.environ.get("MATRIX_RAG_EXTRA_INDEX_PATHS")
+    candidates = raw.split(":") if raw else list(DEFAULT_EXTRA_INDEX_PATHS)
+    paths: list[Path] = []
+    for c in candidates:
+        c = c.strip()
+        if not c:
+            continue
+        p = Path(c)
+        if p.is_dir():
+            paths.append(p)
+        else:
+            logger.warning("auto-index: extra path %s not found — skipping", p)
+    return paths
+
 
 def _run(cmd: list[str], **kw) -> int:
     return subprocess.run(cmd, cwd=REPO, **kw).returncode
@@ -87,19 +108,25 @@ def _sidecar_up() -> int:
     return 0
 
 
-def _auto_index(index_path: Path) -> None:
-    """Kick off background re-index of index_path using the mlx embedder."""
+def _auto_index(paths: list[Path]) -> None:
+    """Kick off a single background re-index of all paths using the mlx embedder.
+
+    One process indexes every path sequentially so the MLX embedder is loaded
+    once and the GPU lane is not contended by parallel indexers.
+    """
     brewctl = REPO / "scripts" / "brewctl"
     logs = REPO / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     log_fp = open(logs / "rag-autoindex.log", "ab")
-    cmd = [sys.executable, str(brewctl), "rag", "index", str(index_path), "--embedder", "mlx"]
+    cmd = [sys.executable, str(brewctl), "rag", "index",
+           *[str(p) for p in paths], "--embedder", "mlx"]
     proc = subprocess.Popen(
         cmd, cwd=REPO, env=os.environ.copy(),
         stdout=log_fp, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
-    print(f"  auto-index pid={proc.pid} indexing {index_path} → logs/rag-autoindex.log")
+    joined = ", ".join(str(p) for p in paths)
+    print(f"  auto-index pid={proc.pid} indexing {joined} → logs/rag-autoindex.log")
 
 
 def run_up(no_rag: bool = False, no_index: bool = False, index_path: Path | None = None) -> int:
@@ -113,9 +140,9 @@ def run_up(no_rag: bool = False, no_index: bool = False, index_path: Path | None
         if rc != 0:
             return rc
         if not no_index:
-            target = index_path or REPO
-            print(f"Auto-indexing {target} in background ...")
-            _auto_index(target)
+            targets = [index_path or REPO, *_extra_index_paths()]
+            print(f"Auto-indexing {len(targets)} path(s) in background ...")
+            _auto_index(targets)
     return run_launch()
 
 

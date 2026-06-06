@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import time
 from abc import ABC, abstractmethod
 from typing import Sequence
@@ -16,6 +17,28 @@ from typing import Sequence
 logger = logging.getLogger(__name__)
 
 EMBED_DIM = 768
+
+
+def _force_offline_hf() -> None:
+    """Pin HuggingFace/transformers to offline mode so the MLX embedder loads
+    only from the local cache and never reaches the network — required for
+    air-gapped deployments. Must run before huggingface_hub/transformers are
+    imported (they read these env vars at import time); the model import is lazy
+    in MLXEmbedder._ensure_loaded, so setting them here at module import is early
+    enough.
+
+    Escape hatch: set MATRIX_RAG_EMBED_ALLOW_DOWNLOAD=1 to permit a one-time
+    online download that seeds the cache on a connected host.
+    """
+    if os.environ.get("MATRIX_RAG_EMBED_ALLOW_DOWNLOAD", "").lower() in ("1", "true", "yes"):
+        logger.warning("MLXEmbedder: MATRIX_RAG_EMBED_ALLOW_DOWNLOAD set — "
+                       "allowing online HuggingFace downloads to seed the cache")
+        return
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
+
+_force_offline_hf()
 
 
 class Embedder(ABC):
@@ -79,12 +102,23 @@ class MLXEmbedder(Embedder):
         except ImportError as exc:
             logger.error("mlx-embedding-models not installed: %s", exc)
             raise
+        offline = os.environ.get("HF_HUB_OFFLINE") == "1"
         try:
             self._model = EmbeddingModel.from_registry(self.model_id)
-        except Exception:
-            logger.info("MLXEmbedder: registry miss for %s, trying HF repo id",
-                        self.model_id)
-            self._model = EmbeddingModel.from_pretrained(self.model_id)
+        except Exception as exc:
+            logger.info("MLXEmbedder: registry miss for %s (%s), trying HF repo id",
+                        self.model_id, exc)
+            try:
+                self._model = EmbeddingModel.from_pretrained(self.model_id)
+            except Exception as exc2:
+                if offline:
+                    logger.error(
+                        "MLXEmbedder: could not load %s from the local cache in "
+                        "offline mode (HF_HUB_OFFLINE=1). Pre-seed the HuggingFace "
+                        "cache (~/.cache/huggingface or $HF_HOME) on this host, or "
+                        "run once with MATRIX_RAG_EMBED_ALLOW_DOWNLOAD=1 to download "
+                        "it: %s", self.model_id, exc2)
+                raise
         emitted = getattr(self._model, "dim", None) or getattr(
             self._model, "embedding_dim", None)
         if isinstance(emitted, int) and emitted > 0:
