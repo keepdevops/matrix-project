@@ -23,6 +23,7 @@ export default function BrewConfigAgentsSection({
   agentErrors,
   lastMeta,
   setLeftPopout,
+  onReloadRoster,
 }) {
   return (
     <div className="brew-section brew-section--agents" style={{ flex: '1 1 0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -51,6 +52,24 @@ export default function BrewConfigAgentsSection({
 
       <div className="brew-section-body" style={{ flex: '1 1 0', overflowY: 'auto', padding: '0.75rem' }}>
         <div className="brew-agent-cards">
+          {roles.length === 0 && (
+            <div
+              className="brew-agents-empty"
+              role="status"
+              style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', padding: '2rem 1rem', color: 'var(--brew-text-muted)' }}
+            >
+              <div style={{ fontSize: '0.8rem', color: 'var(--brew-accent)' }}>NO AGENTS LOADED</div>
+              <div style={{ fontSize: '0.72rem', textAlign: 'center' }}>The coordinator may still be starting.</div>
+              {onReloadRoster && (
+                <button
+                  type="button"
+                  className="brew-agents-empty-retry"
+                  onClick={onReloadRoster}
+                  style={{ padding: '0.45rem 1rem', background: 'var(--brew-border)', border: 'none', borderRadius: 4, color: 'var(--brew-text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.72rem' }}
+                >RETRY</button>
+              )}
+            </div>
+          )}
           {roles.map(role => {
             const isSelected   = selected.has(role.name);
             const modelPath    = roleModels[role.name] || '';

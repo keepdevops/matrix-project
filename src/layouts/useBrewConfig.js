@@ -51,7 +51,17 @@ export function useBrewConfig({ online, activeAgents, hostMemory, activeMode }) 
     Promise.all([fetchSwarmConfig(), fetchModels(), activeAgentsPromise])
       .then(([config, modelList, liveAgents]) => {
         if (cancelled) return;
-        setRoles(config.agents);
+        const agentRoster = Array.isArray(config?.agents) ? config.agents : [];
+        if (agentRoster.length === 0) {
+          // An empty roster is a failed load, not a success: the coordinator is
+          // likely still starting and served an unpopulated swarm config. Surface
+          // it as a retryable error instead of silently rendering an empty Agents
+          // panel (No Silent Failures).
+          console.error('useBrewConfig: swarm-config returned an empty agent roster — treating as a retryable load failure');
+          setLoadError('No agents in swarm config — the coordinator may still be starting. Retry in a moment.');
+          return;
+        }
+        setRoles(agentRoster);
         if (config.coordinator?.profiles) setProfileThresholds(config.coordinator.profiles);
         setModels(modelList);
         setSelected(new Set(liveAgents.map(a => a.name)));
