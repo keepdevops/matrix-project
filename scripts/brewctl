@@ -43,6 +43,12 @@ logger = logging.getLogger("brewctl")
 INDEXABLE = {".py", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c",
              ".ts", ".tsx", ".js", ".jsx", ".md", ".txt", ".yaml", ".yml"}
 
+# Directory names skipped anywhere in the tree. vendor/third-party/generated
+# trees (e.g. llama.cpp's vendor/miniaudio.h) are huge amalgamated files that
+# bloat the index and aren't first-party source worth retrieving.
+EXCLUDED_DIRS = {"node_modules", "build", "vendor", "third_party",
+                 "third-party", "dist", ".git", "__pycache__"}
+
 
 def _pick_embedder(name: str):
     if name == "mlx":
@@ -55,7 +61,7 @@ def _pick_embedder(name: str):
 async def _index(path: Path, embedder, store: PgVectorStore) -> int:
     files = [p for p in path.rglob("*")
              if p.is_file() and p.suffix.lower() in INDEXABLE
-             and "node_modules" not in p.parts and "build" not in p.parts]
+             and not (EXCLUDED_DIRS & set(p.parts))]
     logger.info("indexing %d files under %s", len(files), path)
 
     total = 0

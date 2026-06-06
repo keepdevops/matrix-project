@@ -411,3 +411,50 @@ def test_single_overlong_line_becomes_its_own_chunk():
     chunks = chunk_text("note.txt", giant + "\n")
     assert len(chunks) == 1
     assert chunks[0].content.startswith("x")
+
+
+# ---------------------------------------------------------------------------
+# Chunker — explosion guard (_split_oversized: huge/long-line inputs)
+# ---------------------------------------------------------------------------
+# Regression for the runaway split where overlap > part-size collapsed progress
+# to ~1 line/part and exploded one giant vendored file into ~800k sub-chunks.
+
+from orchestration.rag.chunker import (  # noqa: E402
+    Chunk, MAX_PARTS_PER_CHUNK, _split_oversized,
+)
+
+
+def _oversized(n_lines: int, line_len: int) -> Chunk:
+    body = "\n".join("y" * line_len for _ in range(n_lines))
+    return Chunk(source_path="huge.cpp", chunk_idx=0, content=body,
+                 metadata={"lang": "cpp", "name": "f"})
+
+
+def test_split_caps_parts_and_preserves_tail():
+    # ~1 line per part (line_len near the cap) would be 5000 parts without the
+    # MAX_PARTS guard; it must cap and emit the remaining tail (no data loss).
+    ch = _oversized(5000, DEFAULT_MAX_CHARS - 10)
+    parts = _split_oversized(ch, max_chars=DEFAULT_MAX_CHARS, overlap=DEFAULT_OVERLAP)
+    assert len(parts) <= MAX_PARTS_PER_CHUNK + 1
+    assert parts[-1].metadata.get("truncated_split") is True
+    # tail is preserved (not dropped): the file's last line lives in the tail part
+    assert ch.content.splitlines()[-1] in parts[-1].content.splitlines()
+
+
+def test_split_progress_bounded_for_midsize_lines():
+    # ~3 lines per part: the half-part step floor keeps part count well under
+    # the line count (no near-1-line-per-part overlap collapse).
+    ch = _oversized(300, DEFAULT_MAX_CHARS // 3)
+    parts = _split_oversized(ch, max_chars=DEFAULT_MAX_CHARS, overlap=DEFAULT_OVERLAP)
+    assert len(parts) < 300
+    assert all(len(p.content) <= DEFAULT_MAX_CHARS for p in parts
+               if not p.metadata.get("truncated_split"))
+
+
+def test_split_normal_function_keeps_overlap():
+    # Short lines → many fit per part → real overlap (not the explosion path).
+    ch = _oversized(400, 40)
+    parts = _split_oversized(ch, max_chars=DEFAULT_MAX_CHARS, overlap=DEFAULT_OVERLAP)
+    assert 1 < len(parts) < MAX_PARTS_PER_CHUNK
+    tail = parts[0].content.splitlines()[-1]
+    assert tail in parts[1].content.splitlines()[:DEFAULT_OVERLAP]

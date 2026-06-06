@@ -21,6 +21,11 @@ DEFAULT_OVERLAP = 8
 # chars/token for code puts that budget near 1500 chars. Tune via
 # chunk_text(..., max_chars=...).
 DEFAULT_MAX_CHARS = 1500
+# Hard backstop on how many sub-chunks one oversized chunk may produce. Protects
+# against pathological inputs (huge vendored/generated single-file headers) where
+# tiny per-part line counts would otherwise explode the split. On reaching it the
+# remaining tail is emitted as one chunk and a warning is logged.
+MAX_PARTS_PER_CHUNK = 200
 
 
 @dataclass(frozen=True)
@@ -237,7 +242,23 @@ def _split_oversized(chunk: Chunk, *, max_chars: int, overlap: int) -> list[Chun
         ))
         if j >= n:
             break
-        i = max(j - overlap, i + 1)  # step back for overlap; always make progress
+        if len(parts) >= MAX_PARTS_PER_CHUNK:
+            # Pathological input — emit the remaining tail as one chunk (so no
+            # content is lost) and stop, rather than exploding the split.
+            logger.error("chunker: %s hit the %d-part cap (%d lines) — emitting "
+                         "the tail as one chunk; likely a vendored/generated file",
+                         chunk.source_path, MAX_PARTS_PER_CHUNK, n)
+            meta = dict(chunk.metadata)
+            meta["part"] = len(parts)
+            meta["truncated_split"] = True
+            parts.append(Chunk(source_path=chunk.source_path, chunk_idx=0,
+                               content="\n".join(lines[j:]), metadata=meta))
+            break
+        # Advance by at least half the part so `overlap` can never exceed the
+        # part's line count and collapse progress to ~1 line/part (which would
+        # blow up the sub-chunk count on long-line or huge inputs).
+        consumed = j - i
+        i += max((consumed + 1) // 2, consumed - overlap)
     for p in parts:
         p.metadata["parts"] = len(parts)
     return parts
