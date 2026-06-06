@@ -49,6 +49,20 @@ INDEXABLE = {".py", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c",
 EXCLUDED_DIRS = {"node_modules", "build", "vendor", "third_party",
                  "third-party", "dist", ".git", "__pycache__"}
 
+# A file with any line longer than this is treated as minified/generated and
+# skipped before the (potentially O(n^2)) brace walk runs on it.
+MINIFIED_LINE_CHARS = 50_000
+
+# Hard per-file chunk ceiling. Generated/minified assets (e.g. a webui
+# bundle.js, ~35k chunks from thousands of nested `function` tokens) bloat the
+# index and pollute retrieval. Legit large sources stay well under this
+# (llama.cpp's 16.8k-line ggml-vulkan.cpp → 885 chunks).
+MAX_CHUNKS_PER_FILE = 3000
+
+
+def _looks_minified(text: str) -> bool:
+    return any(len(line) > MINIFIED_LINE_CHARS for line in text.splitlines())
+
 
 def _pick_embedder(name: str):
     if name == "mlx":
@@ -72,8 +86,15 @@ async def _index(path: Path, embedder, store: PgVectorStore) -> int:
         except OSError as exc:
             logger.error("read failed %s: %s", fp, exc)
             continue
+        if _looks_minified(text):
+            logger.info("skip minified/generated %s", fp)
+            continue
         chunks = chunk_text(str(fp), text)
         if not chunks:
+            continue
+        if len(chunks) > MAX_CHUNKS_PER_FILE:
+            logger.warning("skip %s — %d chunks exceeds per-file cap %d (generated/minified?)",
+                           fp, len(chunks), MAX_CHUNKS_PER_FILE)
             continue
         vecs = await embedder.embed([c.content for c in chunks])
         for c, v in zip(chunks, vecs):
