@@ -15,6 +15,17 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_WINDOW = 60   # lines per chunk for fallback
 DEFAULT_OVERLAP = 8
+# Hard cap on chunk size (characters). Oversized AST/brace chunks — e.g. a very
+# long function — are re-split into overlapping sub-chunks so the whole body is
+# embedded rather than truncated: bge-base cuts off at 512 tokens, and ~3
+# chars/token for code puts that budget near 1500 chars. Tune via
+# chunk_text(..., max_chars=...).
+DEFAULT_MAX_CHARS = 1500
+# Hard backstop on how many sub-chunks one oversized chunk may produce. Protects
+# against pathological inputs (huge vendored/generated single-file headers) where
+# tiny per-part line counts would otherwise explode the split. On reaching it the
+# remaining tail is emitted as one chunk and a warning is logged.
+MAX_PARTS_PER_CHUNK = 200
 
 
 @dataclass(frozen=True)
@@ -31,8 +42,18 @@ def chunk_text(
     *,
     window: int = DEFAULT_WINDOW,
     overlap: int = DEFAULT_OVERLAP,
+    max_chars: int = DEFAULT_MAX_CHARS,
 ) -> list[Chunk]:
-    """Dispatch to the right splitter based on file extension."""
+    """Dispatch to the right splitter by extension, then cap oversized chunks so
+    every chunk fits the embedder's token window (no silent truncation)."""
+    raw = _dispatch(source_path, text, window=window, overlap=overlap)
+    return _cap_chunk_sizes(raw, max_chars=max_chars, overlap=overlap)
+
+
+def _dispatch(
+    source_path: str, text: str, *, window: int, overlap: int,
+) -> list[Chunk]:
+    """Choose a splitter based on file extension."""
     ext = Path(source_path).suffix.lower()
     if ext == ".py":
         try:
@@ -170,3 +191,74 @@ def _chunk_window(
         idx += 1
         i += step
     return chunks
+
+
+def _cap_chunk_sizes(
+    chunks: list[Chunk], *, max_chars: int, overlap: int,
+) -> list[Chunk]:
+    """Re-split any chunk longer than max_chars into overlapping line sub-chunks
+    so the embedder sees the whole body, then renumber chunk_idx contiguously
+    (the store PK is (source_path, chunk_idx), so indices must stay 0..N-1)."""
+    capped: list[Chunk] = []
+    for ch in chunks:
+        if len(ch.content) <= max_chars:
+            capped.append(ch)
+        else:
+            capped.extend(_split_oversized(ch, max_chars=max_chars, overlap=overlap))
+    return [
+        Chunk(source_path=c.source_path, chunk_idx=i, content=c.content,
+              metadata=c.metadata)
+        for i, c in enumerate(capped)
+    ]
+
+
+def _split_oversized(chunk: Chunk, *, max_chars: int, overlap: int) -> list[Chunk]:
+    """Greedily pack whole lines into <=max_chars sub-chunks, overlapping by
+    `overlap` lines so a split function keeps continuity across the boundary.
+    A single line longer than max_chars becomes its own (still-oversized) chunk
+    rather than being cut mid-token."""
+    lines = chunk.content.splitlines()
+    n = len(lines)
+    parts: list[Chunk] = []
+    i = 0
+    while i < n:
+        cur: list[str] = []
+        size = 0
+        j = i
+        while j < n:
+            add = len(lines[j]) + 1  # +1 for the newline join
+            if cur and size + add > max_chars:
+                break
+            cur.append(lines[j])
+            size += add
+            j += 1
+        meta = dict(chunk.metadata)
+        meta["part"] = len(parts)
+        parts.append(Chunk(
+            source_path=chunk.source_path,
+            chunk_idx=0,  # renumbered by _cap_chunk_sizes
+            content="\n".join(cur),
+            metadata=meta,
+        ))
+        if j >= n:
+            break
+        if len(parts) >= MAX_PARTS_PER_CHUNK:
+            # Pathological input — emit the remaining tail as one chunk (so no
+            # content is lost) and stop, rather than exploding the split.
+            logger.error("chunker: %s hit the %d-part cap (%d lines) — emitting "
+                         "the tail as one chunk; likely a vendored/generated file",
+                         chunk.source_path, MAX_PARTS_PER_CHUNK, n)
+            meta = dict(chunk.metadata)
+            meta["part"] = len(parts)
+            meta["truncated_split"] = True
+            parts.append(Chunk(source_path=chunk.source_path, chunk_idx=0,
+                               content="\n".join(lines[j:]), metadata=meta))
+            break
+        # Advance by at least half the part so `overlap` can never exceed the
+        # part's line count and collapse progress to ~1 line/part (which would
+        # blow up the sub-chunk count on long-line or huge inputs).
+        consumed = j - i
+        i += max((consumed + 1) // 2, consumed - overlap)
+    for p in parts:
+        p.metadata["parts"] = len(parts)
+    return parts

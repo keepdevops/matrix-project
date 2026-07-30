@@ -12,7 +12,7 @@ Scenarios (one launch, two modes):
 Output: /tmp/hero-expand/{router,flat}.mov  (ProRes, 2 s/frame)
 
 Usage:
-    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/hero_expand.py
+    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/demo/hero_expand.py
 
 Prerequisites:
     - Dev server:  npm start          (http://localhost:3000)

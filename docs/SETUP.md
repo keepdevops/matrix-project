@@ -23,6 +23,10 @@ Step-by-step instructions to get from a fresh clone to a running swarm.
 
 ```bash
 git clone https://github.com/keepdevops/matrix-project.git
+
+brew install prometheus-cpp
+brew install libpq
+
 cd matrix-project
 npm install
 ```

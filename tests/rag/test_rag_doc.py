@@ -23,7 +23,7 @@ sys.path.insert(0, str(REPO))
 
 from orchestration.rag import chunk_text, retrieve  # noqa: E402
 from orchestration.rag.chunker import (  # noqa: E402
-    DEFAULT_OVERLAP, DEFAULT_WINDOW, _chunk_window,
+    DEFAULT_MAX_CHARS, DEFAULT_OVERLAP, DEFAULT_WINDOW, _chunk_window,
 )
 from orchestration.rag.embed import EMBED_DIM, HashEmbedder  # noqa: E402
 from orchestration.rag.retrieve import RetrievedChunk  # noqa: E402
@@ -347,3 +347,114 @@ def test_retrieve_propagates_embed_error():
 
     with pytest.raises(RuntimeError, match="embed backend down"):
         asyncio.run(run())
+
+
+# ---------------------------------------------------------------------------
+# Chunker — max-chars cap (long functions embed fully, not truncated)
+# ---------------------------------------------------------------------------
+# chunker.py: _cap_chunk_sizes re-splits any chunk > max_chars into overlapping
+# line sub-chunks so the whole body reaches the embedder (bge-base truncates at
+# 512 tokens). Sub-chunks preserve metadata and chunk_idx stays contiguous.
+
+def _long_cpp_function(n_lines: int = 400) -> str:
+    body = "\n".join(f"    x += {i};  // padding line to add bytes" for i in range(n_lines))
+    return f"int huge(int x) {{\n{body}\n    return x;\n}}\n"
+
+
+def test_oversized_chunk_is_split_under_cap():
+    chunks = chunk_text("big.cpp", _long_cpp_function())
+    assert len(chunks) > 1
+    assert all(len(c.content) <= DEFAULT_MAX_CHARS for c in chunks)
+
+
+def test_oversized_split_preserves_name_and_marks_parts():
+    chunks = chunk_text("big.cpp", _long_cpp_function())
+    parts = [c for c in chunks if "part" in c.metadata]
+    assert len(parts) > 1
+    # original function metadata (name/lang) carried onto every part
+    assert all(p.metadata.get("name") == "huge" for p in parts)
+    assert all(p.metadata.get("lang") == "cpp" for p in parts)
+    # part/parts bookkeeping is consistent
+    total = len(parts)
+    assert {p.metadata["part"] for p in parts} == set(range(total))
+    assert all(p.metadata["parts"] == total for p in parts)
+
+
+def test_oversized_split_keeps_chunk_idx_contiguous():
+    # A split must renumber so the (source_path, chunk_idx) PK stays 0..N-1.
+    src = _long_cpp_function() + "\nint tiny() { return 1; }\n"
+    chunks = chunk_text("big.cpp", src)
+    assert [c.chunk_idx for c in chunks] == list(range(len(chunks)))
+
+
+def test_oversized_split_overlaps_between_parts():
+    chunks = chunk_text("big.cpp", _long_cpp_function())
+    parts = [c for c in chunks if "part" in c.metadata]
+    # last line of part i reappears within the head of part i+1 (overlap window)
+    tail = parts[0].content.splitlines()[-1]
+    head = parts[1].content.splitlines()[:DEFAULT_OVERLAP]
+    assert tail in head
+
+
+def test_small_chunk_untouched_by_cap():
+    # A function under the cap is passed through unchanged (no part metadata).
+    src = "void hello() {\n    printf(\"hi\");\n}\n"
+    chunks = chunk_text("main.cpp", src)
+    assert len(chunks) == 1
+    assert "part" not in chunks[0].metadata
+    assert chunks[0].metadata["name"] == "hello"
+
+
+def test_single_overlong_line_becomes_its_own_chunk():
+    # A line longer than the cap can't be split mid-token — it stays one chunk.
+    giant = "x" * (DEFAULT_MAX_CHARS + 500)
+    chunks = chunk_text("note.txt", giant + "\n")
+    assert len(chunks) == 1
+    assert chunks[0].content.startswith("x")
+
+
+# ---------------------------------------------------------------------------
+# Chunker — explosion guard (_split_oversized: huge/long-line inputs)
+# ---------------------------------------------------------------------------
+# Regression for the runaway split where overlap > part-size collapsed progress
+# to ~1 line/part and exploded one giant vendored file into ~800k sub-chunks.
+
+from orchestration.rag.chunker import (  # noqa: E402
+    Chunk, MAX_PARTS_PER_CHUNK, _split_oversized,
+)
+
+
+def _oversized(n_lines: int, line_len: int) -> Chunk:
+    body = "\n".join("y" * line_len for _ in range(n_lines))
+    return Chunk(source_path="huge.cpp", chunk_idx=0, content=body,
+                 metadata={"lang": "cpp", "name": "f"})
+
+
+def test_split_caps_parts_and_preserves_tail():
+    # ~1 line per part (line_len near the cap) would be 5000 parts without the
+    # MAX_PARTS guard; it must cap and emit the remaining tail (no data loss).
+    ch = _oversized(5000, DEFAULT_MAX_CHARS - 10)
+    parts = _split_oversized(ch, max_chars=DEFAULT_MAX_CHARS, overlap=DEFAULT_OVERLAP)
+    assert len(parts) <= MAX_PARTS_PER_CHUNK + 1
+    assert parts[-1].metadata.get("truncated_split") is True
+    # tail is preserved (not dropped): the file's last line lives in the tail part
+    assert ch.content.splitlines()[-1] in parts[-1].content.splitlines()
+
+
+def test_split_progress_bounded_for_midsize_lines():
+    # ~3 lines per part: the half-part step floor keeps part count well under
+    # the line count (no near-1-line-per-part overlap collapse).
+    ch = _oversized(300, DEFAULT_MAX_CHARS // 3)
+    parts = _split_oversized(ch, max_chars=DEFAULT_MAX_CHARS, overlap=DEFAULT_OVERLAP)
+    assert len(parts) < 300
+    assert all(len(p.content) <= DEFAULT_MAX_CHARS for p in parts
+               if not p.metadata.get("truncated_split"))
+
+
+def test_split_normal_function_keeps_overlap():
+    # Short lines → many fit per part → real overlap (not the explosion path).
+    ch = _oversized(400, 40)
+    parts = _split_oversized(ch, max_chars=DEFAULT_MAX_CHARS, overlap=DEFAULT_OVERLAP)
+    assert 1 < len(parts) < MAX_PARTS_PER_CHUNK
+    tail = parts[0].content.splitlines()[-1]
+    assert tail in parts[1].content.splitlines()[:DEFAULT_OVERLAP]

@@ -11,7 +11,10 @@
 
 namespace {
 
-void scan_dir(const std::string& dir, json& result, int max_depth = 1) {
+// Recurse into model subdirectories looking for config.json (MLX/vLLM) or
+// .gguf (llama). max_depth=5 walks deep enough for nested layouts like
+// mlx/MLX/<org>/<model>/ or HuggingFace-cache snapshots (was 1 — too shallow).
+void scan_dir(const std::string& dir, json& result, int max_depth = 5) {
     DIR* d = opendir(dir.c_str());
     if (!d) return;
     std::vector<std::string> entries;

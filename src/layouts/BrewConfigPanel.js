@@ -40,6 +40,7 @@ export default function BrewConfigPanel({
           toggleRole={toggleRole} setModel={setModel} setEditingAgent={setEditingAgent}
           agentStatuses={agentStatuses} responses={responses} agentErrors={agentErrors}
           lastMeta={lastMeta} setLeftPopout={setLeftPopout}
+          onReloadRoster={() => { invalidateModelsCache(); setLoadRetries(r => r + 1); }}
         />
 
         {engine === 'vllm' && <VllmPanel />}

@@ -43,6 +43,26 @@ logger = logging.getLogger("brewctl")
 INDEXABLE = {".py", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c",
              ".ts", ".tsx", ".js", ".jsx", ".md", ".txt", ".yaml", ".yml"}
 
+# Directory names skipped anywhere in the tree. vendor/third-party/generated
+# trees (e.g. llama.cpp's vendor/miniaudio.h) are huge amalgamated files that
+# bloat the index and aren't first-party source worth retrieving.
+EXCLUDED_DIRS = {"node_modules", "build", "vendor", "third_party",
+                 "third-party", "dist", ".git", "__pycache__"}
+
+# A file with any line longer than this is treated as minified/generated and
+# skipped before the (potentially O(n^2)) brace walk runs on it.
+MINIFIED_LINE_CHARS = 50_000
+
+# Hard per-file chunk ceiling. Generated/minified assets (e.g. a webui
+# bundle.js, ~35k chunks from thousands of nested `function` tokens) bloat the
+# index and pollute retrieval. Legit large sources stay well under this
+# (llama.cpp's 16.8k-line ggml-vulkan.cpp → 885 chunks).
+MAX_CHUNKS_PER_FILE = 3000
+
+
+def _looks_minified(text: str) -> bool:
+    return any(len(line) > MINIFIED_LINE_CHARS for line in text.splitlines())
+
 
 def _pick_embedder(name: str):
     if name == "mlx":
@@ -55,7 +75,7 @@ def _pick_embedder(name: str):
 async def _index(path: Path, embedder, store: PgVectorStore) -> int:
     files = [p for p in path.rglob("*")
              if p.is_file() and p.suffix.lower() in INDEXABLE
-             and "node_modules" not in p.parts and "build" not in p.parts]
+             and not (EXCLUDED_DIRS & set(p.parts))]
     logger.info("indexing %d files under %s", len(files), path)
 
     total = 0
@@ -66,8 +86,15 @@ async def _index(path: Path, embedder, store: PgVectorStore) -> int:
         except OSError as exc:
             logger.error("read failed %s: %s", fp, exc)
             continue
+        if _looks_minified(text):
+            logger.info("skip minified/generated %s", fp)
+            continue
         chunks = chunk_text(str(fp), text)
         if not chunks:
+            continue
+        if len(chunks) > MAX_CHUNKS_PER_FILE:
+            logger.warning("skip %s — %d chunks exceeds per-file cap %d (generated/minified?)",
+                           fp, len(chunks), MAX_CHUNKS_PER_FILE)
             continue
         vecs = await embedder.embed([c.content for c in chunks])
         for c, v in zip(chunks, vecs):
@@ -166,8 +193,9 @@ def main() -> int:
     rag = sub.add_parser("rag", help="RAG / pgvector ops")
     rag_sub = rag.add_subparsers(dest="rag_cmd", required=True)
 
-    idx = rag_sub.add_parser("index", help="Index a directory")
-    idx.add_argument("path", type=Path)
+    idx = rag_sub.add_parser("index", help="Index one or more directories")
+    idx.add_argument("path", type=Path, nargs="+",
+                     help="One or more directories to walk, chunk, embed, and upsert")
     idx.add_argument("--embedder", choices=["hash", "mlx"], default="hash")
 
     qry = rag_sub.add_parser("query", help="Top-k retrieval")
@@ -206,7 +234,11 @@ def main() -> int:
     async def _go() -> None:
         try:
             if args.rag_cmd == "index":
-                await _index(args.path, embedder, store)
+                for pth in args.path:
+                    if not pth.is_dir():
+                        logger.error("skip: %s is not a directory", pth)
+                        continue
+                    await _index(pth, embedder, store)
             elif args.rag_cmd == "query":
                 await _query(args.text, args.k, embedder, store)
             elif args.rag_cmd == "sources":
