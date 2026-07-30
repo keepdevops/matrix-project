@@ -9,7 +9,7 @@ RAG is enabled for every broadcast.
 Frame duration: 2 seconds per screenshot.
 
 Usage:
-    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/hero_demo.py
+    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/demo/hero_demo.py
 
 Prerequisites:
     - Dev server:  npm start  (http://localhost:3000)

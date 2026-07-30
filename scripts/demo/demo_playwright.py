@@ -8,7 +8,7 @@ Rounds:
   C  SAFE profile re-launch → CASCADE mode → 1 prompt + 1 follow-up
 
 Usage:
-    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/demo_playwright.py
+    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/demo/demo_playwright.py
 
 Requirements:
   - Dev server running on http://localhost:3000  (npm start)

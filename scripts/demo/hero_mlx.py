@@ -13,7 +13,7 @@ Scenario (MLX-SCOUT profile, two modes):
 Output: /tmp/hero-mlx/{scenario}.mov  (ProRes, 2 s/frame)
 
 Usage:
-    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/hero_mlx.py
+    /Users/caribou/miniforge3/envs/mlx-env/bin/python3 scripts/demo/hero_mlx.py
 
 Prerequisites:
     - Dev server:   npm start            (http://localhost:3000)
